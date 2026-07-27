@@ -598,6 +598,7 @@ open class BaseMediaService : MediaLibraryService() {
         radioHeaderCheckExecutor.shutdown()
         if (::bitmapLoader.isInitialized) bitmapLoader.shutdown()
         releasePlayers()
+        BrowseTreeInvalidator.detach()
         mediaLibrarySession.release()
         super.onDestroy()
     }
@@ -683,6 +684,8 @@ open class BaseMediaService : MediaLibraryService() {
                 .setPeriodicPositionUpdateEnabled(false)
                 .setBitmapLoader(bitmapLoader)
                 .build()
+
+        BrowseTreeInvalidator.attach(mediaLibrarySession)
     }
 
     private fun initializeNetworkListener() {

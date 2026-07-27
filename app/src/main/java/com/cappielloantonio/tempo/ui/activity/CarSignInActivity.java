@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi;
 import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.interfaces.LoginHost;
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator;
 import com.cappielloantonio.tempo.ui.fragment.LoginFragment;
 
 /**
@@ -47,7 +48,7 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
 
     @Override
     public void onLoginSuccess() {
-        // Task 6 adds the browse-tree invalidation here.
+        BrowseTreeInvalidator.INSTANCE.invalidateRoot();
         finish();
     }
 }
