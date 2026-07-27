@@ -22,3 +22,5 @@ siskin-release-key.jks
 docs/plans/
 # direnv's local cache of the nix dev shell
 .direnv/
+# worktrees created by Claude Code's EnterWorktree live here
+.claude/worktrees/
