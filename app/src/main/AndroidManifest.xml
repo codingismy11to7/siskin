@@ -71,6 +71,7 @@
             android:exported="false"
             android:label="@string/car_sign_in_title"
             android:launchMode="singleTop"
+            android:theme="@style/AppTheme"
             android:windowSoftInputMode="adjustResize" />
 
         <service
