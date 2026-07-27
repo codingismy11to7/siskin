@@ -55,6 +55,7 @@ import com.cappielloantonio.tempo.ui.fragment.PlayerBottomSheetFragment;
 import com.cappielloantonio.tempo.util.AssetLinkNavigator;
 import com.cappielloantonio.tempo.util.AssetLinkUtil;
 import com.cappielloantonio.tempo.util.Constants;
+import com.cappielloantonio.tempo.util.CredentialGate;
 import com.cappielloantonio.tempo.util.Preferences;
 import com.cappielloantonio.tempo.viewmodel.MainViewModel;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -158,7 +159,7 @@ public class MainActivity extends BaseActivity {
         initNavigation();
         initBackPressedDispatcher();
 
-        if (Preferences.getPassword() != null || (Preferences.getToken() != null && Preferences.getSalt() != null)) {
+        if (CredentialGate.isSignedIn()) {
             goFromLogin();
         } else {
             goToLogin();
