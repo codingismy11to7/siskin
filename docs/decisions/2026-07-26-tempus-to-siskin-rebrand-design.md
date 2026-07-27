@@ -108,12 +108,31 @@ These are **method names only** — verified that the persisted SharedPreference
 keys are `GITHUB_UPDATE_CHECK` and `NEXT_UPDATE_CHECK`, which contain no brand
 string. No user-data migration is needed.
 
-### Edit locale strings per-file, not by global replace
+### Sweep locale strings, but fix two known exceptions by hand
 
 `app_name` → `Siskin`, plus 11 further strings in `values/strings.xml` and 133
-across 14 locale files. These are edited per-file rather than swept with `sed`: a
-blind global replace silently mangles translations where "Tempus" sits mid-sentence
-under different grammar and declension rules.
+across 14 locale files.
+
+The initial concern was that a `sed` sweep would mangle declensions. Auditing all
+131 occurrences showed that is not the case — 129 are the bare, undeclined word
+`Tempus`, including in Polish and Russian, so a sweep handles them correctly. Two
+are not, and both need hand treatment:
+
+**`values-ko/strings.xml:241`** reads `Tempus는`. Korean topic particles are
+phonologically conditioned: 는 follows a vowel, 은 follows a consonant. `Siskin`
+ends in a consonant, so the correct result is `Siskin은`, not the `Siskin는` a
+sweep would produce.
+
+**`values-pt/strings.xml:286`** is an upstream bug we should fix rather than
+propagate. It reads "transcodificado em Tempus real" and "os Tempuss de resposta".
+Portuguese `tempo`/`tempos` means *time*/*times* — a blind `Tempo`→`Tempus` sweep
+in the Tempus fork corrupted two ordinary Portuguese words. The correct text is
+"em **tempo** real" and "os **tempos** de resposta", with no brand reference at
+all. The es-419 translation of the same string is uncorrupted, confirming the
+intent.
+
+This is a caution worth recording: the exact class of error we are guarding
+against already happened once in this lineage.
 
 ### Preserve the changelog, fork the history forward
 
@@ -162,9 +181,21 @@ It gets its own spec.
 
 ## Verification
 
-- `./gradlew assembleDebug assembleRelease testDebugUnitTest`
+This machine has no JDK and no Android SDK, and the repo has no nix dev shell, so
+the rebrand cannot be compile-verified as it is written. Standing up the toolchain
+is deliberately sequenced *after* this work, and any build errors the rebrand
+introduces will surface and be fixed there.
+
+Structural verification for this pass:
+
 - `git grep -i tempus` — only CHANGELOG history and fork-attribution lines survive
 - `git grep -i degoogled` — no results
+- `xmllint --noout` over every touched XML resource
+- `app/build.gradle` reviewed by inspection for flavor-reference removal
+
+Deferred to the nix toolchain work:
+
+- `./gradlew assembleDebug assembleRelease testDebugUnitTest`
 - Launcher icon, splash, toolbar, and nav-drawer header visually confirmed as the
   new mark
 
@@ -178,9 +209,10 @@ Tempus painful.
 AAOS goal was known — it preserves a variant with no audience and keeps the flavor
 machinery that de-flavoring removes outright.
 
-**Global `sed` across all tracked files.** Rejected: cannot distinguish the flavor
-name from the word, would rewrite the CHANGELOG we are deliberately preserving,
-and risks mangling 13 locale files.
+**Global `sed` across all tracked files.** Rejected: it cannot distinguish the
+flavor name from the word, and it would rewrite the CHANGELOG we are deliberately
+preserving. A *scoped* sweep over locale strings is fine and is what we do — see
+the two hand-fixed exceptions above.
 
 **AAOS-only targeting (`required="true"`).** Deferred. It would drop phone
 installs entirely and turn much of the phone UI into prunable dead code — a real
