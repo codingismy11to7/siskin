@@ -65,20 +65,8 @@ public class SystemRepository {
                 .enqueue(new Callback<ApiResponse>() {
                     @Override
                     public void onResponse(@NonNull Call<ApiResponse> call, @NonNull Response<ApiResponse> response) {
-                        if (response.body() == null || response.body().getSubsonicResponse() == null) {
-                            callback.onResult(false);
-                            return;
-                        }
-
-                        SubsonicResponse subsonicResponse = response.body().getSubsonicResponse();
-
-                        if (!ResponseStatus.FAILED.equals(subsonicResponse.getStatus())) {
-                            callback.onResult(false);
-                            return;
-                        }
-
-                        com.cappielloantonio.tempo.subsonic.models.Error apiError = subsonicResponse.getError();
-                        callback.onResult(CredentialGate.isAuthFailure(apiError != null ? apiError.getCode() : null));
+                        ApiResponse body = response.body();
+                        callback.onResult(isRejection(body == null ? null : body.getSubsonicResponse()));
                     }
 
                     @Override
@@ -88,6 +76,21 @@ public class SystemRepository {
                         callback.onResult(false);
                     }
                 });
+    }
+
+    /**
+     * Whether a ping response means the server actively rejected our credentials,
+     * as opposed to any other failure. Null-safe on purpose: Retrofit puts a
+     * non-2xx payload in errorBody() and leaves body() null, and an offline device
+     * gets a synthesized 504 from the only-if-cached interceptor. Those must not
+     * be read as a rejection, or the car would tell the user to sign in when the
+     * real problem is the network.
+     */
+    static boolean isRejection(SubsonicResponse subsonicResponse) {
+        if (subsonicResponse == null) return false;
+        if (!ResponseStatus.FAILED.equals(subsonicResponse.getStatus())) return false;
+        com.cappielloantonio.tempo.subsonic.models.Error apiError = subsonicResponse.getError();
+        return CredentialGate.isAuthFailure(apiError != null ? apiError.getCode() : null);
     }
 
     public MutableLiveData<SubsonicResponse> ping() {
