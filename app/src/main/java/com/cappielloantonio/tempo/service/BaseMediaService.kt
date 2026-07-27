@@ -588,6 +588,10 @@ open class BaseMediaService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        // Detach first: it must precede mediaLibrarySession.release() but must not depend
+        // on any of the cleanup below succeeding. If an earlier step throws, the singleton
+        // would otherwise keep pointing at a session that is about to be released.
+        BrowseTreeInvalidator.detach()
         QueuePreloader.cancel()
         releaseNetworkCallback()
         equalizerManager.release(exoplayer.audioSessionId)
@@ -683,6 +687,8 @@ open class BaseMediaService : MediaLibraryService() {
                 .setPeriodicPositionUpdateEnabled(false)
                 .setBitmapLoader(bitmapLoader)
                 .build()
+
+        BrowseTreeInvalidator.attach(mediaLibrarySession)
     }
 
     private fun initializeNetworkListener() {

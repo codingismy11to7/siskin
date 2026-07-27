@@ -576,6 +576,19 @@ object MediaBrowserTree {
         return treeNodes[ConstantsAA.ROOT_ID]!!.item
     }
 
+    /**
+     * Looks up a single node's [MediaItem] by id, for `onGetItem`.
+     *
+     * The default `MediaLibrarySession.Callback.onSubscribe` implementation calls
+     * `onGetItem` to validate the target before letting a subscription stick,
+     * so this must succeed for any browsable id the tree exposes -- including
+     * on a cold session where nothing has called [buildTree] yet.
+     */
+    fun getItem(mediaId: String): MediaItem? {
+        if (treeNodes.isEmpty()) buildTree()
+        return treeNodes[mediaId]?.item
+    }
+
     fun getChildren(
         id: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {

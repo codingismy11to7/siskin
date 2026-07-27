@@ -7,11 +7,13 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.github.models.LatestRelease;
+import com.cappielloantonio.tempo.interfaces.CredentialStateCallback;
 import com.cappielloantonio.tempo.interfaces.SystemCallback;
 import com.cappielloantonio.tempo.subsonic.base.ApiResponse;
 import com.cappielloantonio.tempo.subsonic.models.OpenSubsonicExtension;
 import com.cappielloantonio.tempo.subsonic.models.ResponseStatus;
 import com.cappielloantonio.tempo.subsonic.models.SubsonicResponse;
+import com.cappielloantonio.tempo.util.CredentialGate;
 
 import java.util.List;
 
@@ -49,6 +51,46 @@ public class SystemRepository {
                         callback.onError(new Exception(t.getMessage()));
                     }
                 });
+    }
+
+    /**
+     * Distinguishes "the server rejected our credentials" from "we could not reach
+     * the server". checkUserCredential flattens both into onError(Exception), which
+     * is not enough to decide whether offering a sign-in button would help.
+     */
+    public void checkCredentialState(CredentialStateCallback callback) {
+        App.getSubsonicClientInstance(false)
+                .getSystemClient()
+                .ping()
+                .enqueue(new Callback<ApiResponse>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse> call, @NonNull Response<ApiResponse> response) {
+                        ApiResponse body = response.body();
+                        callback.onResult(isRejection(body == null ? null : body.getSubsonicResponse()));
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse> call, @NonNull Throwable t) {
+                        // Transport failure: the server is unreachable, not refusing us.
+                        Log.d("SystemRepository", "credential check could not reach the server", t);
+                        callback.onResult(false);
+                    }
+                });
+    }
+
+    /**
+     * Whether a ping response means the server actively rejected our credentials,
+     * as opposed to any other failure. Null-safe on purpose: Retrofit puts a
+     * non-2xx payload in errorBody() and leaves body() null, and an offline device
+     * gets a synthesized 504 from the only-if-cached interceptor. Those must not
+     * be read as a rejection, or the car would tell the user to sign in when the
+     * real problem is the network.
+     */
+    static boolean isRejection(SubsonicResponse subsonicResponse) {
+        if (subsonicResponse == null) return false;
+        if (!ResponseStatus.FAILED.equals(subsonicResponse.getStatus())) return false;
+        com.cappielloantonio.tempo.subsonic.models.Error apiError = subsonicResponse.getError();
+        return CredentialGate.isAuthFailure(apiError != null ? apiError.getCode() : null);
     }
 
     public MutableLiveData<SubsonicResponse> ping() {

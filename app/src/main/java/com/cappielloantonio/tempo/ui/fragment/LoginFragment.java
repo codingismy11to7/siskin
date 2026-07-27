@@ -11,6 +11,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
@@ -22,10 +23,10 @@ import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.ui.adapter.ServerAdapter;
 import com.cappielloantonio.tempo.databinding.FragmentLoginBinding;
 import com.cappielloantonio.tempo.interfaces.ClickCallback;
+import com.cappielloantonio.tempo.interfaces.LoginHost;
 import com.cappielloantonio.tempo.interfaces.SystemCallback;
 import com.cappielloantonio.tempo.model.Server;
 import com.cappielloantonio.tempo.repository.SystemRepository;
-import com.cappielloantonio.tempo.ui.activity.MainActivity;
 import com.cappielloantonio.tempo.ui.dialog.ServerSignupDialog;
 import com.cappielloantonio.tempo.util.Preferences;
 import com.cappielloantonio.tempo.viewmodel.LoginViewModel;
@@ -35,7 +36,8 @@ public class LoginFragment extends Fragment implements ClickCallback {
     private static final String TAG = "LoginFragment";
 
     private FragmentLoginBinding bind;
-    private MainActivity activity;
+    private AppCompatActivity activity;
+    private LoginHost loginHost;
     private LoginViewModel loginViewModel;
 
     private ServerAdapter serverAdapter;
@@ -55,7 +57,8 @@ public class LoginFragment extends Fragment implements ClickCallback {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        activity = (MainActivity) getActivity();
+        activity = (AppCompatActivity) requireActivity();
+        loginHost = (LoginHost) requireActivity();
 
         loginViewModel = new ViewModelProvider(requireActivity()).get(LoginViewModel.class);
         bind = FragmentLoginBinding.inflate(inflater, container, false);
@@ -107,7 +110,7 @@ public class LoginFragment extends Fragment implements ClickCallback {
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_add) {
             ServerSignupDialog dialog = new ServerSignupDialog();
-            dialog.show(activity.getSupportFragmentManager(), null);
+            dialog.show(getParentFragmentManager(), null);
             return true;
         }
 
@@ -130,7 +133,7 @@ public class LoginFragment extends Fragment implements ClickCallback {
 
             @Override
             public void onSuccess(String password, String token, String salt) {
-                activity.goFromLogin();
+                loginHost.onLoginSuccess();
             }
         });
     }
@@ -139,7 +142,7 @@ public class LoginFragment extends Fragment implements ClickCallback {
     public void onServerLongClick(Bundle bundle) {
         ServerSignupDialog dialog = new ServerSignupDialog();
         dialog.setArguments(bundle);
-        dialog.show(activity.getSupportFragmentManager(), null);
+        dialog.show(getParentFragmentManager(), null);
     }
 
     private void saveServerPreference(String serverId, String server, String localAddress, String user, String password, boolean isLowSecurity, String clientCert) {

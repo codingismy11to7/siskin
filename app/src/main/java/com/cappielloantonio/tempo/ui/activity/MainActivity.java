@@ -42,6 +42,7 @@ import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.broadcast.receiver.ConnectivityStatusBroadcastReceiver;
 import com.cappielloantonio.tempo.databinding.ActivityMainBinding;
 import com.cappielloantonio.tempo.github.utils.UpdateUtil;
+import com.cappielloantonio.tempo.interfaces.LoginHost;
 import com.cappielloantonio.tempo.navigation.NavigationController;
 import com.cappielloantonio.tempo.navigation.NavigationHelper;
 import com.cappielloantonio.tempo.service.MediaManager;
@@ -55,6 +56,7 @@ import com.cappielloantonio.tempo.ui.fragment.PlayerBottomSheetFragment;
 import com.cappielloantonio.tempo.util.AssetLinkNavigator;
 import com.cappielloantonio.tempo.util.AssetLinkUtil;
 import com.cappielloantonio.tempo.util.Constants;
+import com.cappielloantonio.tempo.util.CredentialGate;
 import com.cappielloantonio.tempo.util.Preferences;
 import com.cappielloantonio.tempo.viewmodel.MainViewModel;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -67,7 +69,7 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
 @UnstableApi
-public class MainActivity extends BaseActivity {
+public class MainActivity extends BaseActivity implements LoginHost {
     private static final String TAG = "MainActivityLogs";
 
     public ActivityMainBinding bind;
@@ -158,7 +160,7 @@ public class MainActivity extends BaseActivity {
         initNavigation();
         initBackPressedDispatcher();
 
-        if (Preferences.getPassword() != null || (Preferences.getToken() != null && Preferences.getSalt() != null)) {
+        if (CredentialGate.isSignedIn()) {
             goFromLogin();
         } else {
             goToLogin();
@@ -428,6 +430,11 @@ public class MainActivity extends BaseActivity {
         consumePendingAssetLink();
     }
 
+    @Override
+    public void onLoginSuccess() {
+        goFromLogin();
+    }
+
     public void openAssetLink(@NonNull AssetLinkUtil.AssetLink assetLink) {
         openAssetLink(assetLink, true);
     }
@@ -616,8 +623,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private boolean isUserAuthenticated() {
-        return Preferences.getPassword() != null
-                || (Preferences.getToken() != null && Preferences.getSalt() != null);
+        return CredentialGate.isSignedIn();
     }
 
     private void consumePendingAssetLink() {

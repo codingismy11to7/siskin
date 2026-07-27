@@ -8,15 +8,20 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionError
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.AutomotiveRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
+import com.cappielloantonio.tempo.repository.SystemRepository
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.CredentialGate
 import com.cappielloantonio.tempo.util.MappingUtil
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.google.common.util.concurrent.SettableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "MediaLibrarySessionCallback"
@@ -46,6 +51,37 @@ class MediaLibrarySessionCallback(
         return Futures.immediateFuture(LibraryResult.ofItem(MediaBrowserTree.getRootItem(), params))
     }
 
+    /**
+     * The default `onSubscribe` implementation (which this class does not override)
+     * delegates here to decide whether a subscription is allowed to stick, requiring
+     * success plus `mediaMetadata.isBrowsable == true`. Without this override every
+     * subscribe request errors and media3 immediately drops the subscription, which
+     * silently defeats [BrowseTreeInvalidator.invalidateRoot] -- notifyChildrenChanged
+     * has no subscribed controller left to notify.
+     *
+     * Deliberately does NOT gate on `CredentialGate.isSignedIn()` the way [onGetChildren]
+     * below does. Gating here would error the root subscription while signed out,
+     * media3 would drop it for the same reason described above, and a later
+     * `invalidateRoot()` after sign-in would once again have no subscriber left to
+     * notify -- silently reintroducing the exact bug this override exists to fix.
+     * `unitTests.returnDefaultValues = true` means no test catches that regression,
+     * so this comment is the only thing standing between a future "fix" and repeating
+     * it.
+     */
+    override fun onGetItem(
+        session: MediaLibraryService.MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        mediaId: String
+    ): ListenableFuture<LibraryResult<MediaItem>> {
+        val item = MediaBrowserTree.getItem(mediaId)
+        Log.d(TAG, "onGetItem mediaId=$mediaId found=${item != null}")
+        return if (item != null) {
+            Futures.immediateFuture(LibraryResult.ofItem(item, null))
+        } else {
+            Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+        }
+    }
+
     override fun onGetChildren(
         session: MediaLibraryService.MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
@@ -54,15 +90,49 @@ class MediaLibrarySessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val future = MediaBrowserTree.getChildren(parentId)
+        if (!CredentialGate.isSignedIn()) {
+            Log.d(TAG, "onGetChildren blocked for $parentId: no usable credentials")
+            return Futures.immediateFuture(
+                CarSignInResolution.errorResult(context, R.string.car_sign_in_required)
+            )
+        }
 
         Log.d(TAG, "onGetChildren parentId = $parentId")
 
-        return Futures.transform(future, { result ->
-            val items = result.value ?: emptyList()
-            queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE] = items
-            result
+        val future = MediaBrowserTree.getChildren(parentId)
+
+        return Futures.transformAsync(future, { result ->
+            if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
+                val items = result.value ?: emptyList()
+                queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE] = items
+                Futures.immediateFuture(result)
+            } else {
+                classifyFailure(result)
+            }
         }, MoreExecutors.directExecutor())
+    }
+
+    /**
+     * A browse request failed while credentials exist. Ask the server once whether
+     * it is refusing them: only then is a sign-in button the right offer. An
+     * unreachable server keeps the original error, so the car does not tell the
+     * user to sign in when the problem is the network.
+     */
+    private fun classifyFailure(
+        original: LibraryResult<ImmutableList<MediaItem>>?
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val settable = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
+
+        SystemRepository().checkCredentialState { credentialsRejected ->
+            if (credentialsRejected) {
+                Log.d(TAG, "browse failed and the server rejected our credentials")
+                settable.set(CarSignInResolution.errorResult(context, R.string.car_sign_in_again))
+            } else {
+                settable.set(original ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+            }
+        }
+
+        return settable
     }
 
     // ─────────────────────────────────────────────────────────────
