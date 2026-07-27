@@ -11,6 +11,7 @@ android {
     buildToolsVersion = '36.0.0'
 
     defaultConfig {
+        applicationId = 'io.github.codingismy11to7.siskin'
         minSdkVersion 24
         //noinspection OldTargetApi
         targetSdk = 36
@@ -47,20 +48,6 @@ android {
         includeInApk = false
         // Disables dependency metadata when building Android App Bundles (for Google Play)
         includeInBundle = false
-    }
-
-    flavorDimensions += "default"
-
-    productFlavors {
-        tempus {
-            dimension = "default"
-            applicationId = 'com.eddyizm.tempus'
-        }
-
-        degoogled {
-            dimension = "default"
-            applicationId = "com.eddyizm.degoogled.tempus"
-        }
     }
 
     buildTypes {
@@ -113,7 +100,7 @@ dependencies {
     implementation libs.media3.exoplayer
     implementation libs.media3.ui
     implementation libs.media3.exoplayer.hls
-    tempusImplementation libs.media3.cast
+    implementation libs.media3.cast
 
     // Room Compiler
     annotationProcessor libs.androidx.room.compiler
