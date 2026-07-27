@@ -17,8 +17,10 @@ class PlexApi {
 
     /** Stable per install; generated once on first use. */
     val clientIdentifier: String
-        get() = preferences.getString(KEY_CLIENT_ID, null) ?: UUID.randomUUID().toString().also {
-            preferences.edit().putString(KEY_CLIENT_ID, it).apply()
+        get() = synchronized(IDENTITY_LOCK) {
+            preferences.getString(KEY_CLIENT_ID, null) ?: UUID.randomUUID().toString().also {
+                preferences.edit().putString(KEY_CLIENT_ID, it).apply()
+            }
         }
 
     var token: String?
@@ -39,5 +41,14 @@ class PlexApi {
         private const val KEY_CLIENT_ID = "plex_client_identifier"
         private const val KEY_TOKEN = "plex_token"
         private const val KEY_SERVER_URI = "plex_server_uri"
+
+        /**
+         * Process-wide, because each Plex client constructs its own PlexApi and the
+         * identity interceptor reads clientIdentifier on every request from OkHttp's
+         * multi-threaded dispatcher. Without this, a fresh install can mint two
+         * identifiers concurrently -- and Plex ties the PIN grant to the identifier,
+         * so the grant would be unclaimable.
+         */
+        private val IDENTITY_LOCK = Any()
     }
 }
