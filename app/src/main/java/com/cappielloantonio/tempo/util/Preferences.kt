@@ -771,14 +771,14 @@ object Preferences {
     }
 
     @JvmStatic
-    fun showTempusUpdateDialog(): Boolean {
+    fun showSiskinUpdateDialog(): Boolean {
         return App.getInstance().preferences.getLong(
                 NEXT_UPDATE_CHECK, 0
         ) + 86400000 < System.currentTimeMillis()
     }
 
     @JvmStatic
-    fun setTempusUpdateReminder() {
+    fun setSiskinUpdateReminder() {
         App.getInstance().preferences.edit().putLong(NEXT_UPDATE_CHECK, System.currentTimeMillis()).apply()
     }
 

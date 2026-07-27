@@ -55,7 +55,7 @@ public class GithubTempoUpdateDialog extends DialogFragment {
         });
 
         alertDialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v -> {
-            Preferences.setTempusUpdateReminder();
+            Preferences.setSiskinUpdateReminder();
             Objects.requireNonNull(getDialog()).dismiss();
         });
 
