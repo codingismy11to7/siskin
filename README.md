@@ -90,7 +90,7 @@ Android Auto and Chromecast support are included in every build.
     
 </p>
 
-## 🟥Github (Android Auto)
+## Android Auto
 <p>
     <p align="left">
         <img src="mockup/usage/aa_thumbnails.jpg" width=317 style="margin-right:16px;">

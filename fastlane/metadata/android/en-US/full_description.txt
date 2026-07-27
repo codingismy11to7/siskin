@@ -20,5 +20,3 @@ Features<br>
 <li>Widget: New widget to keeping the basic controls on your screen at all times.</li>
 <li>Available in 12 languages: Currently in Catalan, Chinese, French, German, Italian, Korean, Polish, Portuguese, Russion, Spanish (Spain), Spanish (Latam) and Turkish</li>
 </ul>
-<br>
-<i>Chromecast/Android Auto Not Supported: These features require google libraries and are only available in the github apk.</i>
