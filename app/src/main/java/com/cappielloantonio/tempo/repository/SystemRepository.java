@@ -6,7 +6,6 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.MutableLiveData;
 
 import com.cappielloantonio.tempo.App;
-import com.cappielloantonio.tempo.github.models.LatestRelease;
 import com.cappielloantonio.tempo.interfaces.CredentialStateCallback;
 import com.cappielloantonio.tempo.interfaces.SystemCallback;
 import com.cappielloantonio.tempo.subsonic.base.ApiResponse;
@@ -139,28 +138,5 @@ public class SystemRepository {
                 });
 
         return extensionsResult;
-    }
-
-    public MutableLiveData<LatestRelease> checkTempoUpdate() {
-        MutableLiveData<LatestRelease> latestRelease = new MutableLiveData<>();
-
-        App.getGithubClientInstance()
-                .getReleaseClient()
-                .getLatestRelease()
-                .enqueue(new Callback<LatestRelease>() {
-                    @Override
-                    public void onResponse(@NonNull Call<LatestRelease> call, @NonNull Response<LatestRelease> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            latestRelease.postValue(response.body());
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<LatestRelease> call, @NonNull Throwable t) {
-                        latestRelease.postValue(null);
-                    }
-                });
-
-        return latestRelease;
     }
 }

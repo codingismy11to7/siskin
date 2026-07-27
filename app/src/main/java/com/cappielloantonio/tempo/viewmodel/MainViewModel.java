@@ -6,7 +6,6 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 
-import com.cappielloantonio.tempo.github.models.LatestRelease;
 import com.cappielloantonio.tempo.repository.QueueRepository;
 import com.cappielloantonio.tempo.repository.SystemRepository;
 import com.cappielloantonio.tempo.subsonic.models.OpenSubsonicExtension;
@@ -36,9 +35,5 @@ public class MainViewModel extends AndroidViewModel {
 
     public LiveData<List<OpenSubsonicExtension>> getOpenSubsonicExtensions() {
         return systemRepository.getOpenSubsonicExtensions();
-    }
-
-    public LiveData<LatestRelease> checkTempoUpdate() {
-        return systemRepository.checkTempoUpdate();
     }
 }

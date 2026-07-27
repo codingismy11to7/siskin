@@ -9,7 +9,6 @@ import androidx.annotation.OptIn;
 import androidx.media3.common.util.UnstableApi;
 import androidx.preference.PreferenceManager;
 
-import com.cappielloantonio.tempo.github.Github;
 import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.subsonic.Subsonic;
 import com.cappielloantonio.tempo.subsonic.SubsonicPreferences;
@@ -24,7 +23,6 @@ public class App extends Application {
     private static App instance;
     private static Context context;
     private static Subsonic subsonic;
-    private static Github github;
     private static SharedPreferences preferences;
 
     @OptIn(markerClass = UnstableApi.class)
@@ -126,13 +124,6 @@ public class App extends Application {
         }
         
         return new Subsonic(preferences);
-    }
-
-    public static Github getGithubClientInstance() {
-        if (github == null) {
-            github = new Github();
-        }
-        return github;
     }
 
     public SharedPreferences getPreferences() {

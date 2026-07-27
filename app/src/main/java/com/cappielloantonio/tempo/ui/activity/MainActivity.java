@@ -41,7 +41,6 @@ import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.broadcast.receiver.ConnectivityStatusBroadcastReceiver;
 import com.cappielloantonio.tempo.databinding.ActivityMainBinding;
-import com.cappielloantonio.tempo.github.utils.UpdateUtil;
 import com.cappielloantonio.tempo.interfaces.LoginHost;
 import com.cappielloantonio.tempo.navigation.NavigationController;
 import com.cappielloantonio.tempo.navigation.NavigationHelper;
@@ -50,7 +49,6 @@ import com.cappielloantonio.tempo.ui.activity.base.BaseActivity;
 import com.cappielloantonio.tempo.navigation.BottomSheetController;
 import com.cappielloantonio.tempo.navigation.BottomSheetHelper;
 import com.cappielloantonio.tempo.ui.dialog.ConnectionAlertDialog;
-import com.cappielloantonio.tempo.ui.dialog.GithubTempoUpdateDialog;
 import com.cappielloantonio.tempo.ui.dialog.ServerUnreachableDialog;
 import com.cappielloantonio.tempo.ui.fragment.PlayerBottomSheetFragment;
 import com.cappielloantonio.tempo.util.AssetLinkNavigator;
@@ -119,7 +117,6 @@ public class MainActivity extends BaseActivity implements LoginHost {
         init();
         checkConnectionType();
         getOpenSubsonicExtensions();
-        checkTempoUpdate();
 
         maybeSchedulePlaybackIntent(getIntent());
     }
@@ -562,17 +559,6 @@ public class MainActivity extends BaseActivity implements LoginHost {
             mainViewModel.getOpenSubsonicExtensions().observe(this, openSubsonicExtensions -> {
                 if (openSubsonicExtensions != null) {
                     Preferences.setOpenSubsonicExtensions(openSubsonicExtensions);
-                }
-            });
-        }
-    }
-
-    private void checkTempoUpdate() {
-        if (Preferences.isGithubUpdateEnabled() && Preferences.showSiskinUpdateDialog()) {
-            mainViewModel.checkTempoUpdate().observe(this, latestRelease -> {
-                if (latestRelease != null && UpdateUtil.showUpdateDialog(latestRelease)) {
-                    GithubTempoUpdateDialog dialog = new GithubTempoUpdateDialog(latestRelease);
-                    dialog.show(getSupportFragmentManager(), null);
                 }
             });
         }
