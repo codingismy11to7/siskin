@@ -18,7 +18,7 @@ The following command uses `mappings.txt` to return de-obfuscated logs:
 > In other words, each release has a unique mapping.txt
 
 ```bash
-$ANDROID_HOME/cmdline-tools/latest/bin/retrace app/build/outputs/mapping/tempusRelease/mapping.txt stack_error_transcript.txt 
+$ANDROID_HOME/cmdline-tools/latest/bin/retrace app/build/outputs/mapping/release/mapping.txt stack_error_transcript.txt 
 ```
 
 Now the final users don't need to install debug apk's to generate readable logs.
