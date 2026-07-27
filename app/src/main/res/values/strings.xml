@@ -88,6 +88,7 @@
     <string name="battery_optimization_positive_button">Disable</string>
     <string name="bottom_sheet_generating_instant_mix">Generating instant mix...</string>
     <string name="bottom_sheet_problem_generating_instant_mix">Could not retrieve tracks from subsonic server.</string>
+    <string name="car_sign_in_required">Sign in to Siskin to browse your music</string>
     <string name="car_sign_in_title">Sign in to Siskin</string>
     <string name="connection_alert_dialog_negative_button">Cancel</string>
     <string name="connection_alert_dialog_neutral_button">Enable data saver</string>

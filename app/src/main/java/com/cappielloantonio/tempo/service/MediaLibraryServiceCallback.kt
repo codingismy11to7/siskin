@@ -8,10 +8,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.AutomotiveRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.CredentialGate
 import com.cappielloantonio.tempo.util.MappingUtil
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -54,6 +56,13 @@ class MediaLibrarySessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        if (!CredentialGate.isSignedIn()) {
+            Log.d(TAG, "onGetChildren blocked for $parentId: no usable credentials")
+            return Futures.immediateFuture(
+                CarSignInResolution.errorResult(context, R.string.car_sign_in_required)
+            )
+        }
+
         val future = MediaBrowserTree.getChildren(parentId)
 
         Log.d(TAG, "onGetChildren parentId = $parentId")
