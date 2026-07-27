@@ -146,7 +146,6 @@
     <string name="genre_catalogue_title">Catalogue des Genres</string>
     <string name="genre_catalogue_title_expanded">Parcourir les Genres</string>
     <string name="github_update_dialog_negative_button">Me rappeler plus tard</string>
-    <string name="github_update_dialog_neutral_button">Me soutenir</string>
     <string name="github_update_dialog_positive_button">Télécharger maintenant</string>
     <string name="github_update_dialog_summary">Une version plus récente de l\'app est disponible sur Github.</string>
     <string name="github_update_dialog_title">Mise à jour disponible</string>

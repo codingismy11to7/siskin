@@ -5,7 +5,7 @@
 ---
 
 <p align="center">
-  <b>A Subsonic music client for Android Automotive OS</b>
+  <b>A Subsonic music client for Android, being retargeted at Android Automotive OS</b>
 </p>
 
 <div align="center">
@@ -30,14 +30,13 @@ Siskin does not rely on magic algorithms to decide what you should listen to. In
 The project is a fork of [Tempo](#credits).
 
 [Changelog](CHANGELOG.md)  
-[Wiki](USAGE.md)  
-[Donate](https://github.com/codingismy11to7/siskin#donate)
+[Wiki](USAGE.md)
 
 **If you find Siskin useful, please consider starring the project on GitHub. It would mean a lot to me and help promote the app to a wider audience.**
 
 ### Releases
 
-Release assets include release/debug and 32/64-bit builds of a single variant.
+Releases publish a universal APK covering all supported ABIs.
 
 Android Auto and Chromecast support are included in every build.
 
@@ -118,14 +117,6 @@ Not a hard requirement but any new feature/change should ideally include an upda
 
 *Special Thanks*  
 All the amazing [contributors](https://github.com/codingismy11to7/siskin/graphs/contributors)❤️
-
-## Donate
-
-<a href="https://liberapay.com/eddyizm/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a>  
-
-bitcoin: `3QVHSSCJvn6yXEcJ3A3cxYLMmbvFsrnUs5`    
-
-[**Buy me a Ko-Fi**](https://ko-fi.com/eddyizm)  
 
 ## License
 

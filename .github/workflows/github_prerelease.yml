@@ -17,7 +17,6 @@ jobs:
 
       - uses: actions/checkout@v3
         with:
-          ref: development  # Still builds from development branch
           fetch-depth: 0
 
       - name: Cache Gradle and wrapper
@@ -57,7 +56,6 @@ jobs:
             Development prerelease from commit ${{ github.sha }}
             
             **Note:** This is a prerelease and may be unstable. 
-            **Branch:** development
             **Architecture:** 32/64-bit Universal apk
             **Build type:** Debug (signed with release keystore)
           draft: false

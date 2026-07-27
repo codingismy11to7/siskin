@@ -132,7 +132,6 @@
     <string name="genre_catalogue_title">流派目录</string>
     <string name="genre_catalogue_title_expanded">浏览流派</string>
     <string name="github_update_dialog_negative_button">稍后提醒</string>
-    <string name="github_update_dialog_neutral_button">支持项目</string>
     <string name="github_update_dialog_positive_button">立即下载</string>
     <string name="github_update_dialog_summary">GitHub 上发布了新版本。</string>
     <string name="github_update_dialog_title">有可用更新</string>
@@ -503,7 +502,6 @@
     <string name="streaming_cache_storage_dialog_title">选择存储位置</string>
     <string name="streaming_cache_storage_external_dialog_positive_button">外部</string>
     <string name="streaming_cache_storage_internal_dialog_negative_button">内部</string>
-    <string name="support_url">https://ko-fi.com/eddyizm</string>
     <string name="track_info_album">专辑</string>
     <string name="track_info_artist">艺术家</string>
     <string name="track_info_bit_depth">位深</string>
