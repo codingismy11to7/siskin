@@ -33,26 +33,13 @@ jobs:
 
       - name: Build 64-bit Debug APKs
         run: |
-          bash ./gradlew assembleTempusDebug
-          bash ./gradlew assembleDegoogledDebug
+          bash ./gradlew assembleDebug
 
-      - name: Sign Tempus Debug APK
-        id: sign_tempus
+      - name: Sign Debug APK
+        id: sign_debug
         uses: r0adkll/sign-android-release@v1
         with:
-          releaseDirectory: app/build/outputs/apk/tempus/debug
-          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
-          alias: ${{ secrets.KEY_ALIAS_GITHUB }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD_GITHUB }}
-        env:
-          BUILD_TOOLS_VERSION: "36.0.0"
-
-      - name: Sign Degoogled Debug APK
-        id: sign_degoogled
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: app/build/outputs/apk/degoogled/debug
+          releaseDirectory: app/build/outputs/apk/debug
           signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
           alias: ${{ secrets.KEY_ALIAS_GITHUB }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -76,5 +63,4 @@ jobs:
           draft: false
           prerelease: true
           files: |
-            app/build/outputs/apk/tempus/debug/*-signed.apk
-            app/build/outputs/apk/degoogled/debug/*-signed.apk
+            app/build/outputs/apk/debug/*-signed.apk

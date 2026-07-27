@@ -32,18 +32,17 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build All Release APKs
+      - name: Build Release APKs
         id: build
         run: |
           sed -ri '/org.gradle.toolchains.foojay-resolver-convention/d' settings.gradle
-          bash ./gradlew assembleTempusRelease
-          bash ./gradlew assembleDegoogledRelease
+          bash ./gradlew assembleRelease
 
-      - name: Sign Tempus Release APKs
-        id: sign_tempus_release
+      - name: Sign Release APKs
+        id: sign_release
         uses: r0adkll/sign-android-release@v1
         with:
-          releaseDirectory: app/build/outputs/apk/tempus/release
+          releaseDirectory: app/build/outputs/apk/release
           signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
           alias: ${{ secrets.KEY_ALIAS_GITHUB }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -51,41 +50,20 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "36.0.0"
 
-      - name: Sign Degoogled Release APKs
-        id: sign_degoogled_release
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: app/build/outputs/apk/degoogled/release
-          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
-          alias: ${{ secrets.KEY_ALIAS_GITHUB }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD_GITHUB }}
-        env:
-          BUILD_TOOLS_VERSION: "34.0.0"
-
       - name: Rename Signed APKs to match local pattern
         run: |
-          # Rename Tempus signed APKs
-          for file in app/build/outputs/apk/tempus/release/*-signed.apk; do
+          for file in app/build/outputs/apk/release/*-signed.apk; do
             new_name=$(echo "$file" | sed 's/-unsigned-signed\.apk$/.apk/' | sed 's/-signed\.apk$/.apk/')
             mv "$file" "$new_name"
           done
 
-          # Rename Degoogled signed APKs
-          for file in app/build/outputs/apk/degoogled/release/*-signed.apk; do
-            new_name=$(echo "$file" | sed 's/-unsigned-signed\.apk$/.apk/' | sed 's/-signed\.apk$/.apk/')
-            mv "$file" "$new_name"
-          done
-
-      - name: Rename Mapping Files
+      - name: Rename Mapping File
         run: |
-          mv -v app/build/outputs/mapping/tempusRelease/mapping.txt app/build/outputs/mapping/tempusRelease/mapping_Tempus.txt
-          mv -v app/build/outputs/mapping/degoogledRelease/mapping.txt app/build/outputs/mapping/degoogledRelease/mapping_Degoogled.txt
+          mv -v app/build/outputs/mapping/release/mapping.txt app/build/outputs/mapping/release/mapping_Siskin.txt
 
-      - name: Compress Mapping Files
+      - name: Compress Mapping File
         run: |
-          gzip -v app/build/outputs/mapping/tempusRelease/mapping_Tempus.txt
-          gzip -v app/build/outputs/mapping/degoogledRelease/mapping_Degoogled.txt
+          gzip -v app/build/outputs/mapping/release/mapping_Siskin.txt
 
       - name: Create Release
         id: create_release
@@ -97,7 +75,5 @@ jobs:
           draft: true
           prerelease: false
           files: |
-            app/build/outputs/apk/tempus/release/*-release.apk
-            app/build/outputs/apk/degoogled/release/*-release.apk
-            app/build/outputs/mapping/tempusRelease/mapping_Tempus.txt.gz
-            app/build/outputs/mapping/degoogledRelease/mapping_Degoogled.txt.gz
+            app/build/outputs/apk/release/*-release.apk
+            app/build/outputs/mapping/release/mapping_Siskin.txt.gz
