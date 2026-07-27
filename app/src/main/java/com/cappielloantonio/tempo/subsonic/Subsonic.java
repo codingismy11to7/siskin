@@ -146,12 +146,21 @@ public class Subsonic {
         Map<String, String> params = new HashMap<>();
         params.put("u", preferences.getUsername());
 
-        if (preferences.getAuthentication().getPassword() != null)
-            params.put("p", preferences.getAuthentication().getPassword());
-        if (preferences.getAuthentication().getSalt() != null)
-            params.put("s", preferences.getAuthentication().getSalt());
-        if (preferences.getAuthentication().getToken() != null)
-            params.put("t", preferences.getAuthentication().getToken());
+        // Null until a server has been configured. On phones this is unreachable —
+        // setup gates the UI — but Android Automotive OS exposes the media browse
+        // tree straight after install, so the car can request a library before any
+        // credentials exist. Elsewhere (App.java) this accessor is already
+        // null-checked; this path was the outlier and crashed the media service.
+        SubsonicPreferences.SubsonicAuthentication authentication = preferences.getAuthentication();
+
+        if (authentication != null) {
+            if (authentication.getPassword() != null)
+                params.put("p", authentication.getPassword());
+            if (authentication.getSalt() != null)
+                params.put("s", authentication.getSalt());
+            if (authentication.getToken() != null)
+                params.put("t", authentication.getToken());
+        }
 
         params.put("v", getApiVersion().getVersionString());
         params.put("c", preferences.getClientName());
