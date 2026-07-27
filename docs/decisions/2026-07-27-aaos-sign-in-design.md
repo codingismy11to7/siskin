@@ -157,8 +157,9 @@ is a much wider blast radius than this feature justifies.
 
 ## What the emulator actually showed
 
-The three flagged assumptions, and two defects the design did not anticipate,
-answered against `emulator-5554` (`sdk_gcar_x86_64`), not assumed.
+The three flagged assumptions, the driving-block result, and three defects
+the design did not anticipate, answered against `emulator-5554`
+(`sdk_gcar_x86_64`), not assumed.
 
 ### Assumption #1 — which error draws the button
 
@@ -252,7 +253,7 @@ to 0` — confirmed parked, restrictions lifted, and `CarSignInActivity`
 (never destroyed, only covered) reappeared on its own once the blocking
 activity had nothing left to block.
 
-### Two defects the design did not anticipate
+### Three defects the design did not anticipate
 
 - **A theme crash.** `CarSignInActivity` initially crashed on
   `setContentView` because it inherited the application theme
@@ -260,9 +261,22 @@ activity had nothing left to block.
   `MainActivity` and `CrashActivity` avoid this by calling
   `installSplashScreen()`; the new activity did not. Fixed by setting
   `android:theme="@style/AppTheme"` directly on the activity's manifest entry.
+  This provides the theme that applies before `onCreate` (which `setContentView`
+  needs); `ThemeHelper.applyActivityTheme()` still runs in `onCreate` and
+  applies the user's AMOLED/dark override on top.
 - **The dropped-subscription bug**, described above under assumption #2 —
   found only because Task 6's first A/B result looked suspiciously clean
   (identical in both arms) rather than because it was anticipated.
+- **The offline-classifier path.** The design assumed an unreachable server
+  would simply fail and never reach the re-auth classifier. Instead,
+  `CacheUtil`'s `offlineInterceptor` rewrites requests with
+  `Cache-Control: only-if-cached` when offline; with no cached response,
+  OkHttp synthesizes a **504 Unsatisfiable Request** and calls `onResponse`
+  rather than `onFailure`. This produces a successful future carrying a
+  non-success result, so the classifier runs in the in-car case. The Sign in
+  button is suppressed only by the null-body guard
+  (`SystemRepository.isRejection()`), which was untested until extracted and
+  given unit tests, then confirmed live with the OkHttp cache cleared.
 
 ### What this did *not* verify
 
