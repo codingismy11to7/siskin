@@ -36,9 +36,25 @@ object BrowseTreeInvalidator {
     }
 
     /**
-     * Rebuilds the tree and tells every connected browser the root changed. A no-op
-     * when the service is not running: there is then nobody to tell, and the car
-     * will build a fresh tree when it next connects.
+     * Rebuilds the tree and tells every browser currently *subscribed* to the root
+     * that its children changed. Verified end-to-end against the AAOS emulator's
+     * `com.android.car.media`: with a live root subscription in place (see
+     * [MediaLibraryServiceCallback.onGetItem], which lets `onSubscribe` succeed),
+     * this call makes the car re-fetch and redisplay the root without backing out.
+     *
+     * Delivery depends on a subscription actually existing at call time -- there are
+     * two distinct no-op cases, both silent by design because there is then nobody to
+     * tell: no live session (service not running; logged below), or a live session
+     * with no controller currently subscribed to root (e.g. media3 dropped the
+     * subscription, or the car never subscribed in the first place). Either way the
+     * car will pick up the current tree the next time it connects or re-subscribes.
+     *
+     * Must be called on the main thread. This is a process-wide singleton with callers
+     * in different components (currently [com.cappielloantonio.tempo.ui.activity.CarSignInActivity]),
+     * and [MoreExecutors.directExecutor] below runs `notifyChildrenChanged` on whatever
+     * thread completes [MediaBrowserTree.getChildren]'s future -- correct today only
+     * because that resolves synchronously on the calling thread, which callers keep on
+     * the main thread (e.g. `onLoginSuccess()` is an Activity callback).
      */
     fun invalidateRoot() {
         val current = session
@@ -60,11 +76,13 @@ object BrowseTreeInvalidator {
                 override fun onSuccess(result: LibraryResult<ImmutableList<MediaItem>>?) {
                     val childCount = result?.value?.size ?: 0
                     current.notifyChildrenChanged(ConstantsAA.ROOT_ID, childCount, null)
-                    Log.d(TAG, "invalidated root with $childCount children")
+                    // This confirms the call was made, not that any subscribed controller
+                    // received it -- notifyChildrenChanged doesn't report delivery.
+                    Log.d(TAG, "called notifyChildrenChanged(rootID) with $childCount children")
                 }
 
                 override fun onFailure(t: Throwable) {
-                    Log.d(TAG, "could not count root children; notifying anyway", t)
+                    Log.d(TAG, "could not count root children; calling notifyChildrenChanged anyway", t)
                     current.notifyChildrenChanged(ConstantsAA.ROOT_ID, 0, null)
                 }
             },

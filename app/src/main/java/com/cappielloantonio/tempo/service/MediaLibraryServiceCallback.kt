@@ -51,6 +51,28 @@ class MediaLibrarySessionCallback(
         return Futures.immediateFuture(LibraryResult.ofItem(MediaBrowserTree.getRootItem(), params))
     }
 
+    /**
+     * The default `onSubscribe` implementation (which this class does not override)
+     * delegates here to decide whether a subscription is allowed to stick, requiring
+     * success plus `mediaMetadata.isBrowsable == true`. Without this override every
+     * subscribe request errors and media3 immediately drops the subscription, which
+     * silently defeats [BrowseTreeInvalidator.invalidateRoot] -- notifyChildrenChanged
+     * has no subscribed controller left to notify.
+     */
+    override fun onGetItem(
+        session: MediaLibraryService.MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        mediaId: String
+    ): ListenableFuture<LibraryResult<MediaItem>> {
+        val item = MediaBrowserTree.getItem(mediaId)
+        Log.d(TAG, "onGetItem mediaId=$mediaId found=${item != null}")
+        return if (item != null) {
+            Futures.immediateFuture(LibraryResult.ofItem(item, null))
+        } else {
+            Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+        }
+    }
+
     override fun onGetChildren(
         session: MediaLibraryService.MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
