@@ -62,6 +62,16 @@
             android:name=".service.MediaService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
+
+            <!-- Android Automotive OS opt-in. This is separate from the Android
+                 Auto opt-in declared on <application> above: AAOS looks for this
+                 meta-data on the MediaBrowserService itself, and without it logs
+                 "Skipping MBS for {...} belonging to non media template app" and
+                 never lists the app as a media source. -->
+            <meta-data
+                android:name="androidx.car.app.launchable"
+                android:value="true" />
+
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="android.media.browse.MediaBrowserService"/>
