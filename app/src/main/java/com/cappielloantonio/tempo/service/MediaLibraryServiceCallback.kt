@@ -58,6 +58,15 @@ class MediaLibrarySessionCallback(
      * subscribe request errors and media3 immediately drops the subscription, which
      * silently defeats [BrowseTreeInvalidator.invalidateRoot] -- notifyChildrenChanged
      * has no subscribed controller left to notify.
+     *
+     * Deliberately does NOT gate on `CredentialGate.isSignedIn()` the way [onGetChildren]
+     * below does. Gating here would error the root subscription while signed out,
+     * media3 would drop it for the same reason described above, and a later
+     * `invalidateRoot()` after sign-in would once again have no subscriber left to
+     * notify -- silently reintroducing the exact bug this override exists to fix.
+     * `unitTests.returnDefaultValues = true` means no test catches that regression,
+     * so this comment is the only thing standing between a future "fix" and repeating
+     * it.
      */
     override fun onGetItem(
         session: MediaLibraryService.MediaLibrarySession,

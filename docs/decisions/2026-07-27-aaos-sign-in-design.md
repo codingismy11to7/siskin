@@ -155,24 +155,144 @@ A Retrofit interceptor inspecting Subsonic error codes centrally was considered.
 It is cleaner in principle but changes error handling for the entire app, which
 is a much wider blast radius than this feature justifies.
 
-## To verify on the emulator, not assume
+## What the emulator actually showed
 
-The standing note-to-self about conclusions drawn from a single noisy sample
-applies directly. These are assumptions, flagged as such:
+The three flagged assumptions, and two defects the design did not anticipate,
+answered against `emulator-5554` (`sdk_gcar_x86_64`), not assumed.
 
-- Whether the resolution button renders from `onGetChildren` or must come from
-  `onGetLibraryRoot`, and whether `ERROR_SESSION_SETUP_REQUIRED` draws it or only
-  `ERROR_SESSION_AUTHENTICATION_EXPIRED` does. Default to the authentication code
-  unless setup-required is demonstrated to work.
-- Whether the car re-requests children after `CarSignInActivity` finishes, or
-  whether `notifyChildrenChanged` must be called on the session. Assume it must
-  be called, and verify.
-- Whether a `PendingIntent` launches a non-exported activity. It should, since
-  the system sends it with the creating app's identity. Keep the activity
-  non-exported and confirm, rather than exporting defensively.
+### Assumption #1 — which error draws the button
 
-Evidence for "it works" is a populated browse tree after signing in from a fresh
-install — not a screenshot of the sign-in screen rendering.
+Answered in Task 4, first try, no fallback needed. `onGetLibraryRoot` was left
+untouched and keeps returning success; the error comes from `onGetChildren`
+only, using `SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED`. The car media
+template drew both the message and a tappable **Sign in** button on the first
+run. `ERROR_SESSION_SETUP_REQUIRED` was never tried — it remains genuinely
+untested, not "tried and found worse."
+
+### Assumption #2 — is `notifyChildrenChanged` required
+
+**Yes, required** — but the first attempt at answering this got a false
+negative, worth recording precisely because it looked like a clean result at
+the time. The original A/B (`notifyChildrenChanged` called vs. not) showed no
+difference in either arm: the sign-in screen stayed stuck regardless. The
+conclusion drawn then was "neither required nor effective." That was wrong.
+media3 1.9.2's `MediaLibrarySessionImpl` guards `notifyChildrenChanged` on
+`isSubscribed()`, and subscriptions are dropped the instant `onSubscribe`
+errors. This app never overrode `onGetItem`, so the default `onSubscribe`
+(which delegates to it) returned `RESULT_ERROR_NOT_SUPPORTED` for every
+subscription, including the root — so every subscribe request was rejected
+and torn down before the notify could ever matter. Both arms of the original
+experiment were structurally identical: the notify never left the process
+either way, so the test had no discriminating power. This was a latent bug in
+the whole app, not specific to sign-in — `notifyChildrenChanged` could not
+have worked anywhere.
+
+Fixed by adding `MediaBrowserTree.getItem()` and an `onGetItem` override
+(`MediaLibrarySessionCallback.kt`), so subscriptions survive. Re-run with both
+arms carrying that fix, varying only the notify call: with `invalidateRoot()`
+in place, the tree repopulates after sign-in without backing out of the media
+source; with it removed, the screen stays stuck. `onGetItem` deliberately does
+not gate on `CredentialGate.isSignedIn()` the way `onGetChildren` does — see
+the KDoc on that override for why gating it would reintroduce this exact bug.
+
+### Assumption #3 — does a `PendingIntent` launch the non-exported activity
+
+Confirmed clean. `adb logcat -d | grep -iE "Permission Denial|not exported"`
+returned nothing mentioning `CarSignInActivity` across the verification runs.
+`dumpsys activity activities` showed the resolution `PendingIntent`, fired
+from `com.android.car.media` (uid 1010204), landing on `u10
+io.github.codingismy11to7.siskin.debug/com.cappielloantonio.tempo.ui.activity.CarSignInActivity`
+as the top resumed activity, with the activity's own logcat lines ("Displayed
+... CarSignInActivity: +...ms") confirming a normal launch. The activity
+stayed `exported="false"`; no defensive export was needed.
+
+### Driving blocks the sign-in screen — confirmed, this is the load-bearing result
+
+This was the whole reason `CarSignInActivity` carries no `distractionOptimized`
+metadata, and until this task it had never been exercised. Verified by
+injecting VHAL events directly (`cmd car_service enable-uxr` is gated behind a
+platform signature and fails even as root):
+
+```
+adb shell cmd car_service inject-vhal-event 0x11400400 8   # GEAR_SELECTION = GEAR_DRIVE
+adb shell cmd car_service inject-vhal-event 0x11600207 30  # PERF_VEHICLE_SPEED = 30 m/s
+adb shell dumpsys car_service | grep "DO changed"
+```
+
+`dumpsys car_service` confirmed the transition (`No DO -> DO changed from 0 to
+16`, settling with `Port: 0x00 UXR: DO: true UxR: 16`) — deliberately not read
+via `get-property-value`, which reads the raw VHAL-backed value and can look
+unchanged even when the UXR state genuinely flipped.
+
+Tapping **Sign in** from the car's browse-error screen while this state was
+active did **not** show the sign-in form. `dumpsys activity activities`
+showed `u10 com.android.systemui/.car.activity.ActivityBlockingActivity` as
+the top resumed activity, and a `screencap` (actually read, not just
+captured) showed the platform's lock-icon screen: "You can't use this feature
+while driving," with "Close app" / "Debug info" buttons. Logcat corroborates
+the mechanism: `CarSignInActivity` does start (`ActivityTaskManager: START
+... CarSignInActivity`, `Displayed ... CarSignInActivity: +88ms`), and
+`CarPackageManagerService` immediately covers it —
+`is_root_activity_do=false` in the blocking intent's extras is what triggers
+`ActivityBlockingActivity` to launch on top, matching a `blocked_activity` of
+`CarSignInActivity`. The net effect the driver sees is the platform's block
+screen, not the form; the app-level activity underneath is never visibly
+reachable while restricted.
+
+One correction worth recording for whoever runs this again: restoring parked
+state with gear value `1` (as an earlier draft of the verification steps
+suggested) does **not** restore `GEAR_PARK` — `1` is `GEAR_NEUTRAL` in AOSP's
+`VehicleGear` enum, confirmed against `dumpsys car_service`'s
+`GEAR_SELECTION` property config (`[4, 1, 2, 8, 16, ...]`) and against
+`CarDrivingStateService`'s own state log, which stayed at `1` (`IDLING`) after
+that injection instead of returning to `0` (`PARKED`). `GEAR_PARK` is `4`.
+Re-injecting gear `4` + speed `0` produced `CarDrivingStateService: changed
+from 1 to 0` and `CarUxRestrictionsManagerService: DO -> No DO changed from 16
+to 0` — confirmed parked, restrictions lifted, and `CarSignInActivity`
+(never destroyed, only covered) reappeared on its own once the blocking
+activity had nothing left to block.
+
+### Two defects the design did not anticipate
+
+- **A theme crash.** `CarSignInActivity` initially crashed on
+  `setContentView` because it inherited the application theme
+  `AppTheme.SplashScreen`, whose parent is not an `AppCompat` descendant.
+  `MainActivity` and `CrashActivity` avoid this by calling
+  `installSplashScreen()`; the new activity did not. Fixed by setting
+  `android:theme="@style/AppTheme"` directly on the activity's manifest entry.
+- **The dropped-subscription bug**, described above under assumption #2 —
+  found only because Task 6's first A/B result looked suspiciously clean
+  (identical in both arms) rather than because it was anticipated.
+
+### What this did *not* verify
+
+All of the above, including the clean-install walkthrough (chooser → Siskin →
+Sign in → add server → save → browse), was exercised against a **local Python
+HTTP stub returning canned Subsonic `ping` payloads** (`/tmp/.../
+subsonic_stub.py`, reachable from the emulator at `http://10.0.2.2:4040`;
+test scaffolding, not committed), **not a real Subsonic server**. The stub
+answers every path with the same fixed payload, so the top-level browse tree
+(Home tab, category rows: Downloads/Playlists/Podcast/Radio/Folder) populated
+correctly after sign-in, but drilling into a category — e.g. the Albums tab —
+produced the car UI's generic "Something went wrong" (a clean, non-crashing
+error; confirmed via logcat that no exception was thrown), because the stub
+has no real album/artist data to serve. That leaves genuinely untested:
+
+- **Playback.** Not possible with this stub — it serves no audio, and there
+  is no real Subsonic server available in this environment. Not exercised,
+  not fabricated as a pass.
+- **Real library content** beyond the top-level tree shape (albums, artists,
+  playlists, folders with actual entries).
+- **Cover art.**
+- **Anything requiring a populated catalog** (search results, instant mix,
+  "made for you", queue resolution against real tracks).
+
+Evidence for "it works" in this task is the top-level browse tree populating
+after signing in from a fresh install, confirmed by `dumpsys` activity
+identity and by logcat showing `BrowseTreeInvalidator` /
+`onGetChildren`/`onGetItem` calls actually firing — not a screenshot of the
+sign-in screen rendering, and not a claim that playback or deep browsing was
+exercised.
 
 ## Scope
 
