@@ -19,8 +19,18 @@ class PlexResponse {
 
 @Keep
 class MediaContainer {
+    /** How many items this response carries -- the page, not the library. */
     var size: Int? = null
+
+    /** How many exist in total; present only when the request was paged. */
     var totalSize: Int? = null
+
+    /**
+     * Index of the first item in this page. media3 needs it to place a page
+     * within the whole list; without it a client can only guess from the
+     * request it sent.
+     */
+    var offset: Int? = null
 
     /** Items: tracks, albums, artists, playlists. */
     @SerializedName("Metadata")

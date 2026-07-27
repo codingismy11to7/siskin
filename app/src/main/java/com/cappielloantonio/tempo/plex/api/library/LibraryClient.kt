@@ -36,7 +36,8 @@ class LibraryClient(api: PlexApi) {
         return service.getSectionContent(sectionKey, type, start, size)
     }
 
-    fun getChildren(ratingKey: String): Call<PlexResponse> = service.getChildren(ratingKey)
+    fun getChildren(ratingKey: String, start: Int, size: Int): Call<PlexResponse> =
+        service.getChildren(ratingKey, start, size)
 
     fun getMetadata(ratingKey: String): Call<PlexResponse> = service.getMetadata(ratingKey)
 

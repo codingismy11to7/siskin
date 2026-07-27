@@ -28,8 +28,8 @@ class SearchClient(api: PlexApi) {
 
     fun getPlaylists(): Call<PlexResponse> = service.getPlaylists()
 
-    fun getPlaylistItems(playlistId: String): Call<PlexResponse> =
-        service.getPlaylistItems(playlistId)
+    fun getPlaylistItems(playlistId: String, start: Int, size: Int): Call<PlexResponse> =
+        service.getPlaylistItems(playlistId, start, size)
 
     fun reportProgress(ratingKey: String, key: String, state: String, timeMs: Long): Call<Void> =
         service.reportProgress(ratingKey, key, state, timeMs)

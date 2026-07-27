@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.plex.api.search
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import retrofit2.Call
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -31,7 +32,11 @@ interface SearchService {
      * list and then the items, never the metadata alone.
      */
     @GET("playlists/{playlistId}/items")
-    fun getPlaylistItems(@Path("playlistId") playlistId: String): Call<PlexResponse>
+    fun getPlaylistItems(
+        @Path("playlistId") playlistId: String,
+        @Header("X-Plex-Container-Start") start: Int,
+        @Header("X-Plex-Container-Size") size: Int
+    ): Call<PlexResponse>
 
     /** Plex expects a GET despite this being a write; it returns an empty body. */
     @GET(":/timeline")
