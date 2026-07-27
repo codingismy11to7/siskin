@@ -20,3 +20,5 @@ siskin-release-key.jks
 .aider*
 # throwaway implementation plans — specs live in docs/decisions/ and are committed
 docs/plans/
+# direnv's local cache of the nix dev shell
+.direnv/
