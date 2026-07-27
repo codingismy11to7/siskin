@@ -27,6 +27,13 @@ object PlexRetrofitFactory {
 
     fun plexTv(api: PlexApi): Retrofit = build(PLEX_TV_BASE_URL, api)
 
+    /**
+     * Resolves `api.serverUri` once, at call time, and bakes it into the
+     * returned Retrofit instance's base URL. It is not rebuilt if the server
+     * changes afterwards -- callers that hold onto a service built from this
+     * (e.g. LibraryClient, SearchClient) must discard and reconstruct it
+     * whenever the server changes.
+     */
     fun server(api: PlexApi): Retrofit = build(normalize(api.serverUri), api)
 
     private fun build(baseUrl: String, api: PlexApi): Retrofit {
@@ -61,6 +68,9 @@ object PlexRetrofitFactory {
         } else {
             HttpLoggingInterceptor.Level.NONE
         }
+        // X-Plex-Token is a full account credential; HEADERS logging would
+        // otherwise write it to logcat verbatim on every request.
+        redactHeader("X-Plex-Token")
     }
 
     /**

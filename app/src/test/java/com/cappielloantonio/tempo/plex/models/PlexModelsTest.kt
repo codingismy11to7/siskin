@@ -89,6 +89,30 @@ class PlexModelsTest {
     }
 
     @Test
+    fun parsesHubsFromTheHubArray() {
+        val json = """
+        {"MediaContainer":{"size":1,"Hub":[
+          {"hubIdentifier":"home.music.recentlyadded","title":"Recently Added",
+           "type":"album","size":1,"more":true,"Metadata":[
+             {"ratingKey":"99","type":"album","title":"A Night at the Opera"}
+           ]}
+        ]}}
+        """.trimIndent()
+
+        val hubs = gson.fromJson(json, PlexResponse::class.java).mediaContainer?.hub
+        assertEquals(1, hubs?.size)
+
+        val hub = hubs?.single()
+        assertEquals("home.music.recentlyadded", hub?.hubIdentifier)
+        assertEquals("Recently Added", hub?.title)
+        assertEquals(true, hub?.more)
+
+        val item = hub?.metadata?.single()
+        assertEquals("99", item?.ratingKey)
+        assertEquals("A Night at the Opera", item?.title)
+    }
+
+    @Test
     fun parsesResourcesAsABareArrayWithConnections() {
         val json = """
         [{"name":"Basement","clientIdentifier":"srv1","provides":"server",

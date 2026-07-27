@@ -9,7 +9,13 @@ import retrofit2.Call
 
 private const val TAG = "SearchClient"
 
-/** Search, playlists, and reporting playback position back to Plex. */
+/**
+ * Search, playlists, and reporting playback position back to Plex.
+ *
+ * Captures `api.serverUri` at construction time, via [PlexRetrofitFactory.server].
+ * It does not observe later changes -- discard and reconstruct this client
+ * whenever the server changes.
+ */
 class SearchClient(api: PlexApi) {
 
     private val service: SearchService =

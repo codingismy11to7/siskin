@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.plex.base
 
 import androidx.annotation.Keep
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.models.Hub
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.google.gson.annotations.SerializedName
 
@@ -25,7 +26,11 @@ class MediaContainer {
     @SerializedName("Metadata")
     var metadata: List<Metadata>? = null
 
-    /** Containers: library sections, and hub rows. */
+    /** Containers: library sections. Hub rows arrive in [hub], not here. */
     @SerializedName("Directory")
     var directory: List<Directory>? = null
+
+    /** Hub rows, e.g. from GET /hubs/sections/{id} -- "Recently Added", "On Deck". */
+    @SerializedName("Hub")
+    var hub: List<Hub>? = null
 }

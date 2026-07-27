@@ -9,7 +9,13 @@ import retrofit2.Call
 
 private const val TAG = "LibraryClient"
 
-/** Browsing a Plex music library: sections, their contents, and hub rows. */
+/**
+ * Browsing a Plex music library: sections, their contents, and hub rows.
+ *
+ * Captures `api.serverUri` at construction time, via [PlexRetrofitFactory.server].
+ * It does not observe later changes -- discard and reconstruct this client
+ * whenever the server changes.
+ */
 class LibraryClient(api: PlexApi) {
 
     private val service: LibraryService =
