@@ -617,8 +617,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private boolean isUserAuthenticated() {
-        return Preferences.getPassword() != null
-                || (Preferences.getToken() != null && Preferences.getSalt() != null);
+        return CredentialGate.isSignedIn();
     }
 
     private void consumePendingAssetLink() {
