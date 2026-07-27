@@ -142,10 +142,18 @@ browse entry point:
 - **No credentials stored** → error + "Sign in", returned immediately with no
   network call.
 - **Credentials stored, root children request failed** → run
-  `SystemRepository.checkUserCredential` once to classify. Auth rejected → error
-  + "Sign in again". Anything else (unreachable host, DNS failure) → generic
-  error and existing behavior, so an offline server does not present a
+  `SystemRepository.checkCredentialState` once to classify. Auth rejected →
+  error + "Sign in again". Anything else (unreachable host, DNS failure) →
+  generic error and existing behavior, so an offline server does not present a
   misleading sign-in button.
+
+  `checkCredentialState` is a new method, not the existing
+  `checkUserCredential`. `checkUserCredential` flattens "the server rejected
+  our credentials" and "we could not reach the server" into the same
+  `onError(Exception)` callback, which is not enough to decide whether a
+  sign-in button would help — offering one for an unreachable host would be
+  the misleading case this design is trying to avoid. `checkCredentialState`
+  exists specifically to keep those two cases apart.
 
 The "are we signed in" predicate currently lives inline at `MainActivity.java:161`.
 It moves to one place that both the activity and the browse gate share, so the
@@ -166,9 +174,24 @@ the design did not anticipate, answered against `emulator-5554`
 Answered in Task 4, first try, no fallback needed. `onGetLibraryRoot` was left
 untouched and keeps returning success; the error comes from `onGetChildren`
 only, using `SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED`. The car media
-template drew both the message and a tappable **Sign in** button on the first
-run. `ERROR_SESSION_SETUP_REQUIRED` was never tried — it remains genuinely
-untested, not "tried and found worse."
+template drew a resolution button on the first run, and it was tappable. The
+button's *label* was wrong, though: `CarSignInResolution.errorResult`
+originally passed the same string into both the `SessionError` message and the
+`ERROR_RESOLUTION_ACTION_LABEL_COMPAT` extra, so the button read the whole
+body sentence (e.g. "Sign in to Siskin to browse your music") instead of a
+short call to action. Caught in final review and corrected: the function now
+takes separate message and action string resources, and the button reads
+"Sign in".
+
+`ERROR_SESSION_SETUP_REQUIRED` was never tried, but it was never actually a
+live alternative to weigh against. media3 1.9.2's
+`MediaLibrarySessionImpl.isReplicationErrorCode` replicates exactly two codes
+to a legacy `MediaBrowserCompat` client such as `com.android.car.media`:
+`ERROR_SESSION_AUTHENTICATION_EXPIRED` (-102) and
+`ERROR_SESSION_PARENTAL_CONTROL_RESTRICTED` (-105).
+`ERROR_SESSION_SETUP_REQUIRED` is -108 and is not replicated, so using it
+would have produced no button at all. The error code here is constrained by
+media3's replication list, not an open design choice.
 
 ### Assumption #2 — is `notifyChildrenChanged` required
 
@@ -319,6 +342,19 @@ already does; `privacy.html`; CI workflow.
 
 ## Testing
 
-Unit-testable alongside the existing `AutomotiveRepositoryTest`: the
-credential-state predicate, the resolution-params builder, and the error
-classifier. The activity and the car-side rendering are emulator-verified.
+Two test classes shipped alongside the existing `AutomotiveRepositoryTest`:
+`CredentialGateTest` (the signed-in predicate and the auth-failure
+classification) and `SystemRepositoryTest` (`SystemRepository.isRejection`,
+the null-safe rejection predicate that `checkCredentialState` relies on).
+
+`CarSignInResolution` — the resolution-params builder — has no unit test.
+It cannot get a meaningful one under this module's `unitTests.returnDefaultValues
+= true` (`app/build.gradle:34`): with that flag, `context.getString` returns
+null, `Bundle.putString`/`putParcelable` are silent no-ops, and
+`PendingIntent.getActivity` returns null, so a test built from Robolectric-free
+JVM unit tests would call real code but assert nothing meaningful about the
+label, the message, or the extras it produces. Its behavior — the button
+carrying "Sign in" as label and the longer sentence as body — is verified
+directly on the emulator instead (see "What the emulator actually showed"
+above). The activity and the car-side rendering are likewise
+emulator-verified.
