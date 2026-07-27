@@ -20,3 +20,5 @@ tempus-release-key.jks
 app/tempus/
 app/degoogled/
 .aider*
+# throwaway implementation plans — specs live in docs/decisions/ and are committed
+docs/plans/
