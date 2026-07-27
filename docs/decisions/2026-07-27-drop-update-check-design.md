@@ -43,19 +43,28 @@ the app consumes it, so this is a clean excision rather than an untangling.
 
 | Key | Present in |
 |---|---|
-| `github_update_dialog_title` | 15 files |
-| `github_update_dialog_summary` | 15 files |
-| `github_update_dialog_positive_button` | 15 files |
-| `github_update_dialog_negative_button` | 15 files |
-| `settings_github_update` | 13 files |
-| `settings_github_update_title` | 13 files |
-| `settings_github_update_summary` | 13 files |
+| `github_update_dialog_title` | 14 files |
+| `github_update_dialog_summary` | 14 files |
+| `github_update_dialog_positive_button` | 14 files |
+| `github_update_dialog_negative_button` | 14 files |
+| `settings_github_update` | 12 files |
+| `settings_github_update_title` | 12 files |
+| `settings_github_update_summary` | 12 files |
 
-**Translations are partial and the counts differ by key** — 15 files carry the
-dialog strings, only 13 carry the settings strings. The deletion must tolerate a
+**Translations are partial and the counts differ by key** — 14 files carry the
+dialog strings, only 12 carry the settings strings. The deletion must tolerate a
 key being absent from a given locale rather than assuming a uniform edit across
 all files. A tool that errors on "key not found" will fail on the two locales
 that never translated the settings block.
+
+**These are distinct-file counts, not resource-directory counts.** Counting by
+resource *directory* instead yields 15 and 13, because
+`app/src/main/res/values-zh-rCN` is a git-tracked symlink (mode `120000`) to
+`values-zh` — the two directories resolve to one physical `strings.xml`, so a
+directory-based count double-counts it. A deletion script that filters and
+edits distinct tracked files will correctly report **14** files touched for the
+dialog keys and **12** for the settings keys, not 15/13; this mismatch already
+caused confusion once during implementation.
 
 **Preference screen:** the entire `ClickablePreferenceCategory` keyed
 `settings_github_update_category_key` in `app/src/main/res/xml/global_preferences.xml`
@@ -99,7 +108,7 @@ The single most likely way to get this change wrong is pattern matching on
 The Subsonic **share** feature owns names that match every obvious pattern but
 have nothing to do with update checking:
 
-- `share_update_dialog_title`, `share_update_dialog_summary`,
+- `share_update_dialog_title`,
   `share_update_dialog_positive_button`, `share_update_dialog_negative_button`,
   `share_update_dialog_hint_description`,
   `share_update_dialog_hint_expiration_date`
