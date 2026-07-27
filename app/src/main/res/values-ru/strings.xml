@@ -46,7 +46,7 @@
     <string name="album_page_release_dates_label">Дата релиза: %1$s, оригинал %2$s</string>
     <string name="album_page_shuffle_button">Перемешать</string>
     <string name="album_page_tracks_count_and_duration">%1$d треков • %2$d минут(ы)</string>
-    <string name="app_name">Tempus</string>
+    <string name="app_name">Siskin</string>
     <string name="artist_adapter_radio_station_starting">Поиск…</string>
     <string name="artist_bottom_sheet_instant_mix">Мгновенный микс</string>
     <string name="artist_bottom_sheet_shuffle">Перемешать</string>
@@ -341,20 +341,20 @@
     <string name="server_unreachable_dialog_positive_button">Продолжить в любом случае</string>
     <string name="server_unreachable_dialog_summary">Запрошенный сервер недоступен. Если вы продолжите, это сообщение не появится в течение следующего часа.</string>
     <string name="server_unreachable_dialog_title">Сервер недоступен</string>
-    <string name="settings_about_summary">Tempus — это легкий музыкальный клиент с открытым исходным кодом для Subsonic, разработанный специально под Android.</string>
+    <string name="settings_about_summary">Siskin — это легкий музыкальный клиент с открытым исходным кодом для Subsonic, разработанный специально под Android.</string>
     <string name="settings_about_title">О приложении</string>
     <string name="settings_always_on_display">Always On Display</string>
     <string name="settings_allow_playlist_duplicates">Разрешить дубликаты в плейлистах</string>
     <string name="settings_allow_playlist_duplicates_summary">Если включено, дубликаты не будут проверяться при добавлении в плейлист.</string>
     <string name="settings_audio_transcode_download_format">Формат транскодирования</string>
-    <string name="settings_audio_transcode_download_priority_summary">Если включено, Tempus не будет принудительно скачивать трек с настройками транскодирования, указанными ниже.</string>
+    <string name="settings_audio_transcode_download_priority_summary">Если включено, Siskin не будет принудительно скачивать трек с настройками транскодирования, указанными ниже.</string>
     <string name="settings_audio_transcode_download_priority_title">Использовать серверные настройки транскодирования при скачивании</string>
-    <string name="settings_audio_transcode_download_summary">Если включено, Tempus будет скачивать треки в транскодированном виде.</string>
+    <string name="settings_audio_transcode_download_summary">Если включено, Siskin будет скачивать треки в транскодированном виде.</string>
     <string name="settings_audio_transcode_download_title">Скачивать транскодированные треки</string>
     <string name="settings_audio_transcode_format_download">Формат при скачивании</string>
     <string name="settings_audio_transcode_format_mobile">Формат транскод. в моб. сети 4G/5G</string>
     <string name="settings_audio_transcode_format_wifi">Формат транскод. в сети Wi-Fi</string>
-    <string name="settings_audio_transcode_priority_summary">Если включено, Tempus не будет принудительно стримить трек с настройками транскодирования, указанными ниже.</string>
+    <string name="settings_audio_transcode_priority_summary">Если включено, Siskin не будет принудительно стримить трек с настройками транскодирования, указанными ниже.</string>
     <string name="settings_audio_transcode_priority_title">Приоритет серверных настроек транскодирования</string>
     <string name="settings_audio_transcode_priority_toast">Приоритет транскодирования передан серверу</string>
     <string name="settings_choose_download_folder">Выберите папку для загруженной музыки</string>
@@ -372,10 +372,10 @@
     <string name="settings_set_download_folder">Выбрать папку для загрузок</string>
     <string name="settings_system_equalizer_summary">Настройки звука</string>
     <string name="settings_system_equalizer_title">Системный эквалайзер</string>
-    <string name="settings_github_link">https://github.com/eddyizm/tempus</string>
+    <string name="settings_github_link">https://github.com/codingismy11to7/siskin</string>
     <string name="settings_github_summary">Следите за развитием</string>
     <string name="settings_github_title">Github</string>
-    <string name="settings_support_discussion_link" translatable="false">https://github.com/eddyizm/tempus/discussions</string>
+    <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
     <string name="settings_github_update">Обновления</string>
     <string name="settings_github_update_title">Проверять обновления на GitHub</string>
     <string name="settings_github_update_summary">Если используется версия из GitHub, приложение по умолчанию проверяет наличие новых APK-релизов. Отключите, чтобы запретить автоматическую проверку</string>
@@ -483,7 +483,7 @@
     <string name="share_subtitle_item">Срок действия: %1$s</string>
     <string name="share_no_expiration">Никогда</string>
     <string name="share_unsupported_error">Общий доступ не поддерживается или не включен</string>
-    <string name="asset_link_clipboard_label">Ссылка Tempus</string>
+    <string name="asset_link_clipboard_label">Ссылка Siskin</string>
     <string name="asset_link_label_song">UID трека</string>
     <string name="asset_link_label_album">UID альбома</string>
     <string name="asset_link_label_artist">UID артиста</string>
@@ -569,9 +569,9 @@
 
     <string name="undraw_thanks">Особая благодарность команде unDraw за иллюстрации, которые помогли сделать приложение красивее</string>
 
-    <string name="widget_label">Tempus Widget</string>
+    <string name="widget_label">Siskin Widget</string>
     <string name="widget_not_playing">Ничего не воспроизводится</string>
-    <string name="widget_placeholder_subtitle">Открыть Tempus</string>
+    <string name="widget_placeholder_subtitle">Открыть Siskin</string>
     <string name="widget_time_elapsed_placeholder">0:00</string>
     <string name="widget_time_duration_placeholder">0:00</string>
     <string name="widget_content_desc_album_art">Обложка альбома</string>

@@ -47,7 +47,7 @@
     <string name="album_page_release_dates_label">Veröffentlicht %1$s, ursprünglich %2$s</string>
     <string name="album_page_shuffle_button">Zufall</string>
     <string name="album_page_tracks_count_and_duration">%1$d Lieder  •  %2$d Minuten</string>
-    <string name="app_name">Tempus</string>
+    <string name="app_name">Siskin</string>
     <string name="artist_adapter_radio_station_starting">Suchen…</string>
     <string name="artist_bottom_sheet_instant_mix">Sofort-Mix</string>
     <string name="artist_bottom_sheet_shuffle">Zufällig wiedergeben</string>
@@ -352,7 +352,7 @@
     <string name="server_unreachable_dialog_positive_button">Trotzdem fortfahren</string>
     <string name="server_unreachable_dialog_summary">Der angeforderte Server ist nicht verfügbar. Wenn du fortfahren möchtest, wird dieser Dialog für eine Stunde nicht mehr angezeigt.</string>
     <string name="server_unreachable_dialog_title">Server nicht erreichbar</string>
-    <string name="settings_about_summary">Tempus ist ein quelloffener und schlanker Musik-Client für Subsonic, der speziell für Android entwickelt wurde.</string>
+    <string name="settings_about_summary">Siskin ist ein quelloffener und schlanker Musik-Client für Subsonic, der speziell für Android entwickelt wurde.</string>
     <string name="settings_about_title">Über</string>
     <string name="settings_always_on_display">Bildschirmsperre aussetzen</string>
     <string name="settings_allow_playlist_duplicates">Duplikate in Wiedergabelisten erlauben</string>
@@ -383,10 +383,10 @@
     <string name="settings_set_download_folder">Download-Ordner festlegen</string>
     <string name="settings_system_equalizer_summary">Audio-Einstellungen anpassen</string>
     <string name="settings_system_equalizer_title">Equalizer des Systems</string>
-    <string name="settings_github_link">https://github.com/eddyizm/tempus</string>
+    <string name="settings_github_link">https://github.com/codingismy11to7/siskin</string>
     <string name="settings_github_summary">Folge der Entwicklung</string>
     <string name="settings_github_title">GitHub</string>
-    <string name="settings_support_discussion_link" translatable="false">https://github.com/eddyizm/tempus/discussions</string>
+    <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
     <string name="settings_github_update">Aktualisierungen</string>
     <string name="settings_github_update_title">Auf GitHub nach neuen Versionen suchen</string>
     <string name="settings_github_update_summary">Bei Verwendung der GitHub-Version sucht die App standardmäßig nach neuen APK-Versionen. Dies kann hiermit an-/ausgeschaltet werden.</string>
@@ -495,7 +495,7 @@
     <string name="share_subtitle_item">Ablaufdatum: %1$s</string>
     <string name="share_no_expiration">Nie</string>
     <string name="share_unsupported_error">Teilen wird nicht unterstützt oder ist deaktiviert</string>
-    <string name="asset_link_clipboard_label">Tempus-Inhaltslink</string>
+    <string name="asset_link_clipboard_label">Siskin-Inhaltslink</string>
     <string name="asset_link_label_song">Lied UID</string>
     <string name="asset_link_label_album">Album UID</string>
     <string name="asset_link_label_artist">Interpret UID</string>
@@ -581,9 +581,9 @@
     <string name="undraw_page">unDraw</string>
     <string name="undraw_thanks">Besonderer Dank gilt unDraw, ohne deren Illustrationen diese App nur halb so schön aussehen würde.</string>
     <string name="undraw_url" translatable="false">https://undraw.co/</string>
-    <string name="widget_label">Tempus Widget</string>
+    <string name="widget_label">Siskin Widget</string>
     <string name="widget_not_playing">Angehalten</string>
-    <string name="widget_placeholder_subtitle">Tempus öffnen</string>
+    <string name="widget_placeholder_subtitle">Siskin öffnen</string>
     <string name="widget_time_elapsed_placeholder">0:00</string>
     <string name="widget_time_duration_placeholder">0:00</string>
     <string name="widget_content_desc_album_art">Albumcover</string>

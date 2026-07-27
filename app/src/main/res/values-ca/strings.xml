@@ -55,7 +55,7 @@
     <string name="album_page_release_dates_label">Publicació: %1$s, originalment: %2$s</string>
     <string name="album_page_shuffle_button">Reprodueix aleatòriament</string>
     <string name="album_page_tracks_count_and_duration">%1$d cançons  •  %2$d minuts</string>
-    <string name="app_name">Tempus</string>
+    <string name="app_name">Siskin</string>
     <string name="artist_adapter_radio_station_starting">S\'està cercant...</string>
     <string name="artist_bottom_sheet_instant_mix">Mescla instantània</string>
     <string name="artist_bottom_sheet_shuffle">Reprodueix aleatòriament</string>
@@ -381,20 +381,20 @@
     <string name="server_unreachable_dialog_positive_button">Continua igualment</string>
     <string name="server_unreachable_dialog_summary">El servidor sol·licitat no està disponible. Si trieu continuar, aquest quadre de diàleg no apareixerà durant una hora.</string>
     <string name="server_unreachable_dialog_title">Servidor no disponible</string>
-    <string name="settings_about_summary">El Tempus és un client de música lliure i lleuger per al Subsonic, dissenyat i creat nativament per a l\'Android.</string>
+    <string name="settings_about_summary">El Siskin és un client de música lliure i lleuger per al Subsonic, dissenyat i creat nativament per a l\'Android.</string>
     <string name="settings_about_title">Quant a</string>
     <string name="settings_always_on_display">Pantalla sempre encesa</string>
     <string name="settings_allow_playlist_duplicates">Permet afegir duplicats a una llista de reproducció</string>
     <string name="settings_allow_playlist_duplicates_summary">Si s\'habilita, no es comprovarà si hi ha elements duplicats en afegir-los a una llista de reproducció.</string>
     <string name="settings_audio_transcode_download_format">Format de transcodificació</string>
-    <string name="settings_audio_transcode_download_priority_summary">Si s\'habilita, el Tempus no forçarà la baixada de la pista amb els paràmetres de transcodificació següents.</string>
+    <string name="settings_audio_transcode_download_priority_summary">Si s\'habilita, el Siskin no forçarà la baixada de la pista amb els paràmetres de transcodificació següents.</string>
     <string name="settings_audio_transcode_download_priority_title">Prioritza els paràmetres del servidor per a la transmissió a les baixades</string>
-    <string name="settings_audio_transcode_download_summary">Si s\'habilita, el Tempus baixarà les pistes transcodificades.</string>
+    <string name="settings_audio_transcode_download_summary">Si s\'habilita, el Siskin baixarà les pistes transcodificades.</string>
     <string name="settings_audio_transcode_download_title">Baixa les pistes transcodificades</string>
     <string name="settings_audio_transcode_format_download">Format de transcodificació per a les baixades</string>
     <string name="settings_audio_transcode_format_mobile">Format de transcodificació amb dades mòbils</string>
     <string name="settings_audio_transcode_format_wifi">Format de transcodificació amb wifi</string>
-    <string name="settings_audio_transcode_priority_summary">Si s\'habilita, el Tempus no forçarà la transmissió de la pista amb els paràmetres de transcodificació següents.</string>
+    <string name="settings_audio_transcode_priority_summary">Si s\'habilita, el Siskin no forçarà la transmissió de la pista amb els paràmetres de transcodificació següents.</string>
     <string name="settings_audio_transcode_priority_title">Prioritza els paràmetres de transcodificació del servidor</string>
     <string name="settings_audio_transcode_priority_toast">Prioritat de transcodificació de la pista proporcionada al servidor</string>
     <string name="settings_choose_download_folder">Trieu una carpeta per als fitxers de música baixats.</string>
@@ -416,10 +416,10 @@
     <string name="settings_song_preload_buffer_summary">Valor actual: %1$s\nPerquè el canvi tingui efecte, heu de reiniciar l\'aplicació manualment.</string>
     <string name="settings_system_equalizer_summary">Ajusteu els paràmetres d\'àudio</string>
     <string name="settings_system_equalizer_title">Equalitzador del sistema</string>
-    <string name="settings_github_link">https://github.com/eddyizm/tempus</string>
+    <string name="settings_github_link">https://github.com/codingismy11to7/siskin</string>
     <string name="settings_github_summary">Seguiu el desenvolupament</string>
     <string name="settings_github_title">Github</string>
-    <string name="settings_support_discussion_link" translatable="false">https://github.com/eddyizm/tempus/discussions</string>
+    <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
     <string name="settings_github_update">Actualitzacions</string>
     <string name="settings_github_update_title">Comprova si hi ha actualitzacions a GitHub</string>
     <string name="settings_github_update_summary">Si feu servir la versió de GitHub, per defecte l\'aplicació comprovarà si hi ha noves versions en format APK. Canvieu-ho per a inhabilitar les comprovacions automàtiques de GitHub.</string>
@@ -554,7 +554,7 @@
     <string name="toolbar_navigation_drawer_closed">Calaix de navegació tancat</string>
     <string name="favorite_icon_description">Preferit</string>
 
-    <string name="asset_link_clipboard_label">Enllaç a recursos del Tempus</string>
+    <string name="asset_link_clipboard_label">Enllaç a recursos del Siskin</string>
     <string name="asset_link_label_song">UID de la cançó</string>
     <string name="asset_link_label_album">UID de l\'àlbum</string>
     <string name="asset_link_label_artist">UID de l\'artista</string>
@@ -640,9 +640,9 @@
     <string name="undraw_page">unDraw</string>
     <string name="undraw_thanks">Volem donar un agraïment especial a UnDraw; aquesta aplicació no seria tan bonica sense les seves il·lustracions.</string>
     <string name="undraw_url" translatable="false">https://undraw.co/</string>
-    <string name="widget_label">Giny del Tempus</string>
+    <string name="widget_label">Giny del Siskin</string>
     <string name="widget_not_playing">No hi ha res en reproducció</string>
-    <string name="widget_placeholder_subtitle">Obre el Tempus</string>
+    <string name="widget_placeholder_subtitle">Obre el Siskin</string>
     <string name="widget_time_elapsed_placeholder">0:00</string>
     <string name="widget_time_duration_placeholder">0:00</string>
     <string name="widget_content_desc_album_art">Caràtula de l\'àlbum</string>
@@ -712,12 +712,12 @@
         <item>@string/sleep_timer_end_of_track_label</item>
         <item>Personalitzat\u2026</item>
     </string-array>
-    <string name="customactivityoncrash_error_activity_error_occurred_explanation">El Tempus ha fallat.</string>
+    <string name="customactivityoncrash_error_activity_error_occurred_explanation">El Siskin ha fallat.</string>
 
     <!-- Crash Activity -->
 
     <string name="ca_info_label">Informació</string>
-    <string name="ca_info_title">El Tempus ha fallat</string>
+    <string name="ca_info_title">El Siskin ha fallat</string>
     <string name="ca_info_description">        Obriu una incidència a GitHub i incloeu-hi una còpia dels registres perquè investiguem la fallada.
     </string>
     <string name="ca_info_button_close">Tanca l\'aplicació</string>
