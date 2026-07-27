@@ -237,11 +237,24 @@ protection rule.
   action and a binary cache. `setup-java` plus the runner's preinstalled SDK is
   what the existing release workflows already use, so PR CI validates the same
   toolchain that actually ships. The flake stays the local-dev story.
-- **Modernising the existing tag workflows** beyond the added test step —
-  `actions/checkout@v3` → `v4`, `actions/cache@v3` → `v4`,
-  `softprops/action-gh-release@v1`, the vestigial `chmod`, the
-  `setup-java`-before-`checkout` ordering. All real, none of it in service of
-  getting tests running. Worth a follow-up.
+- **`softprops/action-gh-release@v1`.** actionlint flags it under the same
+  too-old-runner rule as the actions bumped below, but v2 changed defaults in
+  the release-publishing path. That risk does not belong in a CI change.
+  Follow-up.
+- **Cosmetic cleanup of the tag workflows** — the vestigial `chmod`, the
+  `setup-java`-before-`checkout` ordering. Real, but not in service of getting
+  tests running.
+
+### Amended during planning: bump `checkout` and `cache` to v4
+
+Originally scoped out as unrelated modernisation. `actionlint` then reported
+`actions/checkout@v3` and `actions/cache@v3` in both tag workflows as *"too old
+to run on GitHub Actions"* — the Node 16 runtime deprecation, not a style nit.
+
+A test gate added to a workflow that cannot run is worthless, so the bump is now
+in scope for the two files this change already edits. Both are drop-in at these
+call sites; no input names changed between v3 and v4 for the `path`/`key` usage
+here. `ci.yml` uses v4 from the start.
 
 ## Verification
 
