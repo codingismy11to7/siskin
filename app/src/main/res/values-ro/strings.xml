@@ -112,10 +112,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Catalogul Genuri</string>
     <string name="genre_catalogue_title_expanded">Răsfoiți Genuri</string>
-    <string name="github_update_dialog_negative_button">Reamintitor mai târziu</string>
-    <string name="github_update_dialog_positive_button">Descărcați acum</string>
-    <string name="github_update_dialog_summary">Există o nouă versiune a aplicației disponibilă pe Github.</string>
-    <string name="github_update_dialog_title">Actualizare disponibilă</string>
     <string name="home_rearrangement_dialog_negative_button">Anulati</string>
     <string name="home_rearrangement_dialog_neutral_button">Resetaţi</string>
     <string name="home_rearrangement_dialog_positive_button">Salvaţi</string>
@@ -340,9 +336,6 @@
     <string name="settings_github_summary">Urmăriți dezvoltarea</string>
     <string name="settings_github_title">Github</string>
     <string name="settings_support_discussion_link">https://github.com/codingismy11to7/siskin/discussions</string>
-    <string name="settings_github_update">Actualizări</string>
-    <string name="settings_github_update_title">Verificați pe github lansări noi</string>
-    <string name="settings_github_update_summary">Dacă utilizați versiunea github, prin implicare, aplicația va verifica noile versiuni de apk. Comutați pentru a dezactiva verificările automate pe github</string>
     <string name="settings_support_summary">Alăturați-vă discuțiilor comunității și asistență</string>
     <string name="settings_support_title">Asistență utilizator</string>
     <string name="settings_scan_result">Scanare: numărare %1$d piese</string>

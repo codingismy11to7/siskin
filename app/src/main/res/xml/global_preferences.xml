@@ -635,18 +635,6 @@
             app:useSimpleSummaryProvider="true" />
 	</com.cappielloantonio.tempo.util.ClickablePreferenceCategory>
 
-    <com.cappielloantonio.tempo.util.ClickablePreferenceCategory
-        android:key="settings_github_update_category_key"
-        app:title="@string/settings_github_update">
-        <Preference
-            app:selectable="false"
-            app:summary="@string/settings_github_update_summary" />
-        <SwitchPreference
-            android:title="@string/settings_github_update_title"
-            android:defaultValue="true"
-            android:key="github_update_check" />
-    </com.cappielloantonio.tempo.util.ClickablePreferenceCategory>
-
     <com.cappielloantonio.tempo.util.ClickablePreferenceCategory app:title="@string/settings_about_title">
         <Preference
             app:selectable="false"

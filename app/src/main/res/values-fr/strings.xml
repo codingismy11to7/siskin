@@ -145,10 +145,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Catalogue des Genres</string>
     <string name="genre_catalogue_title_expanded">Parcourir les Genres</string>
-    <string name="github_update_dialog_negative_button">Me rappeler plus tard</string>
-    <string name="github_update_dialog_positive_button">Télécharger maintenant</string>
-    <string name="github_update_dialog_summary">Une version plus récente de l\'app est disponible sur Github.</string>
-    <string name="github_update_dialog_title">Mise à jour disponible</string>
     <string name="home_rearrangement_dialog_negative_button">Annuler</string>
     <string name="home_rearrangement_dialog_neutral_button">Réinitialiser</string>
     <string name="home_rearrangement_dialog_positive_button">Sauvegarder</string>
@@ -417,9 +413,6 @@
     <string name="settings_github_link">https://github.com/codingismy11to7/siskin</string>
     <string name="settings_github_summary">Suivre le développement</string>
     <string name="settings_github_title">Github</string>
-    <string name="settings_github_update">Mises à jour</string>
-    <string name="settings_github_update_title">Vérifier les mises à jour sur Github</string>
-    <string name="settings_github_update_summary">Si vous utilisez l\'app publiée sur Github, elle vérifiera par défaut les sorties de nouvelles versions. Cliquer ici pour désactiver les vérifications automatiques</string>
     <string name="settings_support_summary">Rejoindre les discussions et le support de la communauté</string>
     <string name="settings_support_title">Support utilisateur</string>
     <string name="settings_scan_result">Analyse : comptage de %1$d pistes</string>

@@ -145,10 +145,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Géneros</string>
     <string name="genre_catalogue_title_expanded">Explorar Géneros</string>
-    <string name="github_update_dialog_negative_button">Recuerdame más tarde</string>
-    <string name="github_update_dialog_positive_button">Descargar ahora</string>
-    <string name="github_update_dialog_summary">Hay una nueva versión disponible en GitHub.</string>
-    <string name="github_update_dialog_title">¡Hay una nueva actualización!</string>
     <string name="home_rearrangement_dialog_negative_button">Cancelar</string>
     <string name="home_rearrangement_dialog_neutral_button">Reiniciar</string>
     <string name="home_rearrangement_dialog_positive_button">Guardar</string>
@@ -418,9 +414,6 @@
     <string name="settings_github_summary">Sigue el desarrollo</string>
     <string name="settings_github_title">GitHub</string>
     <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
-    <string name="settings_github_update">Actualizaciones</string>
-    <string name="settings_github_update_title">Checkea GitHub para saber de nuevas actualizaciones</string>
-    <string name="settings_github_update_summary">Si estás usando la versión de GitHub, la app buscará nuevas actualizaciones automaticamente. Desactiva está opcion para desactivarlo.</string>
     <string name="settings_support_summary">¡Unete a las discusiones de la comunidad y apóyanos!</string>
     <string name="settings_support_title">Apóyanos</string>
     <string name="settings_scan_result">Escaneando: se encontraron %1$d canciones</string>

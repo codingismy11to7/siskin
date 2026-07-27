@@ -96,10 +96,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Tür Kataloğu</string>
     <string name="genre_catalogue_title_expanded">Türlere göz at</string>
-    <string name="github_update_dialog_negative_button">Bana sonra hatırlat</string>
-    <string name="github_update_dialog_positive_button">Hemen indir</string>
-    <string name="github_update_dialog_summary">Uygulamanın yeni bir sürümü Github’da mevcut.</string>
-    <string name="github_update_dialog_title">Güncelleme mevcut</string>
     <string name="home_rearrangement_dialog_negative_button">İptal</string>
     <string name="home_rearrangement_dialog_neutral_button">Sıfırla</string>
     <string name="home_rearrangement_dialog_positive_button">Kaydet</string>
