@@ -10,7 +10,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
-import com.cappielloantonio.tempo.BuildConfig
+import com.cappielloantonio.tempo.util.ResourceUris
 import com.cappielloantonio.tempo.repository.AutomotiveRepository
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -19,7 +19,6 @@ import com.google.common.util.concurrent.SettableFuture
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.Preferences
-import androidx.core.net.toUri
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.util.Preferences.getServerId
 
@@ -32,8 +31,7 @@ object MediaBrowserTree {
 
     private var isInitialized = false
 
-    private fun iconUri(resId: Int): Uri =
-        "android.resource://${BuildConfig.APPLICATION_ID}/$resId".toUri()
+    private fun iconUri(resId: Int): Uri = ResourceUris.forResource(resId)
 
     private class MediaItemNode(val item: MediaItem) {
         private val children: MutableList<MediaItem> = ArrayList()

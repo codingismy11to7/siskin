@@ -38,7 +38,6 @@ import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.ui.activity.MainActivity
 import com.cappielloantonio.tempo.util.*
 import com.cappielloantonio.tempo.util.SleepTimerManager
-import com.cappielloantonio.tempo.widget.WidgetUpdateManager
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -69,19 +68,7 @@ open class BaseMediaService : MediaLibraryService() {
     private lateinit var bitmapLoader: SyncBitmapLoader
     private lateinit var networkCallback: CustomNetworkCallback
     private lateinit var equalizerManager: EqualizerManager
-    private val widgetUpdateHandler = Handler(Looper.getMainLooper())
-    private var widgetUpdateScheduled = false
-    private val widgetUpdateRunnable = object : Runnable {
-        override fun run() {
-            val player = mediaLibrarySession.player
-            if (!player.isPlaying) {
-                widgetUpdateScheduled = false
-                return
-            }
-            updateWidget(player)
-            widgetUpdateHandler.postDelayed(this, WIDGET_UPDATE_INTERVAL_MS)
-        }
-    }
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val radioHeaderCheckExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
     private var radioHeaderCheckScheduled = false
@@ -125,7 +112,7 @@ open class BaseMediaService : MediaLibraryService() {
         // Threading: the heavy computation (MappingUtil + isDownloaded) runs on a background
         // thread to avoid blocking the main thread. Only items from current+1 onward are
         // processed — already-played items are skipped. replaceMediaItem() is dispatched back
-        // to the main thread via widgetUpdateHandler. The guard i < player.mediaItemCount protects
+        // to the main thread via mainHandler. The guard i < player.mediaItemCount protects
         // against queue changes during the background computation.
 
         val current = player.currentMediaItemIndex
@@ -151,7 +138,7 @@ open class BaseMediaService : MediaLibraryService() {
 
         Futures.addCallback(future, object : FutureCallback<List<Pair<Int, MediaItem>>> {
             override fun onSuccess(updates: List<Pair<Int, MediaItem>>) {
-                widgetUpdateHandler.post {
+                mainHandler.post {
                     updates.forEach { (i, mapped) ->
                         if (i > player.currentMediaItemIndex
                             && i < player.mediaItemCount
@@ -191,7 +178,6 @@ open class BaseMediaService : MediaLibraryService() {
 
         player.setMediaItems(mediaItems, lastIndex, lastPosition)
         player.prepare()
-        updateWidget(player)
     }
 
     private var lastRadioArtist: String? = null
@@ -277,7 +263,6 @@ open class BaseMediaService : MediaLibraryService() {
                     stopRadioHeaderChecks()
                 }
 
-                updateWidget(player)
                 QueuePreloader.preload(this@BaseMediaService, player)
             }
 
@@ -428,7 +413,6 @@ open class BaseMediaService : MediaLibraryService() {
                     exo.replaceMediaItem(currentIndex, currentItem.buildUpon()
                         .setMediaMetadata(metadataBuilder.setExtras(newExtras).build())
                         .build())
-                    updateWidget(exo)
                 }
             }
 
@@ -443,13 +427,10 @@ open class BaseMediaService : MediaLibraryService() {
                     MediaManager.scrobble(player.currentMediaItem, false)
                 }
                 if (isPlaying) {
-                    scheduleWidgetUpdates()
                     scheduleRadioHeaderChecks()
                 } else {
-                    stopWidgetUpdates()
                     stopRadioHeaderChecks()
                 }
-                updateWidget(player)
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -462,7 +443,6 @@ open class BaseMediaService : MediaLibraryService() {
                     MediaManager.scrobble(player.currentMediaItem, true)
                     MediaManager.saveChronology(player.currentMediaItem)
                 }
-                updateWidget(player)
             }
 
             override fun onPositionDiscontinuity(
@@ -513,9 +493,6 @@ open class BaseMediaService : MediaLibraryService() {
                 sendBroadcast(Intent(ACTION_EQUALIZER_UPDATED))
             }
         })
-        if (player.isPlaying) {
-            scheduleWidgetUpdates()
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -615,7 +592,6 @@ open class BaseMediaService : MediaLibraryService() {
         releaseNetworkCallback()
         equalizerManager.release(exoplayer.audioSessionId)
         ReplayGainUtil.release()
-        stopWidgetUpdates()
         stopRadioHeaderChecks()
         SleepTimerManager.getInstance().stopEndOfTrackPoller()
         SleepTimerManager.getInstance().setServiceActionListener(null)
@@ -734,53 +710,6 @@ open class BaseMediaService : MediaLibraryService() {
         getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
     }
 
-    private fun updateWidget(player: Player) {
-        val mi = player.currentMediaItem
-        val title = mi?.mediaMetadata?.title?.toString()
-            ?: mi?.mediaMetadata?.extras?.getString("title")
-        val artist = mi?.mediaMetadata?.artist?.toString()
-            ?: mi?.mediaMetadata?.extras?.getString("artist")
-        val album = mi?.mediaMetadata?.albumTitle?.toString()
-            ?: mi?.mediaMetadata?.extras?.getString("album")
-        val extras = mi?.mediaMetadata?.extras
-        val coverId = extras?.getString("coverArtId")
-        val songLink = extras?.getString("assetLinkSong")
-            ?: AssetLinkUtil.buildLink(AssetLinkUtil.TYPE_SONG, extras?.getString("id"))
-        val albumLink = extras?.getString("assetLinkAlbum")
-            ?: AssetLinkUtil.buildLink(AssetLinkUtil.TYPE_ALBUM, extras?.getString("albumId"))
-        val artistLink = extras?.getString("assetLinkArtist")
-            ?: AssetLinkUtil.buildLink(AssetLinkUtil.TYPE_ARTIST, extras?.getString("artistId"))
-        val position = player.currentPosition.takeIf { it != C.TIME_UNSET } ?: 0L
-        val duration = player.duration.takeIf { it != C.TIME_UNSET } ?: 0L
-        WidgetUpdateManager.updateFromState(
-            this,
-            title ?: "",
-            artist ?: "",
-            album ?: "",
-            coverId,
-            player.isPlaying,
-            player.shuffleModeEnabled,
-            player.repeatMode,
-            position,
-            duration,
-            songLink,
-            albumLink,
-            artistLink
-        )
-    }
-
-    private fun scheduleWidgetUpdates() {
-        if (widgetUpdateScheduled) return
-        widgetUpdateHandler.postDelayed(widgetUpdateRunnable, WIDGET_UPDATE_INTERVAL_MS)
-        widgetUpdateScheduled = true
-    }
-
-    private fun stopWidgetUpdates() {
-        if (!widgetUpdateScheduled) return
-        widgetUpdateHandler.removeCallbacks(widgetUpdateRunnable)
-        widgetUpdateScheduled = false
-    }
-
     private fun scheduleRadioHeaderChecks() {
         val player = mediaLibrarySession.player
         val currentItem = player.currentMediaItem ?: return
@@ -870,7 +799,7 @@ open class BaseMediaService : MediaLibraryService() {
         lastRadioTitle = title
         
         // Update on main thread
-        widgetUpdateHandler.post {
+        mainHandler.post {
             val currentItemNow = player.currentMediaItem ?: return@post
             val currentIndex = player.currentMediaItemIndex
             if (currentIndex == C.INDEX_UNSET) return@post
@@ -918,7 +847,6 @@ open class BaseMediaService : MediaLibraryService() {
                 exo.replaceMediaItem(currentIndex, currentItemNow.buildUpon()
                     .setMediaMetadata(metadataBuilder.build())
                     .build())
-                updateWidget(exo)
             }
         }
     }
@@ -968,7 +896,7 @@ open class BaseMediaService : MediaLibraryService() {
             val isWifi = networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
             if (isWifi != wasWifi) {
                 wasWifi = isWifi
-                widgetUpdateHandler.post {
+                mainHandler.post {
                     updateMediaItems(mediaLibrarySession.player)
                     // preload() re-evaluates the network itself: it cancels any
                     // in-flight precache when the new network is not allowed and
@@ -990,5 +918,4 @@ open class BaseMediaService : MediaLibraryService() {
     }
 }
 
-private const val WIDGET_UPDATE_INTERVAL_MS = 1000L
 private const val RADIO_HEADER_CHECK_INTERVAL_SECONDS = 30L // Reduced frequency - only fallback when ICY fails

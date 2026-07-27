@@ -507,9 +507,7 @@
     <string name="undraw_page">unDraw</string>
     <string name="undraw_thanks">Mulțumiri speciale merită unDraw fără ale cărui ilustrații nu am putut face această aplicație mai frumoasă.</string>
     <string name="undraw_url">https://undraw.co/</string>
-    <string name="widget_label">Widget Siskin</string>
     <string name="widget_not_playing">Nu se redă</string>
-    <string name="widget_placeholder_subtitle">Deschideți Siskin</string>
     <string name="widget_time_elapsed_placeholder">0:00</string>
     <string name="widget_time_duration_placeholder">0:00</string>
     <string name="widget_content_desc_album_art">Ilustrație album</string>

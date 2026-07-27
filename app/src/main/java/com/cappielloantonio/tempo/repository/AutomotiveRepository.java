@@ -15,7 +15,6 @@ import androidx.media3.session.MediaConstants;
 import androidx.media3.session.SessionError;
 
 import com.cappielloantonio.tempo.App;
-import com.cappielloantonio.tempo.BuildConfig;
 import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.database.AppDatabase;
 import com.cappielloantonio.tempo.database.dao.ChronologyDao;
@@ -42,6 +41,7 @@ import com.cappielloantonio.tempo.util.ConstantsAA;
 import com.cappielloantonio.tempo.util.MappingUtil;
 import com.cappielloantonio.tempo.util.MusicUtil;
 import com.cappielloantonio.tempo.util.Preferences;
+import com.cappielloantonio.tempo.util.ResourceUris;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -95,7 +95,7 @@ public class AutomotiveRepository {
     private MediaItem createArtist(String artistName, String id, boolean isGridView, String artistCoverArtId){
         Uri artworkUri = (artistCoverArtId != null && !artistCoverArtId.isEmpty())
                 ? AlbumArtContentProvider.contentUri(artistCoverArtId)
-                : Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_artists);
+                : ResourceUris.forResource(R.drawable.ic_aa_artists);
 
         MediaMetadata mediaMetadata = new MediaMetadata.Builder()
                 .setTitle(artistName)
@@ -116,7 +116,7 @@ public class AutomotiveRepository {
     private MediaItem createAlbum(String albumName, String artirstName, String genre, String id, boolean isPlayable, String albumCoverArtId){
         Uri artworkUri = (albumCoverArtId != null && !albumCoverArtId.isEmpty())
                 ? AlbumArtContentProvider.contentUri(albumCoverArtId)
-                : Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_albums);
+                : ResourceUris.forResource(R.drawable.ic_aa_albums);
 
         MediaMetadata mediaMetadata = new MediaMetadata.Builder()
                 .setTitle(albumName)
@@ -177,7 +177,7 @@ public class AutomotiveRepository {
                                         App.getContext().getString(R.string.aa_starred_albums),
                                         ConstantsAA.JUMP_TO_STARRED_ALBUMS_ID,
                                         Preferences.isAndroidAutoAlbumViewEnabled(),
-                                        Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_star_album)
+                                        ResourceUris.forResource(R.drawable.ic_aa_star_album)
                                 );
                                 mediaItems.add(0, jumpTo);
                             }
@@ -238,7 +238,7 @@ public class AutomotiveRepository {
                                     App.getContext().getString(R.string.aa_view_by_albums),
                                     ConstantsAA.ARTISTS_BY_ALBUMS_ID,
                                     Preferences.isAndroidAutoAlbumViewEnabled(),
-                                    Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_albums)
+                                    ResourceUris.forResource(R.drawable.ic_aa_albums)
                             );
                             mediaItems.add(0, jumpTo);
 
@@ -247,7 +247,7 @@ public class AutomotiveRepository {
                                         App.getContext().getString(R.string.aa_starred_artists),
                                         ConstantsAA.JUMP_TO_STARRED_ARTISTS_ID,
                                         Preferences.isAndroidAutoAlbumViewEnabled(),
-                                        Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_artists)
+                                        ResourceUris.forResource(R.drawable.ic_aa_artists)
                                 );
                                 mediaItems.add(0, jumpTo);
                             }
@@ -438,7 +438,7 @@ public class AutomotiveRepository {
                                         App.getContext().getString(R.string.aa_albums),
                                         ConstantsAA.JUMP_TO_ALBUMS_ID,
                                         Preferences.isAndroidAutoAlbumViewEnabled(),
-                                        Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_albums)
+                                        ResourceUris.forResource(R.drawable.ic_aa_albums)
                                 );
                                 mediaItems.add(0, jumpTo);
                             }
@@ -495,7 +495,7 @@ public class AutomotiveRepository {
                                         App.getContext().getString(R.string.aa_artists),
                                         ConstantsAA.JUMP_TO_ARTISTS_ID,
                                         Preferences.isAndroidAutoAlbumViewEnabled(),
-                                        Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_artists)
+                                        ResourceUris.forResource(R.drawable.ic_aa_artists)
                                 );
                                 mediaItems.add(0, jumpTo);
                             }
@@ -529,7 +529,7 @@ public class AutomotiveRepository {
                             List<MusicFolder> musicFolders = response.body().getSubsonicResponse().getMusicFolders().getMusicFolders();
 
                             List<MediaItem> mediaItems = new ArrayList<>();
-                            Uri artworkUri = Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_folders);
+                            Uri artworkUri = ResourceUris.forResource(R.drawable.ic_aa_folders);
 
                             for (MusicFolder musicFolder : musicFolders) {
                                 MediaMetadata mediaMetadata = new MediaMetadata.Builder()
@@ -716,7 +716,7 @@ public class AutomotiveRepository {
                                 String coverId = playlist.getCoverArtId();
                                 Uri artworkUri = (coverId != null && !coverId.isEmpty())
                                         ? AlbumArtContentProvider.contentUri(coverId)
-                                        : Uri.parse("android.resource://" + BuildConfig.APPLICATION_ID + "/" + R.drawable.ic_aa_playlist);
+                                        : ResourceUris.forResource(R.drawable.ic_aa_playlist);
 
                                 MediaMetadata mediaMetadata = new MediaMetadata.Builder()
                                         .setTitle(playlist.getName())
