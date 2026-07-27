@@ -536,9 +536,7 @@
     <string name="widget_content_desc_prev">上一首</string>
     <string name="widget_content_desc_repeat">更改循环模式</string>
     <string name="widget_content_desc_shuffle">切换随机播放</string>
-    <string name="widget_label">Siskin 小组件</string>
     <string name="widget_not_playing">未播放</string>
-    <string name="widget_placeholder_subtitle">打开 Siskin</string>
     <string name="widget_time_duration_placeholder">0:00</string>
     <string name="widget_time_elapsed_placeholder">0:00</string>
 </resources>

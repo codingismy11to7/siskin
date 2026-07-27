@@ -638,9 +638,7 @@
     <string name="undraw_page">unDraw</string>
     <string name="undraw_thanks">Volem donar un agraïment especial a UnDraw; aquesta aplicació no seria tan bonica sense les seves il·lustracions.</string>
     <string name="undraw_url" translatable="false">https://undraw.co/</string>
-    <string name="widget_label">Giny del Siskin</string>
     <string name="widget_not_playing">No hi ha res en reproducció</string>
-    <string name="widget_placeholder_subtitle">Obre el Siskin</string>
     <string name="widget_time_elapsed_placeholder">0:00</string>
     <string name="widget_time_duration_placeholder">0:00</string>
     <string name="widget_content_desc_album_art">Caràtula de l\'àlbum</string>
