@@ -149,10 +149,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Genre Catalogue</string>
     <string name="genre_catalogue_title_expanded">Browse Genres</string>
-    <string name="github_update_dialog_negative_button">Remind me later</string>
-    <string name="github_update_dialog_positive_button">Download now</string>
-    <string name="github_update_dialog_summary">There is a new version of the app available on Github.</string>
-    <string name="github_update_dialog_title">Update available</string>
     <string name="home_rearrangement_dialog_negative_button">Cancel</string>
     <string name="home_rearrangement_dialog_neutral_button">Reset</string>
     <string name="home_rearrangement_dialog_positive_button">Save</string>
@@ -436,9 +432,6 @@
     <string name="settings_github_summary">Follow the development</string>
     <string name="settings_github_title">Github</string>
     <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
-    <string name="settings_github_update">Updates</string>
-    <string name="settings_github_update_title">Check github for release updates</string>
-    <string name="settings_github_update_summary">If using the github version, by default app will check for new apk release. Toggle to disable automatic github checks</string>
     <string name="settings_support_summary">Join community discussions and support</string>
     <string name="settings_support_title">User support</string>
     <string name="settings_scan_result">Scanning: counting %1$d tracks</string>

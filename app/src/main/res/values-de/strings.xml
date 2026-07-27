@@ -130,10 +130,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Genres</string>
     <string name="genre_catalogue_title_expanded">Genres durchsuchen</string>
-    <string name="github_update_dialog_negative_button">Später</string>
-    <string name="github_update_dialog_positive_button">Jetzt herunterladen</string>
-    <string name="github_update_dialog_summary">Eine neue Version der App ist auf GitHub verfügbar.</string>
-    <string name="github_update_dialog_title">Aktualisierung verfügbar</string>
     <string name="home_rearrangement_dialog_negative_button">Abbrechen</string>
     <string name="home_rearrangement_dialog_neutral_button">Zurücksetzen</string>
     <string name="home_rearrangement_dialog_positive_button">Speichern</string>
@@ -386,9 +382,6 @@
     <string name="settings_github_summary">Folge der Entwicklung</string>
     <string name="settings_github_title">GitHub</string>
     <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
-    <string name="settings_github_update">Aktualisierungen</string>
-    <string name="settings_github_update_title">Auf GitHub nach neuen Versionen suchen</string>
-    <string name="settings_github_update_summary">Bei Verwendung der GitHub-Version sucht die App standardmäßig nach neuen APK-Versionen. Dies kann hiermit an-/ausgeschaltet werden.</string>
     <string name="settings_support_summary">An Community-Diskussionen teilnehmen und Unterstützung erhalten</string>
     <string name="settings_support_title">Benutzersupport</string>
     <string name="settings_scan_result">Einlesen: zähle %1$d Titel</string>

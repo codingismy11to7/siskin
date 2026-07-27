@@ -131,10 +131,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">流派目录</string>
     <string name="genre_catalogue_title_expanded">浏览流派</string>
-    <string name="github_update_dialog_negative_button">稍后提醒</string>
-    <string name="github_update_dialog_positive_button">立即下载</string>
-    <string name="github_update_dialog_summary">GitHub 上发布了新版本。</string>
-    <string name="github_update_dialog_title">有可用更新</string>
     <string name="home_option_reorganize">定制首页</string>
     <string name="home_rearrangement_dialog_negative_button">取消</string>
     <string name="home_rearrangement_dialog_neutral_button">重置</string>
@@ -375,9 +371,6 @@
     <string name="settings_github_link">https://github.com/codingismy11to7/siskin</string>
     <string name="settings_github_summary">关注开发进展</string>
     <string name="settings_github_title">Github</string>
-    <string name="settings_github_update">更新</string>
-    <string name="settings_github_update_summary">GitHub 版本默认会自动检查 APK 更新。您可以关闭此开关以禁用自动检查。</string>
-    <string name="settings_github_update_title">请访问 Github 以检查更新</string>
     <string name="settings_image_size">设置图像分辨率</string>
     <string name="settings_item_rating">显示评分</string>
     <string name="settings_item_rating_summary">启用后则显示项目的评分和收藏状态。</string>

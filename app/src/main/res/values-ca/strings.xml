@@ -146,10 +146,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Catàleg de gèneres</string>
     <string name="genre_catalogue_title_expanded">Exploració de gèneres</string>
-    <string name="github_update_dialog_negative_button">Recorda-m\'ho més tard</string>
-    <string name="github_update_dialog_positive_button">Baixa-ho ara</string>
-    <string name="github_update_dialog_summary">Hi ha una versió nova de l\'aplicació disponible a Github.</string>
-    <string name="github_update_dialog_title">Actualització disponible</string>
     <string name="home_rearrangement_dialog_negative_button">Cancel·la</string>
     <string name="home_rearrangement_dialog_neutral_button">Reinicialitza</string>
     <string name="home_rearrangement_dialog_positive_button">Desa</string>
@@ -419,9 +415,6 @@
     <string name="settings_github_summary">Seguiu el desenvolupament</string>
     <string name="settings_github_title">Github</string>
     <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
-    <string name="settings_github_update">Actualitzacions</string>
-    <string name="settings_github_update_title">Comprova si hi ha actualitzacions a GitHub</string>
-    <string name="settings_github_update_summary">Si feu servir la versió de GitHub, per defecte l\'aplicació comprovarà si hi ha noves versions en format APK. Canvieu-ho per a inhabilitar les comprovacions automàtiques de GitHub.</string>
     <string name="settings_support_summary">Uniu-vos a discussions de la comunitat i obteniu ajuda</string>
     <string name="settings_support_title">Ajuda als usuaris</string>
     <string name="settings_scan_result">S\'està analitzant: s\'han comptat %1$d pistes</string>

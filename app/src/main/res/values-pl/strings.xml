@@ -143,10 +143,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Katalog Gatunków</string>
     <string name="genre_catalogue_title_expanded">Przeglądaj Gatunki</string>
-    <string name="github_update_dialog_negative_button">Przypomnij mi później</string>
-    <string name="github_update_dialog_positive_button">Pobierz teraz</string>
-    <string name="github_update_dialog_summary">Nowa wersja aplikacji jest dostępna na GitHubie.</string>
-    <string name="github_update_dialog_title">Dostępna aktualizacja</string>
     <string name="home_rearrangement_dialog_negative_button">Anuluj</string>
     <string name="home_rearrangement_dialog_neutral_button">Reset</string>
     <string name="home_rearrangement_dialog_positive_button">Zapisz</string>
@@ -418,9 +414,6 @@
     <string name="settings_github_summary">Śledź tworzenie aplikacji</string>
     <string name="settings_github_title">GitHub</string>
     <string name="settings_support_discussion_link">https://github.com/codingismy11to7/siskin/discussions</string>
-    <string name="settings_github_update">Aktualizacje</string>
-    <string name="settings_github_update_title">Sprawdzaj dostępność nowych aktualizacji na githubie</string>
-    <string name="settings_github_update_summary">Jeżeli używana jest wersja z githuba, domyślnie aplikacja będzie sprawdzać czy są dostępne nowe wydania apk. Kliknij przełącznik aby, wyłączyć automatyczne sprawdzanie</string>
     <string name="settings_support_summary">Dołącz do dyskusji i wsparcia społeczności</string>
     <string name="settings_support_title">Wsparcie użytkowników</string>
     <string name="settings_scan_result">Skanowanie: naliczono %1$d utworów</string>

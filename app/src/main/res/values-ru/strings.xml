@@ -133,10 +133,6 @@
     <string name="generic_list_page_count_unknown">(+%1$d)</string>
     <string name="genre_catalogue_title">Каталог жанров</string>
     <string name="genre_catalogue_title_expanded">Обзор жанров</string>
-    <string name="github_update_dialog_negative_button">Напомнить позже</string>
-    <string name="github_update_dialog_positive_button">Скачать сейчас</string>
-    <string name="github_update_dialog_summary">На Github доступна новая версия приложения.</string>
-    <string name="github_update_dialog_title">Доступно обновление</string>
     <string name="home_rearrangement_dialog_negative_button">Отмена</string>
     <string name="home_rearrangement_dialog_neutral_button">Сброс</string>
     <string name="home_rearrangement_dialog_positive_button">Сохранить</string>
@@ -375,9 +371,6 @@
     <string name="settings_github_summary">Следите за развитием</string>
     <string name="settings_github_title">Github</string>
     <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
-    <string name="settings_github_update">Обновления</string>
-    <string name="settings_github_update_title">Проверять обновления на GitHub</string>
-    <string name="settings_github_update_summary">Если используется версия из GitHub, приложение по умолчанию проверяет наличие новых APK-релизов. Отключите, чтобы запретить автоматическую проверку</string>
     <string name="settings_support_summary">Присоединяйтесь к обсуждениям в сообществе и оказывайте поддержку</string>
     <string name="settings_support_title">Поддержка пользователей</string>
     <string name="settings_scan_result">Сканирование: найдено %1$d треков</string>

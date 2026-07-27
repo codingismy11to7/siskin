@@ -403,10 +403,6 @@
     <string name="streaming_cache_storage_dialog_title">저장소 옵션 선택</string>
     <string name="streaming_cache_storage_external_dialog_positive_button">외부</string>
     <string name="streaming_cache_storage_internal_dialog_negative_button">내부</string>
-    <string name="github_update_dialog_negative_button">나중에 다시 알려주기</string>
-    <string name="github_update_dialog_positive_button">지금 다운로드 받기</string>
-    <string name="github_update_dialog_summary">Github에 최신 버전이 존재합니다</string>
-    <string name="github_update_dialog_title">업데이트 가능</string>
     <string name="home_rearrangement_dialog_negative_button">취소</string>
     <string name="home_rearrangement_dialog_neutral_button">초기화</string>
     <string name="home_rearrangement_dialog_positive_button">저장</string>
