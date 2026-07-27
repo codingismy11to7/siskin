@@ -21,9 +21,19 @@ class SearchClient(api: PlexApi) {
     private val service: SearchService =
         PlexRetrofitFactory.server(api).create(SearchService::class.java)
 
-    fun search(sectionKey: String, query: String, limit: Int = DEFAULT_SEARCH_LIMIT): Call<PlexResponse> {
-        Log.d(TAG, "search($sectionKey, limit=$limit)")
-        return service.search(sectionKey, query, limit)
+    /**
+     * [type] is a PlexItemType value and is not optional: Plex rejects a search
+     * without it. Callers wanting artists, albums and tracks must issue three
+     * searches and merge -- Plex accepts only one type per request.
+     */
+    fun search(
+        sectionKey: String,
+        query: String,
+        type: Int,
+        limit: Int = DEFAULT_SEARCH_LIMIT
+    ): Call<PlexResponse> {
+        Log.d(TAG, "search($sectionKey, type=$type, limit=$limit)")
+        return service.search(sectionKey, query, type, limit)
     }
 
     fun getPlaylists(): Call<PlexResponse> = service.getPlaylists()

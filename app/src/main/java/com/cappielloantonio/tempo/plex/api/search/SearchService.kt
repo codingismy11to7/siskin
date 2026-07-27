@@ -16,10 +16,17 @@ import retrofit2.http.Query
  */
 interface SearchService {
 
+    /**
+     * [type] is REQUIRED -- Plex answers HTTP 400 without it, verified against
+     * PMS 1.43.3. It takes a single PlexItemType value; a comma-separated list is
+     * also rejected with 400, so searching artists, albums and tracks together means
+     * three calls.
+     */
     @GET("library/sections/{sectionId}/search")
     fun search(
         @Path("sectionId") sectionId: String,
         @Query("query") query: String,
+        @Query("type") type: Int,
         @Query("limit") limit: Int
     ): Call<PlexResponse>
 

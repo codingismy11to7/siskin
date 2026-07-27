@@ -44,11 +44,6 @@ class LibraryClient(api: PlexApi) {
     fun getSectionHubs(sectionKey: String): Call<PlexResponse> = service.getSectionHubs(sectionKey)
 
     companion object {
-        /** Plex's numeric type filters for /library/sections/{id}/all. */
-        const val TYPE_ARTIST = 8
-        const val TYPE_ALBUM = 9
-        const val TYPE_TRACK = 10
-
         /** Plex reports a music library section's type as "artist". */
         private const val MUSIC_SECTION_TYPE = "artist"
 
