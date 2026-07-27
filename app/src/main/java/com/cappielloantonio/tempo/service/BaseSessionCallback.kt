@@ -445,7 +445,7 @@ open class BaseSessionCallback(
 
     // ─────────────────────────────────────────────────────────────
     // onAddMediaItems — basic version (without AA)
-    // should be override in MediaLibrarySessionCallback for full Tempus release
+    // should be override in MediaLibrarySessionCallback
     // ─────────────────────────────────────────────────────────────
 
     override fun onAddMediaItems(

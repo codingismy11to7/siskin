@@ -129,7 +129,7 @@ public class PlaylistCatalogueFragment extends Fragment implements ClickCallback
 
         playlistCatalogueViewModel.getSortedPlaylistList().observe(getViewLifecycleOwner(), playlists -> {
             if (playlists != null) {
-                android.util.Log.d("TempusLog", "UI Update: Received " + playlists.size() + " items");
+                android.util.Log.d("SiskinLog", "UI Update: Received " + playlists.size() + " items");
                 playlistHorizontalAdapter.setItems(playlists);
                 playlistHorizontalAdapter.notifyDataSetChanged(); 
             }
