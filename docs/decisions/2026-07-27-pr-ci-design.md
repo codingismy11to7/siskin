@@ -52,6 +52,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -60,6 +63,7 @@ jobs:
   test:
     name: Unit tests and debug build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -75,7 +79,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', 'gradle.properties', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
@@ -92,6 +96,12 @@ jobs:
           name: unit-test-report
           path: app/build/reports/tests/testDebugUnitTest/
 ```
+
+The top-level `permissions: contents: read` is least-privilege: this job only
+checks out code and uploads an artifact, and `actions/upload-artifact@v4` uses
+the Actions runtime token rather than `GITHUB_TOKEN`, so read-only repo access
+is all it ever needs. `timeout-minutes: 30` on the job bounds a hung Gradle
+build to a fixed cost instead of burning the runner for hours.
 
 ### Run `assembleDebug`, not just the tests
 
@@ -160,11 +170,15 @@ In `github_release.yml` the step lands **above** `Build Release APKs`, leaving
 the `sed -ri '/foojay-resolver-convention/d' settings.gradle` line where it is,
 inside the build step. Tests therefore run against an unmodified
 `settings.gradle`. That is deliberate and safe: `github_prerelease.yml` already
-builds without ever applying that sed, so the un-sed'd configuration is proven
-to work on a runner. The sed affects JDK toolchain provisioning, not compiled
-output, so testing on either side of it exercises the same code. Hoisting the
-sed above the test step is the alternative and buys no behavioural change for a
-noisier diff.
+builds without ever applying that sed, so the un-sed'd configuration is
+inherited from upstream as working — this fork has zero tags, so neither tag
+workflow has ever executed here, and the evidence for the un-sed'd path is
+upstream's, not this repo's. `ci.yml` will exercise the same unmodified
+`settings.gradle` on every pull request going forward, which is the first time
+this fork will actually observe it running. The sed affects JDK toolchain
+provisioning, not compiled output, so testing on either side of it exercises
+the same code. Hoisting the sed above the test step is the alternative and buys
+no behavioural change for a noisier diff.
 
 ### Make the check blocking via branch protection on `main`
 
@@ -181,7 +195,7 @@ nix run nixpkgs#gh -- api -X PUT repos/codingismy11to7/siskin/branches/main/prot
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["CI / Unit tests and debug build"]
+    "contexts": ["Unit tests and debug build"]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": null,
@@ -190,9 +204,13 @@ nix run nixpkgs#gh -- api -X PUT repos/codingismy11to7/siskin/branches/main/prot
 JSON
 ```
 
-The context string `CI / Unit tests and debug build` is composed from the
-workflow `name:` and the job `name:`; it must match those exactly or the rule
-waits forever on a check that never reports.
+The context string `Unit tests and debug build` is the check run's **job**
+`name:` alone — GitHub does not fold the workflow `name:` into the context; the
+workflow name is only a display prefix shown in the PR UI, not part of the
+string branch protection matches against. (A slash-separated context only
+appears for reusable-workflow call chains, which this project does not use.)
+It must match the job name exactly or the rule waits forever on a check that
+never reports.
 
 Field choices, each of which would deadlock a solo repository if set the
 obvious way:
@@ -221,7 +239,8 @@ already, so the rule formalises existing practice rather than changing it.
 ## Scope
 
 **In:** the new `ci.yml`; the test step added to both tag workflows; the branch
-protection rule.
+protection rule; bumping `actions/checkout` and `actions/cache` from v3 to v4
+in both tag workflows.
 
 **Out:**
 
