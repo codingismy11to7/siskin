@@ -54,7 +54,7 @@
     <string name="album_page_release_dates_label">Lanzado el %1$s, originalmente %2$s</string>
     <string name="album_page_shuffle_button">Aleatorio</string>
     <string name="album_page_tracks_count_and_duration">%1$d canciones  •  %2$d minutos</string>
-    <string name="app_name">Tempus</string>
+    <string name="app_name">Siskin</string>
     <string name="artist_adapter_radio_station_starting">Buscando…</string>
     <string name="artist_bottom_sheet_instant_mix">Mix instantáneo</string>
     <string name="artist_bottom_sheet_shuffle">Reproducir Aleatoriamente</string>
@@ -146,7 +146,6 @@
     <string name="genre_catalogue_title">Géneros</string>
     <string name="genre_catalogue_title_expanded">Explorar Géneros</string>
     <string name="github_update_dialog_negative_button">Recuerdame más tarde</string>
-    <string name="github_update_dialog_neutral_button">Apóyame</string>
     <string name="github_update_dialog_positive_button">Descargar ahora</string>
     <string name="github_update_dialog_summary">Hay una nueva versión disponible en GitHub.</string>
     <string name="github_update_dialog_title">¡Hay una nueva actualización!</string>
@@ -380,20 +379,20 @@
     <string name="server_unreachable_dialog_positive_button">Continuar de todo modos</string>
     <string name="server_unreachable_dialog_summary">No se pudo conectar con el servidor. Si continuas, este aviso no te saldrá hasta dentro de una hora.</string>
     <string name="server_unreachable_dialog_title">No se pudo conectar con el servidor</string>
-    <string name="settings_about_summary">Tempus es un cliente ligero y de código abierto para Subsonic. Diseñado y construido nativamente para android.</string>
+    <string name="settings_about_summary">Siskin es un cliente ligero y de código abierto para Subsonic. Diseñado y construido nativamente para android.</string>
     <string name="settings_about_title">Sobre el proyecto</string>
     <string name="settings_always_on_display">Mantener pantalla encendida</string>
     <string name="settings_allow_playlist_duplicates">Permitir añadir duplicados en listas de producción</string>
     <string name="settings_allow_playlist_duplicates_summary">Si está activado, no se buscarán duplicados en las listas de reproducción.</string>
     <string name="settings_audio_transcode_download_format">Formato de transcodificación</string>
-    <string name="settings_audio_transcode_download_priority_summary">Si elijes un formato de transcodificación, Tempus no descargará la canción con los ajustes de abajo.</string>
+    <string name="settings_audio_transcode_download_priority_summary">Si elijes un formato de transcodificación, Siskin no descargará la canción con los ajustes de abajo.</string>
     <string name="settings_audio_transcode_download_priority_title">Preferir los ajustes del servidor usados en la transmisión para descargas</string>
-    <string name="settings_audio_transcode_download_summary">Si está activado, Tempus no descargará música transcodificada.</string>
+    <string name="settings_audio_transcode_download_summary">Si está activado, Siskin no descargará música transcodificada.</string>
     <string name="settings_audio_transcode_download_title">Descargar música transcoficada</string>
     <string name="settings_audio_transcode_format_download">Formato de transcodificación para descargas</string>
     <string name="settings_audio_transcode_format_mobile">Formato de transcodificación en datos mobiles</string>
     <string name="settings_audio_transcode_format_wifi">Formato de transcodificación en Wi-Fi</string>
-    <string name="settings_audio_transcode_priority_summary">Si está activado, Tempus no forzará la transmisión de música con los ajustes de abajo.</string>
+    <string name="settings_audio_transcode_priority_summary">Si está activado, Siskin no forzará la transmisión de música con los ajustes de abajo.</string>
     <string name="settings_audio_transcode_priority_title">Preferir las opciones de transcodificación del servidor</string>
     <string name="settings_audio_transcode_priority_toast">La prioridad de transcodificación lo decidirá el servidor.</string>
     <string name="settings_choose_download_folder">Elige una carpeta para descargar todas las canciones</string>
@@ -415,10 +414,10 @@
     <string name="settings_song_preload_buffer_summary">Valor actual: %1$s\nPara que los cambios tengan efecto debes reiniar la app.</string>
     <string name="settings_system_equalizer_summary">Modificar ajustes de audio</string>
     <string name="settings_system_equalizer_title">Ecualizador del sistema</string>
-    <string name="settings_github_link">https://github.com/eddyizm/tempus</string>
+    <string name="settings_github_link">https://github.com/codingismy11to7/siskin</string>
     <string name="settings_github_summary">Sigue el desarrollo</string>
     <string name="settings_github_title">GitHub</string>
-    <string name="settings_support_discussion_link" translatable="false">https://github.com/eddyizm/tempus/discussions</string>
+    <string name="settings_support_discussion_link" translatable="false">https://github.com/codingismy11to7/siskin/discussions</string>
     <string name="settings_github_update">Actualizaciones</string>
     <string name="settings_github_update_title">Checkea GitHub para saber de nuevas actualizaciones</string>
     <string name="settings_github_update_summary">Si estás usando la versión de GitHub, la app buscará nuevas actualizaciones automaticamente. Desactiva está opcion para desactivarlo.</string>
@@ -501,7 +500,7 @@
     <string name="settings_summary_streaming_cache_size">%1$s \nSe está usando:  %2$s MiB</string>
     <string name="settings_summary_transcoding">Prioridad dada al modo de transcodificación. Si lo pones en \"Reproducción directa\" la tasa de bits de la música no será cambiada.</string>
     <string name="settings_summary_transcoding_download">Descargar canciones transcodificadas. Si está activado, el punto de descarga no se usará, y se usarán los siguientes ajustes.\n\n Si \"Formato de transcodificación para descargas\" es puesto a \"Descarga directa\" la tasa de reproducción del archivo no se cambiará..</string>
-    <string name="settings_summary_transcoding_estimate_content_length">Cuando el archivo es transcodificado en tiempo real, el cliente (Tempus) usualmente no muestra la duración. Es posible pedirle al servidor que soportan esta función que estimen la duración de la canción que estamos reproduciendo pero los tiempos de espera pueden ser largos..</string>
+    <string name="settings_summary_transcoding_estimate_content_length">Cuando el archivo es transcodificado en tiempo real, el cliente (Siskin) usualmente no muestra la duración. Es posible pedirle al servidor que soportan esta función que estimen la duración de la canción que estamos reproduciendo pero los tiempos de espera pueden ser largos..</string>
     <string name="settings_summary_landscape_items_per_row">Applica a todos los álbumes y artistas. Por defecto es 4</string>
     <string name="settings_sync_starred_artists_for_offline_use_summary">Si está activado, las canciones de tus artitas favoritos serán descargadas para uso sin conexión.</string>
     <string name="settings_sync_starred_artists_for_offline_use_title">Sincronizar artistas favoritos para uso sin conexión</string>
@@ -552,7 +551,7 @@
     <string name="toolbar_navigation_drawer_open">Panel de navegación abierto</string>
     <string name="toolbar_navigation_drawer_closed">Panel de navegación cerrado</string>
     <string name="favorite_icon_description">Favoritos</string>
-    <string name="asset_link_clipboard_label">Tempus asset link</string>
+    <string name="asset_link_clipboard_label">Siskin asset link</string>
     <string name="asset_link_label_song">Canción UID</string>
     <string name="asset_link_label_album">Álbum UID</string>
     <string name="asset_link_label_artist">Artista UID</string>
@@ -608,7 +607,6 @@
     <string name="streaming_cache_storage_dialog_title">Seleccionar almacenamiento</string>
     <string name="streaming_cache_storage_external_dialog_positive_button">Externo</string>
     <string name="streaming_cache_storage_internal_dialog_negative_button">Interno</string>
-    <string name="support_url" translatable="false">https://ko-fi.com/eddyizm</string>
     <string name="track_info_album">Álbum</string>
     <string name="track_info_artist">Artista</string>
     <string name="track_info_bit_depth">Tasa de profundidad</string>
@@ -638,9 +636,9 @@
     <string name="undraw_page">unDraw</string>
     <string name="undraw_thanks">Un agradecimiento especial a unDraw, sin sus ilustraciones no podríamos haber hecho esta aplicación más hermosa.</string>
     <string name="undraw_url" translatable="false">https://undraw.co/</string>
-    <string name="widget_label">Widget de Tempus</string>
+    <string name="widget_label">Widget de Siskin</string>
     <string name="widget_not_playing">Nada reproduciendo</string>
-    <string name="widget_placeholder_subtitle">Abrir Tempus</string>
+    <string name="widget_placeholder_subtitle">Abrir Siskin</string>
     <string name="widget_time_elapsed_placeholder">0:00</string>
     <string name="widget_time_duration_placeholder">0:00</string>
     <string name="widget_content_desc_album_art">Portada del álbum</string>
@@ -666,7 +664,7 @@
     <string name="equalizer_enable">Activar</string>
     <string name="equalizer_managed_externally">No soportado por este dispositivo</string>
     <string name="settings_app_equalizer">Ecualizador</string>
-    <string name="settings_app_equalizer_summary">Abrir el ecualizador incorporado en Tempus</string>
+    <string name="settings_app_equalizer_summary">Abrir el ecualizador incorporado en Siskin</string>
     <string name="settings_title_equalizer">Ecualizador</string>
     <string name="settings_equalizer_select">Selecciona un ecualizador para usar</string>
     <string name="settings_equalizer_dialog_title">Ecualizadores</string>
@@ -710,12 +708,12 @@
         <item>@string/sleep_timer_end_of_track_label</item>
         <item>Personalizado\u2026</item>
     </string-array>
-    <string name="customactivityoncrash_error_activity_error_occurred_explanation">Tempus falló.</string>
+    <string name="customactivityoncrash_error_activity_error_occurred_explanation">Siskin falló.</string>
 
     <!-- Crash Activity -->
 
     <string name="ca_info_label">Info</string>
-    <string name="ca_info_title">Tempus falló</string>
+    <string name="ca_info_title">Siskin falló</string>
     <string name="ca_info_description">
         Por favor, abre un ticket en GitHub e incluye una copia del log para poder solucionar el fallo.
     </string>

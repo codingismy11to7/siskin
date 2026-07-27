@@ -461,7 +461,7 @@ object MediaBrowserTree {
                 buildMediaItem(
                     gridView = false,
                     title = appContext.getString(R.string.aa_quick_mix),
-                    artist = "By Tempus",
+                    artist = "By Siskin",
                     mediaId = ConstantsAA.MADE_FOR_YOU_SOURCE
                             + "[" +ConstantsAA.NUMBER_OF_TRACKS_IN_SMALL_MIX + "]"
                             + ConstantsAA.QUICKMIX_ID,
@@ -477,7 +477,7 @@ object MediaBrowserTree {
                 buildMediaItem(
                     gridView = false,
                     title = appContext.getString(R.string.aa_my_mix),
-                    artist = "By Tempus",
+                    artist = "By Siskin",
                     mediaId = ConstantsAA.MADE_FOR_YOU_SOURCE
                             + "[" + ConstantsAA.NUMBER_OF_TRACKS_IN_MEDIUM_MIX + "]"
                             + ConstantsAA.MYMIX_ID,
@@ -493,7 +493,7 @@ object MediaBrowserTree {
                 buildMediaItem(
                     gridView = false,
                     title = appContext.getString(R.string.aa_discovery_mix),
-                    artist = "By Tempus",
+                    artist = "By Siskin",
                     mediaId = ConstantsAA.MADE_FOR_YOU_SOURCE
                             + "[" + ConstantsAA.NUMBER_OF_TRACKS_IN_LARGE_MIX + "]"
                             + ConstantsAA.DISCOVERYMIX_ID,

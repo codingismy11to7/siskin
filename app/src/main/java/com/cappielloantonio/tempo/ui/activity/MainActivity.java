@@ -38,7 +38,6 @@ import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.cappielloantonio.tempo.App;
-import com.cappielloantonio.tempo.BuildConfig;
 import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.broadcast.receiver.ConnectivityStatusBroadcastReceiver;
 import com.cappielloantonio.tempo.databinding.ActivityMainBinding;
@@ -562,7 +561,7 @@ public class MainActivity extends BaseActivity {
     }
 
     private void checkTempoUpdate() {
-        if (BuildConfig.FLAVOR.equals("tempus") && Preferences.isGithubUpdateEnabled() && Preferences.showTempusUpdateDialog()) {
+        if (Preferences.isGithubUpdateEnabled() && Preferences.showSiskinUpdateDialog()) {
             mainViewModel.checkTempoUpdate().observe(this, latestRelease -> {
                 if (latestRelease != null && UpdateUtil.showUpdateDialog(latestRelease)) {
                     GithubTempoUpdateDialog dialog = new GithubTempoUpdateDialog(latestRelease);

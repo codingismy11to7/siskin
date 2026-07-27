@@ -938,7 +938,7 @@ public class AutomotiveRepository {
                                 ArtistID3 artist = response.body().getSubsonicResponse().getArtist();
                                 MediaItem instantMixItem = createAlbum(
                                         App.getContext().getString(R.string.aa_instant_mix),
-                                        "By Tempus",
+                                        "By Siskin",
                                         "Instant Mix",
                                         ConstantsAA.INSTANTMIX_SOURCE + "[" + numberOfTracks + "]" + id,
                                         true,

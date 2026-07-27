@@ -47,7 +47,7 @@ public class PlaylistCatalogueViewModel extends AndroidViewModel {
     }
 
     public void setSortOrder(String order) {
-        android.util.Log.d("TempusLog", "ViewModel setSortOrder called with: " + order);
+        android.util.Log.d("SiskinLog", "ViewModel setSortOrder called with: " + order);
         Preferences.setHomeSortPlaylists(order);
         sortOrder.setValue(order);
     }

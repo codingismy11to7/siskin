@@ -152,7 +152,7 @@ public class PlaylistRepository {
 
     @androidx.media3.common.util.UnstableApi
     public LiveData<List<Playlist>> getSortedPlaylists(String sortOrder) {
-        android.util.Log.d("TempusLog", "Repo reaching DAO with: " + sortOrder);
+        android.util.Log.d("SiskinLog", "Repo reaching DAO with: " + sortOrder);
         return playlistDao.getSortedPlaylists(sortOrder);
     }
 

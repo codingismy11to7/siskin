@@ -1,91 +1,67 @@
 <p align="center">
-  <img alt="Tempus" title="Tempus" src="mockup/svg/tempus-horizontal-banner.png" width="250">
+  <b>Siskin</b>
 </p>
 
 ---
 
 <p align="center">
-  <b>Access your music library on all your android devices</b>
+  <b>A Subsonic music client for Android, being retargeted at Android Automotive OS</b>
 </p>
 
 <div align="center">
 
-<a href="https://github.com/eddyizm/tempus/releases/">
-    <img alt="Releases" src="https://img.shields.io/github/downloads/eddyizm/tempus/total.svg?color=4B95DE&style=flat">
+<a href="https://github.com/codingismy11to7/siskin/releases/">
+    <img alt="Releases" src="https://img.shields.io/github/downloads/codingismy11to7/siskin/total.svg?color=4B95DE&style=flat">
 </a>
-  <!-- Reproducible build  -->
-<a href="https://shields.rbtlog.dev/com.eddyizm.degoogled.tempus"><img src="https://shields.rbtlog.dev/simple/com.eddyizm.degoogled.tempus" alt="RB Status"></a>
 <a href="https://www.gnu.org/licenses/gpl-3.0">
     <img src="https://img.shields.io/badge/license-GPL%20v3-2B6DBE.svg?style=flat">
 </a>
 </div>
 
 <p align="center">
-    <a href="https://f-droid.org/packages/com.eddyizm.degoogled.tempus">
-    <img src="https://f-droid.org/badge/get-it-on.png"
-    alt="Get it on F-Droid"
-    height="80">
-    </a>
-    <a href="https://github.com/eddyizm/tempus/releases"><img src="https://i.ibb.co/q0mdc4Z/get-it-on-github.png" width="200"></a>
-    <a href="https://apt.izzysoft.de/fdroid/index/apk/com.eddyizm.degoogled.tempus"><img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" width="200"></a>
-    <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.eddyizm.tempus%22%2C%22url%22%3A%22https%3A%2F%2Fgithub.com%2Feddyizm%2Ftempus%22%2C%22author%22%3A%22eddyizm%22%2C%22name%22%3A%22Tempus%22%2C%22preferredApkIndex%22%3A0%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3Afalse%2C%5C%22fallbackToOlderReleases%5C%22%3Atrue%2C%5C%22filterReleaseTitlesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22filterReleaseNotesByRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22verifyLatestTag%5C%22%3Afalse%2C%5C%22sortMethodChoice%5C%22%3A%5C%22date%5C%22%2C%5C%22useLatestAssetDateAsReleaseDate%5C%22%3Afalse%2C%5C%22releaseTitleAsVersion%5C%22%3Afalse%2C%5C%22trackOnly%5C%22%3Afalse%2C%5C%22versionExtractionRegEx%5C%22%3A%5C%22%5C%22%2C%5C%22matchGroupToUse%5C%22%3A%5C%22%5C%22%2C%5C%22versionDetection%5C%22%3Atrue%2C%5C%22releaseDateAsVersion%5C%22%3Afalse%2C%5C%22useVersionCodeAsOSVersion%5C%22%3Afalse%2C%5C%22apkFilterRegEx%5C%22%3A%5C%22tempus%5C%22%2C%5C%22invertAPKFilter%5C%22%3Afalse%2C%5C%22autoApkFilterByArch%5C%22%3Atrue%2C%5C%22appName%5C%22%3A%5C%22%5C%22%2C%5C%22appAuthor%5C%22%3A%5C%22%5C%22%2C%5C%22shizukuPretendToBeGooglePlay%5C%22%3Afalse%2C%5C%22allowInsecure%5C%22%3Afalse%2C%5C%22exemptFromBackgroundUpdates%5C%22%3Afalse%2C%5C%22skipUpdateNotifications%5C%22%3Afalse%2C%5C%22about%5C%22%3A%5C%22%5C%22%2C%5C%22refreshBeforeDownload%5C%22%3Afalse%2C%5C%22includeZips%5C%22%3Afalse%2C%5C%22zippedApkFilterRegEx%5C%22%3A%5C%22%5C%22%7D%22%2C%22overrideSource%22%3A%22GitHub%22%7D"><img width="200" src="https://github.com/user-attachments/assets/119e7ff4-2636-43cb-ab7f-1b6a58ac3570" /></a>
-    <a href="https://www.openapk.net/tempus/com.eddyizm.degoogled.tempus/"><img src="https://camo.githubusercontent.com/cd56895b28a73ebd781a65b4f567add5419e45797a5cf1485ce408e851c2318e/68747470733a2f2f7777772e6f70656e61706b2e6e65742f696d616765732f6f70656e61706b2d62616467652e706e67" width="200"></a>
+    <a href="https://github.com/codingismy11to7/siskin/releases"><b>Download from GitHub Releases</b></a>
 </p>
-<!-- 
-    <a href="https://f-droid.org/packages/com.cappielloantonio.notquitemy.tempo"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" width="200"></a>
--->
   
 
-**Tempus** is an open-source and privacy focused music client for Subsonic, designed and built natively for Android. It provides a seamless and intuitive music streaming experience, allowing you to access and play your Subsonic music library directly from your Android device. 
+**Siskin** is an open-source and privacy focused music client for Subsonic, designed and built natively for Android. It provides a seamless and intuitive music streaming experience, allowing you to access and play your Subsonic music library directly from your Android device. 
 
-Tempus does not rely on magic algorithms to decide what you should listen to. Instead, the interface is built around your listening history, randomness, and optionally integrates with services like Listenbrainz.org and Last.fm to personalize your music experience (These must be supported by your backend). 
+Siskin does not rely on magic algorithms to decide what you should listen to. Instead, the interface is built around your listening history, randomness, and optionally integrates with services like Listenbrainz.org and Last.fm to personalize your music experience (These must be supported by your backend). 
 
 The project is a fork of [Tempo](#credits).
 
 [Changelog](CHANGELOG.md)  
-[Wiki](USAGE.md)  
-[Donate](https://github.com/eddyizm/tempus#donate)
+[Wiki](USAGE.md)
 
-**If you find Tempus useful, please consider starring the project on GitHub. It would mean a lot to me and help promote the app to a wider audience.**
+**If you find Siskin useful, please consider starring the project on GitHub. It would mean a lot to me and help promote the app to a wider audience.**
 
-**Use the Github version of the app for full Android Auto and Chromecast support.**
+### Releases
 
-sha256 signing key fingerprint   
-`B7:85:01:B9:34:D0:4E:0A:CA:8D:94:AF:D6:72:6A:4D:1D:CE:65:79:7F:1D:41:71:0F:64:3C:29:00:EB:1D:1D`  
+Releases publish a universal APK covering all supported ABIs.
 
-### Releases  
-
-Please note the two variants in the release assets include release/debug and 32/64 bit flavors.
-
-🟥 `app-tempus` <- The github release with all the android auto/chromecast features 
-
-🟩`app-degoogled*` <- The izzyOnDroid release that goes without any of the google stuff. It is now available on izzyOnDroid (64bit) I am releasing the both 32/64bit apk's here on github for those who need a 32bit version.
+Android Auto and Chromecast support are included in every build.
 
 
 ## Features
 
-### 🟩F-droid & 🟥Github
-- **Subsonic Integration**: Tempus seamlessly integrates with your Subsonic server, providing you with easy access to your entire music collection on the go.
+- **Subsonic Integration**: Siskin seamlessly integrates with your Subsonic server, providing you with easy access to your entire music collection on the go.
 - **Sleek and Intuitive UI**: Enjoy a clean and user-friendly interface designed to enhance your music listening experience, tailored to your preferences and listening history.
 - **Browse and Search**: Easily navigate through your music library using various browsing and searching options, including artists, albums, genres, playlists, decades and more.
 - **Streaming and Offline Mode**: Stream music directly from your Subsonic server. Offline mode is currently under active development and may have limitations when using multiple servers.
 - **Playlist Management**: Create, edit, and manage playlists to curate your perfect music collection.
 - **Gapless Playback**: Experience uninterrupted playback with gapless listening mode.
 - **ReplayGain**: Volume normalization, preamp offset and clipping prevention if your metadata provide the information.
-- **Scrobbling Integration**: Optionally integrate Tempus with Last.fm or Listenbrainz.org to scrobble your played tracks, gather music insights, and further personalize your music recommendations, if supported by your Subsonic server.
-- **Podcasts**: If your Subsonic server supports it, listen to podcasts directly within Tempus, expanding your audio entertainment options.
-- **Radio**: Tempus can now also search and save Internet radio stations on local device even without a backend subsonic api support. 
+- **Scrobbling Integration**: Optionally integrate Siskin with Last.fm or Listenbrainz.org to scrobble your played tracks, gather music insights, and further personalize your music recommendations, if supported by your Subsonic server.
+- **Podcasts**: If your Subsonic server supports it, listen to podcasts directly within Siskin, expanding your audio entertainment options.
+- **Radio**: Siskin can now also search and save Internet radio stations on local device even without a backend subsonic api support. 
 - **Instant Mix**: Full refactor of instant mix function which leverages subsonics similarSongs2 by artist/album and similarSongs endpoints to server a larger play queue more reliably.
 - **Transcoding Support**: Activate transcoding of tracks on your Subsonic server, allowing you to set a transcoding profile for optimized streaming directly from the app. This feature requires support from your Subsonic server.
-- **Multiple Libraries**: Tempus handles multi-library setups gracefully. They are displayed as Library folders.
+- **Multiple Libraries**: Siskin handles multi-library setups gracefully. They are displayed as Library folders.
 - **Equalizer**: Option to use built-in or third-party equalizer.
 - **Widget**: New widget to keeping the basic controls on your screen at all times.
 - **Available in 12 languages**: Currently in Catalan, Chinese, French, German, Italian, Korean, Polish, Portuguese, Russion, Spanish (Spain), Spanish (Latam) and Turkish
-
-### 🟥GitHub version only
 - **Chromecast Support**: Stream your music to Chromecast devices. The support is currently in a rudimentary state.
 - **Android Auto Support**: Enjoy your favorite music on the go with full Android Auto integration, allowing you to seamlessly control and listen to your tracks directly from your mobile device while driving.
- 
+
 ## Screenshot
 
 <p align="center">
@@ -93,9 +69,6 @@ Please note the two variants in the release assets include release/debug and 32/
 </p>
 
 <p align="center">
-    <img src="mockup/1_light_tempus.png" width=200>
-    <img src="mockup/2_light_tempus.png" width=200>
-    <img src="mockup/3_light_tempus.png" width=200>
     <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_light.png" width=200>
     <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_light.png" width=200>
     <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6_light.png" width=200>
@@ -109,9 +82,6 @@ Please note the two variants in the release assets include release/debug and 32/
 </p>
 
 <p align="center">
-    <img src="mockup/1_dark_tempus.png" width=200>
-    <img src="mockup/2_dark_tempus.png" width=200>
-    <img src="mockup/3_dark_tempus.png" width=200>
     <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_dark.png" width=200>
     <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_dark.png" width=200>
     <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6_dark.png" width=200>
@@ -119,7 +89,7 @@ Please note the two variants in the release assets include release/debug and 32/
     
 </p>
 
-## 🟥Github (Android Auto)
+## Android Auto
 <p>
     <p align="left">
         <img src="mockup/usage/aa_thumbnails.jpg" width=317 style="margin-right:16px;">
@@ -146,19 +116,11 @@ Currently there are no tests but I would love to start on some unit tests.
 Not a hard requirement but any new feature/change should ideally include an update to the nacent documention. 
 
 *Special Thanks*  
-All the amazing [contributors](https://github.com/eddyizm/tempus/graphs/contributors)❤️
-
-## Donate
-
-<a href="https://liberapay.com/eddyizm/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a>  
-
-bitcoin: `3QVHSSCJvn6yXEcJ3A3cxYLMmbvFsrnUs5`    
-
-[**Buy me a Ko-Fi**](https://ko-fi.com/eddyizm)  
+All the amazing [contributors](https://github.com/codingismy11to7/siskin/graphs/contributors)❤️
 
 ## License
 
-Tempus is released under the [GNU General Public License v3.0](LICENSE). Feel free to modify, distribute, and use the app in accordance with the terms of the license. Contributions to the project are also welcome. 
+Siskin is released under the [GNU General Public License v3.0](LICENSE). Feel free to modify, distribute, and use the app in accordance with the terms of the license. Contributions to the project are also welcome. 
 
 
 ## Credits

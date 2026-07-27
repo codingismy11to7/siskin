@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorSurface"
-            android:title="Tempus Crashed"
+            android:title="@string/ca_info_title"
             android:titleTextColor="@color/material_dynamic_primary0"
             app:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
 

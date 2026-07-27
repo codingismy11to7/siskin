@@ -16,7 +16,7 @@
 .env
 .vscode/settings.json
 # release / debug files
-tempus-release-key.jks
-app/tempus/
-app/degoogled/
+siskin-release-key.jks
 .aider*
+# throwaway implementation plans — specs live in docs/decisions/ and are committed
+docs/plans/

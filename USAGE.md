@@ -1,4 +1,4 @@
-# Tempus Usage Guide 
+# Siskin Usage Guide 
 [<- back home](README.md)
 
 ## Table of Contents
@@ -22,7 +22,7 @@
 - Valid login credentials for your Subsonic server
 - Music content uploaded and organized on your server
 
-Tempus offers advanced features such as Instant Mix, Continuous Play, Artists Page, and many others, which require a properly configured server capable to respond to "similar songs" requests and correctly tagged music files.
+Siskin offers advanced features such as Instant Mix, Continuous Play, Artists Page, and many others, which require a properly configured server capable to respond to "similar songs" requests and correctly tagged music files.
 
 ### Verified backends
 This app works with any service that implements the Subsonic API, including:
@@ -38,7 +38,7 @@ This app works with any service that implements the Subsonic API, including:
 ## Getting Started
 
 ### Installation
-1. Download the APK from the [Releases](https://github.com/eddyizm/tempus/releases) section
+1. Download the APK from the [Releases](https://github.com/codingismy11to7/siskin/releases) section
 2. Enable "Install from unknown sources" in your Android settings
 3. Install the application
 
@@ -64,15 +64,15 @@ This app works with any service that implements the Subsonic API, including:
 
 **Multi-library**
 
-Tempus handles multi-library setups gracefully. They are displayed as Library folders. 
+Siskin handles multi-library setups gracefully. They are displayed as Library folders. 
 
 However, if you want to limit or change libraries you could use a workaround, if your server supports it.
 
-You can create multiple users , one for each library, and save each of them in Tempus app.
+You can create multiple users , one for each library, and save each of them in Siskin app.
 
 ### Folder or index playback
 
-If your Subsonic-compatible server exposes the folder tree **or** provides an artist index (for example Gonic, Navidrome, or any backend with folder browsing enabled), Tempus lets you play an entire folder from anywhere in the library hierarchy:
+If your Subsonic-compatible server exposes the folder tree **or** provides an artist index (for example Gonic, Navidrome, or any backend with folder browsing enabled), Siskin lets you play an entire folder from anywhere in the library hierarchy:
 
 <p align="left">
     <img src="mockup/usage/music_folders_root.png" width=317 style="margin-right:16px;">
@@ -83,7 +83,7 @@ If your Subsonic-compatible server exposes the folder tree **or** provides an ar
 - When viewing **inner folders** **or artist index entries**, tap the new play button to immediately enqueue every audio track inside that folder/index and all nested subfolders.
 - Video files are excluded automatically, so only playable audio ends up in the queue.
 
-No extra config is needed—Tempus adjusts based on the connected backend.
+No extra config is needed—Siskin adjusts based on the connected backend.
 
 ### Now Playing Screen
 
@@ -162,7 +162,7 @@ If your server supports it - add a internet radio station feed
 
 **Enabling on your head unit**
 
-To allow the Tempus app on your car's head unit, "Unknown sources" needs to be enabled in the Android Auto "Developer settings". This is because Tempus isn't installed through Play Store. Note that the Android Auto developer settings are different from the global Android "Developer options".
+To allow the Siskin app on your car's head unit, "Unknown sources" needs to be enabled in the Android Auto "Developer settings". This is because Siskin isn't installed through Play Store. Note that the Android Auto developer settings are different from the global Android "Developer options".
 1. Switch to developer mode in the Android Auto settings by tapping ten times on the "Version" item at the bottom, followed by giving your permission.
 <p align="left">
    <img width="270" height="600" alt="1a" src="https://github.com/user-attachments/assets/f09f6999-9761-4b05-8ec7-bf221a15dda3" />
@@ -262,7 +262,7 @@ Starred Artists view:
     <img src="mockup/usage/aa_starred_artists_view.jpg" width=317>
 </p>
 
-On an artist's page, if they have at least 2 albums with a minimum of 20 tracks, an "Instant Mix by Tempus" album is added at the beginning.
+On an artist's page, if they have at least 2 albums with a minimum of 20 tracks, an "Instant Mix by Siskin" album is added at the beginning.
 This album features 12, 15 ou 18 tracks chosen randomly from their discography and is an one click play.
 The number of tracks on the album depends on the size of the artist's discography (>20, >30 or >40)
 
@@ -307,13 +307,13 @@ Shortcuts are displayed only if the function is selected from root level:
 
 ### Airsonic Distorted Playback
 
-First reported in issue [#226](https://github.com/eddyizm/tempus/issues/226)  
+First reported in issue [#226](https://github.com/codingismy11to7/siskin/issues/226)  
 The work around is to disable the cache in the settings, (set to 0), and if needed, cleaning the (Android) cache fixes the problem.
 
 ### Support
 For additional help:
-- Question? Start a [Discussion](https://github.com/eddyizm/tempus/discussions)
-- Open an [issue](https://github.com/eddyizm/tempus/issues) if you don't find a discussion solving your issue. 
+- Question? Start a [Discussion](https://github.com/codingismy11to7/siskin/discussions)
+- Open an [issue](https://github.com/codingismy11to7/siskin/issues) if you don't find a discussion solving your issue. 
 - Consult your Subsonic server's documentation
 
 ---

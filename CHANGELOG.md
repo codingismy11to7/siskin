@@ -1,5 +1,16 @@
 # Changelog
 
+> Siskin is a fork of [Tempus](https://github.com/eddyizm/tempus), itself a fork
+> of [Tempo](https://github.com/cappielloantonio/tempo). Entries at 4.22.2 and
+> below describe releases that shipped as Tempus and retain their original
+> naming.
+
+## [Unreleased] — Siskin
+
+- Rebranded from Tempus to Siskin
+- Dropped the `degoogled` product flavor and collapsed the flavor dimension
+- Forked to retarget at Android Automotive OS (enablement pending)
+
 ## [4.22.2](https://github.com/eddyizm/tempus/releases/tag/v4.22.) (2026-07-19)
 ## What's Changed
 * chore: fdroid reproducible build
