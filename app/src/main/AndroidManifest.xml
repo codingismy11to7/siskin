@@ -65,12 +65,22 @@
              There is deliberately no distractionOptimized meta-data: AAOS
              restricts keyboard input while driving, so a sign-in form cannot be
              distraction-optimized in a compliant way. Its absence makes the
-             platform block this screen while the car is moving. -->
+             platform block this screen while the car is moving.
+
+             taskAffinity is its own task, separate from MainActivity's (both
+             would otherwise default to the applicationId affinity and share
+             one task). CarSignInResolution's PendingIntent launches this
+             activity with NEW_TASK|CLEAR_TASK, and CLEAR_TASK clears whatever
+             task shares this activity's affinity. Without a distinct
+             affinity here, tapping "Sign in" would finish MainActivity (and
+             everything above it) instead of only clearing this activity's
+             own task: silently destructive if removed. -->
         <activity
             android:name=".ui.activity.CarSignInActivity"
             android:exported="false"
             android:label="@string/car_sign_in_title"
             android:launchMode="singleTop"
+            android:taskAffinity=":car_sign_in"
             android:theme="@style/AppTheme"
             android:windowSoftInputMode="adjustResize" />
 

@@ -11,6 +11,7 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.SessionError
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
 import com.google.common.collect.ImmutableList
 
@@ -29,19 +30,29 @@ object CarSignInResolution {
 
     fun errorResult(
         context: Context,
-        @StringRes labelRes: Int
+        @StringRes messageRes: Int,
+        @StringRes actionRes: Int = R.string.car_sign_in_action
     ): LibraryResult<ImmutableList<MediaItem>> {
-        val label = context.getString(labelRes)
+        val message = context.getString(messageRes)
+        val action = context.getString(actionRes)
         return LibraryResult.ofError(
-            SessionError(SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED, label),
+            // ERROR_SESSION_AUTHENTICATION_EXPIRED (-102) is one of exactly two codes
+            // media3 1.9.2's MediaLibrarySessionImpl.isReplicationErrorCode replicates
+            // to a legacy MediaBrowserCompat client (the other is
+            // ERROR_SESSION_PARENTAL_CONTROL_RESTRICTED, -105). com.android.car.media
+            // is such a client, and that replication is the only route by which the
+            // label and PendingIntent extras below reach the PlaybackState and become
+            // a button. Swapping this code for any other SessionError silently drops
+            // the button with no compile or test failure.
+            SessionError(SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED, message),
             MediaLibraryService.LibraryParams.Builder()
-                .setExtras(resolutionExtras(context, label))
+                .setExtras(resolutionExtras(context, action))
                 .build()
         )
     }
 
-    private fun resolutionExtras(context: Context, label: String): Bundle = Bundle().apply {
-        putString(MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_LABEL_COMPAT, label)
+    private fun resolutionExtras(context: Context, action: String): Bundle = Bundle().apply {
+        putString(MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_LABEL_COMPAT, action)
         putParcelable(
             MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_INTENT_COMPAT,
             signInPendingIntent(context)
