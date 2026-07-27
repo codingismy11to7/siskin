@@ -14,6 +14,7 @@ import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.subsonic.Subsonic;
 import com.cappielloantonio.tempo.subsonic.SubsonicPreferences;
 import com.cappielloantonio.tempo.ui.activity.CrashActivity;
+import com.cappielloantonio.tempo.ui.activity.MainActivity;
 import com.cappielloantonio.tempo.util.ClientCertManager;
 import com.cappielloantonio.tempo.util.Preferences;
 
@@ -41,7 +42,11 @@ public class App extends Application {
                 .trackActivities(false) //default: false
                 .minTimeBetweenCrashesMs(3000) //default: 3000
                 .errorDrawable(R.drawable.ui_crash) //default: bug image
-                .restartActivity(null) //default: null (your app's launch activity)
+                // Named explicitly rather than left null. The null default resolves
+                // through PackageManager.getLaunchIntentForPackage(), which returns
+                // null now that no activity declares LAUNCHER -- the Restart button
+                // would silently stop restarting anything.
+                .restartActivity(MainActivity.class)
                 .errorActivity(CrashActivity.class) //default: null (default error activity)
                 .eventListener(null) //default: null
                 .customCrashDataCollector(null) //default: null
