@@ -7,11 +7,13 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.github.models.LatestRelease;
+import com.cappielloantonio.tempo.interfaces.CredentialStateCallback;
 import com.cappielloantonio.tempo.interfaces.SystemCallback;
 import com.cappielloantonio.tempo.subsonic.base.ApiResponse;
 import com.cappielloantonio.tempo.subsonic.models.OpenSubsonicExtension;
 import com.cappielloantonio.tempo.subsonic.models.ResponseStatus;
 import com.cappielloantonio.tempo.subsonic.models.SubsonicResponse;
+import com.cappielloantonio.tempo.util.CredentialGate;
 
 import java.util.List;
 
@@ -47,6 +49,43 @@ public class SystemRepository {
                     @Override
                     public void onFailure(@NonNull Call<ApiResponse> call, @NonNull Throwable t) {
                         callback.onError(new Exception(t.getMessage()));
+                    }
+                });
+    }
+
+    /**
+     * Distinguishes "the server rejected our credentials" from "we could not reach
+     * the server". checkUserCredential flattens both into onError(Exception), which
+     * is not enough to decide whether offering a sign-in button would help.
+     */
+    public void checkCredentialState(CredentialStateCallback callback) {
+        App.getSubsonicClientInstance(false)
+                .getSystemClient()
+                .ping()
+                .enqueue(new Callback<ApiResponse>() {
+                    @Override
+                    public void onResponse(@NonNull Call<ApiResponse> call, @NonNull Response<ApiResponse> response) {
+                        if (response.body() == null || response.body().getSubsonicResponse() == null) {
+                            callback.onResult(false);
+                            return;
+                        }
+
+                        SubsonicResponse subsonicResponse = response.body().getSubsonicResponse();
+
+                        if (!ResponseStatus.FAILED.equals(subsonicResponse.getStatus())) {
+                            callback.onResult(false);
+                            return;
+                        }
+
+                        com.cappielloantonio.tempo.subsonic.models.Error apiError = subsonicResponse.getError();
+                        callback.onResult(CredentialGate.isAuthFailure(apiError != null ? apiError.getCode() : null));
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<ApiResponse> call, @NonNull Throwable t) {
+                        // Transport failure: the server is unreachable, not refusing us.
+                        Log.d("SystemRepository", "credential check could not reach the server", t);
+                        callback.onResult(false);
                     }
                 });
     }

@@ -8,9 +8,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.AutomotiveRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
+import com.cappielloantonio.tempo.repository.SystemRepository
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.CredentialGate
@@ -19,6 +21,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.google.common.util.concurrent.SettableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "MediaLibrarySessionCallback"
@@ -63,15 +66,42 @@ class MediaLibrarySessionCallback(
             )
         }
 
-        val future = MediaBrowserTree.getChildren(parentId)
-
         Log.d(TAG, "onGetChildren parentId = $parentId")
 
-        return Futures.transform(future, { result ->
-            val items = result.value ?: emptyList()
-            queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE] = items
-            result
+        val future = MediaBrowserTree.getChildren(parentId)
+
+        return Futures.transformAsync(future, { result ->
+            if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
+                val items = result.value ?: emptyList()
+                queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE] = items
+                Futures.immediateFuture(result)
+            } else {
+                classifyFailure(result)
+            }
         }, MoreExecutors.directExecutor())
+    }
+
+    /**
+     * A browse request failed while credentials exist. Ask the server once whether
+     * it is refusing them: only then is a sign-in button the right offer. An
+     * unreachable server keeps the original error, so the car does not tell the
+     * user to sign in when the problem is the network.
+     */
+    private fun classifyFailure(
+        original: LibraryResult<ImmutableList<MediaItem>>?
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val settable = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
+
+        SystemRepository().checkCredentialState { credentialsRejected ->
+            if (credentialsRejected) {
+                Log.d(TAG, "browse failed and the server rejected our credentials")
+                settable.set(CarSignInResolution.errorResult(context, R.string.car_sign_in_again))
+            } else {
+                settable.set(original ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+            }
+        }
+
+        return settable
     }
 
     // ─────────────────────────────────────────────────────────────
