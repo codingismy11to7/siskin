@@ -87,16 +87,17 @@ Mirrors `subsonic/`, including the `*Client` / `*Service` split per area.
 plex/
   PlexApi.kt              config holder: token, server URI, client identity
   PlexRetrofitFactory.kt  builds the two Retrofit instances
-  base/MediaContainer.kt  the universal response wrapper
-  models/                 Metadata, Media, Part, Directory, Pin, Resource, Connection
+  base/PlexResponse.kt    PlexResponse + MediaContainer, the universal response wrapper
+  models/                 Metadata, Media, Part, Directory, Hub, Pin, Resource, Connection
   api/auth/               AuthClient + AuthService      (plex.tv)
   api/library/            LibraryClient + LibraryService (server)
   api/search/             SearchClient + SearchService   (server)
   api/media/              MediaUrlBuilder — URL construction only, issues no calls
 ```
 
-Eight model types, four service interfaces, **twelve Retrofit calls** plus two
-URL builders.
+Ten model types (eight in `models/` plus `PlexResponse` and `MediaContainer` in
+`base/`), **three** service interfaces (`api/media` is a URL-builder package, not
+a service), **twelve Retrofit calls** plus two URL builders.
 
 **plex.tv (3):** `POST /pins`, `GET /pins/{id}`, `GET /api/v2/resources`
 
@@ -108,7 +109,7 @@ URL builders.
 **Not Retrofit calls (2):** streaming and artwork are URL construction. ExoPlayer
 and the artwork `ContentProvider` are handed a URL rather than a response body, so
 `MediaUrlBuilder` assembles one from a `Part.key` or a `thumb` plus the current
-token. These are the two pure functions worth unit-testing.
+token. See Testing, below, for what is unit-tested across this layer.
 
 Section-scoped search is chosen over the global `GET /search` because the browse
 tree already knows which music section it is in, and scoping avoids returning
@@ -120,9 +121,20 @@ The one genuinely new structure versus Subsonic, which assumes a single configur
 base URL.
 
 `plex.tv` is fixed and known at startup. The server's base URL is **discovered
-after authentication** and changes when the user switches servers. So: one
-long-lived plex.tv instance, one rebuildable server instance, sharing an OkHttp
-client.
+after authentication** and changes when the user switches servers.
+
+What actually shipped: `PlexRetrofitFactory.server()` resolves `api.serverUri`
+once, at call time, and bakes it into that Retrofit instance's base URL — it is
+not rebuilt if the server changes afterwards. `LibraryClient` and `SearchClient`
+each call it from a constructor field initializer, so each client is pinned to
+whatever server URI was current when it was constructed; a client built before
+discovery, or before a server switch, is stuck. `PlexRetrofitFactory.okHttp()`
+also builds a fresh `OkHttpClient` on every call rather than sharing one.
+Neither "rebuildable" nor "sharing an OkHttp client" shipped. Making clients
+observe server changes — an aggregator, a `refresh()`, or caching — is deferred
+to the sign-in spec, which is what actually drives server switches; this layer
+only documents the current contract (KDoc on `LibraryClient`, `SearchClient`,
+and `PlexRetrofitFactory.server()`) so that spec isn't misled.
 
 A single OkHttp interceptor attaches identity to every request —
 `X-Plex-Client-Identifier` (a stable UUID generated once and persisted),
@@ -137,13 +149,27 @@ call" — a distinction that matters because only one of them works before sign-
 
 ## Auth and token lifecycle
 
-`POST /pins?strong=true` returns an id and a short code; the code becomes the QR
-payload. Poll `GET /pins/{id}` until `authToken` is present, then
+`POST /pins?strong=true` returns an id, a short code, and `qr` — a ready-made QR
+image URL Plex generates from the code, so the sign-in screen does not need to
+render one itself (see `Pin.kt`'s KDoc). Poll `GET /pins/{id}` until `authToken`
+is present, then
 `GET /api/v2/resources?includeHttps=1` to discover servers and select a connection
 URI. Token and URI persist where the Subsonic credentials live today.
 
 The PIN-flow states — created, pending, authorised, expired — are modelled as a
 pure function over poll responses so they can be unit-tested without a network.
+
+## minSdkVersion 24 → 28
+
+Parsing `expiresAt` in `AuthClient.expiresAtEpochSeconds` uses
+`java.time.Instant.parse`, which requires API 26 and was flagged by
+`lintDebug`'s NewApi check against the declared `minSdkVersion 24`. Rather than
+desugar or rework that one call, `minSdkVersion` was raised to 28. This costs
+nothing on the target platform: Siskin already declares
+`android.hardware.type.automotive` as required, and Android Automotive OS only
+shipped starting at API 28, so no installable device runs below that floor
+anyway. The user-visible effect is dropping Android 7.0–8.1 (API 24–27) on any
+non-automotive install.
 
 ## What carries over from the sign-in flow
 
@@ -161,22 +187,35 @@ payload is what forced `SystemRepository.isRejection` and the lazy classificatio
 design. Against Plex, "were we rejected?" is `response.code() == 401`.
 
 **Paging.** The spec declares `X-Plex-Container-Start` and `X-Plex-Container-Size`,
-so the server pages natively — which maps directly onto media3's
-`onGetChildren(page, pageSize)`. The Subsonic layer has no equivalent.
+so the server pages natively. Only `getSectionContent` takes them, though —
+`getChildren` and `getPlaylistItems` have no paging parameters at all, so this
+maps directly onto media3's `onGetChildren(page, pageSize)` for one endpoint,
+not for the layer as a whole. Adding paging to the other two is deferred to the
+browse-tree spec, which is what will actually call them. The Subsonic layer has
+no equivalent for any endpoint.
 
 ## Testing
 
 `unitTests.returnDefaultValues = true` (`app/build.gradle:34`) makes any
-framework-touching unit test pass while asserting nothing, so only pure functions
-are worth testing here:
+*Android-framework-touching* unit test pass while asserting nothing — but it
+only stubs `android.jar`. Gson, Retrofit's `Call`, and everything else on the
+JVM classpath are untouched, so a Gson round-trip test is real coverage, not a
+no-op. Seven test classes shipped with this layer, covering:
 
+- `PlexModelsTest` — Gson deserialization: a track listing through the
+  `MediaContainer` envelope, library sections through the `Directory` array, hub
+  rows through the `Hub` array, a bare (unenveloped) `Pin`, a bare `Resource`
+  array, and that missing arrays deserialize to null rather than throwing.
 - `MediaUrlBuilder` — artwork and stream URL construction, including token
   handling and escaping.
-- The PIN-flow state machine — as a function over poll responses.
-
-Model deserialization is exercised through those paths and by the layers built on
-top of this one; it is not separately unit-tested, because a Gson round-trip test
-under `returnDefaultValues` verifies little.
+- The PIN-flow state machine (`PlexPinState`) — as a pure function over poll
+  responses.
+- `PlexIdentity` — the header set built for every request, including token
+  presence/absence.
+- `AuthClient`'s pure helpers — best-connection selection over a `Resource`'s
+  `Connection`s, and PIN expiry parsing.
+- `LibraryClient.musicSections` and `SearchClient.playableResults` — the pure
+  filters each client applies to a deserialized `PlexResponse`.
 
 A committed trimmed spec with a path-existence test was considered and rejected as
 overhead for twelve endpoints.
