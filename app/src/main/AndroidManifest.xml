@@ -58,6 +58,21 @@
             android:label="@string/ca_info_title"
             android:process=":error_activity" />
 
+        <!-- Android Automotive OS sign-in. Reached only through the resolution
+             PendingIntent on the browse error, so it is not exported and has no
+             launcher intent-filter.
+
+             There is deliberately no distractionOptimized meta-data: AAOS
+             restricts keyboard input while driving, so a sign-in form cannot be
+             distraction-optimized in a compliant way. Its absence makes the
+             platform block this screen while the car is moving. -->
+        <activity
+            android:name=".ui.activity.CarSignInActivity"
+            android:exported="false"
+            android:label="@string/car_sign_in_title"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize" />
+
         <service
             android:name=".service.MediaService"
             android:exported="true"

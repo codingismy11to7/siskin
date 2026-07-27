@@ -1,9 +1,15 @@
 package com.cappielloantonio.tempo.helper;
 
+import android.content.res.Configuration;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.cappielloantonio.tempo.R;
+import com.cappielloantonio.tempo.util.Preferences;
+import com.google.android.material.color.DynamicColors;
 
 public class ThemeHelper {
     private static final String TAG = "ThemeHelper";
@@ -32,6 +38,38 @@ public class ThemeHelper {
                 }
                 break;
             }
+        }
+    }
+
+    /**
+     * Applies the user's theme choice to an activity. Must be called before
+     * super.onCreate(). Shared by BaseActivity and CarSignInActivity so the car
+     * sign-in screen is themed without inheriting BaseActivity's service and
+     * dialog startup.
+     */
+    public static void applyActivityTheme(AppCompatActivity activity) {
+        String theme = Preferences.getTheme();
+        String darkStyle = Preferences.getDarkThemeStyle();
+        boolean isAmoled = AMOLED_MODE.equals(darkStyle);
+        boolean applyAmoled = false;
+
+        if (DARK_MODE.equals(theme) || AMOLED_MODE.equals(theme)) {
+            if (isAmoled) {
+                activity.setTheme(R.style.AppTheme_Amoled);
+                applyAmoled = true;
+            }
+        } else if (DEFAULT_MODE.equals(theme)) {
+            int nightModeFlags = activity.getResources().getConfiguration().uiMode
+                    & Configuration.UI_MODE_NIGHT_MASK;
+            if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES && isAmoled) {
+                activity.setTheme(R.style.AppTheme_Amoled);
+                applyAmoled = true;
+            }
+        }
+
+        DynamicColors.applyToActivityIfAvailable(activity);
+        if (applyAmoled) {
+            activity.getTheme().applyStyle(R.style.ThemeOverlay_App_Amoled, true);
         }
     }
 }
