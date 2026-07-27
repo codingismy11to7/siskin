@@ -9,6 +9,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
+    <!-- Siskin exists to run natively on Android Automotive OS head units, not on
+         phones. Declaring the feature as required states that plainly and lets the
+         platform and store filter accordingly. -->
+    <uses-feature
+        android:name="android.hardware.type.automotive"
+        android:required="true" />
+
     <application
         android:name="App"
         android:allowBackup="false"
@@ -38,10 +45,14 @@
             android:name=".ui.activity.MainActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustPan|adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+
+            <!-- No MAIN/LAUNCHER filter, deliberately. A head unit would otherwise
+                 list Siskin twice: once as a media source and once as a phone-UI
+                 app. The activity stays exported and launchable by explicit intent,
+                 which is how the media session's setSessionActivity reaches it
+                 (BaseMediaService.initializeMediaLibrarySession) and how the crash
+                 handler restarts the app (App.java). Only the launcher listing is
+                 gone. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
