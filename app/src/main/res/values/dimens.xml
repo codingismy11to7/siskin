@@ -1,3 +1,4 @@
 <resources>
     <dimen name="global_padding_bottom">164dp</dimen>
+    <dimen name="plex_sign_in_choice_min_height">72dp</dimen>
 </resources>

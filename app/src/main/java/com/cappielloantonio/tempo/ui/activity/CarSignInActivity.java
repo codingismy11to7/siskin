@@ -10,19 +10,19 @@ import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.interfaces.LoginHost;
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator;
-import com.cappielloantonio.tempo.ui.fragment.LoginFragment;
+import com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment;
 
 /**
  * Sign-in screen for Android Automotive OS head units.
  *
  * Launched by the resolution PendingIntent attached to the browse error when no
- * usable credentials exist. Hosts the app's existing LoginFragment rather than
- * duplicating the login UI.
+ * usable credentials exist. Hosts PlexSignInFragment, which runs the Plex PIN
+ * flow: a QR code and short code approved on a phone.
  *
- * Deliberately NOT marked distractionOptimized in the manifest: AAOS restricts
- * keyboard input while driving, so a sign-in form cannot be distraction-optimized
- * in a compliant way. Without that metadata the platform blocks this screen while
- * the car is moving, which is exactly the behavior we want.
+ * Deliberately NOT marked distractionOptimized in the manifest: the pickers are
+ * tap-only, but sign-in is still not something to do while driving. Without that
+ * metadata the platform blocks this screen while the car is moving, which is
+ * exactly the behavior we want.
  */
 @UnstableApi
 public class CarSignInActivity extends AppCompatActivity implements LoginHost {
@@ -37,7 +37,7 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         if (savedInstanceState == null) {
             getSupportFragmentManager()
                     .beginTransaction()
-                    .replace(R.id.car_sign_in_container, new LoginFragment())
+                    .replace(R.id.car_sign_in_container, new PlexSignInFragment())
                     .commit();
         }
     }
