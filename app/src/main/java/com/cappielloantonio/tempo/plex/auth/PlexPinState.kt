@@ -29,5 +29,27 @@ sealed interface PlexPinState {
 
             return if (nowEpochSeconds >= expiresAtEpochSeconds) Expired else Pending
         }
+
+        /** Plex issues pins with a 15-minute life; this backstops an unparseable expiry. */
+        const val HARD_CAP_SECONDS = 900L
+
+        /**
+         * Bounds the poll loop [evaluate] deliberately does not bound.
+         *
+         * A pin whose expiry cannot be parsed makes evaluate return Pending
+         * forever. The cap outranks the server-supplied expiry in both
+         * directions: it stops an undated pin, and it stops a pin whose expiry
+         * is implausibly far out.
+         */
+        @JvmStatic
+        fun shouldKeepPolling(
+            startedAtEpochSeconds: Long,
+            nowEpochSeconds: Long,
+            expiresAtEpochSeconds: Long?
+        ): Boolean {
+            if (nowEpochSeconds - startedAtEpochSeconds >= HARD_CAP_SECONDS) return false
+            if (expiresAtEpochSeconds == null) return true
+            return nowEpochSeconds < expiresAtEpochSeconds
+        }
     }
 }
