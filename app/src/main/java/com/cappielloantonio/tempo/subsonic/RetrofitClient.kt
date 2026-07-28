@@ -65,10 +65,8 @@ class RetrofitClient(subsonic: Subsonic) {
 
         // BrowsingClient 60
         // MediaAnnotationClient 0
-        // MediaLibraryScanningClient 0
         // MediaRetrievalClient 0
         // PlaylistClient 0
-        // PodcastClient 60
         // SearchClient 60
         // SystemClient 60
         // AlbumSongListClient 60
