@@ -59,8 +59,7 @@
             android:label="@string/car_sign_in_title"
             android:launchMode="singleTop"
             android:taskAffinity=":car_sign_in"
-            android:theme="@style/AppTheme"
-            android:windowSoftInputMode="adjustResize" />
+            android:theme="@style/AppTheme" />
 
         <service
             android:name=".service.MediaService"

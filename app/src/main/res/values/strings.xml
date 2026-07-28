@@ -27,5 +27,6 @@
     <string name="plex_sign_in_error_pin">Plex did not return a sign-in code.</string>
     <string name="plex_sign_in_error_server_unreachable">Could not reach that Plex server.</string>
     <string name="plex_sign_in_instructions">Scan the QR code — or go to plex.tv/link and enter:</string>
+    <string name="plex_sign_in_qr_description">QR code for signing in to Plex</string>
     <string name="plex_sign_in_retry">Try again</string>
 </resources>

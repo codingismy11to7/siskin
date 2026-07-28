@@ -12,6 +12,13 @@ import com.cappielloantonio.tempo.plex.PlexApi
  * for a server the account owns -- those accept the account token -- so requiring
  * it would read as signed-out forever. PlexApi.serverHeaders() supplies the
  * fallback instead.
+ *
+ * The three values it does read describe *one* connection, and this predicate is
+ * only as honest as that. It cannot check the pairing itself -- a section key
+ * carries no record of which server it came from -- so the invariant is kept at
+ * the writing end, in PlexSignInViewModel.chooseServer(), which clears the
+ * section key as it adopts a new server. A mixed set would be reported here as a
+ * working sign-in, and browse would then query one server for another's section.
  */
 object CredentialGate {
 

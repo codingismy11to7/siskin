@@ -101,9 +101,16 @@ class PlexSignInViewModel(application: Application) : AndroidViewModel(applicati
         generation++
         handler.removeCallbacksAndMessages(null)
         pinId = null
-        // A retry abandons whatever was in flight, so the guard must not outlive
-        // it; createPin() below sets it again for the new request.
-        creating = false
+        // Claimed *before* Working is published, not cleared: setValue dispatches
+        // synchronously, so an observer runs while both of start()'s guards are
+        // visible. With `creating` false across that dispatch, an observer that
+        // calls start() would issue a second createPin at this very generation --
+        // and the generation counter cannot catch that one, because both requests
+        // carry the same value. createPin() below sets the same flag again for its
+        // own request; this only closes the window a dispatch earlier. Today the
+        // fragment's Working branch just toggles a visibility, so nothing exploits
+        // it -- the guard should not depend on that staying true.
+        creating = true
         _state.value = PlexSignInState.Working
         createPin()
     }
@@ -118,6 +125,25 @@ class PlexSignInViewModel(application: Application) : AndroidViewModel(applicati
         generation++
         val issuedGeneration = generation
 
+        // THE INVARIANT: accountToken, serverUri and musicSectionKey describe one
+        // connection, and CredentialGate.isSignedIn() reads all three as a set. They
+        // are written at different moments, so every moment that invalidates one of
+        // them must invalidate the rest -- a *mixed* set must never be readable,
+        // because the gate would report it as signed in and browse would then ask
+        // this server for another server's section.
+        //
+        // Cleared first, before the new server is adopted: these are three separate
+        // apply() calls and MediaLibraryServiceCallback can read across them from
+        // another thread. Clearing first means the worst a reader can see is the old
+        // server with no section key -- signed out, which is true. Assigning first
+        // would expose the new server with the old server's key.
+        //
+        // CarSignInActivity is the media session's activity, so the car's app
+        // affordance opens this screen at any time, including while fully signed in.
+        // Approving a pin, picking a different server and walking away is therefore
+        // reachable, and this line is what makes the state it leaves behind read as
+        // signed out rather than as a working sign-in pointed at the wrong library.
+        api.musicSectionKey = null
         api.serverUri = AuthClient.bestConnectionUri(resource)
         // Null for a server the account owns; serverHeaders() falls back to the
         // account token in that case.
