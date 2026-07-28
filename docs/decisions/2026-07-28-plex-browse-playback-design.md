@@ -155,7 +155,7 @@ correction — nothing there is wrong, it simply stopped short of browse.
 | Addition | Endpoint | Needed by |
 |---|---|---|
 | `sort` query on `getSectionContent` | existing | "View by albums" tab; continuous play's random tier |
-| Similar tracks | `library/metadata/{id}/similar` | Continuous play's first tier |
+| Similar tracks | `library/metadata/{id}/nearest` | Continuous play's first tier |
 | Rate | `GET /:/rate?key=&identifier=&rating=` | The heart command |
 
 `sort` is one optional `@Query` serving two callers that arrived independently —
@@ -264,11 +264,18 @@ preserving the ordering `AutomotiveRepository.search` uses today.
 
 The "view by albums" shortcut currently rides Subsonic's `alphabeticalByArtist`
 sort combined with a hack that **swaps the name and artist fields** on every
-album so the artist renders as the title. Plex sorts server-side, so the swap
-goes and the sort parameter does the work. The exact sort key —
-`artist.titleSort` versus `titleSort` — is confirmed against a live server
-during implementation rather than guessed here, the same way `rating`'s clear
-semantics are.
+album so the artist renders as the title. Plex sorts server-side, so both the
+swap and the hack go.
+
+`artist.titleSort` is the right key, confirmed against a live server: it orders
+albums by artist, where plain `titleSort` orders by album title. Unlike the
+other two values this spec deferred to live checking, this one was guessed
+correctly.
+
+The label swap is not reproduced. Both album lists now render identically and
+differ only in sort order, so "view by albums" shows album titles ordered by
+artist rather than artist names on the title line. That is a deliberate,
+user-visible change from the inherited behaviour.
 
 `AutomotiveRepository` today is 594 lines, most of it six near-identical
 Retrofit `enqueue` + `SettableFuture` blocks. The rewrite collapses that
@@ -279,11 +286,41 @@ boilerplate into one shared helper; the per-node logic is a few lines each.
 Ported in full, keeping both tiers: Plex's similar-tracks endpoint first, random
 tracks from the music section as fallback.
 
-The similar tier depends on Plex Pass sonic analysis. Where that is absent the
-endpoint returns nothing and the random tier takes over — which is the same
-shape as today's behaviour, where `getSimilarSongs2` returning empty falls
-through to `getRandomSample`. The existing `dedupAgainstQueue` filter and the
-`isFallbackToRandomTracksEnabled` gate are unchanged.
+The similar tier depends on sonic analysis. Where that is absent the endpoint
+returns nothing and the random tier takes over — the same shape as the Subsonic
+behaviour, where `getSimilarSongs2` returning empty fell through to
+`getRandomSample`. The existing `dedupAgainstQueue` filter is unchanged.
+
+### The endpoint, corrected against a live server
+
+An earlier draft of this spec named `library/metadata/{id}/similar`. **That path
+does not exist** — PMS answers it with HTTP 404, not an empty result, so the
+"returns nothing and falls through" premise was never reachable through it.
+
+The correct path is `library/metadata/{id}/nearest`, and its measured behaviour
+is what the design assumed:
+
+| Library | `/nearest` |
+|---|---|
+| sonically analyzed | 200 with real matches |
+| not analyzed | 200 with an empty list |
+
+Whether a library has been analyzed is worth recording because it is not
+discoverable where one would look for it: the `/library/sections` payload
+carries no analysis field at all, so reading its absence as "not analyzed" is a
+mistake. The signal lives on the *track* — an analyzed library's tracks carry a
+`musicAnalysisVersion` field, and an unanalyzed library's do not.
+
+### The random tier's gate
+
+`isFallbackToRandomTracksEnabled` defaults to `false`, and the three-tab spec
+removed the settings screen that could turn it on. Left alone, continuous play
+would therefore do nothing at all on an unanalyzed library — the tier that
+exists precisely for that case is switched off with no way to switch it on.
+
+The default flips to `true`; the preference itself stays, so a later settings
+surface has something to bind to. This is the same shape of problem as the
+dropped playlist shuffle below: preferences outliving the UI that set them.
 
 ## Rating
 
@@ -309,9 +346,22 @@ matches what the user sees everywhere else in Plex.
 Tapping sets `userRating=10`; untapping clears it. `userRating=10` and "five
 stars" are the same value — the heart and the stars are one field.
 
-The exact clear semantics (`rating=0` versus omitting the parameter) are
-verified against a live server during implementation, the way the sign-in spec
-verified `strong=true` and found it wrong.
+The clear value was deferred to live verification, the way the sign-in spec
+deferred `strong=true` — and like that one, the guess was wrong. Measured
+against PMS:
+
+| Request | Resulting `userRating` |
+|---|---|
+| `rating=10` | `10.0` |
+| `rating=0` | **`0.0`** — a zero-star rating, not an absent one |
+| `rating=-1` | absent (null) |
+
+So untapping the heart sends `rating=-1`. Sending `0` would have looked correct
+from inside the app — `isHearted` reads `>= 10.0`, so `0.0` renders as
+unhearted — while leaving every un-hearted track carrying an explicit zero-star
+rating in Plex, visible in every other client and impossible to tell from a
+deliberate one-star-down verdict. This is exactly the class of bug that only a
+live check catches: the app's own behaviour is correct either way.
 
 Structurally this is a small change: the heart is already a custom command
 button. `BaseSessionCallback` handles the tap and calls `onSetRating` itself;
@@ -445,8 +495,39 @@ The number that matters is different: after this, **nothing in the app is
 Subsonic-shaped.** The conversion is over, and what remains is a Plex client
 with an inherited package name.
 
+## Dropped, deliberately
+
+### Playlist shuffle
+
+`AutomotiveRepository.getPlaylistSongs` read
+`Preferences.isAndroidAutoShufflePlaylistsEnabled()` and, when set, shuffled the
+playlist and truncated it to `MAX_SHUFFLE_ITEMS` (100) instead of taking the
+first `MAX_ITEMS` (500) in order. `PlexBrowseRepository` does not reproduce it,
+and both the preference and the constant are deleted.
+
+Shuffling belongs to the player, not to the browse tree — the session already
+carries a shuffle command — and truncating to 100 to make a shuffle feel random
+is a workaround for not having one. The preference also defaulted to `false`
+with no settings screen to change it, so the behaviour was already unreachable;
+this records the removal rather than leaving it to be discovered as a
+regression later.
+
+### Preferences that outlived their UI
+
+The three-tab spec removed the settings screen but kept the preferences its
+survivors read, on the reasoning that they would freeze at their defaults. Two
+of those defaults turned out to switch a feature *off* with no way to switch it
+back on — the random-tracks fallback above, and playlist shuffle here.
+
+The defaults that gate a car-reachable behaviour are flipped to the value that
+makes the feature work; the preferences stay, so a later settings surface has
+something to bind to. Auditing the rest of the frozen preference surface is not
+in scope here, but it is now a known category of latent dead switch rather than
+an assumption that they are all harmless.
+
 ## Not in scope
 
 Renaming the `com.cappielloantonio.tempo` package. Offline playback as a
 car-native feature. Any settings surface, including sign-out and transcoding
-preferences. A five-star rating screen. Splitting `SearchService`.
+preferences. A five-star rating screen. Splitting `SearchService`. Restoring
+playlist shuffle. A full audit of the frozen preference surface.
