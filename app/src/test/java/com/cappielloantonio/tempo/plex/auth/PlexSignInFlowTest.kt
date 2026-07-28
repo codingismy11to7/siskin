@@ -53,6 +53,11 @@ class PlexSignInFlowTest {
         val state = PlexSignInFlow.afterPinCreated(pin(1L, "ABCD", qr = null))
         assertNull((state as PlexSignInState.AwaitingApproval).qrUrl)
         assertNull(state.expiresAtEpochSeconds)
+
+        // A whitespace-only qr is not a URL either; it must normalize to null
+        // the same way, via qr?.takeIf { it.isNotBlank() }.
+        val blankQrState = PlexSignInFlow.afterPinCreated(pin(1L, "ABCD", qr = "   "))
+        assertNull((blankQrState as PlexSignInState.AwaitingApproval).qrUrl)
     }
 
     @Test

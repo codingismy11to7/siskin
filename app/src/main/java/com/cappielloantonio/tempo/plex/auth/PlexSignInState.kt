@@ -30,7 +30,7 @@ sealed interface PlexSignInState {
 
     data class ChoosingLibrary(val sections: List<Directory>) : PlexSignInState
 
-    data class Failed(@StringRes val messageRes: Int) : PlexSignInState
+    data class Failed(@param:StringRes val messageRes: Int) : PlexSignInState
 
     data object Done : PlexSignInState
 }

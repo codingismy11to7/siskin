@@ -53,12 +53,22 @@ class PlexPinStateTest {
 
     @Test
     fun pollsWhileThePinIsStillAlive() {
+        // Comfortably clear of the hard cap, with a non-null expiry still out
+        // ahead -- true here can only come from the expiry check.
         assertTrue(PlexPinState.shouldKeepPolling(1000L, 1030L, 1900L))
+
+        // One second before expiry: true here is possible only because line C's
+        // `<` says so, not because of the hard cap (elapsed is far under it).
+        assertTrue(PlexPinState.shouldKeepPolling(1000L, 1049L, 1050L))
     }
 
     @Test
     fun stopsPollingOnceThePinExpires() {
-        assertFalse(PlexPinState.shouldKeepPolling(1000L, 1900L, 1900L))
+        // Elapsed time (50s) is kept well under HARD_CAP_SECONDS (900s) so the
+        // hard-cap check cannot be the reason this returns false; only the
+        // expiry comparison can produce false here, which is what this test
+        // is meant to isolate.
+        assertFalse(PlexPinState.shouldKeepPolling(1000L, 1050L, 1050L))
     }
 
     @Test
