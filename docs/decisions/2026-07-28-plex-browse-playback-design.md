@@ -209,9 +209,27 @@ worth preserving, and a queue of Subsonic ids is meaningless against Plex.
 
 ## Artwork
 
-Only one thing changes: `CustomGlideRequest.createUrl`, which builds a Subsonic
-`getCoverArt` URL, is replaced by `MediaUrlBuilder.artworkUrl`, which already
-exists and already takes width and height.
+Only one thing changes in the fetch path: `CustomGlideRequest.createUrl`, which
+builds a Subsonic `getCoverArt` URL, is replaced by `MediaUrlBuilder.artworkUrl`,
+which already exists and already takes width and height.
+
+### Playlists carry `composite`, not `thumb`
+
+Tracks, albums and artists expose a `thumb`, and a track that lacks one falls
+back to its album's and then its artist's. **Playlists expose none of those.**
+Plex gives a playlist a `composite` instead — a server-generated mosaic of the
+art belonging to its contents — and our `Metadata` model did not declare the
+field, so Gson discarded it and every playlist rendered as the generic icon.
+
+`composite` is a server-relative path like any thumb, and it resolves through
+the same `/photo/:/transcode` URL the artwork provider already builds, so only
+the model and the playlist mapper needed changing.
+
+It stays out of the shared `artworkThumb` fallback chain deliberately. That
+function serves tracks, albums and artists, none of which carry the field, and
+widening it would hide the fact that this is specific to playlists. The
+placeholder also stays: a playlist Plex has generated no composite for — an
+empty one, or one whose contents have no art — still has nothing to show.
 
 **A correction, recorded because the wrong version of this section was approved
 first.** An earlier draft claimed the id round trip through
