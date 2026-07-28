@@ -13,28 +13,22 @@ import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.database.converter.DateConverters;
 import com.cappielloantonio.tempo.database.converter.StringListConverter;
 import com.cappielloantonio.tempo.database.dao.ChronologyDao;
-import com.cappielloantonio.tempo.database.dao.PinnedPlaylistDao;
-import com.cappielloantonio.tempo.database.dao.PlaylistDao;
 import com.cappielloantonio.tempo.database.dao.QueueDao;
 import com.cappielloantonio.tempo.database.dao.ServerDao;
 import com.cappielloantonio.tempo.database.dao.SessionMediaItemDao;
 import com.cappielloantonio.tempo.model.Chronology;
-import com.cappielloantonio.tempo.model.PinnedPlaylist;
 import com.cappielloantonio.tempo.model.Queue;
 import com.cappielloantonio.tempo.model.Server;
 import com.cappielloantonio.tempo.model.SessionMediaItem;
-import com.cappielloantonio.tempo.subsonic.models.Playlist;
 
 @UnstableApi
 @Database(
-        version = 21,
+        version = 22,
         entities = {
             Queue.class,
             Server.class,
             Chronology.class,
             SessionMediaItem.class,
-            Playlist.class,
-            PinnedPlaylist.class,
         },
         autoMigrations = {
                 @AutoMigration(from = 10, to = 11),
@@ -48,6 +42,7 @@ import com.cappielloantonio.tempo.subsonic.models.Playlist;
                 @AutoMigration(from = 18, to = 19),
                 @AutoMigration(from = 19, to = 20),
                 @AutoMigration(from = 20, to = 21, spec = AppDatabase.DropTablesForPrunedFeatures.class),
+                @AutoMigration(from = 21, to = 22, spec = AppDatabase.DropPlaylistTables.class),
         }
 )
 @TypeConverters({DateConverters.class, StringListConverter.class})
@@ -69,6 +64,16 @@ public abstract class AppDatabase extends RoomDatabase {
     static class DropTablesForPrunedFeatures implements AutoMigrationSpec {
     }
 
+    // The playlist and pinned_playlist tables outlived PlaylistRepository because their
+    // entities lived under subsonic/models rather than model/, so the sweep above did not
+    // reach them; this migration drops their now-orphaned tables.
+    @DeleteTable.Entries({
+            @DeleteTable(tableName = "playlist"),
+            @DeleteTable(tableName = "pinned_playlist")
+    })
+    static class DropPlaylistTables implements AutoMigrationSpec {
+    }
+
     public static synchronized AppDatabase getInstance() {
         if (instance == null) {
             instance = Room.databaseBuilder(App.getContext(), AppDatabase.class, DB_NAME)
@@ -86,8 +91,4 @@ public abstract class AppDatabase extends RoomDatabase {
     public abstract ChronologyDao chronologyDao();
 
     public abstract SessionMediaItemDao sessionMediaItemDao();
-
-    public abstract PlaylistDao playlistDao();
-
-    public abstract PinnedPlaylistDao pinnedPlaylistDao();
 }
