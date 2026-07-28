@@ -167,7 +167,10 @@ restoring it two PRs later — a deliberately degraded error path in exchange fo
 slightly smaller diff.
 
 `CredentialGate` splits along the same line. `isSignedIn()` becomes Plex-shaped:
-account token, server token, `serverUri` and `musicSectionKey` all present. The
+account token, `serverUri` and `musicSectionKey` all present. The server token
+is deliberately *not* part of the gate — `Resource.accessToken` is null for a
+server the account owns, so requiring it would read as signed-out forever.
+`PlexApi.serverHeaders()` supplies the account-token fallback instead. The
 Subsonic error codes 40/41/50 in `isAuthFailure` move into `SystemRepository`,
 which becomes their only consumer, and die with it in the browse slice.
 

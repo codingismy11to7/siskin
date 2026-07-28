@@ -11,7 +11,6 @@ import com.cappielloantonio.tempo.interfaces.SystemCallback;
 import com.cappielloantonio.tempo.subsonic.base.ApiResponse;
 import com.cappielloantonio.tempo.subsonic.models.ResponseStatus;
 import com.cappielloantonio.tempo.subsonic.models.SubsonicResponse;
-import com.cappielloantonio.tempo.util.CredentialGate;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -86,6 +85,19 @@ public class SystemRepository {
         if (subsonicResponse == null) return false;
         if (!ResponseStatus.FAILED.equals(subsonicResponse.getStatus())) return false;
         com.cappielloantonio.tempo.subsonic.models.Error apiError = subsonicResponse.getError();
-        return CredentialGate.isAuthFailure(apiError != null ? apiError.getCode() : null);
+        return isAuthFailure(apiError != null ? apiError.getCode() : null);
+    }
+
+    /**
+     * Subsonic error codes meaning the credentials themselves were rejected, so
+     * signing in again can plausibly fix it. Codes like 30 (server must upgrade)
+     * are failures that a new password will not repair.
+     *
+     * Lived in CredentialGate until that became Plex-shaped. Dies with the rest
+     * of this class when the browse tree moves to Plex, where a rejection is
+     * simply HTTP 401.
+     */
+    static boolean isAuthFailure(Integer code) {
+        return code != null && (code == 40 || code == 41 || code == 50);
     }
 }
