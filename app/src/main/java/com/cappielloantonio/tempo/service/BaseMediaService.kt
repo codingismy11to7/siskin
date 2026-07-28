@@ -31,15 +31,10 @@ import com.cappielloantonio.tempo.equalizer.EqualizerBackend
 import com.cappielloantonio.tempo.equalizer.EqualizerManager
 import com.cappielloantonio.tempo.equalizer.ExternalBackend
 import com.cappielloantonio.tempo.equalizer.DefaultBackend
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
 import com.cappielloantonio.tempo.util.*
-import com.google.common.util.concurrent.FutureCallback
-import com.google.common.util.concurrent.Futures
-import com.google.common.util.concurrent.ListenableFuture
-import com.google.common.util.concurrent.MoreExecutors
-import java.util.concurrent.Callable
-import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
@@ -82,71 +77,19 @@ open class BaseMediaService : MediaLibraryService() {
         return BaseSessionCallback(baseContext, this)
     }
 
-    fun updateMediaItems(player: Player) {
-        Log.d(TAG, "update items")
-        // Re-resolve per-network stream URLs (maxBitRate/format) for the queue WITHOUT
-        // interrupting the currently-playing track. The previous implementation called
-        // clearMediaItems() + setMediaItems() over the live player, which discards the
-        // active item's forward buffer and forces a re-prepare on every WiFi<->cellular
-        // switch — an audible ~0.5s gap (and, on some devices, the failed re-prepare that
-        // #682 recovers from). Instead, replace only the non-current items, and only when
-        // the resolved URI actually changed, so the active item is never touched while
-        // upcoming tracks still pick up the new network's transcoding settings.
-
-        // Threading: the heavy computation (MappingUtil) runs on a background
-        // thread to avoid blocking the main thread. Only items from current+1 onward are
-        // processed — already-played items are skipped. replaceMediaItem() is dispatched back
-        // to the main thread via mainHandler. The guard i < player.mediaItemCount protects
-        // against queue changes during the background computation.
-
-        val current = player.currentMediaItemIndex
-        if (current == C.INDEX_UNSET) return
-
-        // read all items
-        val itemsToProcess = (current + 1 until player.mediaItemCount).map { i ->
-            Pair(i, player.getMediaItemAt(i))
-        }
-        if (itemsToProcess.isEmpty()) return
-
-        val delegate = Executors.newSingleThreadExecutor()
-        val executor = MoreExecutors.listeningDecorator(delegate)
-        val future: ListenableFuture<List<Pair<Int, MediaItem>>> = executor.submit(Callable {
-            itemsToProcess.mapNotNull { (i, old) ->
-                val mapped = MappingUtil.mapMediaItem(old)
-                if (mapped.requestMetadata.mediaUri != old.requestMetadata.mediaUri) {
-                    Pair(i, mapped)
-                } else null
-            }
-        })
-        delegate.shutdown()
-
-        Futures.addCallback(future, object : FutureCallback<List<Pair<Int, MediaItem>>> {
-            override fun onSuccess(updates: List<Pair<Int, MediaItem>>) {
-                mainHandler.post {
-                    updates.forEach { (i, mapped) ->
-                        if (i > player.currentMediaItemIndex
-                            && i < player.mediaItemCount
-                            && player.getMediaItemAt(i).mediaId == mapped.mediaId) {
-                            player.replaceMediaItem(i, mapped)
-                        }
-                    }
-                }
-            }
-            override fun onFailure(t: Throwable) {
-                Log.e(TAG, "updateMediaItems failed", t)
-            }
-        }, MoreExecutors.directExecutor())
-    }
+    // The Subsonic-era updateMediaItems() lived here: on every WiFi<->cellular switch
+    // it rewrote each upcoming item's stream URL so the new network's maxBitRate and
+    // format took effect. Plex direct-plays the part through
+    // MediaUrlBuilder.streamUrl, which takes no transcoding parameters, so there is
+    // nothing left to re-resolve and the network callback below now only re-evaluates
+    // the precache.
 
     fun restorePlayerFromQueue(player: Player) {
         if (player.mediaItemCount > 0) return
 
         val queueRepository = QueueRepository()
-        val storedQueue = queueRepository.media
-        if (storedQueue.isNullOrEmpty()) return
-
-        val mediaItems = MappingUtil.mapMediaItems(storedQueue)
-        if (mediaItems.isEmpty()) return
+        val mediaItems = queueRepository.media
+        if (mediaItems.isNullOrEmpty()) return
 
         val lastIndex = try {
             queueRepository.lastPlayedMediaIndex
@@ -248,9 +191,8 @@ open class BaseMediaService : MediaLibraryService() {
                 ReplayGainUtil.setReplayGain(player, tracks)
                 val currentMediaItem = player.currentMediaItem
                 if (currentMediaItem != null) {
-                    val item = MappingUtil.mapMediaItem(currentMediaItem)
-                    if (item.mediaMetadata.extras != null)
-                        MediaManager.scrobble(item, false)
+                    if (currentMediaItem.mediaMetadata.extras != null)
+                        MediaManager.scrobble(currentMediaItem, false)
 
                     if (player.nextMediaItemIndex == C.INDEX_UNSET) {
                         if (Preferences.isContinuousPlayEnabled()) {
@@ -300,10 +242,9 @@ open class BaseMediaService : MediaLibraryService() {
                 super.onPlaybackStateChanged(playbackState)
                 if (!player.hasNextMediaItem() &&
                     playbackState == Player.STATE_ENDED &&
-                    player.mediaMetadata.extras?.getString("type") == Constants.MEDIA_TYPE_MUSIC
+                    player.mediaMetadata.extras?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC
                 ) {
                     MediaManager.scrobble(player.currentMediaItem, true)
-                    MediaManager.saveChronology(player.currentMediaItem)
                 }
             }
 
@@ -330,12 +271,11 @@ open class BaseMediaService : MediaLibraryService() {
                 }
 
                 if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
-                    if (oldPosition.mediaItem?.mediaMetadata?.extras?.getString("type") == Constants.MEDIA_TYPE_MUSIC) {
+                    if (oldPosition.mediaItem?.mediaMetadata?.extras?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC) {
                         MediaManager.scrobble(oldPosition.mediaItem, true)
-                        MediaManager.saveChronology(oldPosition.mediaItem)
                     }
 
-                    if (newPosition.mediaItem?.mediaMetadata?.extras?.getString("type") == Constants.MEDIA_TYPE_MUSIC) {
+                    if (newPosition.mediaItem?.mediaMetadata?.extras?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC) {
                         MediaManager.setLastPlayedTimestamp(newPosition.mediaItem)
                     }
                 }
@@ -528,7 +468,6 @@ open class BaseMediaService : MediaLibraryService() {
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(
             networkCallback
         )
-        updateMediaItems(mediaLibrarySession.player)
     }
 
     private fun initializeLoadControl(): DefaultLoadControl {
@@ -594,7 +533,6 @@ open class BaseMediaService : MediaLibraryService() {
             if (isWifi != wasWifi) {
                 wasWifi = isWifi
                 mainHandler.post {
-                    updateMediaItems(mediaLibrarySession.player)
                     // preload() re-evaluates the network itself: it cancels any
                     // in-flight precache when the new network is not allowed and
                     // restarts it when it is.

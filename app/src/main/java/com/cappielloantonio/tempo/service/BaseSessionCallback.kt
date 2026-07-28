@@ -17,9 +17,10 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
-import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.subsonic.base.ApiResponse
+import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
@@ -333,20 +334,19 @@ open class BaseSessionCallback(
     ): ListenableFuture<SessionResult> {
         val isStarring = (rating as HeartRating).isHeart
 
-        val networkCall = if (isStarring)
-            App.getSubsonicClientInstance(false)
-                .mediaAnnotationClient
-                .star(mediaId, null, null)
-        else
-            App.getSubsonicClientInstance(false)
-                .mediaAnnotationClient
-                .unstar(mediaId, null, null)
+        // Plex rates 0-10; 10 is the five stars it collects into its
+        // heart-named playlist, which is why the car shows a heart for a
+        // field Plex renders as stars everywhere else.
+        val networkCall = SearchClient(PlexApi()).rate(
+            mediaId,
+            if (isStarring) SearchClient.RATING_HEARTED else SearchClient.RATING_CLEARED
+        )
 
         val future = SettableFuture.create<SessionResult>()
 
-        networkCall.enqueue(object : Callback<ApiResponse?> {
+        networkCall.enqueue(object : Callback<Void> {
             @OptIn(UnstableApi::class)
-            override fun onResponse(call: Call<ApiResponse?>, response: Response<ApiResponse?>) {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
                 if (response.isSuccessful) {
                     for (i in 0 until session.player.mediaItemCount) {
                         val mediaItem = session.player.getMediaItemAt(i)
@@ -368,7 +368,7 @@ open class BaseSessionCallback(
             }
 
             @OptIn(UnstableApi::class)
-            override fun onFailure(call: Call<ApiResponse?>, t: Throwable) {
+            override fun onFailure(call: Call<Void>, t: Throwable) {
                 updateMediaNotificationCustomLayout(session)
                 future.set(SessionResult(SessionError(SessionError.ERROR_UNKNOWN, "An error has occurred")))
             }
@@ -453,7 +453,7 @@ open class BaseSessionCallback(
             val newMetadata = mediaMetadata.buildUpon()
                 .setArtist(
                     mediaMetadata.artist
-                        ?: mediaMetadata.extras?.getString("uri")
+                        ?: mediaMetadata.extras?.getString(PlexMediaMapper.EXTRA_URI)
                         ?: ""
                 )
                 .build()

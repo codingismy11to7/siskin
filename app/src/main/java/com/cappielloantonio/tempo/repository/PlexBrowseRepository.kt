@@ -6,6 +6,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
+import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
@@ -26,15 +28,38 @@ private const val TAG = "PlexBrowseRepository"
 /**
  * Serves the automotive browse tree from a Plex music section.
  *
- * Clients are rebuilt per instance because PlexRetrofitFactory bakes the server
- * URI into the Retrofit base URL at construction time -- see its KDoc.
+ * PlexRetrofitFactory bakes the server URI into the Retrofit base URL at
+ * construction time -- see its KDoc -- so the clients are rebuilt whenever that
+ * URI changes rather than held from construction. This instance outlives
+ * sign-in: MediaService creates it when the car first browses, which on a fresh
+ * install is *before* any server is known, and the factory falls back to an
+ * unreachable placeholder base URL in that state. Clients captured then would
+ * pin every later browse to the placeholder, so signing in would leave the tabs
+ * permanently empty with no error the user could act on.
  */
 @OptIn(UnstableApi::class)
 class PlexBrowseRepository {
 
     private val api = PlexApi()
-    private val libraryClient = LibraryClient(api)
-    private val searchClient = SearchClient(api)
+
+    private var clientsUri: String? = null
+    private var cachedLibraryClient: LibraryClient? = null
+    private var cachedSearchClient: SearchClient? = null
+
+    private val libraryClient: LibraryClient
+        get() = synchronized(this) { refreshClients(); cachedLibraryClient!! }
+
+    private val searchClient: SearchClient
+        get() = synchronized(this) { refreshClients(); cachedSearchClient!! }
+
+    private fun refreshClients() {
+        val uri = api.serverUri
+        if (cachedLibraryClient == null || uri != clientsUri) {
+            clientsUri = uri
+            cachedLibraryClient = LibraryClient(api)
+            cachedSearchClient = SearchClient(api)
+        }
+    }
 
     private val sectionKey: String? get() = api.musicSectionKey
     private val serverUri: String? get() = api.serverUri
@@ -55,16 +80,31 @@ class PlexBrowseRepository {
             }
         }
 
+    /**
+     * The artist list, with the "view by albums" shortcut prepended.
+     *
+     * That first entry is the only route to [ConstantsAA.ARTISTS_BY_ALBUMS_ID]:
+     * the browse root holds three fixed tabs and this is not one of them, so
+     * dropping it silently removes the artist-sorted album view rather than
+     * breaking anything a test or the compiler would notice. The Subsonic
+     * AutomotiveRepository prepended it for the same reason.
+     */
     fun getArtists(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch(
             libraryClient.getSectionContent(key, PlexItemType.ARTIST, 0, ConstantsAA.MAX_ITEMS)
         ) { body ->
-            itemsOf(body, TYPE_ARTIST).mapNotNull {
+            listOf(viewByAlbumsShortcut()) + itemsOf(body, TYPE_ARTIST).mapNotNull {
                 PlexMediaMapper.artistToMediaItem(it, prefix, serverUri, token)
             }
         }
     }
+
+    private fun viewByAlbumsShortcut(): MediaItem = PlexMediaMapper.shortcutToMediaItem(
+        ConstantsAA.ARTISTS_BY_ALBUMS_ID,
+        App.getContext().getString(R.string.aa_view_by_albums),
+        R.drawable.ic_aa_albums
+    )
 
     fun getArtistAlbums(albumPrefix: String, artistRatingKey: String) =
         fetch(libraryClient.getChildren(artistRatingKey, 0, ConstantsAA.MAX_ITEMS)) { body ->

@@ -4,18 +4,15 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.Observer;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaBrowser;
 
-import com.cappielloantonio.tempo.model.Chronology;
-import com.cappielloantonio.tempo.repository.ChronologyRepository;
+import com.cappielloantonio.tempo.plex.PlexApi;
+import com.cappielloantonio.tempo.plex.PlexMediaMapper;
+import com.cappielloantonio.tempo.plex.api.search.SearchClient;
+import com.cappielloantonio.tempo.repository.PlexMixRepository;
 import com.cappielloantonio.tempo.repository.QueueRepository;
-import com.cappielloantonio.tempo.repository.SongRepository;
-import com.cappielloantonio.tempo.subsonic.models.Child;
-import com.cappielloantonio.tempo.util.MappingUtil;
 import com.cappielloantonio.tempo.util.Preferences;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -23,8 +20,8 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -43,10 +40,33 @@ public class MediaManager {
             getQueueRepository().setPlayingPausedTimestamp(mediaItem.mediaId, ms);
     }
 
+    /**
+     * Reports playback to Plex's timeline endpoint.
+     *
+     * Plex wants the part being played and a transport state where Subsonic's
+     * scrobble was a fire-and-forget "I played this": a track with no part key
+     * has nothing to report against, so it is skipped rather than sent half-formed.
+     */
     public static void scrobble(MediaItem mediaItem, boolean submission) {
-        if (mediaItem != null && mediaItem.mediaMetadata.extras != null && Preferences.isScrobblingEnabled()) {
-            getSongRepository().scrobble(mediaItem.mediaMetadata.extras.getString("id"), submission);
-        }
+        if (mediaItem == null || mediaItem.mediaMetadata.extras == null) return;
+        if (!Preferences.isScrobblingEnabled()) return;
+
+        String ratingKey = mediaItem.mediaMetadata.extras.getString(PlexMediaMapper.EXTRA_ID);
+        String partKey = mediaItem.mediaMetadata.extras.getString(PlexMediaMapper.EXTRA_PART_KEY);
+        if (ratingKey == null || partKey == null) return;
+
+        String state = submission ? SearchClient.STATE_STOPPED : SearchClient.STATE_PLAYING;
+        new SearchClient(new PlexApi())
+                .reportProgress(ratingKey, partKey, state, 0L)
+                .enqueue(new retrofit2.Callback<Void>() {
+                    @Override
+                    public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {}
+
+                    @Override
+                    public void onFailure(retrofit2.Call<Void> call, Throwable t) {
+                        Log.w(TAG, "scrobble failed", t);
+                    }
+                });
     }
 
     @OptIn(markerClass = UnstableApi.class)
@@ -54,6 +74,7 @@ public class MediaManager {
                                       ListenableFuture<MediaBrowser> existingBrowserFuture) {
         continuousPlay(mediaItem, existingBrowserFuture, null);
     }
+
     @OptIn(markerClass = UnstableApi.class)
     public static void continuousPlay(MediaItem mediaItem,
                                       ListenableFuture<MediaBrowser> existingBrowserFuture,
@@ -89,63 +110,53 @@ public class MediaManager {
                 }
             }, MoreExecutors.directExecutor());
         }
+
         String trackId = mediaItem.mediaId;
-        String artistId = mediaItem.mediaMetadata.extras != null
-                ? mediaItem.mediaMetadata.extras.getString("artistId")
-                : null;
 
-        LiveData<List<Child>> instantMix =
-                getSongRepository().getContinuousMix(trackId, artistId, 25);
-
-        instantMix.observeForever(new Observer<List<Child>>() {
-            @Override
-            public void onChanged(List<Child> media) {
-                instantMix.removeObserver(this);
-
-                // Filter against current queue before deciding if we need fallback.
-                // getSimilarSongs2 doesn't know what's already queued, so it may
-                // return tracks we already have. Filter first, then decide.
-                if (media != null && !media.isEmpty()) {
-                    List<Child> filtered = dedupAgainstQueue(media, existingBrowserFuture);
-                    if (!filtered.isEmpty()) {
-                        Log.d(TAG, "Continuous Play: adding " + filtered.size() + " similar tracks");
-                        enqueue(existingBrowserFuture, filtered, true);
-                        continuousPlayIsRunning.set(false);
-                        return;
-                    }
-                }
-
-                if (Preferences.isFallbackToRandomTracksEnabled()) {
-                    Log.w(TAG, "Continuous Play: no new similar tracks, falling back to random songs");
-                    LiveData<List<Child>> randomSongs = getSongRepository().getRandomSample(25, null, null);
-                    randomSongs.observeForever(new Observer<List<Child>>() {
-                        @Override
-                        public void onChanged(List<Child> random) {
-                            randomSongs.removeObserver(this);
-                            if (random != null && !random.isEmpty()) {
-                                List<Child> filtered = dedupAgainstQueue(random, existingBrowserFuture);
-                                if (!filtered.isEmpty()) {
-                                    Log.d(TAG, "Continuous Play: adding " + filtered.size() + " random tracks");
-                                    enqueue(existingBrowserFuture, filtered, true);
-                                } else {
-                                    Log.w(TAG, "Continuous Play: random tracks already in queue");
-                                }
-                            } else {
-                                Log.w(TAG, "Continuous Play: random fallback also empty");
-                            }
-                            continuousPlayIsRunning.set(false);
-                        }
-                    });
-                } else {
-                    Log.w(TAG, "Continuous Play: no new similar tracks, random fallback disabled");
+        // The similar tier may answer with tracks already queued, so filter before
+        // deciding whether the random fallback is needed -- Plex's similar endpoint
+        // does not know what is in the queue.
+        getMixRepository().similarTracks(trackId, 25, similar -> {
+            if (!similar.isEmpty()) {
+                List<MediaItem> filtered = dedupAgainstQueue(similar, existingBrowserFuture);
+                if (!filtered.isEmpty()) {
+                    Log.d(TAG, "Continuous Play: adding " + filtered.size() + " similar tracks");
+                    enqueue(existingBrowserFuture, filtered, true);
                     continuousPlayIsRunning.set(false);
+                    if (onComplete != null) onComplete.run();
+                    return;
                 }
             }
+
+            if (!Preferences.isFallbackToRandomTracksEnabled()) {
+                Log.w(TAG, "Continuous Play: no new similar tracks, random fallback disabled");
+                continuousPlayIsRunning.set(false);
+                if (onComplete != null) onComplete.run();
+                return;
+            }
+
+            Log.w(TAG, "Continuous Play: no new similar tracks, falling back to random songs");
+            getMixRepository().randomTracks(25, random -> {
+                if (!random.isEmpty()) {
+                    List<MediaItem> filtered = dedupAgainstQueue(random, existingBrowserFuture);
+                    if (!filtered.isEmpty()) {
+                        Log.d(TAG, "Continuous Play: adding " + filtered.size() + " random tracks");
+                        enqueue(existingBrowserFuture, filtered, true);
+                    } else {
+                        Log.w(TAG, "Continuous Play: random tracks already in queue");
+                    }
+                } else {
+                    Log.w(TAG, "Continuous Play: random fallback also empty");
+                }
+                continuousPlayIsRunning.set(false);
+                if (onComplete != null) onComplete.run();
+            });
         });
     }
 
-    private static List<Child> dedupAgainstQueue(List<Child> candidates,
-                                                  ListenableFuture<MediaBrowser> existingBrowserFuture) {
+    @OptIn(markerClass = UnstableApi.class)
+    private static List<MediaItem> dedupAgainstQueue(List<MediaItem> candidates,
+                                                     ListenableFuture<MediaBrowser> existingBrowserFuture) {
         if (existingBrowserFuture == null) return new ArrayList<>(candidates);
 
         final MediaBrowser browser;
@@ -161,12 +172,13 @@ public class MediaManager {
         }
 
         return candidates.stream()
-                .filter(child -> !currentIds.contains(child.getId()))
+                .filter(item -> !currentIds.contains(item.mediaId))
                 .collect(Collectors.toList());
     }
 
     // Only caller is continuousPlay, above; not part of the public MediaManager API.
-    private static void enqueue(ListenableFuture<MediaBrowser> mediaBrowserListenableFuture, List<Child> media, boolean playImmediatelyAfter) {
+    @OptIn(markerClass = UnstableApi.class)
+    private static void enqueue(ListenableFuture<MediaBrowser> mediaBrowserListenableFuture, List<MediaItem> media, boolean playImmediatelyAfter) {
         if (mediaBrowserListenableFuture != null) {
             mediaBrowserListenableFuture.addListener(() -> {
                 try {
@@ -175,10 +187,10 @@ public class MediaManager {
                         MediaBrowser browser = mediaBrowserListenableFuture.get();
                         if (playImmediatelyAfter && browser.getNextMediaItemIndex() != -1) {
                             enqueueDatabase(media, false, browser.getNextMediaItemIndex());
-                            browser.addMediaItems(browser.getNextMediaItemIndex(), MappingUtil.mapMediaItems(media));
+                            browser.addMediaItems(browser.getNextMediaItemIndex(), media);
                         } else {
-                            enqueueDatabase(media, false, mediaBrowserListenableFuture.get().getMediaItemCount());
-                            mediaBrowserListenableFuture.get().addMediaItems(MappingUtil.mapMediaItems(media));
+                            enqueueDatabase(media, false, browser.getMediaItemCount());
+                            browser.addMediaItems(media);
                         }
                     }
                 } catch (ExecutionException | InterruptedException e) {
@@ -188,12 +200,7 @@ public class MediaManager {
         }
     }
 
-    public static void saveChronology(MediaItem mediaItem) {
-        if (mediaItem != null) {
-            getChronologyRepository().insert(new Chronology(mediaItem));
-        }
-    }
-
+    @OptIn(markerClass = UnstableApi.class)
     public static void removeRange(ListenableFuture<MediaBrowser> mediaBrowserListenableFuture, int fromItem, int toItem) {
         if (mediaBrowserListenableFuture != null) {
             mediaBrowserListenableFuture.addListener(() -> {
@@ -213,15 +220,11 @@ public class MediaManager {
         return new QueueRepository();
     }
 
-    private static SongRepository getSongRepository() {
-        return new SongRepository();
+    private static PlexMixRepository getMixRepository() {
+        return new PlexMixRepository();
     }
 
-    private static ChronologyRepository getChronologyRepository() {
-        return new ChronologyRepository();
-    }
-
-    private static void enqueueDatabase(List<Child> media, boolean reset, int afterIndex) {
+    private static void enqueueDatabase(List<MediaItem> media, boolean reset, int afterIndex) {
         getQueueRepository().insertAll(media, reset, afterIndex);
     }
 }

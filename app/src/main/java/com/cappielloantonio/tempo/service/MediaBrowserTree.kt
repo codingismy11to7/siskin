@@ -12,7 +12,8 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.repository.AutomotiveRepository
+import com.cappielloantonio.tempo.plex.api.library.LibraryClient
+import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.ResourceUris
 import com.google.common.collect.ImmutableList
@@ -23,7 +24,7 @@ import com.google.common.util.concurrent.SettableFuture
 @UnstableApi
 object MediaBrowserTree {
     private lateinit var appContext: Context
-    private lateinit var automotiveRepository: AutomotiveRepository
+    private lateinit var browseRepository: PlexBrowseRepository
 
     private var treeNodes: MutableMap<String, MediaItemNode> = mutableMapOf()
 
@@ -91,8 +92,8 @@ object MediaBrowserTree {
             .build()
     }
 
-    fun initialize(context: Context, automotiveRepository: AutomotiveRepository) {
-        this.automotiveRepository = automotiveRepository
+    fun initialize(context: Context, browseRepository: PlexBrowseRepository) {
+        this.browseRepository = browseRepository
         appContext = context.applicationContext
         if (isInitialized) return
         isInitialized = true
@@ -187,33 +188,31 @@ object MediaBrowserTree {
         return when (id) {
             ConstantsAA.ROOT_ID -> treeNodes[ConstantsAA.ROOT_ID]!!.getChildren()
 
-            ConstantsAA.PLAYLIST_ID -> automotiveRepository.getPlaylists(ConstantsAA.PLAYLIST_ID)
-            ConstantsAA.ARTISTS_ID -> automotiveRepository.getArtists(ConstantsAA.ARTIST_ID)
-            ConstantsAA.ALBUMS_ID -> automotiveRepository.getAlbums(
+            ConstantsAA.PLAYLIST_ID -> browseRepository.getPlaylists(ConstantsAA.PLAYLIST_ID)
+            ConstantsAA.ARTISTS_ID -> browseRepository.getArtists(ConstantsAA.ARTIST_ID)
+            ConstantsAA.ALBUMS_ID -> browseRepository.getAlbums(
                 ConstantsAA.ALBUM_ID,
-                "alphabeticalByName",
-                ConstantsAA.MAX_ITEMS
+                LibraryClient.SORT_TITLE
             )
 
-            ConstantsAA.ARTISTS_BY_ALBUMS_ID -> automotiveRepository.getAlbums(
+            ConstantsAA.ARTISTS_BY_ALBUMS_ID -> browseRepository.getAlbums(
                 ConstantsAA.ALBUM_ID,
-                "alphabeticalByArtist",
-                ConstantsAA.MAX_ITEMS
+                LibraryClient.SORT_ARTIST
             )
 
             else -> {
                 if (id.startsWith(ConstantsAA.PLAYLIST_ID)) {
-                    return automotiveRepository.getPlaylistSongs(
+                    return browseRepository.getPlaylistTracks(
                         id.removePrefix(ConstantsAA.PLAYLIST_ID)
                     )
                 }
                 if (id.startsWith(ConstantsAA.ALBUM_ID)) {
-                    return automotiveRepository.getAlbumTracks(
+                    return browseRepository.getAlbumTracks(
                         id.removePrefix(ConstantsAA.ALBUM_ID)
                     )
                 }
                 if (id.startsWith(ConstantsAA.ARTIST_ID)) {
-                    return automotiveRepository.getArtistAlbum(
+                    return browseRepository.getArtistAlbums(
                         ConstantsAA.ALBUM_ID,
                         id.removePrefix(ConstantsAA.ARTIST_ID)
                     )
@@ -224,7 +223,7 @@ object MediaBrowserTree {
     }
 
     fun search(query: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        return automotiveRepository.search(
+        return browseRepository.search(
             query,
             ConstantsAA.ALBUM_ID,
             ConstantsAA.ARTIST_ID

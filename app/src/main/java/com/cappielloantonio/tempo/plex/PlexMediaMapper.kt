@@ -300,6 +300,26 @@ object PlexMediaMapper {
         )
     }
 
+    /**
+     * A browse entry that jumps to another node rather than naming a Plex item.
+     *
+     * There is exactly one: "view by albums" at the head of the artist list.
+     * MediaBrowserTree's root is three fixed tabs and ARTISTS_BY_ALBUMS_ID is not
+     * one of them, so without this entry the artist-sorted album list is stranded
+     * behind an id no part of the UI can produce.
+     */
+    @JvmStatic
+    fun shortcutToMediaItem(mediaId: String, title: String?, iconRes: Int): MediaItem =
+        browsableItem(
+            mediaId = mediaId,
+            title = title,
+            subtitle = null,
+            thumb = null,
+            mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS,
+            fallbackIcon = iconRes,
+            gridView = true
+        )
+
     @JvmStatic
     fun playlistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null

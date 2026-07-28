@@ -12,19 +12,21 @@ import androidx.room.migration.AutoMigrationSpec;
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.database.converter.DateConverters;
 import com.cappielloantonio.tempo.database.converter.StringListConverter;
-import com.cappielloantonio.tempo.database.dao.ChronologyDao;
 import com.cappielloantonio.tempo.database.dao.QueueDao;
 import com.cappielloantonio.tempo.database.dao.SessionMediaItemDao;
-import com.cappielloantonio.tempo.model.Chronology;
 import com.cappielloantonio.tempo.model.Queue;
 import com.cappielloantonio.tempo.model.SessionMediaItem;
 
+// Version 24 deliberately has no @AutoMigration entry: queue and
+// session_media_item are rebuilt around Plex rating keys and part keys, which is
+// far past what Room can derive. getInstance() below falls back to a destructive
+// migration, and that is the intent -- a queue of Subsonic ids is meaningless
+// against a Plex server, so there is nothing worth carrying across.
 @UnstableApi
 @Database(
-        version = 23,
+        version = 24,
         entities = {
             Queue.class,
-            Chronology.class,
             SessionMediaItem.class,
         },
         autoMigrations = {
@@ -92,8 +94,6 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     public abstract QueueDao queueDao();
-
-    public abstract ChronologyDao chronologyDao();
 
     public abstract SessionMediaItemDao sessionMediaItemDao();
 }

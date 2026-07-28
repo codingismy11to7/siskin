@@ -10,18 +10,17 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.repository.AutomotiveRepository
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
-import com.cappielloantonio.tempo.repository.SystemRepository
+import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.CredentialGate
-import com.cappielloantonio.tempo.util.MappingUtil
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import com.google.common.util.concurrent.SettableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "MediaLibrarySessionCallback"
@@ -31,10 +30,11 @@ private val queueSourceCache = ConcurrentHashMap<String, List<MediaItem>>()
 class MediaLibrarySessionCallback(
     context: Context,
     service: BaseMediaService,
-    private val automotiveRepository: AutomotiveRepository
+    browseRepository: PlexBrowseRepository,
+    private val sessionMediaItemRepository: SessionMediaItemRepository
 ) : BaseSessionCallback(context, service) {
     init {
-        MediaBrowserTree.initialize(context, automotiveRepository)
+        MediaBrowserTree.initialize(context, browseRepository)
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -105,6 +105,7 @@ class MediaLibrarySessionCallback(
             if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
                 val items = result.value ?: emptyList()
                 queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE] = items
+                rememberTracks(items)
                 Futures.immediateFuture(result)
             } else {
                 classifyFailure(result)
@@ -113,26 +114,53 @@ class MediaLibrarySessionCallback(
     }
 
     /**
-     * A browse request failed while credentials exist. Ask the server once whether
-     * it is refusing them: only then is a sign-in button the right offer. An
-     * unreachable server keeps the original error, so the car does not tell the
-     * user to sign in when the problem is the network.
+     * Persists a node's tracks so [resolveQueueForItem] can rebuild the list they
+     * came from when the tapped item carries no parent tag.
+     *
+     * The in-memory [queueSourceCache] above covers browse nodes, whose items are
+     * tagged QUEUE_CACHED_SOURCE. Search results are not tagged -- a search track
+     * has no parent node -- so this Room cache is what makes tapping the third
+     * search result start the queue at the third result rather than playing it
+     * alone. The Subsonic AutomotiveRepository wrote the same cache from inside
+     * its track-returning calls; the write moved here because PlexBrowseRepository
+     * deliberately does not touch Room.
+     *
+     * Browsable rows are filtered out: they would persist with an id like
+     * "[albumID]55", which is never looked up, and would round-trip through
+     * toMediaItem() as an unplayable track if they ever were.
+     */
+    private fun rememberTracks(items: List<MediaItem>) {
+        val tracks = items.filter { it.mediaMetadata.isPlayable == true }
+        if (tracks.isNotEmpty()) sessionMediaItemRepository.cache(tracks)
+    }
+
+    /**
+     * A browse request failed while credentials exist. Plex answers a rejected
+     * token with 401, which PlexBrowseRepository surfaces as
+     * ERROR_PERMISSION_DENIED; anything else is a reachability problem and keeps
+     * its original error, so the car does not tell the user to sign in when the
+     * problem is the network.
+     *
+     * The substitution matters beyond the message: only the error CarSignInResolution
+     * builds reaches the car as a tappable button (see its KDoc on
+     * ERROR_SESSION_AUTHENTICATION_EXPIRED). Passing the original
+     * ERROR_PERMISSION_DENIED straight through would leave a dead-end error.
+     *
+     * The Subsonic implementation had to issue a second request (a ping) to
+     * learn this. Plex does not.
      */
     private fun classifyFailure(
         original: LibraryResult<ImmutableList<MediaItem>>?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val settable = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
-
-        SystemRepository().checkCredentialState { credentialsRejected ->
-            if (credentialsRejected) {
+        val rejected = original?.resultCode == SessionError.ERROR_PERMISSION_DENIED
+        return Futures.immediateFuture(
+            if (rejected) {
                 Log.d(TAG, "browse failed and the server rejected our credentials")
-                settable.set(CarSignInResolution.errorResult(context, R.string.car_sign_in_again))
+                CarSignInResolution.errorResult(context, R.string.car_sign_in_again)
             } else {
-                settable.set(original ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+                original ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
             }
-        }
-
-        return settable
+        )
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -159,8 +187,9 @@ class MediaLibrarySessionCallback(
             { resolvedItems ->
                 if (!resolvedItems.isNullOrEmpty()) {
                     val resolvedItemsUntagged = resolvedItems.map { detagForQueue(it) }
-                    val children = resolvedItemsUntagged.mapNotNull { MappingUtil.mapToChild(it) }
-                    if (children.isNotEmpty()) QueueRepository().insertAll(children, true, 0)
+                    if (resolvedItemsUntagged.isNotEmpty()) {
+                        QueueRepository().insertAll(resolvedItemsUntagged, true, 0)
+                    }
                 }
                 MediaSession.MediaItemsWithStartPosition(
                     resolvedItems ?: emptyList(),
@@ -174,7 +203,7 @@ class MediaLibrarySessionCallback(
 
     private fun detagForQueue(item: MediaItem): MediaItem {
         val extras = item.mediaMetadata.extras?.let { Bundle(it) } ?: Bundle()
-        extras.remove("parent_id")
+        extras.remove(PlexMediaMapper.EXTRA_PARENT_ID)
         return item.buildUpon()
             .setMediaMetadata(
                 item.mediaMetadata.buildUpon()
@@ -206,7 +235,7 @@ class MediaLibrarySessionCallback(
         Log.d(TAG, "Resolve queue for item")
 
         val extras = firstItem.requestMetadata.extras ?: firstItem.mediaMetadata.extras
-        val parentId = extras?.getString("parent_id")
+        val parentId = extras?.getString(PlexMediaMapper.EXTRA_PARENT_ID)
 
         val futureQueue: ListenableFuture<List<MediaItem>> = when {
             parentId?.startsWith(ConstantsAA.QUEUE_CACHED_SOURCE) == true -> {
@@ -220,8 +249,8 @@ class MediaLibrarySessionCallback(
                 val resolvedItems = ArrayList<MediaItem>()
                 mediaItems.forEach { item ->
                     val sessionItem = item.localConfiguration?.uri?.let { item }
-                        ?: automotiveRepository.getSessionMediaItem(item.mediaId)?.let { session ->
-                            automotiveRepository.getMetadatas(session.timestamp!!)
+                        ?: sessionMediaItemRepository.get(item.mediaId)?.let { session ->
+                            sessionMediaItemRepository.getSiblings(session.timestamp!!)
                         }
                     sessionItem?.let { resolved ->
                         when (resolved) {
@@ -245,9 +274,8 @@ class MediaLibrarySessionCallback(
                 Log.d(TAG, "Start index for clicked item ${firstItem.mediaId} = $startIndex")
                 if (startIndex <= 0) return@transform resolvedItems
 
-                val children = resolvedItems.mapNotNull { MappingUtil.mapToChild(it) }
-                if (children.isNotEmpty()) {
-                    QueueRepository().insertAll(children, true, 0)
+                if (resolvedItems.isNotEmpty()) {
+                    QueueRepository().insertAll(resolvedItems, true, 0)
                 }
 
                 val firstResolved = resolvedItems[0]
@@ -288,6 +316,18 @@ class MediaLibrarySessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        return MediaBrowserTree.search(query)
+        // Search tracks carry no parent tag, so remembering them here is the only
+        // thing that lets tapping one play the rest of the results after it --
+        // see rememberTracks.
+        return Futures.transform(
+            MediaBrowserTree.search(query),
+            { result ->
+                if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
+                    rememberTracks(result.value ?: emptyList())
+                }
+                result
+            },
+            MoreExecutors.directExecutor()
+        )
     }
 }

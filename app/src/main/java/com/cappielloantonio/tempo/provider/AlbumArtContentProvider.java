@@ -15,7 +15,8 @@ import androidx.annotation.Nullable;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.cappielloantonio.tempo.BuildConfig;
-import com.cappielloantonio.tempo.glide.CustomGlideRequest;
+import com.cappielloantonio.tempo.plex.PlexApi;
+import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder;
 import com.cappielloantonio.tempo.util.Preferences;
 
 import java.io.File;
@@ -31,6 +32,13 @@ import java.util.concurrent.TimeUnit;
 public class AlbumArtContentProvider extends ContentProvider {
     public static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".albumart.provider";
     public static final String ALBUM_ART = "albumArt";
+
+    // Plex's photo transcoder requires both dimensions. The image-size preference
+    // this used to read is frozen at its "-1" sentinel -- the settings screen that
+    // set it is gone -- so anything non-positive falls back to a size that fills a
+    // car browse tile without fetching a full-resolution cover for every row.
+    private static final int DEFAULT_ARTWORK_SIZE = 512;
+
     private ExecutorService executor;
 
     private static final UriMatcher uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -52,10 +60,32 @@ public class AlbumArtContentProvider extends ContentProvider {
     @Override
     public ParcelFileDescriptor openFile(@NonNull Uri uri, @NonNull String mode) throws FileNotFoundException {
         Context context = getContext();
-        String albumId = uri.getLastPathSegment();
-        Uri artworkUri = Uri.parse(CustomGlideRequest.createUrl(albumId, Preferences.getImageSize()));
 
-        final Uri artworkUriFinal = artworkUri;
+        // The last path segment is a Plex thumb path such as
+        // /library/metadata/12345/thumb/1699999999. contentUri() percent-encodes its
+        // separators and getLastPathSegment() decodes them, so the multi-segment path
+        // arrives whole rather than truncated to its final component.
+        String thumbPath = uri.getLastPathSegment();
+
+        int size = Preferences.getImageSize() > 0 ? Preferences.getImageSize() : DEFAULT_ARTWORK_SIZE;
+
+        PlexApi api = new PlexApi();
+        String artworkUrl = MediaUrlBuilder.INSTANCE.artworkUrl(
+                api.getServerUri(),
+                thumbPath,
+                PlexApi.serverTokenOrAccount(api.getServerToken(), api.getAccountToken()),
+                size,
+                size
+        );
+
+        // Null means no server or no token yet -- there is no image to serve, and
+        // reporting that is what makes the car fall back to the placeholder icon
+        // instead of stalling on a pipe that never gets written.
+        if (artworkUrl == null) {
+            throw new FileNotFoundException("No Plex artwork URL for " + thumbPath);
+        }
+
+        final Uri artworkUriFinal = Uri.parse(artworkUrl);
 
         try {
             // use pipe to communicate between background thread and caller of openFile()

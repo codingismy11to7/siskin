@@ -55,6 +55,15 @@ class LibraryClient(api: PlexApi) {
         /** Sorts an album listing by artist, for the "view by albums" tab. */
         const val SORT_ARTIST = "artist.titleSort"
 
+        /**
+         * Sorts an album listing by album title, for the Albums tab.
+         *
+         * Passed explicitly rather than left to the server default, which is
+         * already artist order -- without this the Albums tab and the "view by
+         * albums" entry render the same list and one of the two is pointless.
+         */
+        const val SORT_TITLE = "titleSort"
+
         /** Server-side shuffle, for continuous play's random tier. */
         const val SORT_RANDOM = "random"
 
