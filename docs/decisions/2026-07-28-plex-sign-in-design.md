@@ -65,21 +65,44 @@ restarts at `CreatingPin`.
 
 ### The approval screen
 
-Glide loads `Pin.qr` into an `ImageView`. Beside it: *"Scan the QR code — or go to
-plex.tv/link and enter:"* followed by the code in large type. Both routes are
-shown at once rather than one being a fallback for the other; a passenger with a
-phone camera and a driver reading four characters aloud are equally likely.
+Glide loads `Pin.qr` into an `ImageView`, tinted black on a white background with
+padding for a quiet zone. Beside it: *"Scan the QR code — or go to plex.tv/link
+and enter:"* followed by the code in large type. Both routes are shown at once
+rather than one being a fallback for the other; a passenger with a phone camera
+and a driver reading four characters aloud are equally likely.
 
 Glide is already a dependency and `Pin.qr` is already modelled, so this adds
 nothing. The alternative — bundling a QR encoder such as zxing to render the
 `plex.tv/link` URL at native display resolution — buys control over size, quiet
 zone and contrast, which is not nothing for a phone camera pointed at a dash
-screen from arm's length. It is deferred until there is evidence it is needed.
+screen from arm's length. It was deferred until there was evidence it was
+needed, and on-device verification against live plex.tv responses found none:
+`Pin.qr` resolves to a usable image, so the encoder fallback does not get built.
 
-**This rests on an unverified assumption.** `Pin.qr` was read out of the API
-specification, not observed in a live response. Confirming it returns a usable
-image is the first thing to do on the emulator. If it does not, the encoder is
-the fallback, and the code-plus-instructions text carries the screen regardless.
+**That verification also found `Pin.qr` is not a finished image — it is a
+tintable mask.** Its transparent pixels are the QR's light modules and its
+opaque white pixels are the dark ones. Loaded raw, composited on Siskin's light
+theme it flattens to a single colour and is invisible; composited on black it
+renders, but with inverted polarity and no quiet zone. Tinting the opaque
+pixels black and placing the image on a white background with padding does
+what compositing can't: an `ImageView` tint recolors non-transparent pixels
+while preserving alpha, which is exactly this mask's semantics, so the white
+background shows through the transparent light modules and produces a
+standard-polarity QR with a real quiet zone. This is why the `ImageView` above
+carries the tint and background rather than showing `Pin.qr` as loaded.
+
+**The same verification pass caught a second problem, this time in `createPin`
+rather than the layout.** `strong=true` was carried over from the API-layer
+spec unquestioned; against live plex.tv it returns a 25-character code, not the
+short one this screen's copy promises the user can type at plex.tv/link.
+Nobody types 25 characters into a phone, so `strong` is dropped — a bare
+`POST /pins` returns the 4-character code the copy above actually needs. The
+grant it produces is still bound to this install's `X-Plex-Client-Identifier`,
+which is what keeps a 4-character code acceptable rather than guessable. This
+amends the API-layer spec the same way the token split below does: that spec's
+Auth section states `POST /pins?strong=true` returns "a short code," which the
+live response shows is not true — the short code comes from omitting `strong`,
+not from setting it.
 
 ### Polling
 

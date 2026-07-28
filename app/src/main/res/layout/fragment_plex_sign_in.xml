@@ -30,7 +30,10 @@
                 android:id="@+id/qr_image"
                 android:layout_width="240dp"
                 android:layout_height="240dp"
+                android:background="@android:color/white"
                 android:contentDescription="@string/plex_sign_in_instructions"
+                android:padding="16dp"
+                android:tint="@android:color/black"
                 android:visibility="gone" />
 
             <LinearLayout
