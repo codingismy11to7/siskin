@@ -215,28 +215,15 @@ class MediaLibrarySessionCallback(
                 item.requestMetadata.extras?.getString("type", "") == Constants.MEDIA_TYPE_RADIO
     }
 
+    // AutomotiveRepository no longer serves an internet-radio browse node (Task 4
+    // reduced it to the three surviving tabs: Playlists, Artists, Albums), so there
+    // is no repository lookup left that can hydrate a fuller MediaItem for a
+    // radio-tagged id. Nothing currently wires a radio-tagged MediaItem into
+    // onAddMediaItems -- no browse node creates one, and MediaManager.startRadio()
+    // has no callers -- but isRadio() below is still consulted by onSetMediaItems,
+    // so this degrades to the item as given rather than deleting the dead branch.
     private fun fetchRadioItem(firstItem: MediaItem): ListenableFuture<List<MediaItem>> {
-        val radioFuture = Futures.transformAsync(
-            automotiveRepository.internetRadioStations,
-            { result ->
-                val selected = result?.value?.find { it.mediaId == firstItem.mediaId }
-                if (selected != null) {
-                    val updated = selected.buildUpon()
-                        .setMimeType(selected.localConfiguration?.mimeType)
-                        .build()
-                    Futures.immediateFuture(listOf(updated))
-                } else {
-                    Futures.immediateFuture(listOf(firstItem))
-                }
-            },
-            androidx.core.content.ContextCompat.getMainExecutor(context)
-        )
-        return Futures.catchingAsync(
-            radioFuture,
-            Exception::class.java,
-            { Futures.immediateFuture(listOf(firstItem)) },
-            androidx.core.content.ContextCompat.getMainExecutor(context)
-        )
+        return Futures.immediateFuture(listOf(firstItem))
     }
 
     private fun resolveQueueForItem(

@@ -106,10 +106,6 @@ object Preferences {
     private const val NETWORK_PING_TIMEOUT = "network_ping_timeout_base"
     
     private const val TILE_SIZE = "tile_size"
-    // TRANSITIONAL -- still read by AutomotiveRepository; removed in Task 4
-    // along with its last caller.
-    private const val AA_ALBUM_VIEW = "androidauto_album_view"
-    private const val AA_SHUFFLE_GENRE_SONGS = "androidauto_shuffle_genre_songs"
     private const val AA_STARRED_FOR_MADE_FOR_YOU ="androidauto_starred_for_made_for_you"
     private const val DARK_THEME_STYLE = "dark_theme_style"
     private const val AA_SHUFFLE_STARRED_TRACKS = "androidauto_shuffle_starred_tracks"
@@ -898,18 +894,6 @@ object Preferences {
         return parsed?.takeIf { it in 2..6 } ?: 2
     }
 
-    // TRANSITIONAL -- still read by AutomotiveRepository; removed in Task 4
-    // along with its last caller.
-    @JvmStatic
-    fun isAndroidAutoAlbumViewEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(AA_ALBUM_VIEW, true)
-    }
-
-    @JvmStatic
-    fun isAndroidAutoShuffleGenreSongsEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(AA_SHUFFLE_GENRE_SONGS, false)
-    }
-
     @JvmStatic
     fun isAndroidAutoShuffleStarredTracksEnabled(): Boolean {
         return App.getInstance().preferences.getBoolean(AA_SHUFFLE_STARRED_TRACKS, false)
@@ -923,11 +907,6 @@ object Preferences {
     @JvmStatic
     fun isAndroidAutoShuffleDownloadedTracksEnabled(): Boolean {
         return App.getInstance().preferences.getBoolean(AA_SHUFFLE_DOWNLOADED_TRACKS, false)
-    }
-
-    @JvmStatic
-    fun setAndroidAutoShuffleGenreSongsEnabled(enabled: Boolean) {
-        App.getInstance().preferences.edit().putBoolean(AA_SHUFFLE_GENRE_SONGS, enabled).apply()
     }
 
     @JvmStatic

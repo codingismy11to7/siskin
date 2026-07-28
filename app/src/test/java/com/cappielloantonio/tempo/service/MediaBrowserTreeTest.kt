@@ -54,12 +54,12 @@ class MediaBrowserTreeTest {
     @Test
     fun removedTabsAreNotInTheTree() {
         listOf(
-            ConstantsAA.HOME_ID,
-            ConstantsAA.PODCAST_ID,
-            ConstantsAA.RADIO_ID,
-            ConstantsAA.GENRES_ID,
-            ConstantsAA.FOLDER_ID,
-            ConstantsAA.DOWNLOADED_ID
+            "[homeID]",
+            "[podcastID]",
+            "[radioID]",
+            "[genresID]",
+            "[folderID]",
+            "[downloadedID]"
         ).forEach { removed ->
             assertEquals("$removed should not resolve", null, MediaBrowserTree.getItem(removed))
         }

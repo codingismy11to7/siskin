@@ -550,11 +550,6 @@
             android:key="androidauto_home_view" />
 
         <SwitchPreference
-            android:title="@string/settings_androidauto_album_view"
-            android:defaultValue="true"
-            android:key="androidauto_album_view" />
-
-        <SwitchPreference
             android:title="@string/settings_androidauto_playlist_view"
             android:defaultValue="false"
             android:key="androidauto_playlist_view" />
@@ -568,11 +563,6 @@
             android:title="@string/settings_androidauto_podcast_view"
             android:defaultValue="false"
             android:key="androidauto_podcast_view" />
-
-        <SwitchPreference
-            android:title="@string/settings_androidauto_shuffle_genre_songs"
-            android:defaultValue="false"
-            android:key="androidauto_shuffle_genre_songs" />
 
         <SwitchPreference
             android:title="@string/settings_androidauto_shuffle_starred_tracks"
