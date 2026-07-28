@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = 'io.github.codingismy11to7.siskin'
-        minSdkVersion 24
+        minSdkVersion 28
         //noinspection OldTargetApi
         targetSdk = 36
 
