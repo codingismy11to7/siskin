@@ -76,15 +76,10 @@ dependencies {
     // AndroidX
     implementation libs.androidx.activity
     implementation libs.androidx.constraintlayout
-    implementation libs.androidx.coordinatorlayout
-    implementation libs.androidx.preference.ktx
-    implementation libs.androidx.navigation.fragment.ktx
-    implementation libs.androidx.navigation.ui.ktx
     implementation libs.androidx.recyclerview
     implementation libs.androidx.room.runtime
     implementation libs.androidx.splashscreen
     implementation libs.androidx.appcompat
-    implementation libs.androidx.swiperefreshlayout
 
     // Android Material
     implementation libs.material
@@ -98,9 +93,7 @@ dependencies {
     implementation libs.media3.session
     implementation libs.media3.common
     implementation libs.media3.exoplayer
-    implementation libs.media3.ui
     implementation libs.media3.exoplayer.hls
-    implementation libs.media3.cast
 
     // Room Compiler
     annotationProcessor libs.androidx.room.compiler
@@ -111,14 +104,6 @@ dependencies {
     implementation libs.okhttp.logging
 
     // Misc
-    implementation libs.sdp.android
-    implementation libs.customactivityoncrash
-    implementation(libs.shimmer) {
-        artifact {
-            name = 'shimmer'
-            type = 'aar'
-        }
-    }
     implementation libs.kotlin.metadata
 
     testImplementation 'junit:junit:4.13.2'

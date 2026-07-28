@@ -7,7 +7,6 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
 import androidx.media3.common.util.UnstableApi;
-import androidx.preference.PreferenceManager;
 
 import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.subsonic.Subsonic;
@@ -26,13 +25,13 @@ public class App extends Application {
     public void onCreate() {
         super.onCreate();
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        SharedPreferences sharedPreferences = getApplicationContext().getSharedPreferences(getApplicationContext().getPackageName() + "_preferences", Context.MODE_PRIVATE);
         String themePref = sharedPreferences.getString(Preferences.THEME, ThemeHelper.DEFAULT_MODE);
         ThemeHelper.applyTheme(themePref);
 
         instance = new App();
         context = getApplicationContext();
-        preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        preferences = context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
 
         ClientCertManager.setupSslSocketFactory(context);
     }
@@ -104,7 +103,7 @@ public class App extends Application {
 
     public SharedPreferences getPreferences() {
         if (preferences == null) {
-            preferences = PreferenceManager.getDefaultSharedPreferences(context);
+            preferences = context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
         }
 
         return preferences;
