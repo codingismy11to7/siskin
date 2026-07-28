@@ -1,27 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Siskin</string>
-    <string name="empty_string" />
-    <string name="error_required">Necesar</string>
-    <string name="error_server_prefix">Prefixul http sau https este necesar</string>
     <string name="exo_controls_heart_off_description">Comutați inima în stare inactivă</string>
     <string name="exo_controls_heart_on_description">Comutați inima în stare activă</string>
     <string name="exo_controls_heart_loading_description">Se încarcă…</string>
-    <string name="label_placeholder" translatable="false">--</string>
-    <string name="login_empty">Niciun server adăugat</string>
-    <string name="login_title">Servere Subsonic</string>
-    <string name="login_title_expanded">Servere Subsonic</string>
-    <string name="menu_add_button">Adăugaţi</string>
-    <string name="server_signup_dialog_action_low_security">Securitate redusă</string>
-    <string name="server_signup_dialog_action_delete_toast">Apasă lung pentru a șterge</string>
-    <string name="server_signup_dialog_hint_local_address">URL Local</string>
-    <string name="server_signup_dialog_hint_name">Nume Server</string>
-    <string name="server_signup_dialog_hint_password">Parolă</string>
-    <string name="server_signup_dialog_hint_url">URL Server</string>
-    <string name="server_signup_dialog_hint_username">Nume Utilizator</string>
-    <string name="server_signup_dialog_negative_button">Anulati</string>
-    <string name="server_signup_dialog_neutral_button">Ștergeţi</string>
-    <string name="server_signup_dialog_positive_button">Salvaţi</string>
-    <string name="server_signup_dialog_title">Adăugați server</string>
 
 </resources>

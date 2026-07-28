@@ -4,27 +4,7 @@
     <string name="aa_playlists">Playlisty</string>
     <string name="aa_view_by_albums">Wyświetlaj według albumów</string>
     <string name="app_name">Siskin</string>
-    <string name="empty_string" />
-    <string name="error_required">Wymagane</string>
-    <string name="error_server_prefix">wymagany jest prefiks http lub https</string>
     <string name="exo_controls_heart_off_description">Wyłącz serce</string>
     <string name="exo_controls_heart_on_description">Włącz serce</string>
     <string name="exo_controls_heart_loading_description">Ładowanie…</string>
-    <string name="label_placeholder" translatable="false">--</string>
-    <string name="login_empty">Brak dodanych serwerów</string>
-    <string name="login_title">Serwery Subsonic</string>
-    <string name="login_title_expanded">Serwery Subsonic</string>
-    <string name="menu_add_button">Dodaj</string>
-    <string name="server_signup_dialog_action_low_security">Niskie bezpieczeństwo</string>
-    <string name="server_signup_dialog_action_delete_toast">Przytrzymaj aby usunąć</string>
-    <string name="server_signup_dialog_hint_local_address">Lokalny URL</string>
-    <string name="server_signup_dialog_hint_name">Nazwa Serwera</string>
-    <string name="server_signup_dialog_hint_password">Hasło</string>
-    <string name="server_signup_dialog_hint_url">URL Serwera</string>
-    <string name="server_signup_dialog_hint_username">Nazwa użytkownika</string>
-    <string name="server_signup_dialog_hint_client_certificate">Certyfikat klienta (opcjonalny)</string>
-    <string name="server_signup_dialog_negative_button">Anuluj</string>
-    <string name="server_signup_dialog_neutral_button">Usuń</string>
-    <string name="server_signup_dialog_positive_button">Zapisz</string>
-    <string name="server_signup_dialog_title">Dodaj serwer</string>
 </resources>

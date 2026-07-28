@@ -5,8 +5,6 @@ kotlin = "2.2.10"
 # AndroidX / Material
 activity = "1.13.0"
 constraintlayout = "2.2.0"
-coordinatorlayout = "1.2.0"
-recyclerview = "1.4.0"
 room = "2.7.0"
 splashscreen = "1.0.1"
 appcompat = "1.7.0"
@@ -21,8 +19,6 @@ okhttpLogging = "5.0.0-alpha.14"
 [libraries]
 androidx-activity = { group = "androidx.activity", name="activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
-androidx-coordinatorlayout = { group = "androidx.coordinatorlayout", name = "coordinatorlayout", version.ref = "coordinatorlayout" }
-androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }

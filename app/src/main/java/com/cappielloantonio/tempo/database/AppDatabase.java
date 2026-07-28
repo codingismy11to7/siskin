@@ -14,19 +14,16 @@ import com.cappielloantonio.tempo.database.converter.DateConverters;
 import com.cappielloantonio.tempo.database.converter.StringListConverter;
 import com.cappielloantonio.tempo.database.dao.ChronologyDao;
 import com.cappielloantonio.tempo.database.dao.QueueDao;
-import com.cappielloantonio.tempo.database.dao.ServerDao;
 import com.cappielloantonio.tempo.database.dao.SessionMediaItemDao;
 import com.cappielloantonio.tempo.model.Chronology;
 import com.cappielloantonio.tempo.model.Queue;
-import com.cappielloantonio.tempo.model.Server;
 import com.cappielloantonio.tempo.model.SessionMediaItem;
 
 @UnstableApi
 @Database(
-        version = 22,
+        version = 23,
         entities = {
             Queue.class,
-            Server.class,
             Chronology.class,
             SessionMediaItem.class,
         },
@@ -43,6 +40,7 @@ import com.cappielloantonio.tempo.model.SessionMediaItem;
                 @AutoMigration(from = 19, to = 20),
                 @AutoMigration(from = 20, to = 21, spec = AppDatabase.DropTablesForPrunedFeatures.class),
                 @AutoMigration(from = 21, to = 22, spec = AppDatabase.DropPlaylistTables.class),
+                @AutoMigration(from = 22, to = 23, spec = AppDatabase.DropServerTable.class),
         }
 )
 @TypeConverters({DateConverters.class, StringListConverter.class})
@@ -74,6 +72,15 @@ public abstract class AppDatabase extends RoomDatabase {
     static class DropPlaylistTables implements AutoMigrationSpec {
     }
 
+    // The server table held the Subsonic multi-server list, entered through a form
+    // that no longer exists: Plex authenticates through a PIN and stores its token,
+    // server URI and section key in preferences instead.
+    @DeleteTable.Entries({
+            @DeleteTable(tableName = "server")
+    })
+    static class DropServerTable implements AutoMigrationSpec {
+    }
+
     public static synchronized AppDatabase getInstance() {
         if (instance == null) {
             instance = Room.databaseBuilder(App.getContext(), AppDatabase.class, DB_NAME)
@@ -85,8 +92,6 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     public abstract QueueDao queueDao();
-
-    public abstract ServerDao serverDao();
 
     public abstract ChronologyDao chronologyDao();
 

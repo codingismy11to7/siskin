@@ -76,8 +76,6 @@ dependencies {
     // AndroidX
     implementation libs.androidx.activity
     implementation libs.androidx.constraintlayout
-    implementation libs.androidx.coordinatorlayout
-    implementation libs.androidx.recyclerview
     implementation libs.androidx.room.runtime
     implementation libs.androidx.splashscreen
     implementation libs.androidx.appcompat

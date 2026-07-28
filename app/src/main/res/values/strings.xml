@@ -9,9 +9,6 @@
     <string name="car_sign_in_again">Siskin could not sign in to Plex. Try signing in again.</string>
     <string name="car_sign_in_required">Sign in to Siskin to browse your music</string>
     <string name="car_sign_in_title">Sign in to Siskin</string>
-    <string name="empty_string" />
-    <string name="error_required">Required</string>
-    <string name="error_server_prefix">http or https prefix required</string>
     <string name="exo_controls_heart_off_description">Toggle Heart off</string>
     <string name="exo_controls_heart_on_description">Toggle Heart on</string>
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
@@ -20,11 +17,6 @@
     <string name="exo_controls_shuffle_off_description">Enable shuffle mode</string>
     <string name="exo_controls_shuffle_on_description">Disable shuffle mode</string>
     <string name="exo_controls_heart_loading_description">Loading…</string>
-    <string name="label_placeholder" translatable="false">--</string>
-    <string name="login_empty">No server added</string>
-    <string name="login_title">Subsonic servers</string>
-    <string name="login_title_expanded">Subsonic servers</string>
-    <string name="menu_add_button">Add</string>
 
     <string name="plex_sign_in_choose_library">Choose a music library</string>
     <string name="plex_sign_in_choose_server">Choose a Plex server</string>
@@ -36,17 +28,4 @@
     <string name="plex_sign_in_error_server_unreachable">Could not reach that Plex server.</string>
     <string name="plex_sign_in_instructions">Scan the QR code — or go to plex.tv/link and enter:</string>
     <string name="plex_sign_in_retry">Try again</string>
-
-    <string name="server_signup_dialog_action_low_security">Low security</string>
-    <string name="server_signup_dialog_action_delete_toast">Long press to delete</string>
-    <string name="server_signup_dialog_hint_local_address">Local URL</string>
-    <string name="server_signup_dialog_hint_name">Server Name</string>
-    <string name="server_signup_dialog_hint_password">Password</string>
-    <string name="server_signup_dialog_hint_url">Server URL</string>
-    <string name="server_signup_dialog_hint_username">Username</string>
-    <string name="server_signup_dialog_hint_client_certificate">Client certificate (optional)</string>
-    <string name="server_signup_dialog_negative_button">Cancel</string>
-    <string name="server_signup_dialog_neutral_button">Delete</string>
-    <string name="server_signup_dialog_positive_button">Save</string>
-    <string name="server_signup_dialog_title">Add server</string>
 </resources>
