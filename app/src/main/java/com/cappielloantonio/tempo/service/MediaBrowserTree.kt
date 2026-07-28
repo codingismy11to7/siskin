@@ -188,29 +188,17 @@ object MediaBrowserTree {
             ConstantsAA.ROOT_ID -> treeNodes[ConstantsAA.ROOT_ID]!!.getChildren()
 
             ConstantsAA.PLAYLIST_ID -> automotiveRepository.getPlaylists(ConstantsAA.PLAYLIST_ID)
-            ConstantsAA.ARTISTS_ID -> automotiveRepository.getArtists(ConstantsAA.ARTIST_ID, true)
+            ConstantsAA.ARTISTS_ID -> automotiveRepository.getArtists(ConstantsAA.ARTIST_ID)
             ConstantsAA.ALBUMS_ID -> automotiveRepository.getAlbums(
                 ConstantsAA.ALBUM_ID,
                 "alphabeticalByName",
-                ConstantsAA.MAX_ITEMS,
-                true
+                ConstantsAA.MAX_ITEMS
             )
 
-            ConstantsAA.JUMP_TO_ALBUMS_ID -> automotiveRepository.getAlbums(
-                ConstantsAA.ALBUM_ID,
-                "alphabeticalByName",
-                ConstantsAA.MAX_ITEMS,
-                false
-            )
-            ConstantsAA.JUMP_TO_ARTISTS_ID -> automotiveRepository.getArtists(
-                ConstantsAA.ARTIST_ID,
-                false
-            )
             ConstantsAA.ARTISTS_BY_ALBUMS_ID -> automotiveRepository.getAlbums(
                 ConstantsAA.ALBUM_ID,
                 "alphabeticalByArtist",
-                ConstantsAA.MAX_ITEMS,
-                false
+                ConstantsAA.MAX_ITEMS
             )
 
             else -> {

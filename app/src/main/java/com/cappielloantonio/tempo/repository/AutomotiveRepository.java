@@ -114,7 +114,7 @@ public class AutomotiveRepository {
                 .build();
     }
 
-    public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> getAlbums(String prefix, String type, int size, Boolean isRootCall) {
+    public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> getAlbums(String prefix, String type, int size) {
         final SettableFuture<LibraryResult<ImmutableList<MediaItem>>> listenableFuture = SettableFuture.create();
         if (size > ConstantsAA.MAX_ITEMS) size = ConstantsAA.MAX_ITEMS;
         final int maxSize = size;
@@ -167,7 +167,7 @@ public class AutomotiveRepository {
         return listenableFuture;
     }
 
-    public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> getArtists(String prefix, Boolean isRootCall) {
+    public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> getArtists(String prefix) {
         final SettableFuture<LibraryResult<ImmutableList<MediaItem>>> listenableFuture = SettableFuture.create();
 
         App.getSubsonicClientInstance(false)

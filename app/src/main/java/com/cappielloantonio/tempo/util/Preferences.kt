@@ -13,8 +13,6 @@ object Preferences {
     private const val LOW_SECURITY = "low_security"
     private const val CLIENT_CERT = "client_cert"
     private const val SERVER_ID = "server_id"
-    private const val OPEN_SUBSONIC = "open_subsonic"
-    private const val OPEN_SUBSONIC_EXTENSIONS = "open_subsonic_extensions"
     private const val LOCAL_ADDRESS = "local_address"
     private const val IN_USE_SERVER_ADDRESS = "in_use_server_address"
     private const val PLAYBACK_SPEED = "playback_speed"
@@ -144,14 +142,6 @@ object Preferences {
         App.getInstance().preferences.edit().putString(SERVER_ID, serverId).apply()
     }
 
-    @JvmStatic
-    fun isOpenSubsonic(): Boolean {
-        return App.getInstance().preferences.getBoolean(OPEN_SUBSONIC, false)
-    }
-    @JvmStatic
-    fun getOpenSubsonicExtensions(): String? {
-        return App.getInstance().preferences.getString(OPEN_SUBSONIC_EXTENSIONS, null)
-    }
     @JvmStatic
     fun getLocalAddress(): String? {
         return App.getInstance().preferences.getString(LOCAL_ADDRESS, null)

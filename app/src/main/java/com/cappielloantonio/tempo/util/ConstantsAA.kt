@@ -16,8 +16,6 @@ object ConstantsAA {
     // Android Auto System functions
     const val ALBUM_ID = "[albumID]"
     const val ARTIST_ID = "[artistID]"
-    const val JUMP_TO_ALBUMS_ID = "[jumpToAlbumsID]"
-    const val JUMP_TO_ARTISTS_ID = "[jumpToArtistsID]"
     const val ARTISTS_BY_ALBUMS_ID = "[artistsByAlbumsID]"
 
     // Android Auto Source tag

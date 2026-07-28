@@ -56,14 +56,7 @@ class DynamicMediaSourceFactory(
                 val extractorsFactory: ExtractorsFactory = DefaultExtractorsFactory()
                 val progressiveFactory = ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
 
-                val uri = mediaItem.localConfiguration?.uri
-                val isTranscoding = uri?.getQueryParameter("format") != null && uri.getQueryParameter("format") != "raw"
-                
-                if (isTranscoding && OpenSubsonicExtensionsUtil.isTranscodeOffsetExtensionAvailable()) {
-                     TranscodingMediaSource(mediaItem, dataSourceFactory, progressiveFactory)
-                } else {
-                     progressiveFactory.createMediaSource(mediaItem)
-                }
+                progressiveFactory.createMediaSource(mediaItem)
             }
         }
     }
