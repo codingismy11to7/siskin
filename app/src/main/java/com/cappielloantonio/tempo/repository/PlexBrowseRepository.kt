@@ -164,12 +164,11 @@ class PlexBrowseRepository {
 
         call.enqueue(object : Callback<PlexResponse> {
             override fun onResponse(call: Call<PlexResponse>, response: Response<PlexResponse>) {
-                if (!response.isSuccessful) {
+                val result = resultFor(response, map)
+                if (result.resultCode != LibraryResult.RESULT_SUCCESS) {
                     Log.w(TAG, "browse failed with HTTP ${response.code()}")
-                    future.set(errorFor(response.code()))
-                    return
                 }
-                future.set(LibraryResult.ofItemList(ImmutableList.copyOf(map(response.body())), null))
+                future.set(result)
             }
 
             override fun onFailure(call: Call<PlexResponse>, t: Throwable) {
@@ -181,13 +180,6 @@ class PlexBrowseRepository {
         return future
     }
 
-    private fun errorFor(httpCode: Int): LibraryResult<ImmutableList<MediaItem>> =
-        if (httpCode == HTTP_UNAUTHORIZED || httpCode == HTTP_FORBIDDEN) {
-            LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED)
-        } else {
-            LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
-        }
-
     private fun errorFuture(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         Log.w(TAG, "no music section selected")
         return SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>().apply {
@@ -196,8 +188,8 @@ class PlexBrowseRepository {
     }
 
     companion object {
-        const val HTTP_UNAUTHORIZED = 401
-        const val HTTP_FORBIDDEN = 403
+        private const val HTTP_UNAUTHORIZED = 401
+        private const val HTTP_FORBIDDEN = 403
 
         private const val TYPE_TRACK = "track"
         private const val TYPE_ALBUM = "album"
@@ -217,5 +209,40 @@ class PlexBrowseRepository {
             response?.mediaContainer?.metadata
                 ?.filter { it.type == type && !it.ratingKey.isNullOrBlank() }
                 ?: emptyList()
+
+        /**
+         * The response→LibraryResult decision `fetch()` hands to its future,
+         * pulled out so it is reachable from a test without a live Retrofit
+         * `Call`. An empty library answers 200 with `MediaContainer` present and
+         * `Metadata` absent -- `map` (built on [tracksOf]/[itemsOf]) already
+         * degrades that to an empty list, so this must still report success:
+         * the Subsonic implementation this replaces mistook that shape for a
+         * failure and showed "Something went wrong" on the first browse tab for
+         * every user with no playlists. A non-2xx response is always an error,
+         * mapped by [errorFor].
+         */
+        @JvmStatic
+        internal fun resultFor(
+            response: Response<PlexResponse>,
+            map: (PlexResponse?) -> List<MediaItem>
+        ): LibraryResult<ImmutableList<MediaItem>> =
+            if (!response.isSuccessful) {
+                errorFor(response.code())
+            } else {
+                LibraryResult.ofItemList(ImmutableList.copyOf(map(response.body())), null)
+            }
+
+        /**
+         * 401/403 mean the token Plex issued is no longer accepted, which is
+         * distinct from a merely malformed request: `SessionError.ERROR_PERMISSION_DENIED`
+         * is what a later task keys the "sign in again" affordance off of, so
+         * every other non-2xx code must land on `ERROR_BAD_VALUE` instead.
+         */
+        private fun errorFor(httpCode: Int): LibraryResult<ImmutableList<MediaItem>> =
+            if (httpCode == HTTP_UNAUTHORIZED || httpCode == HTTP_FORBIDDEN) {
+                LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED)
+            } else {
+                LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+            }
     }
 }
