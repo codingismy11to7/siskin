@@ -1,3 +1,0 @@
-fix: Proper raw stream detection
-chore(i18n): Update Spanish translation
-feat: add configurable timeout

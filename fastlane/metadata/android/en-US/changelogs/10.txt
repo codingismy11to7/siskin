@@ -1,4 +1,0 @@
-* fix: updates starred syncing downloads to user defined directory
-* fix: handle empty albums and null mappings
-* feat: integrate sort recent searches chronologically
-* feat: add heart to artist/album pages, fixed artist cover art failing
