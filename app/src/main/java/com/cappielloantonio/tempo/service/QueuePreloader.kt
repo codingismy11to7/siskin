@@ -114,8 +114,6 @@ object QueuePreloader {
             val type = mediaItem.mediaMetadata.extras?.getString("type")
             if (type == Constants.MEDIA_TYPE_RADIO || mediaItem.mediaId.startsWith("ir-")) continue
 
-            if (DownloadUtil.getDownloadTracker(context).isDownloaded(mediaItem.mediaId)) continue
-
             val uri = mediaItem.localConfiguration?.uri
                 ?: mediaItem.requestMetadata.mediaUri
                 ?: continue

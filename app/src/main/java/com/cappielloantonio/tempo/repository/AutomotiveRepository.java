@@ -63,9 +63,6 @@ public class AutomotiveRepository {
 
     private static final String TAG = "AutomotiveRepository";
 
-    public final InstantMixBuilder instantMixBuilder = new InstantMixBuilder(this);
-    public final MadeForYouBuilder madeForYouBuilder = new MadeForYouBuilder(this);
-
     private Bundle createContentStyleExtras(boolean gridView) {
         Bundle extras = new Bundle();
         int contentStyle = gridView

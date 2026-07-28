@@ -14,11 +14,8 @@ import androidx.media3.common.MimeTypes;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.HeartRating;
 
-import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.glide.CustomGlideRequest;
-import com.cappielloantonio.tempo.model.Download;
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider;
-import com.cappielloantonio.tempo.repository.DownloadRepository;
 import com.cappielloantonio.tempo.subsonic.models.Child;
 import com.cappielloantonio.tempo.subsonic.models.InternetRadioStation;
 import com.cappielloantonio.tempo.subsonic.models.PodcastEpisode;
@@ -154,13 +151,6 @@ public class MappingUtil {
     }
 
     public static MediaItem mapMediaItem(MediaItem old) {
-        String mediaId = null;
-        if (old.requestMetadata.extras != null)
-            mediaId = old.requestMetadata.extras.getString("id");
-
-        if (mediaId != null && DownloadUtil.getDownloadTracker(App.getContext()).isDownloaded(mediaId)) {
-            return old;
-        }
         Uri uri = old.requestMetadata.mediaUri == null ? null : MusicUtil.updateStreamUri(old.requestMetadata.mediaUri);
         return new MediaItem.Builder()
                 .setMediaId(old.mediaId)
@@ -207,48 +197,6 @@ public class MappingUtil {
                 .setMediaId(item.getId())
                 .setMediaMetadata(metadata)
                 .setRequestMetadata(requestMetadata)
-                .build();
-    }
-
-    public static List<MediaItem> mapDownloads(List<Child> items) {
-        ArrayList<MediaItem> downloads = new ArrayList<>();
-
-        for (int i = 0; i < items.size(); i++) {
-            downloads.add(mapDownload(items.get(i)));
-        }
-
-        return downloads;
-    }
-
-    public static MediaItem mapDownload(Child media) {
-
-        Bundle bundle = new Bundle();
-        bundle.putInt("samplingRate", media.getSamplingRate() != null ? media.getSamplingRate() : 0);
-        bundle.putInt("bitDepth", media.getBitDepth() != null ? media.getBitDepth() : 0);
-
-        return new MediaItem.Builder()
-                .setMediaId(media.getId())
-                .setMediaMetadata(
-                        new MediaMetadata.Builder()
-                                .setTitle(media.getTitle())
-                                .setTrackNumber(media.getTrack() != null ? media.getTrack() : 0)
-                                .setDiscNumber(media.getDiscNumber() != null ? media.getDiscNumber() : 0)
-                                .setReleaseYear(media.getYear() != null ? media.getYear() : 0)
-                                .setAlbumTitle(media.getAlbum())
-                                .setArtist(media.getArtist())
-                                .setExtras(bundle)
-                                .setIsBrowsable(false)
-                                .setIsPlayable(true)
-                                .build()
-                )
-                .setRequestMetadata(
-                        new MediaItem.RequestMetadata.Builder()
-                                .setExtras(bundle)
-                                .setMediaUri(Preferences.preferTranscodedDownload() ? MusicUtil.getTranscodedDownloadUri(media.getId()) : MusicUtil.getDownloadUri(media.getId()))
-                                .build()
-                )
-                .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
-                .setUri(Preferences.preferTranscodedDownload() ? MusicUtil.getTranscodedDownloadUri(media.getId()) : MusicUtil.getDownloadUri(media.getId()))
                 .build();
     }
 
@@ -450,15 +398,6 @@ public class MappingUtil {
     }
 
     private static Uri getUri(Child media) {
-        // Check if it's in our local SQL Database
-        DownloadRepository repo = new DownloadRepository();
-        Download localDownload = repo.getDownload(media.getId());
-
-        if (localDownload != null && localDownload.getDownloadUri() != null && !localDownload.getDownloadUri().isEmpty()) {
-            Log.d(TAG, "Playing local file for: " + media.getTitle());
-            return Uri.parse(localDownload.getDownloadUri());
-        }
-
         // Legacy check for external directory, i think this was broken/buggy
         if (Preferences.getDownloadDirectoryUri() != null) {
             Uri local = ExternalAudioReader.getUri(media);
@@ -475,14 +414,7 @@ public class MappingUtil {
             Uri local = ExternalAudioReader.getUri(podcastEpisode);
             return local != null ? local : MusicUtil.getStreamUri(podcastEpisode.getStreamId());
         }
-        return DownloadUtil.getDownloadTracker(App.getContext()).isDownloaded(podcastEpisode.getStreamId())
-                ? getDownloadUri(podcastEpisode.getStreamId())
-                : MusicUtil.getStreamUri(podcastEpisode.getStreamId());
-    }
-
-    private static Uri getDownloadUri(String id) {
-        Download download = new DownloadRepository().getDownload(id);
-        return download != null && !download.getDownloadUri().isEmpty() ? Uri.parse(download.getDownloadUri()) : MusicUtil.getDownloadUri(id);
+        return MusicUtil.getStreamUri(podcastEpisode.getStreamId());
     }
 
     public static void observeExternalAudioRefresh(LifecycleOwner owner, Runnable onRefresh) {

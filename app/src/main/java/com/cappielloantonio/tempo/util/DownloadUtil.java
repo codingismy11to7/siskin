@@ -1,9 +1,7 @@
 package com.cappielloantonio.tempo.util;
 
-import android.app.Notification;
 import android.content.Context;
 
-import androidx.core.app.NotificationCompat;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.database.DatabaseProvider;
 import androidx.media3.database.StandaloneDatabaseProvider;
@@ -19,27 +17,16 @@ import androidx.media3.datasource.cache.NoOpCacheEvictor;
 import androidx.media3.datasource.cache.SimpleCache;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.RenderersFactory;
-import androidx.media3.exoplayer.offline.DownloadManager;
-import androidx.media3.exoplayer.offline.DownloadNotificationHelper;
-import androidx.media3.exoplayer.scheduler.Requirements;
-
-import com.cappielloantonio.tempo.service.DownloaderManager;
 
 import java.io.File;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
 
 @UnstableApi
 public final class DownloadUtil {
-
-    public static final String DOWNLOAD_NOTIFICATION_CHANNEL_ID = "download_channel";
-    public static final String DOWNLOAD_NOTIFICATION_SUCCESSFUL_GROUP = "com.cappielloantonio.tempo.SuccessfulDownload";
-    public static final String DOWNLOAD_NOTIFICATION_FAILED_GROUP = "com.cappielloantonio.tempo.FailedDownload";
 
     private static final String STREAMING_CACHE_CONTENT_DIRECTORY = "streaming_cache";
     private static final String DOWNLOAD_CONTENT_DIRECTORY = "downloads";
@@ -51,9 +38,6 @@ public final class DownloadUtil {
     private static File downloadDirectory;
     private static Cache downloadCache;
     private static SimpleCache streamingCache;
-    private static DownloadManager downloadManager;
-    private static DownloaderManager downloaderManager;
-    private static DownloadNotificationHelper downloadNotificationHelper;
 
     public static boolean useExtensionRenderers() {
         return true;
@@ -143,24 +127,6 @@ public final class DownloadUtil {
         return getStreamingCache(context);
     }
 
-    public static synchronized DownloadNotificationHelper getDownloadNotificationHelper(Context context) {
-        if (downloadNotificationHelper == null) {
-            downloadNotificationHelper = new DownloadNotificationHelper(context, DOWNLOAD_NOTIFICATION_CHANNEL_ID);
-        }
-
-        return downloadNotificationHelper;
-    }
-
-    public static synchronized DownloadManager getDownloadManager(Context context) {
-        ensureDownloadManagerInitialized(context);
-        return downloadManager;
-    }
-
-    public static synchronized DownloaderManager getDownloadTracker(Context context) {
-        ensureDownloadManagerInitialized(context);
-        return downloaderManager;
-    }
-
     private static synchronized Cache getDownloadCache(Context context) {
         if (downloadCache == null) {
             File downloadContentDirectory = new File(getDownloadDirectory(context), DOWNLOAD_CONTENT_DIRECTORY);
@@ -182,24 +148,6 @@ public final class DownloadUtil {
         }
 
         return streamingCache;
-    }
-
-    private static synchronized void ensureDownloadManagerInitialized(Context context) {
-        if (downloadManager == null) {
-            downloadManager = new DownloadManager(
-                    context,
-                    getDatabaseProvider(context),
-                    getDownloadCache(context),
-                    getHttpDataSourceFactory(),
-                    Executors.newFixedThreadPool(6)
-            );
-
-            if (Preferences.isDownloadWifiOnly()) {
-                downloadManager.setRequirements(new Requirements(Requirements.NETWORK_UNMETERED));
-            }
-
-            downloaderManager = new DownloaderManager(context, getHttpDataSourceFactory(), downloadManager);
-        }
     }
 
     private static synchronized DatabaseProvider getDatabaseProvider(Context context) {
@@ -262,44 +210,7 @@ public final class DownloadUtil {
                 .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
     }
 
-    public static synchronized void eraseDownloadFolder(Context context) {
-        File directory = getDownloadDirectory(context);
-
-        ArrayList<File> files = listFiles(directory, new ArrayList<>());
-
-        for (File file : files) {
-            file.delete();
-        }
-    }
-
-    private static synchronized ArrayList<File> listFiles(File directory, ArrayList<File> files) {
-        if (directory.isDirectory()) {
-            File[] list = directory.listFiles();
-
-            if (list != null) {
-                for (File file : list) {
-                    if (file.isFile() && file.getName().toLowerCase().endsWith(".exo")) {
-                        files.add(file);
-                    } else if (file.isDirectory()) {
-                        listFiles(file, files);
-                    }
-                }
-            }
-        }
-
-        return files;
-    }
-
     public static synchronized long getStreamingCacheSize(Context context) {
         return getStreamingCache(context).getCacheSpace();
-    }
-
-    public static Notification buildGroupSummaryNotification(Context context, String channelId, String groupId, int icon, String title) {
-        return new NotificationCompat.Builder(context, channelId)
-                .setContentTitle(title)
-                .setSmallIcon(icon)
-                .setGroup(groupId)
-                .setGroupSummary(true)
-                .build();
     }
 }

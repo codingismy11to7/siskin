@@ -109,7 +109,7 @@ open class BaseMediaService : MediaLibraryService() {
         // the resolved URI actually changed, so the active item is never touched while
         // upcoming tracks still pick up the new network's transcoding settings.
 
-        // Threading: the heavy computation (MappingUtil + isDownloaded) runs on a background
+        // Threading: the heavy computation (MappingUtil) runs on a background
         // thread to avoid blocking the main thread. Only items from current+1 onward are
         // processed — already-played items are skipped. replaceMediaItem() is dispatched back
         // to the main thread via mainHandler. The guard i < player.mediaItemCount protects

@@ -255,42 +255,6 @@ class MediaLibrarySessionCallback(
                 Futures.immediateFuture(cachedItems)
             }
 
-            firstItem.mediaId.startsWith(ConstantsAA.INSTANTMIX_SOURCE) -> {
-                Log.d(TAG, "Fetching instant mix for $firstItem.mediaId")
-
-                val withoutPrefix = firstItem.mediaId.removePrefix(ConstantsAA.INSTANTMIX_SOURCE)
-                val countStr = withoutPrefix.substringAfter("[").substringBefore("]")
-                val artistId = withoutPrefix.substringAfter("]")
-                val count = countStr.toIntOrNull() ?: ConstantsAA.NUMBER_OF_TRACKS_IN_SMALL_MIX
-
-                // connect handle
-                MediaServiceExtensionRegistry.handler = TracksChangedExtension(automotiveRepository)
-
-                Futures.transform(
-                    automotiveRepository.getInstantMix(artistId, count),
-                    { it.value ?: emptyList() },
-                    MoreExecutors.directExecutor()
-                )
-            }
-
-            firstItem.mediaId.startsWith(ConstantsAA.MADE_FOR_YOU_SOURCE) -> {
-                Log.d(TAG, "Fetching MadeForYou for $firstItem.mediaId")
-
-                val withoutPrefix = firstItem.mediaId.removePrefix(ConstantsAA.MADE_FOR_YOU_SOURCE)
-                val countStr = withoutPrefix.substringAfter("[").substringBefore("]")
-                val mixType = withoutPrefix.substringAfter("]")
-                val count = countStr.toIntOrNull() ?: ConstantsAA.NUMBER_OF_TRACKS_IN_SMALL_MIX
-
-                // connect handle
-                MediaServiceExtensionRegistry.handler = TracksChangedExtension(automotiveRepository)
-
-                Futures.transform(
-                    automotiveRepository.getMadeForYou(mixType, count),
-                    { it.value ?: emptyList() },
-                    MoreExecutors.directExecutor()
-                )
-            }
-
             else -> {
                 Log.d(TAG, "Fallback queue for item ${firstItem.mediaId}")
                 val resolvedItems = ArrayList<MediaItem>()
