@@ -223,16 +223,19 @@ read and delete `global_preferences.xml`. Apply the Room reduction and version b
 
 **Phase 5 — Resources.** 123 layouts across `layout/`, `layout-land/`,
 `layout-sw600dp/` and `layout-sw600dp-land/` down to the sign-in handful; 23 menus
-to none; `arrays.xml` and the string catalogue across 14 locales; the `drawable/`
+down to `login_page_menu.xml` alone, which `LoginFragment`'s toolbar still inflates;
+`arrays.xml` and the string catalogue across 14 locales; the `drawable/`
 set (604K). `font/` is 2.6M — the largest single thing in `res/` — and is audited
 here.
 
 **Phase 6 — Dependencies.** Drop `media3-cast` (and the Play Services Cast framework
 behind it), `media3-ui`, `navigation-fragment-ktx`, `navigation-ui-ktx`,
 `swiperefreshlayout`,
-`coordinatorlayout`, `sdp-android`, `shimmer`, `customactivityoncrash`. Kept:
-`recyclerview` (`ServerAdapter` is a `RecyclerView.Adapter`), Glide, Room, Retrofit,
-and Media3 session/common/exoplayer/hls.
+`sdp-android`, `shimmer`, `customactivityoncrash`. Kept:
+`recyclerview` (`ServerAdapter` is a `RecyclerView.Adapter`), `coordinatorlayout`
+(`fragment_login.xml` uses `AppBarLayout` scroll coupling, which needs a real
+`CoordinatorLayout` parent), Glide, Room, Retrofit, and Media3
+session/common/exoplayer/hls.
 
 `media3-ui` is the reason this phase comes last. No Java or Kotlin source references
 it; its only consumers are the four `inner_fragment_player_controller*.xml` layouts,
