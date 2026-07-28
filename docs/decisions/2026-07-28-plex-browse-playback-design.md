@@ -209,19 +209,36 @@ worth preserving, and a queue of Subsonic ids is meaningless against Plex.
 
 ## Artwork
 
-`AlbumArtContentProvider.contentUri(id)` appends the artwork id as a single path
-segment and reads it back with `getLastPathSegment()`.
+Only one thing changes: `CustomGlideRequest.createUrl`, which builds a Subsonic
+`getCoverArt` URL, is replaced by `MediaUrlBuilder.artworkUrl`, which already
+exists and already takes width and height.
 
-**Plex thumbs are multi-segment paths** (`/library/metadata/12345/thumb/1699…`),
-so that round-trip silently truncates to the last segment and every cover 404s.
-The id must be `Uri.encode()`d into one segment and decoded on read.
+**A correction, recorded because the wrong version of this section was approved
+first.** An earlier draft claimed the id round trip through
+`AlbumArtContentProvider` was broken: `contentUri` appends the artwork id as one
+path segment and `openFile` reads it back with `getLastPathSegment()`, and Plex
+thumbs are multi-segment paths (`/library/metadata/12345/thumb/1699…`), so the
+id looked like it would truncate to `1699…` and every cover would 404 silently.
 
-This is recorded prominently because it fails quietly: the provider still
-returns a pipe, Glide still runs, and the only symptom is missing artwork with
-no error at the call site.
+It does not. `Uri.Builder.appendPath()` percent-encodes the separators and
+`getLastPathSegment()` decodes them back, so the path survives whole — including
+after the URI is serialised and reparsed, which is what actually happens when it
+travels through `MediaMetadata` to the car and back. Probed under Robolectric:
 
-`CustomGlideRequest.createUrl` is replaced by `MediaUrlBuilder.artworkUrl`,
-which already exists and already takes width and height.
+```
+built uri       = content://…/albumArt/%2Flibrary%2Fmetadata%2F12345%2Fthumb%2F1699999999
+lastPathSegment = /library/metadata/12345/thumb/1699999999
+round trips     = true
+```
+
+The error came from reasoning about `getLastPathSegment()` on a raw parsed
+string — where it genuinely does truncate — without checking that the matching
+`appendPath` encodes. The two halves are a pair. No encoding helper is needed,
+and the task that would have added one is dropped.
+
+This is retained rather than deleted because the reasoning was plausible enough
+to survive review, and a future reader looking at that round trip deserves the
+answer rather than a second run at the same wrong conclusion.
 
 ## Browse tree mapping
 
@@ -353,24 +370,70 @@ look like they should not:
   reach it.
 - `CredentialGateTest` — already rewritten against the Plex predicate.
 
-New tests, all pure — no Robolectric, and none relying on
-`unitTests.returnDefaultValues = true` to pass while asserting nothing:
+### Robolectric is adopted, reversing the previous two specs
 
-- **`PlexMediaMapperTest`** — track, album and artist mapping, including the
-  bundle keys live code reads and `partKey` surviving the round trip.
+Both earlier specs specified "all pure — no Robolectric," and for them that was
+right: PIN state machines and token routing are genuinely framework-free.
+
+This slice is not. Its central deliverable, `PlexMediaMapper`, produces a
+`MediaItem` carrying an extras bundle, and `app/build.gradle` sets
+`unitTests.returnDefaultValues = true`. Under that setting the stub
+`android.jar` does not throw — it returns the zero value for the return type, so
+`Uri.parse()` yields null and a `Bundle` silently discards everything written to
+it. A test that maps a `Metadata` and asserts on the resulting bundle therefore
+reads back null for every key whether the mapper is correct or broken. Testing
+"everything except the object being built" is not a testing strategy.
+
+Verified before adopting: Robolectric 4.16 runs against `compileSdk = 36` with
+no `@Config(sdk = …)` override, in about 13 seconds including compilation, and
+`Uri`, `Bundle` and `MediaItem` all behave for real.
+
+The cost is two lines in `app/build.gradle`: the
+`org.robolectric:robolectric:4.16` test dependency, and
+`unitTests.includeAndroidResources = true` beside the existing
+`returnDefaultValues`. It is a `testImplementation`, so nothing reaches the APK.
+
+Adoption is scoped, not wholesale. `returnDefaultValues` stays, and only classes
+annotated `@RunWith(RobolectricTestRunner::class)` get shadows, so every
+existing test runs exactly as before. Logic that is already pure — the response
+narrowing, the part-key and thumb selection, the search merge — keeps plain
+JUnit tests, which are faster and state their intent more clearly. Robolectric
+is for the assembly step alone.
+
+**The evidence for this was the artwork section above.** The pure-function
+discipline was about to ship an encoding helper against a bug that does not
+exist, and no amount of it would have caught that, because the question was
+precisely what the framework does. One Robolectric probe answered it.
+
+### New tests
+
+Plain JUnit, no framework:
+
+- **Part key, thumb fallback, search merge** (`PlexMediaMapperTest`) — the
+  branching logic, including a part with no key beside a usable one, and the
+  album-then-artist thumb fallback.
+- **Response narrowing** (`PlexBrowseRepositoryTest`) — an absent `Metadata`
+  list is an empty tab, not an error. The Subsonic original got this wrong and
+  put "Something went wrong" on the first tab for anyone with no playlists.
+
+Robolectric:
+
+- **Mapper assembly** — a mapped track carries the bundle keys live code reads
+  (`id`, `artistId`, `type`, `uri`, `parent_id`, `partKey`, `thumb`), and its
+  media id, title, artist and artwork URI are what the browse tree will show.
 - **Stream URL rebuild** — a persisted entity whose token has changed produces a
-  current URL, not the stored one. This is the bug `partKey` exists to prevent.
-- **Artwork URI round trip** — a multi-segment Plex thumb path survives
-  `contentUri` → `getLastPathSegment` intact. The failure this guards is silent.
-- **Search merge** — three type-scoped responses merge in artist, album, track
-  order.
+  current URL, not the stored one. This is the bug `partKey` exists to prevent,
+  and it is only observable once `Uri` and `Bundle` are real.
+- **Room entity round trip** — `MediaItem` → `Queue`/`SessionMediaItem` →
+  `MediaItem` preserves every field the player and the car read.
 
 On the emulator: browse all three tabs, drill Artists → albums → tracks, play a
 track, run a search, toggle the heart and confirm it survives a queue reload,
 and confirm artwork renders in the browse list and on the now-playing screen.
 
-Artwork gets explicit emulator time because its failure mode is silent and its
-unit test can only prove the URI survives, not that the image loads.
+Artwork keeps its emulator check even though the URI round trip is sound: a unit
+test can prove the URL is well-formed, never that the server returns an image
+for it.
 
 ## Scale
 
