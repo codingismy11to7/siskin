@@ -7,68 +7,38 @@ import org.junit.Test;
 
 public class CredentialGateTest {
 
-    private static final String SERVER = "https://music.example.com";
+    private static final String TOKEN = "plex-account-token";
+    private static final String URI = "https://192.168.1.10:32400";
+    private static final String SECTION = "3";
 
     @Test
-    public void notSignedInWithoutAServer() {
+    public void signedInWhenAllThreeArePresent() {
+        assertTrue(CredentialGate.isSignedIn(TOKEN, URI, SECTION));
+    }
+
+    @Test
+    public void notSignedInWithoutAToken() {
         // AAOS exposes the browse tree straight after install: nothing is configured.
-        assertFalse(CredentialGate.isSignedIn(null, "hunter2", null, null));
+        assertFalse(CredentialGate.isSignedIn(null, URI, SECTION));
     }
 
     @Test
-    public void blankServerIsTreatedAsAbsent() {
-        assertFalse(CredentialGate.isSignedIn("   ", "hunter2", null, null));
+    public void notSignedInWithoutAServerUri() {
+        // The PIN was approved but discovery never finished.
+        assertFalse(CredentialGate.isSignedIn(TOKEN, null, SECTION));
     }
 
     @Test
-    public void notSignedInWithServerButNoCredentials() {
-        assertFalse(CredentialGate.isSignedIn(SERVER, null, null, null));
+    public void notSignedInWithoutAMusicSection() {
+        // A server was chosen but the library picker was never answered, so no
+        // browse call could name a section to read.
+        assertFalse(CredentialGate.isSignedIn(TOKEN, URI, null));
     }
 
     @Test
-    public void signedInWithPassword() {
-        assertTrue(CredentialGate.isSignedIn(SERVER, "hunter2", null, null));
-    }
-
-    @Test
-    public void signedInWithTokenAndSalt() {
-        assertTrue(CredentialGate.isSignedIn(SERVER, null, "tok", "salt"));
-    }
-
-    @Test
-    public void tokenWithoutSaltIsNotEnough() {
-        assertFalse(CredentialGate.isSignedIn(SERVER, null, "tok", null));
-    }
-
-    @Test
-    public void saltWithoutTokenIsNotEnough() {
-        assertFalse(CredentialGate.isSignedIn(SERVER, null, null, "salt"));
-    }
-
-    @Test
-    public void wrongUsernameOrPasswordIsAnAuthFailure() {
-        assertTrue(CredentialGate.isAuthFailure(40));
-    }
-
-    @Test
-    public void tokenAuthNotSupportedIsAnAuthFailure() {
-        assertTrue(CredentialGate.isAuthFailure(41));
-    }
-
-    @Test
-    public void notAuthorizedIsAnAuthFailure() {
-        assertTrue(CredentialGate.isAuthFailure(50));
-    }
-
-    @Test
-    public void serverMustUpgradeIsNotAnAuthFailure() {
-        // Code 30: the server is too old. Signing in again cannot fix it, so the
-        // car must not be offered a Sign in button.
-        assertFalse(CredentialGate.isAuthFailure(30));
-    }
-
-    @Test
-    public void missingCodeIsNotAnAuthFailure() {
-        assertFalse(CredentialGate.isAuthFailure(null));
+    public void blankValuesAreTreatedAsAbsent() {
+        assertFalse(CredentialGate.isSignedIn("   ", URI, SECTION));
+        assertFalse(CredentialGate.isSignedIn(TOKEN, "   ", SECTION));
+        assertFalse(CredentialGate.isSignedIn(TOKEN, URI, "   "));
     }
 }

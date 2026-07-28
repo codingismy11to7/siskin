@@ -1,25 +1,6 @@
 ﻿<resources>
     <string name="app_name">Siskin</string>
     <string name="exo_controls_heart_loading_description">加载中...</string>
-    <string name="empty_string" />
-    <string name="error_required">必需</string>
-    <string name="error_server_prefix">必须是 http 或 https 前缀</string>
     <string name="exo_controls_heart_off_description">取消收藏</string>
     <string name="exo_controls_heart_on_description">收藏</string>
-    <string name="label_placeholder" translatable="false">--</string>
-    <string name="login_empty">尚未添加服务器</string>
-    <string name="login_title">Subsonic 服务器</string>
-    <string name="login_title_expanded">Subsonic 服务器</string>
-    <string name="menu_add_button">添加</string>
-    <string name="server_signup_dialog_action_delete_toast">长按删除</string>
-    <string name="server_signup_dialog_action_low_security">低安全性</string>
-    <string name="server_signup_dialog_hint_local_address">本地 URL</string>
-    <string name="server_signup_dialog_hint_name">服务器名称</string>
-    <string name="server_signup_dialog_hint_password">密码</string>
-    <string name="server_signup_dialog_hint_url">服务器地址</string>
-    <string name="server_signup_dialog_hint_username">用户名</string>
-    <string name="server_signup_dialog_negative_button">取消</string>
-    <string name="server_signup_dialog_neutral_button">删除</string>
-    <string name="server_signup_dialog_positive_button">保存</string>
-    <string name="server_signup_dialog_title">添加服务器</string>
 </resources>

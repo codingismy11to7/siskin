@@ -4,28 +4,8 @@
     <string name="aa_playlists">Плейлисты</string>
 
     <string name="app_name">Siskin</string>
-    <string name="empty_string"/>
-    <string name="error_required">Обязательно</string>
-    <string name="error_server_prefix">Требуется префикс http или https</string>
     <string name="exo_controls_heart_off_description">Убрать лайк</string>
     <string name="exo_controls_heart_on_description">Поставить лайк</string>
     <string name="exo_controls_heart_loading_description">Загрузка…</string>
-    <string name="label_placeholder" translatable="false">--</string>
-    <string name="login_empty">Сервер не добавлен</string>
-    <string name="login_title">Subsonic серверы</string>
-    <string name="login_title_expanded">Subsonic серверы</string>
-    <string name="menu_add_button">Добавить</string>
-    <string name="server_signup_dialog_action_low_security">Низкая безопасность</string>
-    <string name="server_signup_dialog_action_delete_toast">Удерживайте для удаления</string>
-    <string name="server_signup_dialog_hint_local_address">Локальный URL</string>
-    <string name="server_signup_dialog_hint_name">Название сервера</string>
-    <string name="server_signup_dialog_hint_password">Пароль</string>
-    <string name="server_signup_dialog_hint_url">URL-адрес сервера</string>
-    <string name="server_signup_dialog_hint_username">Имя пользователя</string>
-    <string name="server_signup_dialog_hint_client_certificate">Клиентский сертификат (необязательно)</string>
-    <string name="server_signup_dialog_negative_button">Отмена</string>
-    <string name="server_signup_dialog_neutral_button">Удалить</string>
-    <string name="server_signup_dialog_positive_button">Сохранить</string>
-    <string name="server_signup_dialog_title">Добавить сервер</string>
 
 </resources>

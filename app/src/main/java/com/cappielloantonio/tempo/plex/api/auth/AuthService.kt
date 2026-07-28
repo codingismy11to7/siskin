@@ -16,9 +16,16 @@ import retrofit2.http.Query
  */
 interface AuthService {
 
-    /** strong=true asks for a longer, less guessable code. */
+    /**
+     * No `strong` query param: that asks for a 25-character code, but this
+     * screen's copy promises one typable at plex.tv/link as an alternative to
+     * scanning, and nobody is typing 25 characters into a phone. The default
+     * (short, 4-character) code is acceptable because the grant it produces is
+     * bound to this install's `X-Plex-Client-Identifier` -- guessing it is not
+     * enough to steal the sign-in.
+     */
     @POST("pins")
-    fun createPin(@Query("strong") strong: Boolean = true): Call<Pin>
+    fun createPin(): Call<Pin>
 
     @GET("pins/{pinId}")
     fun getPin(@Path("pinId") pinId: Long): Call<Pin>

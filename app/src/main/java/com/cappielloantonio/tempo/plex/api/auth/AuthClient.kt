@@ -50,6 +50,25 @@ class AuthClient(api: PlexApi) {
                 ?: usable.firstOrNull()?.uri
         }
 
+        /** Plex advertises capabilities as a comma-separated list. */
+        private const val PROVIDES_SERVER = "server"
+
+        /**
+         * Narrows a /resources listing to media servers this app could actually
+         * talk to. The endpoint also returns players, controllers and the
+         * account's phones, and a server with no usable connection is no more
+         * choosable than one that is absent.
+         */
+        @JvmStatic
+        fun mediaServers(resources: List<Resource>?): List<Resource> =
+            resources.orEmpty().filter { resource ->
+                val provides = resource.provides
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    .orEmpty()
+                provides.contains(PROVIDES_SERVER) && bestConnectionUri(resource) != null
+            }
+
         /**
          * Plex reports pin expiry as ISO-8601. Converted here rather than in
          * PlexPinState so that state machine stays a pure function over primitives.

@@ -16,7 +16,8 @@ import java.util.concurrent.TimeUnit
  * plex.tv is fixed and usable before sign-in; the media server's address is only
  * known after discovery and changes when the user switches servers. Keeping them
  * as separate instances makes "this call works signed out" a compile-time
- * distinction rather than a runtime hope.
+ * distinction rather than a runtime hope -- and is what lets each one carry its
+ * own token, since a shared server rejects the account token.
  */
 object PlexRetrofitFactory {
 
@@ -25,7 +26,7 @@ object PlexRetrofitFactory {
     /** Syntactically valid but unreachable; used before a server is discovered. */
     private const val PLACEHOLDER_BASE_URL = "https://localhost/"
 
-    fun plexTv(api: PlexApi): Retrofit = build(PLEX_TV_BASE_URL, api)
+    fun plexTv(api: PlexApi): Retrofit = build(PLEX_TV_BASE_URL, api::plexTvHeaders)
 
     /**
      * Resolves `api.serverUri` once, at call time, and bakes it into the
@@ -34,31 +35,31 @@ object PlexRetrofitFactory {
      * (e.g. LibraryClient, SearchClient) must discard and reconstruct it
      * whenever the server changes.
      */
-    fun server(api: PlexApi): Retrofit = build(normalize(api.serverUri), api)
+    fun server(api: PlexApi): Retrofit = build(normalize(api.serverUri), api::serverHeaders)
 
-    private fun build(baseUrl: String, api: PlexApi): Retrofit {
+    private fun build(baseUrl: String, headers: () -> Map<String, String>): Retrofit {
         val gson = GsonBuilder().setLenient().create()
 
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .addConverterFactory(GsonConverterFactory.create(gson))
-            .client(okHttp(api))
+            .client(okHttp(headers))
             .build()
     }
 
-    private fun okHttp(api: PlexApi): OkHttpClient = OkHttpClient.Builder()
+    private fun okHttp(headers: () -> Map<String, String>): OkHttpClient = OkHttpClient.Builder()
         .callTimeout(1, TimeUnit.MINUTES)
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
-        .addInterceptor(identityInterceptor(api))
+        .addInterceptor(identityInterceptor(headers))
         .addInterceptor(logging())
         .build()
 
     /** Attaches the X-Plex-* headers to every request, token included when present. */
-    private fun identityInterceptor(api: PlexApi) = Interceptor { chain ->
+    private fun identityInterceptor(headers: () -> Map<String, String>) = Interceptor { chain ->
         val builder = chain.request().newBuilder()
-        api.headers().forEach { (name, value) -> builder.header(name, value) }
+        headers().forEach { (name, value) -> builder.header(name, value) }
         chain.proceed(builder.build())
     }
 

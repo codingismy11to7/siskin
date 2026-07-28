@@ -7,52 +7,18 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.interfaces.CredentialStateCallback;
-import com.cappielloantonio.tempo.interfaces.SystemCallback;
 import com.cappielloantonio.tempo.subsonic.base.ApiResponse;
 import com.cappielloantonio.tempo.subsonic.models.ResponseStatus;
 import com.cappielloantonio.tempo.subsonic.models.SubsonicResponse;
-import com.cappielloantonio.tempo.util.CredentialGate;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class SystemRepository {
-    public void checkUserCredential(SystemCallback callback) {
-        App.getSubsonicClientInstance(false)
-                .getSystemClient()
-                .ping()
-                .enqueue(new Callback<ApiResponse>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ApiResponse> call, @NonNull retrofit2.Response<ApiResponse> response) {
-                        if (response.body() != null) {
-                            if (response.body().getSubsonicResponse().getStatus().equals(ResponseStatus.FAILED)) {
-                                com.cappielloantonio.tempo.subsonic.models.Error apiError = response.body().getSubsonicResponse().getError();
-                                callback.onError(new Exception(apiError != null ? apiError.getCode() + " - " + apiError.getMessage() : "Unknown server error"));
-                            } else if (response.body().getSubsonicResponse().getStatus().equals(ResponseStatus.OK)) {
-                                String password = response.raw().request().url().queryParameter("p");
-                                String token = response.raw().request().url().queryParameter("t");
-                                String salt = response.raw().request().url().queryParameter("s");
-                                callback.onSuccess(password, token, salt);
-                            } else {
-                                callback.onError(new Exception("Empty response"));
-                            }
-                        } else {
-                            callback.onError(new Exception(String.valueOf(response.code())));
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<ApiResponse> call, @NonNull Throwable t) {
-                        callback.onError(new Exception(t.getMessage()));
-                    }
-                });
-    }
-
     /**
      * Distinguishes "the server rejected our credentials" from "we could not reach
-     * the server". checkUserCredential flattens both into onError(Exception), which
-     * is not enough to decide whether offering a sign-in button would help.
+     * the server". Only the first justifies offering a sign-in button.
      */
     public void checkCredentialState(CredentialStateCallback callback) {
         App.getSubsonicClientInstance(false)
@@ -86,6 +52,19 @@ public class SystemRepository {
         if (subsonicResponse == null) return false;
         if (!ResponseStatus.FAILED.equals(subsonicResponse.getStatus())) return false;
         com.cappielloantonio.tempo.subsonic.models.Error apiError = subsonicResponse.getError();
-        return CredentialGate.isAuthFailure(apiError != null ? apiError.getCode() : null);
+        return isAuthFailure(apiError != null ? apiError.getCode() : null);
+    }
+
+    /**
+     * Subsonic error codes meaning the credentials themselves were rejected, so
+     * signing in again can plausibly fix it. Codes like 30 (server must upgrade)
+     * are failures that a new password will not repair.
+     *
+     * Lived in CredentialGate until that became Plex-shaped. Dies with the rest
+     * of this class when the browse tree moves to Plex, where a rejection is
+     * simply HTTP 401.
+     */
+    static boolean isAuthFailure(Integer code) {
+        return code != null && (code == 40 || code == 41 || code == 50);
     }
 }

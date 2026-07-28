@@ -77,4 +77,36 @@ class AuthClientTest {
         assertNull(AuthClient.expiresAtEpochSeconds(Pin()))
         assertNull(AuthClient.expiresAtEpochSeconds(Pin().apply { expiresAt = "not a date" }))
     }
+
+    private fun server(provides: String?, uri: String? = "https://server") = Resource().apply {
+        this.provides = provides
+        if (uri != null) this.connections = listOf(connection(uri, local = true, relay = false))
+    }
+
+    @Test
+    fun keepsOnlyDevicesThatProvideAServer() {
+        // /resources also returns players, controllers and the account's phones.
+        val servers = AuthClient.mediaServers(
+            listOf(server("server"), server("player"), server("client,player"))
+        )
+        assertEquals(1, servers.size)
+    }
+
+    @Test
+    fun readsServerOutOfACommaSeparatedCapabilityList() {
+        assertEquals(1, AuthClient.mediaServers(listOf(server("server,player"))).size)
+        assertEquals(1, AuthClient.mediaServers(listOf(server("player, server"))).size)
+    }
+
+    @Test
+    fun dropsServersWithNoUsableConnection() {
+        // Unreachable is indistinguishable from absent for the picker's purposes.
+        assertEquals(0, AuthClient.mediaServers(listOf(server("server", uri = null))).size)
+    }
+
+    @Test
+    fun handlesAnAbsentOrEmptyResourceList() {
+        assertEquals(0, AuthClient.mediaServers(null).size)
+        assertEquals(0, AuthClient.mediaServers(emptyList()).size)
+    }
 }

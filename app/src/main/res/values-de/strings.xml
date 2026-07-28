@@ -4,28 +4,8 @@
     <string name="aa_playlists">Wiedergabelisten</string>
 
     <string name="app_name">Siskin</string>
-    <string name="empty_string" />
-    <string name="error_required">Erforderlich</string>
-    <string name="error_server_prefix">Adresse muss mit http oder https beginnen</string>
     <string name="exo_controls_heart_off_description">Herz ausschalten</string>
     <string name="exo_controls_heart_on_description">Herz einschalten</string>
     <string name="exo_controls_heart_loading_description">Laden…</string>
-    <string name="label_placeholder" translatable="false">--</string>
-    <string name="login_empty">Kein Server hinzugefügt</string>
-    <string name="login_title">Subsonic-Server</string>
-    <string name="login_title_expanded">Subsonic-Server</string>
-    <string name="menu_add_button">Hinzufügen</string>
-    <string name="server_signup_dialog_action_low_security">Niedrige Sicherheit</string>
-    <string name="server_signup_dialog_action_delete_toast">Halten zum Löschen</string>
-    <string name="server_signup_dialog_hint_local_address">Lokale Adresse</string>
-    <string name="server_signup_dialog_hint_name">Servername</string>
-    <string name="server_signup_dialog_hint_password">Passwort</string>
-    <string name="server_signup_dialog_hint_url">Server-Adresse</string>
-    <string name="server_signup_dialog_hint_username">Benutzername</string>
-    <string name="server_signup_dialog_hint_client_certificate">Client-Zertifikat (optional)</string>
-    <string name="server_signup_dialog_negative_button">Abbrechen</string>
-    <string name="server_signup_dialog_neutral_button">Löschen</string>
-    <string name="server_signup_dialog_positive_button">Speichern</string>
-    <string name="server_signup_dialog_title">Server hinzufügen</string>
 
 </resources>

@@ -23,24 +23,45 @@ class PlexApi {
             }
         }
 
-    var token: String?
-        get() = preferences.getString(KEY_TOKEN, null)
-        set(value) = preferences.edit().putString(KEY_TOKEN, value).apply()
+    /** From the approved PIN. Authenticates plex.tv calls. */
+    var accountToken: String?
+        get() = preferences.getString(KEY_ACCOUNT_TOKEN, null)
+        set(value) = preferences.edit().putString(KEY_ACCOUNT_TOKEN, value).apply()
+
+    /**
+     * From the chosen Resource.accessToken, and null for a server the account
+     * owns -- those accept the account token. A *shared* server does not, which
+     * is the whole reason this is a second field rather than an overwrite of
+     * [accountToken]: plex.tv still needs the account one afterwards.
+     */
+    var serverToken: String?
+        get() = preferences.getString(KEY_SERVER_TOKEN, null)
+        set(value) = preferences.edit().putString(KEY_SERVER_TOKEN, value).apply()
 
     /** Base URL of the chosen media server; null until discovery completes. */
     var serverUri: String?
         get() = preferences.getString(KEY_SERVER_URI, null)
         set(value) = preferences.edit().putString(KEY_SERVER_URI, value).apply()
 
+    /** Section key of the chosen music library; null until the user picks one. */
+    var musicSectionKey: String?
+        get() = preferences.getString(KEY_MUSIC_SECTION_KEY, null)
+        set(value) = preferences.edit().putString(KEY_MUSIC_SECTION_KEY, value).apply()
+
     val appVersion: String get() = BuildConfig.VERSION_NAME
 
-    fun headers(): Map<String, String> =
-        PlexIdentity.headers(clientIdentifier, appVersion, token)
+    fun plexTvHeaders(): Map<String, String> =
+        PlexIdentity.headers(clientIdentifier, appVersion, accountToken)
+
+    fun serverHeaders(): Map<String, String> =
+        PlexIdentity.headers(clientIdentifier, appVersion, serverTokenOrAccount(serverToken, accountToken))
 
     companion object {
         private const val KEY_CLIENT_ID = "plex_client_identifier"
-        private const val KEY_TOKEN = "plex_token"
+        private const val KEY_ACCOUNT_TOKEN = "plex_token"
+        private const val KEY_SERVER_TOKEN = "plex_server_token"
         private const val KEY_SERVER_URI = "plex_server_uri"
+        private const val KEY_MUSIC_SECTION_KEY = "plex_music_section_key"
 
         /**
          * Process-wide, because each Plex client constructs its own PlexApi and the
@@ -50,5 +71,13 @@ class PlexApi {
          * so the grant would be unclaimable.
          */
         private val IDENTITY_LOCK = Any()
+
+        /**
+         * Which token authenticates a media-server call. Pure and static because
+         * PlexApi itself reads SharedPreferences, which unit tests cannot observe.
+         */
+        @JvmStatic
+        fun serverTokenOrAccount(serverToken: String?, accountToken: String?): String? =
+            if (serverToken.isNullOrBlank()) accountToken else serverToken
     }
 }

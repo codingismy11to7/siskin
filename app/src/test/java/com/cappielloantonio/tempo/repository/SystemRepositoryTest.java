@@ -61,6 +61,33 @@ public class SystemRepositoryTest {
         assertFalse(SystemRepository.isRejection(response));
     }
 
+    @Test
+    public void wrongUsernameOrPasswordIsAnAuthFailure() {
+        assertTrue(SystemRepository.isAuthFailure(40));
+    }
+
+    @Test
+    public void tokenAuthNotSupportedIsAnAuthFailure() {
+        assertTrue(SystemRepository.isAuthFailure(41));
+    }
+
+    @Test
+    public void notAuthorizedIsAnAuthFailure() {
+        assertTrue(SystemRepository.isAuthFailure(50));
+    }
+
+    @Test
+    public void serverMustUpgradeIsNotAnAuthFailure() {
+        // Code 30: the server is too old. Signing in again cannot fix it, so the
+        // car must not be offered a Sign in button.
+        assertFalse(SystemRepository.isAuthFailure(30));
+    }
+
+    @Test
+    public void missingCodeIsNotAnAuthFailure() {
+        assertFalse(SystemRepository.isAuthFailure(null));
+    }
+
     private static SubsonicResponse failedResponse(int errorCode) {
         Error error = new Error();
         error.setCode(errorCode);

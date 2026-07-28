@@ -1,26 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Siskin</string>
-    <string name="error_required">Obligatorio</string>
-    <string name="error_server_prefix">Se necesita un prefijo http o https</string>
     <string name="exo_controls_heart_on_description">Añadir a favoritos</string>
     <string name="exo_controls_heart_loading_description">Cargando…</string>
-    <string name="login_empty">No has añadido ningún servidor</string>
-    <string name="login_title">Servidores de Subsonic</string>
-    <string name="login_title_expanded">Servidores de Subsonic</string>
-    <string name="menu_add_button">Añadir</string>
-    <string name="server_signup_dialog_action_low_security">Baja seguridad</string>
-    <string name="server_signup_dialog_action_delete_toast">Pulsación larga para eliminar</string>
-    <string name="server_signup_dialog_hint_local_address">URL local</string>
-    <string name="server_signup_dialog_hint_name">Nombre del servidor</string>
-    <string name="server_signup_dialog_hint_password">Contraseña</string>
-    <string name="server_signup_dialog_hint_url">URL del servidor</string>
-    <string name="server_signup_dialog_hint_username">Nombre de usuario</string>
-    <string name="server_signup_dialog_hint_client_certificate">Certificado del cliente (opcional)</string>
-    <string name="server_signup_dialog_negative_button">Cancelar</string>
-    <string name="server_signup_dialog_neutral_button">Eliminar</string>
-    <string name="server_signup_dialog_positive_button">Guardar</string>
-    <string name="server_signup_dialog_title">Añadir servidor</string>
     <string name="exo_controls_heart_off_description">Eliminar de favoritos</string>
     <string name="aa_albums">Álbumes</string>
     <string name="aa_artists">Artistas</string>
