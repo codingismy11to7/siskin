@@ -5,9 +5,9 @@
     <string name="aa_view_by_albums">View by albums</string>
 
     <string name="app_name">Siskin</string>
-    <string name="car_sign_in_action">Sign in</string>
-    <string name="car_sign_in_again">Siskin could not sign in to Plex. Try signing in again.</string>
-    <string name="car_sign_in_required">Sign in to Siskin to browse your music</string>
+    <string name="car_sign_in_action">Connect</string>
+    <string name="car_sign_in_again">Plex rejected the saved connection</string>
+    <string name="car_sign_in_required">Your music is on Plex. Connect to start listening.</string>
     <string name="car_sign_in_title">Sign in to Siskin</string>
     <string name="exo_controls_heart_off_description">Toggle Heart off</string>
     <string name="exo_controls_heart_on_description">Toggle Heart on</string>
@@ -20,6 +20,9 @@
 
     <string name="plex_sign_in_choose_library">Choose a music library</string>
     <string name="plex_sign_in_choose_server">Choose a Plex server</string>
+    <string name="plex_sign_in_connect">Connect to Plex</string>
+    <!-- Siskin plays music you already own; every other AAOS music app is a streaming front-end. -->
+    <string name="plex_sign_in_tagline">Your car. Your music.</string>
     <string name="plex_sign_in_error_expired">The sign-in code expired.</string>
     <string name="plex_sign_in_error_network">Could not reach plex.tv.</string>
     <string name="plex_sign_in_error_no_libraries">That server has no music libraries.</string>
@@ -27,6 +30,8 @@
     <string name="plex_sign_in_error_pin">Plex did not return a sign-in code.</string>
     <string name="plex_sign_in_error_server_unreachable">Could not reach that Plex server.</string>
     <string name="plex_sign_in_instructions">Scan the QR code — or go to plex.tv/link and enter:</string>
+    <!-- Shown when the QR image could not be fetched; the code alone still works. -->
+    <string name="plex_sign_in_instructions_no_qr">Go to plex.tv/link and enter:</string>
     <string name="plex_sign_in_qr_description">QR code for signing in to Plex</string>
     <string name="plex_sign_in_retry">Try again</string>
 </resources>
