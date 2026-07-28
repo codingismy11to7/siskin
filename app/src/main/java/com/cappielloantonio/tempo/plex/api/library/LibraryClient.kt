@@ -5,7 +5,6 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
-import retrofit2.Call
 
 private const val TAG = "LibraryClient"
 
@@ -21,27 +20,27 @@ class LibraryClient(api: PlexApi) {
     private val service: LibraryService =
         PlexRetrofitFactory.server(api).create(LibraryService::class.java)
 
-    fun getSections(): Call<PlexResponse> {
+    suspend fun getSections(): PlexResponse {
         Log.d(TAG, "getSections()")
         return service.getSections()
     }
 
-    fun getSectionContent(
+    suspend fun getSectionContent(
         sectionKey: String,
         type: Int,
         start: Int,
         size: Int
-    ): Call<PlexResponse> {
+    ): PlexResponse {
         Log.d(TAG, "getSectionContent($sectionKey, type=$type, start=$start, size=$size)")
         return service.getSectionContent(sectionKey, type, start, size)
     }
 
-    fun getChildren(ratingKey: String, start: Int, size: Int): Call<PlexResponse> =
+    suspend fun getChildren(ratingKey: String, start: Int, size: Int): PlexResponse =
         service.getChildren(ratingKey, start, size)
 
-    fun getMetadata(ratingKey: String): Call<PlexResponse> = service.getMetadata(ratingKey)
+    suspend fun getMetadata(ratingKey: String): PlexResponse = service.getMetadata(ratingKey)
 
-    fun getSectionHubs(sectionKey: String): Call<PlexResponse> = service.getSectionHubs(sectionKey)
+    suspend fun getSectionHubs(sectionKey: String): PlexResponse = service.getSectionHubs(sectionKey)
 
     companion object {
         /** Plex reports a music library section's type as "artist". */

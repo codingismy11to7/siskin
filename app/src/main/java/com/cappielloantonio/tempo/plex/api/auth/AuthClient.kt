@@ -5,7 +5,6 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
-import retrofit2.Call
 import java.time.Instant
 import java.time.format.DateTimeParseException
 
@@ -20,35 +19,19 @@ class AuthClient(api: PlexApi) {
     private val service: AuthService =
         PlexRetrofitFactory.plexTv(api).create(AuthService::class.java)
 
-    fun createPin(): Call<Pin> {
+    suspend fun createPin(): Pin {
         Log.d(TAG, "createPin()")
         return service.createPin()
     }
 
-    fun getPin(pinId: Long): Call<Pin> = service.getPin(pinId)
+    suspend fun getPin(pinId: Long): Pin = service.getPin(pinId)
 
-    fun getResources(): Call<List<Resource>> {
+    suspend fun getResources(): List<Resource> {
         Log.d(TAG, "getResources()")
         return service.getResources()
     }
 
     companion object {
-
-        /**
-         * Picks the address to talk to a server on. A server advertises several:
-         * prefer a LAN address, then a direct remote one, and use Plex's relay
-         * only as a last resort since it is bandwidth-limited.
-         */
-        @JvmStatic
-        fun bestConnectionUri(resource: Resource): String? {
-            val usable = resource.connections
-                ?.filter { !it.uri.isNullOrBlank() }
-                ?: return null
-
-            return usable.firstOrNull { it.local == true && it.relay != true }?.uri
-                ?: usable.firstOrNull { it.relay != true }?.uri
-                ?: usable.firstOrNull()?.uri
-        }
 
         /** Plex advertises capabilities as a comma-separated list. */
         private const val PROVIDES_SERVER = "server"
@@ -58,6 +41,10 @@ class AuthClient(api: PlexApi) {
          * talk to. The endpoint also returns players, controllers and the
          * account's phones, and a server with no usable connection is no more
          * choosable than one that is absent.
+         *
+         * "Usable" here means *advertised*, not reachable: answering the stronger
+         * question means probing every server in the account before the picker can
+         * be drawn. Reachability is settled by [ServerProbe] once one is chosen.
          */
         @JvmStatic
         fun mediaServers(resources: List<Resource>?): List<Resource> =
@@ -66,7 +53,7 @@ class AuthClient(api: PlexApi) {
                     ?.split(",")
                     ?.map { it.trim() }
                     .orEmpty()
-                provides.contains(PROVIDES_SERVER) && bestConnectionUri(resource) != null
+                provides.contains(PROVIDES_SERVER) && ServerProbe.hasUsableConnection(resource)
             }
 
         /**

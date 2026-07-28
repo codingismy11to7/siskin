@@ -2,7 +2,6 @@ package com.cappielloantonio.tempo.plex.api.auth
 
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
-import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -13,6 +12,10 @@ import retrofit2.http.Query
  * flow -- so they must never be issued against the media server instance.
  *
  * Responses here are bare JSON with no MediaContainer envelope.
+ *
+ * A non-2xx throws `HttpException` rather than arriving as a body to inspect.
+ * That is what keeps "the server said no" and "I could not reach it" apart at
+ * the call site, instead of both showing up as a null body.
  */
 interface AuthService {
 
@@ -25,14 +28,14 @@ interface AuthService {
      * enough to steal the sign-in.
      */
     @POST("pins")
-    fun createPin(): Call<Pin>
+    suspend fun createPin(): Pin
 
     @GET("pins/{pinId}")
-    fun getPin(@Path("pinId") pinId: Long): Call<Pin>
+    suspend fun getPin(@Path("pinId") pinId: Long): Pin
 
     @GET("resources")
-    fun getResources(
+    suspend fun getResources(
         @Query("includeHttps") includeHttps: Int = 1,
         @Query("includeRelay") includeRelay: Int = 1
-    ): Call<List<Resource>>
+    ): List<Resource>
 }

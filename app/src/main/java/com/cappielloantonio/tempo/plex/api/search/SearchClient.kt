@@ -5,7 +5,6 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Metadata
-import retrofit2.Call
 
 private const val TAG = "SearchClient"
 
@@ -26,22 +25,22 @@ class SearchClient(api: PlexApi) {
      * without it. Callers wanting artists, albums and tracks must issue three
      * searches and merge -- Plex accepts only one type per request.
      */
-    fun search(
+    suspend fun search(
         sectionKey: String,
         query: String,
         type: Int,
         limit: Int = DEFAULT_SEARCH_LIMIT
-    ): Call<PlexResponse> {
+    ): PlexResponse {
         Log.d(TAG, "search($sectionKey, type=$type, limit=$limit)")
         return service.search(sectionKey, query, type, limit)
     }
 
-    fun getPlaylists(): Call<PlexResponse> = service.getPlaylists()
+    suspend fun getPlaylists(): PlexResponse = service.getPlaylists()
 
-    fun getPlaylistItems(playlistId: String, start: Int, size: Int): Call<PlexResponse> =
+    suspend fun getPlaylistItems(playlistId: String, start: Int, size: Int): PlexResponse =
         service.getPlaylistItems(playlistId, start, size)
 
-    fun reportProgress(ratingKey: String, key: String, state: String, timeMs: Long): Call<Void> =
+    suspend fun reportProgress(ratingKey: String, key: String, state: String, timeMs: Long) =
         service.reportProgress(ratingKey, key, state, timeMs)
 
     companion object {

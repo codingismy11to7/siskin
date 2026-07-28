@@ -19,52 +19,9 @@ class AuthClientTest {
         this.connections = connections.toList()
     }
 
-    @Test
-    fun prefersALocalConnection() {
-        // A LAN address avoids a round trip through Plex's infrastructure.
-        val uri = AuthClient.bestConnectionUri(
-            resource(
-                connection("https://remote", local = false, relay = false),
-                connection("https://local", local = true, relay = false)
-            )
-        )
-        assertEquals("https://local", uri)
-    }
-
-    @Test
-    fun prefersDirectRemoteOverRelay() {
-        // Relay is bandwidth-limited by Plex and should be the last resort.
-        val uri = AuthClient.bestConnectionUri(
-            resource(
-                connection("https://relay", local = false, relay = true),
-                connection("https://direct", local = false, relay = false)
-            )
-        )
-        assertEquals("https://direct", uri)
-    }
-
-    @Test
-    fun fallsBackToRelayWhenItIsAllThereIs() {
-        val uri = AuthClient.bestConnectionUri(resource(connection("https://relay", false, true)))
-        assertEquals("https://relay", uri)
-    }
-
-    @Test
-    fun returnsNullWhenThereAreNoConnections() {
-        assertNull(AuthClient.bestConnectionUri(Resource()))
-        assertNull(AuthClient.bestConnectionUri(resource()))
-    }
-
-    @Test
-    fun ignoresConnectionsWithNoUri() {
-        val uri = AuthClient.bestConnectionUri(
-            resource(
-                connection("", local = true, relay = false),
-                connection("https://usable", local = false, relay = false)
-            )
-        )
-        assertEquals("https://usable", uri)
-    }
+    // Choosing *which* connection to talk to a server on lives in ServerProbe and
+    // is tested there, against real sockets -- it is a reachability question, and
+    // no amount of ranking the payload answers it.
 
     @Test
     fun parsesTheIso8601ExpiryIntoEpochSeconds() {
@@ -100,7 +57,8 @@ class AuthClientTest {
 
     @Test
     fun dropsServersWithNoUsableConnection() {
-        // Unreachable is indistinguishable from absent for the picker's purposes.
+        // A server advertising no address at all cannot be probed, so it is no more
+        // choosable than one that is absent.
         assertEquals(0, AuthClient.mediaServers(listOf(server("server", uri = null))).size)
     }
 
