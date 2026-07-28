@@ -37,6 +37,13 @@ class Metadata {
     var addedAt: Long? = null
     var leafCount: Int? = null
 
+    /**
+     * Plex rates 0-10; 10 renders as five stars. This app only ever writes 10
+     * (hearted) or 0 (cleared), so [PlexMediaMapper.isHearted] treats >= 10 as
+     * hearted rather than requiring an exact match.
+     */
+    var userRating: Double? = null
+
     @SerializedName("Media")
     var media: List<Media>? = null
 }
