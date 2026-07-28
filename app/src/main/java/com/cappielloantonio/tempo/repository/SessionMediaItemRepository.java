@@ -31,6 +31,10 @@ public class SessionMediaItemRepository {
      * How many sibling groups (browse nodes) cache() keeps around. Bounds the
      * table to a handful of recent nodes -- enough to survive back-navigation
      * through a few browse levels -- instead of growing for the whole session.
+     * What actually makes 5 safe rather than merely convenient: the car
+     * re-issues onGetChildren on every node entry, so a tapped node is
+     * re-cached as the newest group on back-navigation instead of depending
+     * on its original cache entry still being one of the five retained.
      */
     private static final int RETAINED_GROUPS = 5;
 
@@ -48,6 +52,35 @@ public class SessionMediaItemRepository {
     private static final AtomicLong groupSequence = new AtomicLong(System.currentTimeMillis());
 
     private final SessionMediaItemDao dao = AppDatabase.getInstance().sessionMediaItemDao();
+
+    /**
+     * Wipes any rows already on disk when this repository is constructed.
+     *
+     * This cache is session-scoped by design (see the class doc above), so
+     * rows from a previous process are never wanted -- but MediaService only
+     * reaches releasePlayers() -> deleteAll() on a clean shutdown, not a
+     * force-stop, so stale rows can still be sitting in the table when a new
+     * process's repository is constructed. Left alone, a backwards clock step
+     * between processes (a head unit cold-booting before time sync, or a
+     * manual date change) would let those stale rows outrank every freshly
+     * cached group in pruneToMostRecentGroups' `ORDER BY timestamp DESC`,
+     * since groupSequence below reseeds from System.currentTimeMillis() on
+     * every process start: the new seed would sit below the stale timestamps,
+     * so the prune would keep the stale groups and delete each new one as it
+     * is written, and get(id) would keep answering from the stale rows.
+     * Deleting here removes the clock dependency entirely instead of merely
+     * narrowing it (e.g. re-seeding groupSequence off the stale max would
+     * still depend on that stale max being readable/correct); it also fits
+     * the "session-scoped by design" framing better than trying to make
+     * cross-process rows survive at all.
+     *
+     * Runs on dbExecutor like every other write, so it is guaranteed to
+     * finish before any later cache() call on this same single-threaded
+     * executor can observe the table again.
+     */
+    public SessionMediaItemRepository() {
+        dbExecutor.execute(dao::deleteAll);
+    }
 
     /** All items of one browse node share a timestamp; that is how siblings are found. */
     public void cache(List<MediaItem> items) {

@@ -10,12 +10,22 @@ import okhttp3.ResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import retrofit2.Response
+import java.util.concurrent.TimeUnit
 
 // The resolved okhttp3 version only exposes ResponseBody.create(MediaType?, String)
 // as deprecated in favour of an extension function this alpha release doesn't
 // yet publish; the deprecated overload is otherwise exactly what's needed here.
+//
+// Robolectric rather than plain JUnit: getPlaylistsWithNoSectionSelected...
+// below constructs a real PlexBrowseRepository, and PlexApi (which it holds)
+// reads App.getInstance().preferences -- a live Context, which only exists
+// under Robolectric. The rest of this file's tests are pure-function tests
+// that do not touch Android at all and behave identically either way.
 @Suppress("DEPRECATION")
+@RunWith(RobolectricTestRunner::class)
 class PlexBrowseRepositoryTest {
 
     private fun response(vararg items: Metadata) = PlexResponse().apply {
@@ -148,5 +158,30 @@ class PlexBrowseRepositoryTest {
         val result = PlexBrowseRepository.resultFor(response, mapThatMustNotRun)
 
         assertEquals(SessionError.ERROR_BAD_VALUE, result.resultCode)
+    }
+
+    // ── getPlaylists: section scoping ───────────────────────────
+
+    @Test
+    fun getPlaylistsWithNoSectionSelectedReturnsTheSamePermissionDeniedErrorAsTheOtherSectionScopedMethods() {
+        // Playlists must be scoped to the chosen music section exactly like
+        // getArtists/getAlbums (see PlexBrowseRepository.getPlaylists KDoc) --
+        // without that, this tab shows playlists from whichever library Plex
+        // feels like rather than the one the user picked. No section has been
+        // chosen in this test (PlexApi.musicSectionKey defaults to null, and
+        // nothing here sets it), so this must hit the same errorFuture() the
+        // other section-scoped methods fall back to -- ERROR_PERMISSION_DENIED
+        // -- without ever reaching the network.
+        //
+        // The bounded get() is deliberate, not just tidiness: errorFuture()
+        // completes its future synchronously, so a correctly scoped
+        // implementation returns near-instantly. A broken (unscoped)
+        // implementation would instead try to reach PlexRetrofitFactory's
+        // unreachable placeholder server -- turning what should be a fast,
+        // clear assertion failure into a real network attempt and, on an
+        // unbounded get(), a hang.
+        val result = PlexBrowseRepository().getPlaylists("prefix").get(2, TimeUnit.SECONDS)
+
+        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
 }

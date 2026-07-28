@@ -45,14 +45,28 @@ class SessionMediaItemDaoTest {
         this.timestamp = timestamp
     }
 
+    /**
+     * Characterisation test, not regression coverage: `index` is
+     * `@PrimaryKey(autoGenerate = true)`, i.e. this table's rowid alias, so a
+     * full scan of session_media_item (there is no usable index on
+     * `timestamp`, so `get(long)` is always one) already visits rows in
+     * ascending `index` order on this schema -- with or without
+     * "ORDER BY `index` ASC" -- see the DAO's comment on this query. The
+     * insertion order below is scrambled relative to index order (30, then
+     * 10, then 20) but that changes nothing: an explicit `index` value
+     * becomes that row's rowid regardless of insertion sequence, so no test
+     * data on this schema can make the ORDER BY clause the thing that
+     * decides the outcome. The ORDER BY is kept anyway, because it makes the
+     * guarantee explicit rather than contingent on `index` staying the rowid
+     * alias.
+     *
+     * What this test still pins down is the *contract* -- ascending by
+     * `index`, not descending and not some other column -- which a mistake
+     * like "ORDER BY `index` DESC" or sorting by the wrong column would
+     * still trip.
+     */
     @Test
-    fun getByTimestampReturnsSiblingsInIndexOrderNotInsertionOrder() {
-        // Insertion order is deliberately scrambled relative to index order.
-        // resolveQueueForItem (MediaLibraryServiceCallback) treats this method's
-        // return order as the play order and computes the tapped item's start
-        // index against it -- see the DAO's comment on this query. Without
-        // "ORDER BY `index` ASC" a plain table scan could return these rows in
-        // any order SQLite happens to store them in.
+    fun getByTimestampReturnsSiblingsOrderedByIndexAscending() {
         dao.insertAll(
             listOf(
                 row(id = "third", index = 30, timestamp = 1L),
@@ -94,4 +108,14 @@ class SessionMediaItemDaoTest {
             assertEquals(1, dao.get(t).size)
         }
     }
+
+    // No test for the pruneToMostRecentGroups `IS NOT NULL` guards (see the DAO's
+    // comment on that query): verified directly against SQLite that a stray
+    // NULL-timestamp row cannot actually change this query's output either way, with
+    // or without the guards, because `ORDER BY timestamp DESC` always sorts NULL
+    // last -- it can only enter the `LIMIT :keepGroups` kept set once every group
+    // already fits inside the bound, at which point there is nothing outside it left
+    // to wrongly spare. Any test written against this table would pass identically
+    // against the guarded and unguarded query, which is exactly the assertion this
+    // suite's other tests are written not to write.
 }

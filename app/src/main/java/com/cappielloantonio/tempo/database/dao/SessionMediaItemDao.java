@@ -44,8 +44,23 @@ public interface SessionMediaItemDao {
     // values, and deletes the rest. Without this the table grows for the whole
     // session and every blocking main-thread read in get()/getSiblings() scans more
     // rows than it needs to.
-    @Query("DELETE FROM session_media_item WHERE timestamp NOT IN " +
-            "(SELECT timestamp FROM session_media_item GROUP BY timestamp ORDER BY timestamp DESC LIMIT :keepGroups)")
+    //
+    // `timestamp` is nullable (see SessionMediaItem), and a NULL is not a value
+    // `NOT IN (subquery)` can ever match -- SQL's three-valued logic means every
+    // comparison against it is NULL, not true or false. The `IS NOT NULL` guards
+    // remove that comparison entirely rather than depending on it resolving
+    // harmlessly. It does resolve harmlessly for this specific query today, verified
+    // directly against SQLite: `ORDER BY timestamp DESC` always sorts a NULL last,
+    // so a stray NULL-timestamp row can only ever land inside the `LIMIT :keepGroups`
+    // kept set when every group already fits within the bound -- i.e. exactly when
+    // there is nothing left outside it to wrongly spare. So today this row is merely
+    // a permanent, harmless orphan (never itself matched, so never deleted by this
+    // query) rather than the retention-wide no-op a naive reading of `NOT IN`
+    // suggests. The guards make that independent of the sort direction and LIMIT
+    // shape staying exactly as they are today, for a case that is unreachable anyway
+    // -- cache() always sets timestamp before inserting.
+    @Query("DELETE FROM session_media_item WHERE timestamp IS NOT NULL AND timestamp NOT IN " +
+            "(SELECT timestamp FROM session_media_item WHERE timestamp IS NOT NULL GROUP BY timestamp ORDER BY timestamp DESC LIMIT :keepGroups)")
     void pruneToMostRecentGroups(int keepGroups);
 
     @Query("DELETE FROM session_media_item")

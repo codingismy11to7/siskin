@@ -35,7 +35,8 @@ class SearchClient(api: PlexApi) {
         return service.search(sectionKey, query, type, limit)
     }
 
-    suspend fun getPlaylists(): PlexResponse = service.getPlaylists()
+    /** [sectionKey] scopes the listing to one music library section -- see SearchService.getPlaylists. */
+    suspend fun getPlaylists(sectionKey: String): PlexResponse = service.getPlaylists(sectionKey)
 
     suspend fun getPlaylistItems(playlistId: String, start: Int, size: Int): PlexResponse =
         service.getPlaylistItems(playlistId, start, size)

@@ -67,10 +67,25 @@ class PlexBrowseRepository {
 
     // ── browse nodes ──────────────────────────────────────────
 
-    fun getPlaylists(prefix: String) = fetch(searchClient.getPlaylists()) { body ->
-        itemsOf(body, TYPE_PLAYLIST)
-            .take(ConstantsAA.MAX_ITEMS)
-            .mapNotNull { PlexMediaMapper.playlistToMediaItem(it, prefix) }
+    /**
+     * Scoped to the chosen music section, like getArtists/getAlbums:
+     * `sectionID` is the query parameter that actually filters a playlist
+     * listing on the server, and `librarySectionID` is silently ignored --
+     * both measured against a live PMS 1.43.3 server, see
+     * SearchService.getPlaylists. A playlist itself carries no section of its
+     * own -- in Plex a playlist is a server-level collection that can span
+     * libraries -- which is why the scope has to be requested here rather
+     * than filtered from the response client-side; left unscoped, this tab
+     * shows playlists from whichever library Plex feels like rather than the
+     * one the user picked.
+     */
+    fun getPlaylists(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return fetch(searchClient.getPlaylists(key)) { body ->
+            itemsOf(body, TYPE_PLAYLIST)
+                .take(ConstantsAA.MAX_ITEMS)
+                .mapNotNull { PlexMediaMapper.playlistToMediaItem(it, prefix) }
+        }
     }
 
     fun getPlaylistTracks(playlistId: String) =
