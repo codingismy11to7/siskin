@@ -41,34 +41,6 @@
             android:name="androidx.car.app.TintableAttributionIcon"
             android:resource="@drawable/ic_graphic_eq" />
 
-        <activity
-            android:name=".ui.activity.MainActivity"
-            android:exported="true"
-            android:windowSoftInputMode="adjustPan|adjustResize">
-
-            <!-- No MAIN/LAUNCHER filter, deliberately. A head unit would otherwise
-                 list Siskin twice: once as a media source and once as a phone-UI
-                 app. The activity stays exported and launchable by explicit intent,
-                 which is how the media session's setSessionActivity reaches it
-                 (BaseMediaService.initializeMediaLibrarySession) and how the crash
-                 handler restarts the app (App.java). Only the launcher listing is
-                 gone. -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data
-                    android:host="asset"
-                    android:scheme="tempo" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".ui.activity.CrashActivity"
-            android:label="@string/ca_info_title"
-            android:process=":error_activity" />
-
         <!-- Android Automotive OS sign-in. Reached only through the resolution
              PendingIntent on the browse error, so it is not exported and has no
              launcher intent-filter.

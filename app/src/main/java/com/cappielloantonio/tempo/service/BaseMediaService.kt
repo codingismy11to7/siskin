@@ -35,7 +35,7 @@ import com.cappielloantonio.tempo.equalizer.EqualizerManager
 import com.cappielloantonio.tempo.equalizer.ExternalBackend
 import com.cappielloantonio.tempo.equalizer.DefaultBackend
 import com.cappielloantonio.tempo.repository.QueueRepository
-import com.cappielloantonio.tempo.ui.activity.MainActivity
+import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
 import com.cappielloantonio.tempo.util.*
 import com.cappielloantonio.tempo.util.SleepTimerManager
 import com.google.common.util.concurrent.FutureCallback
@@ -675,7 +675,7 @@ open class BaseMediaService : MediaLibraryService() {
         Log.d(TAG, "initializeMediaLibrarySession")
         val sessionActivityPendingIntent =
             TaskStackBuilder.create(this).run {
-                addNextIntent(Intent(baseContext, MainActivity::class.java))
+                addNextIntent(Intent(baseContext, CarSignInActivity::class.java))
                 getPendingIntent(0, FLAG_IMMUTABLE or FLAG_UPDATE_CURRENT)
             }
 

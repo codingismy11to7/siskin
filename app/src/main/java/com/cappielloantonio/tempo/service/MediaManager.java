@@ -16,7 +16,6 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaBrowser;
 
 import com.cappielloantonio.tempo.database.dao.QueueDao;
-import com.cappielloantonio.tempo.interfaces.MediaIndexCallback;
 import com.cappielloantonio.tempo.model.Chronology;
 import com.cappielloantonio.tempo.repository.ChronologyRepository;
 import com.cappielloantonio.tempo.repository.QueueRepository;
@@ -425,20 +424,6 @@ public class MediaManager {
                     if (mediaBrowserListenableFuture.isDone()) {
                         mediaBrowserListenableFuture.get().removeMediaItems(fromItem, toItem);
                         getQueueRepository().deleteRange(fromItem, toItem);
-                    }
-                } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }, MoreExecutors.directExecutor());
-        }
-    }
-
-    public static void getCurrentIndex(ListenableFuture<MediaBrowser> mediaBrowserListenableFuture, MediaIndexCallback callback) {
-        if (mediaBrowserListenableFuture != null) {
-            mediaBrowserListenableFuture.addListener(() -> {
-                try {
-                    if (mediaBrowserListenableFuture.isDone()) {
-                        callback.onRecovery(mediaBrowserListenableFuture.get().getCurrentMediaItemIndex());
                     }
                 } catch (ExecutionException | InterruptedException e) {
                     e.printStackTrace();
