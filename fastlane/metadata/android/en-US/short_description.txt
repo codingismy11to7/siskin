@@ -1,1 +1,0 @@
-An open-source and privacy focused music client for Subsonic

@@ -1,3 +1,0 @@
-fix: missing Replay Gain metadata from .m4a files
-fix: Improve Synced Lyrics
-fix: Add selector for playlist visibility
