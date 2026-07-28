@@ -29,6 +29,14 @@ class Metadata {
     var grandparentThumb: String? = null
 
     var thumb: String? = null
+
+    /**
+     * Playlists carry no [thumb]; Plex instead generates this mosaic of the
+     * playlist's own contents. Only meaningful on a playlist -- tracks,
+     * albums and artists don't populate it.
+     */
+    var composite: String? = null
+
     /** Milliseconds. */
     var duration: Long? = null
     /** Track number within its album. */

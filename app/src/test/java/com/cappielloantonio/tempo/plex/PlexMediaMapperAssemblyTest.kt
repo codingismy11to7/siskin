@@ -2,10 +2,12 @@ package com.cappielloantonio.tempo.plex
 
 import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -190,6 +192,54 @@ class PlexMediaMapperAssemblyTest {
         assertEquals(MediaItem.DEFAULT_MEDIA_ID, item.mediaId)
 
         assertEquals(null, PlexMediaMapper.readTrackFields(item))
+    }
+
+    // ── playlist artwork ──────────────────────────────────────
+
+    private fun playlist(
+        ratingKey: String = "169077",
+        title: String = "❤️ Tracks",
+        composite: String? = null,
+        thumb: String? = null
+    ) = Metadata().apply {
+        this.ratingKey = ratingKey
+        this.type = "playlist"
+        this.title = title
+        this.composite = composite
+        this.thumb = thumb
+    }
+
+    @Test
+    fun aPlaylistWithACompositeAndNoThumbGetsArtworkNotThePlaceholder() {
+        // Plex never gives a playlist a thumb -- it generates composite, a
+        // mosaic of the playlist's own tracks, instead. Measured from a real
+        // server: "❤️ Tracks" has composite=/playlists/169077/composite/1781213364
+        // and thumb=ABSENT.
+        val item = PlexMediaMapper.playlistToMediaItem(
+            playlist(composite = "/playlists/169077/composite/1781213364"),
+            "[playlistID]"
+        )!!
+
+        val artwork = item.mediaMetadata.artworkUri!!
+        assertEquals("content", artwork.scheme)
+        assertEquals("/playlists/169077/composite/1781213364", artwork.lastPathSegment)
+    }
+
+    @Test
+    fun aPlaylistWithNeitherCompositeNorThumbFallsBackToThePlaceholder() {
+        // "punk goes pop" on the measured server had neither field -- Plex has
+        // no art for it at all, so the placeholder icon must still show.
+        val item = PlexMediaMapper.playlistToMediaItem(
+            playlist(ratingKey = "1", title = "punk goes pop"),
+            "[playlistID]"
+        )!!
+
+        val artwork = item.mediaMetadata.artworkUri!!
+        assertEquals("android.resource", artwork.scheme)
+        assertEquals(
+            ResourceUris.forResource(R.drawable.ic_aa_playlist),
+            artwork
+        )
     }
 
     @Test

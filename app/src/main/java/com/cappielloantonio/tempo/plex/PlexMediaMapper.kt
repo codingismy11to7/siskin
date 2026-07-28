@@ -323,11 +323,19 @@ object PlexMediaMapper {
     @JvmStatic
     fun playlistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
+        // Plex never sets thumb on a playlist -- it generates composite, a
+        // mosaic of the playlist's own contents, in its place. artworkThumb
+        // is the fallback rather than the primary source here because it
+        // reads fields (thumb/parentThumb/grandparentThumb) that playlists
+        // don't populate; kept as a fallback in case a future Plex response
+        // ever does. A playlist with neither (e.g. one Plex has no art for
+        // at all) still falls through to the placeholder icon below.
+        val thumb = metadata.composite?.takeIf { it.isNotBlank() } ?: artworkThumb(metadata)
         return browsableItem(
             mediaId = idPrefix + ratingKey,
             title = metadata.title,
             subtitle = null,
-            thumb = artworkThumb(metadata),
+            thumb = thumb,
             mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
             fallbackIcon = R.drawable.ic_aa_playlist,
             gridView = false

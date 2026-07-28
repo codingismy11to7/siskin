@@ -83,6 +83,16 @@ class PlexMediaMapperTest {
         assertNull(PlexMediaMapper.artworkThumb(track()))
     }
 
+    @Test
+    fun artworkThumbIgnoresCompositeEvenWhenSet() {
+        // composite is a playlist-only field (the mosaic Plex substitutes for a
+        // missing thumb). Tracks, albums and artists never populate it, so the
+        // general chain must not start reading it -- that's PlexMediaMapper
+        // .playlistToMediaItem's job specifically.
+        val withComposite = track().apply { composite = "/playlists/1/composite/123" }
+        assertNull(PlexMediaMapper.artworkThumb(withComposite))
+    }
+
     // ── search merge ──────────────────────────────────────────
 
     @Test
