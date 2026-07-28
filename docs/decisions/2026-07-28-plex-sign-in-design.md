@@ -48,20 +48,28 @@ that owns the poll loop so it survives fragment recreation and cancels in
 `onCleared`.
 
 ```
-CreatingPin ──▶ AwaitingApproval(code, qrUrl, expiresAt)
-                    │ poll every 2s
-                    ├─ Authorized ──▶ ChoosingServer(List<Resource>)
-                    │                       │ tap
-                    │                       ▼
-                    │                  ChoosingLibrary(List<Directory>)
-                    │                       │ tap
-                    │                       ▼
-                    │                     Done ──▶ onLoginSuccess()
-                    └─ Expired ──▶ Failed(retry)
+Working ──▶ AwaitingApproval(code, qrUrl, expiresAt)
+                │ poll every 2s
+                ├─ Authorized ──▶ ChoosingServer(List<Resource>)
+                │                       │ tap
+                │                       ▼
+                │                  ChoosingLibrary(List<Directory>)
+                │                       │ tap
+                │                       ▼
+                │                     Done ──▶ onLoginSuccess()
+                └─ Expired ──▶ Failed(messageRes)
 ```
 
-`Failed` is reachable from any state, carries a message and a retry action, and
-restarts at `CreatingPin`.
+`Working` is one state rather than three. Pin creation, server discovery and
+section discovery are all a wait on a round trip, and all three render the same
+spinner, so there is nothing for the screen to tell apart and no reason to make
+it try.
+
+`Failed` is reachable from any state and carries one thing, a `@StringRes`
+message. The retry is not part of the state: it is a button on the fragment,
+which calls back into the ViewModel and restarts at `Working`. Keeping the action
+out of the state is what lets the state stay a plain data class that the flow
+tests can compare by equality.
 
 ### The approval screen
 
@@ -110,8 +118,13 @@ Every 2 seconds through `PlexPinState.evaluate`, which already exists and alread
 covers the three outcomes. Its KDoc says, of a pin whose expiry cannot be parsed,
 *"Never expire a pin we cannot date — the caller bounds the poll loop."* This is
 that caller, so the bound is explicit: the pin's own `expiresAt` via
-`AuthClient.expiresAtEpochSeconds`, plus a 15-minute hard cap from pin creation
-for the unparseable case. Without the cap, an unparseable expiry polls forever.
+`AuthClient.expiresAtEpochSeconds`, plus a 15-minute hard cap measured from pin
+creation. The cap is not a fallback for the unparseable case alone —
+`PlexPinState.shouldKeepPolling` applies it unconditionally, so it outranks the
+server-supplied expiry in both directions: it ends the loop for a pin that cannot
+be dated, and it ends the loop for a pin whose expiry is implausibly far out.
+Without it, an unparseable expiry polls forever, and a generous one polls almost
+as long.
 
 ## Both pickers always render
 
@@ -168,13 +181,31 @@ is the only writer of the Subsonic credential preferences. It goes whole, along
 with `SystemCallback` and `SystemRepository.checkUserCredential`, whose only
 consumer it was.
 
-**Two dependencies retire.** The three-tab spec kept `androidx.recyclerview`
-("`ServerAdapter` is a `RecyclerView.Adapter`") and `androidx.coordinatorlayout`
-("`fragment_login.xml` uses `AppBarLayout` scroll coupling") and justified both by
-name. Those are now their only uses anywhere in the project, so both go. The
-pickers are a vertical `LinearLayout` in a `ScrollView` with one `MaterialButton`
-per choice, added in code — at one to five entries a `RecyclerView` earns nothing,
-and skipping it is what retires the dependency.
+**Two direct dependency declarations go.** The three-tab spec kept
+`androidx.recyclerview` ("`ServerAdapter` is a `RecyclerView.Adapter`") and
+`androidx.coordinatorlayout` ("`fragment_login.xml` uses `AppBarLayout` scroll
+coupling") and justified each by name. Both of those files are deleted here, so
+both justifications are gone and both `implementation` lines come out of
+`app/build.gradle`. The pickers are a vertical `LinearLayout` in a `ScrollView`
+with one `MaterialButton` per choice, added in code — at one to five entries a
+`RecyclerView` earns nothing, and skipping it is what lets the declaration go.
+
+**The artifacts do not leave the APK, though**, and it is worth being exact about
+that rather than claiming a win the build does not deliver.
+`com.google.android.material:material:1.10.0` declares both at compile scope, so
+both stay on `debugRuntimeClasspath` no matter what this project declares:
+
+```
+androidx.coordinatorlayout:coordinatorlayout:1.1.0
+androidx.recyclerview:recyclerview:1.0.0 -> 1.1.0
+```
+
+What actually changes is the resolved version. Dropping the direct declarations
+leaves Material's transitive constraint as the only one pinning either, so both
+*downgrade* — recyclerview 1.4.0 → 1.1.0 and coordinatorlayout 1.2.0 → 1.1.0.
+Nothing in the app references either class once the island is gone, so a
+downgrade of code that is never called is benign; it is recorded here only so
+that a later reader wondering where the old versions went has the answer.
 
 `res/menu/` empties entirely: `login_page_menu.xml` was the last survivor of the
 23 the three-tab sweep started from, and `LoginFragment`'s toolbar was the only
@@ -206,9 +237,11 @@ Room goes from version 22 to 23 with a `DropServerTable` auto-migration spec,
 following the `DropTablesForPrunedFeatures` and `DropPlaylistTables` precedent
 already in `AppDatabase`.
 
-The nine `login_*` and `server_signup_dialog_*` strings go from `values/` and all
-15 locale directories. New strings are English-only; translations arrive if
-contributed.
+Twenty strings go from `values/` and all 15 locale directories: the fifteen
+`login_*` and `server_signup_dialog_*` ones, plus `empty_string`,
+`error_required`, `error_server_prefix`, `label_placeholder` and
+`menu_add_button`, which the island turns out to have been the last caller of.
+New strings are English-only; translations arrive if contributed.
 
 ## Testing
 
