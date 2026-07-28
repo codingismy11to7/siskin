@@ -22,8 +22,13 @@ object ConstantsAA {
     // Android Auto Source tag
     const val QUEUE_CACHED_SOURCE = "[aaQueueCachedSource]"
 
-    // TRANSITIONAL -- referenced only by AutomotiveRepository, MadeForYouBuilder and
-    // InstantMixBuilder, all of which are deleted or reduced in Tasks 3-4.
+    // TRANSITIONAL -- referenced by AutomotiveRepository, MadeForYouBuilder and
+    // InstantMixBuilder, all of which are deleted or reduced in Tasks 3-4. Three of
+    // these constants (INSTANTMIX_SOURCE, MADE_FOR_YOU_SOURCE and
+    // NUMBER_OF_TRACKS_IN_SMALL_MIX) are also referenced by
+    // service/MediaLibraryServiceCallback.kt and service/TracksChangedExtension.kt,
+    // which hold the mix-playback handlers for those sources; removing those
+    // handlers is part of the later task that deletes the builders.
     // This block must be empty by the end of Task 4.
     const val MAX_SHUFFLE_ITEMS = 100
     const val NUMBER_OF_DISPLAYED_ALBUMS = 15

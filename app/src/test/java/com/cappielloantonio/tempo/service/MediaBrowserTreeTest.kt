@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.service
 
 import android.content.Context
 import android.net.Uri
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import com.cappielloantonio.tempo.repository.AutomotiveRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
@@ -62,5 +63,15 @@ class MediaBrowserTreeTest {
         ).forEach { removed ->
             assertEquals("$removed should not resolve", null, MediaBrowserTree.getItem(removed))
         }
+    }
+
+    @Test
+    fun artistsRootHasFolderArtistsMediaType() {
+        val artistsItem = MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!
+
+        assertEquals(
+            MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS,
+            artistsItem.mediaMetadata.mediaType
+        )
     }
 }
