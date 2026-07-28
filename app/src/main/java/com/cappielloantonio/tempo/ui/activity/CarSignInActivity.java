@@ -43,7 +43,6 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         ThemeHelper.applyActivityTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_car_sign_in);
-        setTitle(R.string.car_sign_in_title);
 
         if (savedInstanceState == null) {
             getSupportFragmentManager()

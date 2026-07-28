@@ -8,7 +8,6 @@
     <string name="car_sign_in_action">Connect</string>
     <string name="car_sign_in_again">Plex rejected the saved connection</string>
     <string name="car_sign_in_required">Your music is on Plex. Connect to start listening.</string>
-    <string name="car_sign_in_title">Sign in to Siskin</string>
     <string name="exo_controls_heart_off_description">Toggle Heart off</string>
     <string name="exo_controls_heart_on_description">Toggle Heart on</string>
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>

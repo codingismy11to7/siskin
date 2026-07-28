@@ -1,131 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    fillViewport is what makes the centering work: without it the ScrollView
-    sizes its child to wrap_content and gravity has nothing to distribute.
+    The headings are pinned and only the content below them scrolls, so
+    "Choose a Plex server" stays on screen while you are scrolling the list of
+    servers it is asking you about.
 -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:padding="32dp">
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="32dp"
+    android:paddingTop="32dp"
+    android:paddingEnd="32dp">
 
-    <LinearLayout
+    <!--
+        The constant line is the product promise, not the app name: Siskin
+        has no accounts, and every other AAOS music app is a streaming
+        front-end. Naming the app here would only restate the launcher.
+    -->
+    <TextView
+        android:id="@+id/tagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/plex_sign_in_tagline"
+        android:textAppearance="?attr/textAppearanceDisplaySmall" />
+
+    <!-- Names the step; render() sets it. -->
+    <TextView
+        android:id="@+id/step_heading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="24dp"
+        android:textAppearance="?attr/textAppearanceHeadlineMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+
+    <!--
+        fillViewport lets the child fill the leftover space so short content
+        still centres in it. requiresFadingEdge is the affordance for a list
+        that runs past the bottom: the platform fades the clipped edge, which
+        is the only cue that scrolling is possible on a screen with no
+        scrollbar (the app theme sets android:scrollbars=none).
+    -->
+    <ScrollView
+        android:id="@+id/content_scroll"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="32dp"
-            android:text="@string/car_sign_in_title"
-            android:textAppearance="?attr/textAppearanceHeadlineMedium" />
-
-        <ProgressBar
-            android:id="@+id/progress"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone" />
-
-        <LinearLayout
-            android:id="@+id/approval_group"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:visibility="gone">
-
-            <!--
-                The QR stays black-on-white even in dark mode. Plex serves the
-                code as a tintable mask and a scanner needs the light quiet
-                zone, so this is a deliberate white card rather than a styling
-                oversight.
-            -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/qr_card"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="@android:color/white"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp">
-
-                <ImageView
-                    android:id="@+id/qr_image"
-                    android:layout_width="@dimen/plex_sign_in_qr_size"
-                    android:layout_height="@dimen/plex_sign_in_qr_size"
-                    android:contentDescription="@string/plex_sign_in_qr_description"
-                    android:padding="16dp"
-                    android:tint="@android:color/black" />
-            </com.google.android.material.card.MaterialCardView>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="32dp"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/instructions"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/plex_sign_in_instructions"
-                    android:textAppearance="?attr/textAppearanceHeadlineSmall" />
-
-                <TextView
-                    android:id="@+id/code_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:letterSpacing="0.2"
-                    android:textAppearance="?attr/textAppearanceDisplaySmall"
-                    android:textStyle="bold"
-                    tools:ignore="UnusedAttribute" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/choice_prompt"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?attr/textAppearanceHeadlineSmall"
-            android:visibility="gone" />
-
-        <LinearLayout
-            android:id="@+id/choice_container"
-            android:layout_width="@dimen/plex_sign_in_choice_width"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="vertical" />
-
-        <TextView
-            android:id="@+id/error_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textAppearance="?attr/textAppearanceHeadlineSmall"
-            android:visibility="gone" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fadingEdgeLength="48dp"
+        android:fillViewport="true"
+        android:paddingTop="8dp"
+        android:paddingBottom="32dp"
+        android:requiresFadingEdge="vertical"
+        android:scrollbars="none">
 
         <!--
-            insetTop/Bottom default to 6dp on MaterialButton and eat into the
-            touch target, so a 72dp minHeight would render as 60dp of tappable
-            button. Zeroed here because arm's-length taps in a car are the whole
-            point of the oversized target.
+            Gravity is set per state in render(), because the states want
+            opposite things. A picker is a list that grows: anchoring it under
+            the heading keeps the question joined to its answers and keeps the
+            first tap target in the same place whether the account has one
+            server or eight. The approval and error states are a single block
+            with nothing following them, so they centre.
         -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/retry_button"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/scroll_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:insetBottom="0dp"
-            android:insetTop="0dp"
-            android:minHeight="@dimen/plex_sign_in_choice_min_height"
-            android:minWidth="@dimen/plex_sign_in_button_min_width"
-            android:text="@string/plex_sign_in_retry"
-            android:textAppearance="?attr/textAppearanceHeadlineSmall"
-            android:textColor="?attr/colorOnPrimary"
-            android:visibility="gone" />
-    </LinearLayout>
-</ScrollView>
+            android:gravity="center"
+            android:minHeight="1dp"
+            android:orientation="vertical">
+
+            <ProgressBar
+                android:id="@+id/progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/approval_group"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <!--
+                    The QR stays black-on-white even in dark mode. Plex serves
+                    the code as a tintable mask and a scanner needs the light
+                    quiet zone, so this is a deliberate white card rather than a
+                    styling oversight.
+
+                    The gap lives on the card, not on the text column, so that
+                    hiding the card leaves the text centred instead of pushed
+                    32dp off-centre by an orphaned margin.
+                -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/qr_card"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="32dp"
+                    app:cardBackgroundColor="@android:color/white"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp">
+
+                    <ImageView
+                        android:id="@+id/qr_image"
+                        android:layout_width="@dimen/plex_sign_in_qr_size"
+                        android:layout_height="@dimen/plex_sign_in_qr_size"
+                        android:contentDescription="@string/plex_sign_in_qr_description"
+                        android:padding="16dp"
+                        android:tint="@android:color/black" />
+                </com.google.android.material.card.MaterialCardView>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/instructions"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/plex_sign_in_instructions"
+                        android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+                    <TextView
+                        android:id="@+id/code_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:letterSpacing="0.2"
+                        android:textAppearance="?attr/textAppearanceDisplayMedium"
+                        android:textStyle="bold"
+                        tools:ignore="UnusedAttribute" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/choice_container"
+                android:layout_width="@dimen/plex_sign_in_choice_width"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/error_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
+                android:visibility="gone" />
+
+            <!--
+                insetTop/Bottom default to 6dp on MaterialButton and eat into
+                the touch target, so a 72dp minHeight would render as 60dp of
+                tappable button. Zeroed here because arm's-length taps in a car
+                are the whole point of the oversized target.
+            -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/retry_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:insetBottom="0dp"
+                android:insetTop="0dp"
+                android:minHeight="@dimen/plex_sign_in_choice_min_height"
+                android:minWidth="@dimen/plex_sign_in_button_min_width"
+                android:text="@string/plex_sign_in_retry"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
+                android:textColor="?attr/colorOnPrimary"
+                android:visibility="gone" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
