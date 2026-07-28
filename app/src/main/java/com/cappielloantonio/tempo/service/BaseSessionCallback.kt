@@ -176,7 +176,7 @@ open class BaseSessionCallback(
     private var currentSession: MediaSession? = null
 
     /**
-     * Updates the player listener when the player changes (e.g., when switching to Cast).
+     * Updates the player listener when the session's player changes.
      */
     fun handlePlayerChanged(oldPlayer: Player?, newPlayer: Player) {
         oldPlayer?.removeListener(playerListener)

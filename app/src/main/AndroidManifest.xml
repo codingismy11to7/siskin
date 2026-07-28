@@ -46,14 +46,15 @@
              distraction-optimized in a compliant way. Its absence makes the
              platform block this screen while the car is moving.
 
-             taskAffinity is its own task, separate from MainActivity's (both
-             would otherwise default to the applicationId affinity and share
-             one task). CarSignInResolution's PendingIntent launches this
-             activity with NEW_TASK|CLEAR_TASK, and CLEAR_TASK clears whatever
-             task shares this activity's affinity. Without a distinct
-             affinity here, tapping "Sign in" would finish MainActivity (and
-             everything above it) instead of only clearing this activity's
-             own task: silently destructive if removed. -->
+             taskAffinity gives this activity its own task, separate from the
+             applicationId default any other activity would share.
+             CarSignInResolution's PendingIntent launches this activity with
+             NEW_TASK|CLEAR_TASK, and CLEAR_TASK clears whatever task shares
+             this activity's affinity. CarSignInActivity is the app's only
+             activity, so nothing else occupies that default task today, but
+             the distinct affinity is what keeps CLEAR_TASK scoped to just
+             this activity's own task rather than relying on that staying
+             true. -->
         <activity
             android:name=".ui.activity.CarSignInActivity"
             android:exported="false"

@@ -23,10 +23,6 @@ import com.cappielloantonio.tempo.ui.fragment.LoginFragment;
  * keyboard input while driving, so a sign-in form cannot be distraction-optimized
  * in a compliant way. Without that metadata the platform blocks this screen while
  * the car is moving, which is exactly the behavior we want.
- *
- * Extends AppCompatActivity rather than BaseActivity on purpose -- BaseActivity
- * starts the downloader, opens a MediaBrowser, initializes Cast and can raise a
- * battery-optimization dialog, none of which belong on a head unit sign-in screen.
  */
 @UnstableApi
 public class CarSignInActivity extends AppCompatActivity implements LoginHost {

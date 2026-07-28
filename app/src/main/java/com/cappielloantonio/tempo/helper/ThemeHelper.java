@@ -43,9 +43,7 @@ public class ThemeHelper {
 
     /**
      * Applies the user's theme choice to an activity. Must be called before
-     * super.onCreate(). Shared by BaseActivity and CarSignInActivity so the car
-     * sign-in screen is themed without inheriting BaseActivity's service and
-     * dialog startup.
+     * super.onCreate(). Called by CarSignInActivity, the app's only activity.
      */
     public static void applyActivityTheme(AppCompatActivity activity) {
         String theme = Preferences.getTheme();

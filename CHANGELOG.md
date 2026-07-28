@@ -10,6 +10,9 @@
 - Rebranded from Tempus to Siskin
 - Dropped the `degoogled` product flavor and collapsed the flavor dimension
 - Forked to retarget at Android Automotive OS (enablement pending)
+- Reduced the browse tree to three fixed tabs -- Playlists, Artists, Albums -- removing podcasts, internet radio, folder browsing, genres, starred/favourites, the generated mixes (Quick Mix, My Mix, Discovery Mix), offline downloads, the settings screen and Chromecast; see `docs/decisions/2026-07-27-three-tab-rip-out-design.md`
+- Removed the phone UI entirely; `CarSignInActivity` is now the app's only screen
+- Debug APK size: 56,108,971 -> 30,043,397 bytes (-46.5%)
 
 ## [4.22.2](https://github.com/eddyizm/tempus/releases/tag/v4.22.) (2026-07-19)
 ## What's Changed
