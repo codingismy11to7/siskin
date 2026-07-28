@@ -43,12 +43,23 @@ class SearchClient(api: PlexApi) {
     suspend fun reportProgress(ratingKey: String, key: String, state: String, timeMs: Long) =
         service.reportProgress(ratingKey, key, state, timeMs)
 
+    suspend fun rate(ratingKey: String, rating: Int) {
+        Log.d(TAG, "rate($ratingKey, rating=$rating)")
+        service.rate(ratingKey, LIBRARY_IDENTIFIER, rating)
+    }
+
     companion object {
         private const val DEFAULT_SEARCH_LIMIT = 50
+
+        private const val LIBRARY_IDENTIFIER = "com.plexapp.plugins.library"
 
         const val STATE_PLAYING = "playing"
         const val STATE_PAUSED = "paused"
         const val STATE_STOPPED = "stopped"
+
+        /** Plex's 0-10 scale: 10 is five stars. */
+        const val RATING_HEARTED = 10
+        const val RATING_CLEARED = 0
 
         private val PLAYABLE_TYPES = setOf("track", "album", "artist")
 

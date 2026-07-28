@@ -38,7 +38,8 @@ interface LibraryService {
         @Path("sectionId") sectionId: String,
         @Query("type") type: Int,
         @Header("X-Plex-Container-Start") start: Int,
-        @Header("X-Plex-Container-Size") size: Int
+        @Header("X-Plex-Container-Size") size: Int,
+        @Query("sort") sort: String?
     ): PlexResponse
 
     /** Album -> its tracks, artist -> its albums. */
@@ -47,6 +48,18 @@ interface LibraryService {
         @Path("id") ratingKey: String,
         @Header("X-Plex-Container-Start") start: Int,
         @Header("X-Plex-Container-Size") size: Int
+    ): PlexResponse
+
+    /**
+     * Tracks Plex considers similar to this one. Depends on Plex Pass sonic
+     * analysis: without it the server answers with an empty container rather
+     * than an error, which is why the caller treats "no results" as an ordinary
+     * outcome and falls back to random.
+     */
+    @GET("library/metadata/{id}/similar")
+    suspend fun getSimilar(
+        @Path("id") ratingKey: String,
+        @Query("limit") limit: Int
     ): PlexResponse
 
     /**

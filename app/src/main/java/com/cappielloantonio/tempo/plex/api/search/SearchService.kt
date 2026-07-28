@@ -52,4 +52,16 @@ interface SearchService {
         @Query("state") state: String,
         @Query("time") timeMs: Long
     )
+
+    /**
+     * Sets or clears a track's rating. Like :/timeline, Plex serves this write
+     * over GET and returns an empty body. [rating] is 0-10, where 10 is the five
+     * stars Plex collects into its heart-named playlist.
+     */
+    @GET(":/rate")
+    suspend fun rate(
+        @Query("key") key: String,
+        @Query("identifier") identifier: String,
+        @Query("rating") rating: Int
+    )
 }
