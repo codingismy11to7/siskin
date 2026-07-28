@@ -24,6 +24,7 @@ import com.cappielloantonio.tempo.subsonic.models.ArtistID3;
 import com.cappielloantonio.tempo.subsonic.models.Child;
 import com.cappielloantonio.tempo.subsonic.models.IndexID3;
 import com.cappielloantonio.tempo.subsonic.models.Playlist;
+import com.cappielloantonio.tempo.subsonic.models.Playlists;
 import com.cappielloantonio.tempo.util.ConstantsAA;
 import com.cappielloantonio.tempo.util.MappingUtil;
 import com.cappielloantonio.tempo.util.Preferences;
@@ -310,41 +311,49 @@ public class AutomotiveRepository {
                 .enqueue(new Callback<ApiResponse>() {
                     @Override
                     public void onResponse(@NonNull Call<ApiResponse> call, @NonNull Response<ApiResponse> response) {
-                        if (response.isSuccessful() && response.body() != null && response.body().getSubsonicResponse().getPlaylists() != null && response.body().getSubsonicResponse().getPlaylists().getPlaylists() != null) {
-                            List<Playlist> playlists = response.body().getSubsonicResponse().getPlaylists().getPlaylists();
-                            playlists = playlists.subList(0, Math.min(ConstantsAA.MAX_ITEMS, playlists.size()));
-
-                            List<MediaItem> mediaItems = new ArrayList<>();
-
-                            for (Playlist playlist : playlists) {
-                                String coverId = playlist.getCoverArtId();
-                                Uri artworkUri = (coverId != null && !coverId.isEmpty())
-                                        ? AlbumArtContentProvider.contentUri(coverId)
-                                        : ResourceUris.forResource(R.drawable.ic_aa_playlist);
-
-                                MediaMetadata mediaMetadata = new MediaMetadata.Builder()
-                                        .setTitle(playlist.getName())
-                                        .setIsBrowsable(true)
-                                        .setIsPlayable(false)
-                                        .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST)
-                                        .setArtworkUri(artworkUri)
-                                        .build();
-
-                                MediaItem mediaItem = new MediaItem.Builder()
-                                        .setMediaId(prefix + playlist.getId())
-                                        .setMediaMetadata(mediaMetadata)
-                                        .setUri("")
-                                        .build();
-
-                                mediaItems.add(mediaItem);
-                            }
-
-                            LibraryResult<ImmutableList<MediaItem>> libraryResult = LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null);
-
-                            listenableFuture.set(libraryResult);
-                        } else {
+                        if (!response.isSuccessful() || response.body() == null) {
                             listenableFuture.set(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE));
+                            return;
                         }
+
+                        // A server holding no playlists answers 200 with "playlists":{} --
+                        // the wrapper is present but its list is absent. That is an empty
+                        // collection, not a failure, and must render as an empty tab. Treating
+                        // it as an error put "Something went wrong" on the first of the three
+                        // tabs for every user who has not made a playlist.
+                        Playlists wrapper = response.body().getSubsonicResponse().getPlaylists();
+                        List<Playlist> playlists = (wrapper != null && wrapper.getPlaylists() != null)
+                                ? wrapper.getPlaylists()
+                                : Collections.emptyList();
+
+                        playlists = playlists.subList(0, Math.min(ConstantsAA.MAX_ITEMS, playlists.size()));
+
+                        List<MediaItem> mediaItems = new ArrayList<>();
+
+                        for (Playlist playlist : playlists) {
+                            String coverId = playlist.getCoverArtId();
+                            Uri artworkUri = (coverId != null && !coverId.isEmpty())
+                                    ? AlbumArtContentProvider.contentUri(coverId)
+                                    : ResourceUris.forResource(R.drawable.ic_aa_playlist);
+
+                            MediaMetadata mediaMetadata = new MediaMetadata.Builder()
+                                    .setTitle(playlist.getName())
+                                    .setIsBrowsable(true)
+                                    .setIsPlayable(false)
+                                    .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST)
+                                    .setArtworkUri(artworkUri)
+                                    .build();
+
+                            MediaItem mediaItem = new MediaItem.Builder()
+                                    .setMediaId(prefix + playlist.getId())
+                                    .setMediaMetadata(mediaMetadata)
+                                    .setUri("")
+                                    .build();
+
+                            mediaItems.add(mediaItem);
+                        }
+
+                        listenableFuture.set(LibraryResult.ofItemList(ImmutableList.copyOf(mediaItems), null));
                     }
 
                     @Override
