@@ -155,6 +155,9 @@ package wholesale.
 | Glide (`glide/`, dependency) | `SyncBitmapLoader` and `AlbumArtContentProvider` render media-session artwork |
 | `DownloadUtil` (reduced) | owns the streaming cache |
 | `QueueRepository`, `SystemRepository`, `ChronologyRepository` | called from `service/` |
+| `SongRepository` (reduced) | `MediaManager` uses `scrobble`, `getContinuousMix`, `getRandomSample` |
+| `ServerRepository` | `LoginViewModel` depends on it |
+| `ClickCallback`, `LoginHost`, `SystemCallback`, `CredentialStateCallback` | the only four `interfaces/` with surviving consumers |
 
 `LoginFragment` and its dependencies are Subsonic-shaped and multi-server. The Plex
 QR/PIN rewrite replaces them; it does not happen here.
@@ -193,11 +196,22 @@ intent-filter, `CrashActivity` and the `:error_activity` process. Layouts and me
 go with their owners.
 
 **Phase 3 — Repositories.** Now provably unreferenced: `MadeForYouBuilder` (697
-lines), `SearchingRepository` (265), `DownloadRepository` (213), `InstantMixBuilder`
-(179), `RadioRepository` (177), `FavoriteRepository`, `PodcastRepository`,
-`SharingRepository`, `LyricsRepository`, `DirectoryRepository`, `ScanRepository`,
-`GenreRepository`, `OpenRepository`. `AutomotiveRepository` shrinks hard — 1,526
-lines serving fourteen node types, reduced to four.
+lines), `PlaylistRepository` (539), `SongRepository`'s bulk, `ArtistRepository`
+(381), `AlbumRepository` (284), `SearchingRepository` (265), `DownloadRepository`
+(213), `InstantMixBuilder` (179), `RadioRepository` (177), `FavoriteRepository`,
+`PodcastRepository`, `SharingRepository`, `LyricsRepository`, `DirectoryRepository`,
+`ScanRepository`, `GenreRepository`, `OpenRepository`. `AutomotiveRepository`
+shrinks hard — 1,526 lines serving fourteen node types, reduced to four.
+
+`AutomotiveRepository` does not depend on `AlbumRepository`, `ArtistRepository` or
+`PlaylistRepository`; it issues its own Subsonic calls. That is why all three can go
+while the three surviving tabs still work.
+
+`SongRepository` is the exception that stays, reduced to the three methods
+`MediaManager` calls. `LiveDataUtils` goes — its only consumers are
+`LibraryFragment`, `HomeTabMusicFragment` and `PlaylistCatalogueFragment` — and
+`LiveDataUtilsTest` goes with it. `MediaManager.getCurrentIndex` and its
+`MediaIndexCallback` also go, their sole caller having been `PlayerSongQueueAdapter`.
 
 **Phase 4 — Subsonic, util, database, preferences.** Drop the API groups and models
 listed above. Delete `IndexUtil`, `RadioCoverArtDownloader`, `ExternalAudioReader`,
@@ -248,10 +262,11 @@ than a freebie.
 `./gradlew assembleDebug` after every phase.
 
 `./gradlew test` after every phase. Of the 12 test files, `AutomotiveRepositoryTest`
-and `SystemRepositoryTest` shrink with their subjects in phase 3. The other ten —
-`BaseSessionCallbackTest`, `CredentialGateTest`, `LiveDataUtilsTest` and the seven
-Plex tests — stay green untouched. **A red Plex test means a deletion reached too
-far**, and is the sharpest signal available that a phase overshot.
+and `SystemRepositoryTest` shrink with their subjects in phase 3 and
+`LiveDataUtilsTest` is deleted there. The other nine — `BaseSessionCallbackTest`,
+`CredentialGateTest` and the seven Plex tests — stay green untouched. **A red Plex
+test means a deletion reached too far**, and is the sharpest signal available that a
+phase overshot.
 
 Emulator smoke test after phases 1, 2 and 6: browse all three tabs, drill Artists →
 albums → tracks, play a track, run a search, and confirm the sign-in resolution
