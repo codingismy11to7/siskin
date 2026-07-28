@@ -102,6 +102,10 @@ dependencies {
     implementation libs.retrofit.converter.gson
     implementation libs.okhttp.logging
 
+    // Coroutines
+    implementation libs.kotlinx.coroutines.android
+    implementation libs.androidx.lifecycle.viewmodel.ktx
+
     // Misc
     implementation libs.kotlin.metadata
 
@@ -109,6 +113,8 @@ dependencies {
     testImplementation 'org.mockito:mockito-core:5.12.0'
     testImplementation 'org.mockito.kotlin:mockito-kotlin:5.4.0'
     testImplementation 'androidx.arch.core:core-testing:2.2.0'
+    testImplementation libs.kotlinx.coroutines.test
+    testImplementation libs.okhttp.mockwebserver
 
 }
 

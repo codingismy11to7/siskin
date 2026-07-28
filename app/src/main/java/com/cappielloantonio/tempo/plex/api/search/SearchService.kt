@@ -1,7 +1,6 @@
 package com.cappielloantonio.tempo.plex.api.search
 
 import com.cappielloantonio.tempo.plex.base.PlexResponse
-import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
@@ -23,15 +22,15 @@ interface SearchService {
      * three calls.
      */
     @GET("library/sections/{sectionId}/search")
-    fun search(
+    suspend fun search(
         @Path("sectionId") sectionId: String,
         @Query("query") query: String,
         @Query("type") type: Int,
         @Query("limit") limit: Int
-    ): Call<PlexResponse>
+    ): PlexResponse
 
     @GET("playlists")
-    fun getPlaylists(@Query("playlistType") playlistType: String = "audio"): Call<PlexResponse>
+    suspend fun getPlaylists(@Query("playlistType") playlistType: String = "audio"): PlexResponse
 
     /**
      * The playlist's tracks. Plex also exposes GET playlists/{playlistId} for a
@@ -39,18 +38,18 @@ interface SearchService {
      * list and then the items, never the metadata alone.
      */
     @GET("playlists/{playlistId}/items")
-    fun getPlaylistItems(
+    suspend fun getPlaylistItems(
         @Path("playlistId") playlistId: String,
         @Header("X-Plex-Container-Start") start: Int,
         @Header("X-Plex-Container-Size") size: Int
-    ): Call<PlexResponse>
+    ): PlexResponse
 
     /** Plex expects a GET despite this being a write; it returns an empty body. */
     @GET(":/timeline")
-    fun reportProgress(
+    suspend fun reportProgress(
         @Query("ratingKey") ratingKey: String,
         @Query("key") key: String,
         @Query("state") state: String,
         @Query("time") timeMs: Long
-    ): Call<Void>
+    )
 }
