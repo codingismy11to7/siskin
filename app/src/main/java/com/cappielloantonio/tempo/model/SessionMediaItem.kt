@@ -255,10 +255,6 @@ class SessionMediaItem() {
                 MusicUtil.getStreamUri(streamId)
             }
 
-            Constants.MEDIA_TYPE_RADIO -> {
-                Uri.parse(streamUrl)
-            }
-
             else -> {
                 MusicUtil.getStreamUri(id)
             }

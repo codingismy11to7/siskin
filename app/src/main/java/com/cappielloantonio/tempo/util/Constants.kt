@@ -3,7 +3,6 @@ package com.cappielloantonio.tempo.util
 object Constants {
     const val MEDIA_TYPE_MUSIC = "music"
     const val MEDIA_TYPE_PODCAST = "podcast"
-    const val MEDIA_TYPE_RADIO = "radio"
 
     const val PLAYABLE_MEDIA_LIMIT = 100
     const val PRE_PLAYABLE_MEDIA = 15

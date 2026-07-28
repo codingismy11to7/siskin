@@ -10,7 +10,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.ContentMetadata
-import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DownloadUtil
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheKeyFactory
@@ -110,9 +109,6 @@ object QueuePreloader {
             if (index == C.INDEX_UNSET || index == currentIndex) break
 
             val mediaItem = player.getMediaItemAt(index)
-
-            val type = mediaItem.mediaMetadata.extras?.getString("type")
-            if (type == Constants.MEDIA_TYPE_RADIO || mediaItem.mediaId.startsWith("ir-")) continue
 
             val uri = mediaItem.localConfiguration?.uri
                 ?: mediaItem.requestMetadata.mediaUri

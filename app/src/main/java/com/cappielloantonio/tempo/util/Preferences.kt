@@ -34,7 +34,6 @@ object Preferences {
     private const val LOUDNESS_PREAMP = "loudness_preamp"
     private const val AUDIO_TRANSCODE_PRIORITY = "audio_transcode_priority"
     private const val STREAMING_CACHE_STORAGE = "streaming_cache_storage"
-    private const val DOWNLOAD_STORAGE = "download_storage"
     private const val SCROBBLING = "scrobbling"
     private const val SONG_PRELOAD_BUFFER = "song_preload_buffer"
     private const val PRECACHE_TRACKS_COUNT = "precache_tracks_count"
@@ -279,18 +278,6 @@ object Preferences {
         ).apply()
     }
 
-    @JvmStatic
-    fun getDownloadStoragePreference(): Int {
-        return App.getInstance().preferences.getString(DOWNLOAD_STORAGE, "0")!!.toInt()
-    }
-
-    @JvmStatic
-    fun setDownloadStoragePreference(storagePreference: Int) {
-        return App.getInstance().preferences.edit().putString(
-                DOWNLOAD_STORAGE,
-                storagePreference.toString()
-        ).apply()
-    }
     @JvmStatic
     fun isScrobblingEnabled(): Boolean {
         return App.getInstance().preferences.getBoolean(SCROBBLING, true)

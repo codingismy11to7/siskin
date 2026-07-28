@@ -26,9 +26,6 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.session.*
 import androidx.media3.session.MediaSession.ControllerInfo
-import androidx.media3.extractor.metadata.icy.IcyInfo
-import androidx.media3.extractor.metadata.id3.TextInformationFrame
-import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import com.cappielloantonio.tempo.equalizer.BuiltinBackend
 import com.cappielloantonio.tempo.equalizer.EqualizerBackend
 import com.cappielloantonio.tempo.equalizer.EqualizerManager
@@ -37,17 +34,12 @@ import com.cappielloantonio.tempo.equalizer.DefaultBackend
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
 import com.cappielloantonio.tempo.util.*
-import com.cappielloantonio.tempo.util.SleepTimerManager
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
@@ -70,13 +62,6 @@ open class BaseMediaService : MediaLibraryService() {
     private lateinit var equalizerManager: EqualizerManager
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    private val radioHeaderCheckExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
-    private var radioHeaderCheckScheduled = false
-    private var radioHeaderCheckFuture: ScheduledFuture<*>? = null
-    private val radioHeaderCheckRunnable = Runnable {
-        checkRadioHttpHeaders()
-    }
-
     private val binder = LocalBinder()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -90,7 +75,6 @@ open class BaseMediaService : MediaLibraryService() {
         initializeExoPlayer()
         initializeMediaLibrarySession(exoplayer)
         initializePlayerListener(exoplayer)
-        initializeSleepTimer()
         setPlayer(null, exoplayer)
     }
 
@@ -180,9 +164,6 @@ open class BaseMediaService : MediaLibraryService() {
         player.prepare()
     }
 
-    private var lastRadioArtist: String? = null
-    private var lastRadioTitle: String? = null
-
     // Throttle for onPlayerError re-prepare recovery (see #682).
     private var lastPlayerErrorRecoveryMs = 0L
     private val playerErrorRecoveryThrottleMs = 5_000L
@@ -241,26 +222,6 @@ open class BaseMediaService : MediaLibraryService() {
                 // --- End add for AA ---
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK || reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                     MediaManager.setLastPlayedTimestamp(mediaItem)
-                }
-
-                // Safety net: if a track transition fires while end-of-track is armed
-                // (e.g. stream with unknown duration that ended before the poller could
-                // trigger the fade), abort any in-progress fade and pause immediately.
-                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
-                    SleepTimerManager.getInstance().isEndOfTrack) {
-                    SleepTimerManager.getInstance().stopEndOfTrackPoller()
-                    SleepTimerManager.getInstance().cancelTimer()
-                    player.volume = 1f
-                    player.pause()
-                }
-
-                // Restart header checks for radio streams when media item changes
-                val mediaType = mediaItem.mediaMetadata.extras?.getString("type")
-                if (mediaType == Constants.MEDIA_TYPE_RADIO && player.isPlaying) {
-                    stopRadioHeaderChecks()
-                    scheduleRadioHeaderChecks()
-                } else if (mediaType != Constants.MEDIA_TYPE_RADIO) {
-                    stopRadioHeaderChecks()
                 }
 
                 QueuePreloader.preload(this@BaseMediaService, player)
@@ -322,95 +283,6 @@ open class BaseMediaService : MediaLibraryService() {
                 }
             }
 
-            override fun onMetadata(metadata: Metadata) {
-                // Handle streaming metadata (ICY, ID3) for radio / streaming content
-                val currentItem = player.currentMediaItem ?: return
-                val extras = currentItem.mediaMetadata.extras
-                if (extras?.getString("type") != Constants.MEDIA_TYPE_RADIO) return
-
-                var artist: String? = null
-                var title: String? = null
-
-                // Extract metadata from ICY/ID3/Vorbis
-                for (i in 0 until metadata.length()) {
-                    when (val entry = metadata[i]) {
-                        is IcyInfo -> {
-                            entry.title?.let { icyTitle ->
-                                val parts = icyTitle.split(" - ", limit = 2)
-                                if (parts.size == 2) {
-                                    artist = parts[0].trim().ifEmpty { null }
-                                    title = parts[1].trim().ifEmpty { null }
-                                } else {
-                                    title = icyTitle.trim().ifEmpty { null }
-                                }
-                            }
-                        }
-                        is TextInformationFrame -> {
-                            @Suppress("DEPRECATION")
-                            val value = entry.value
-                            when (entry.id) {
-                                "TPE1" -> if (!value.isNullOrBlank()) artist = value
-                                "TIT2" -> if (!value.isNullOrBlank()) title = value
-                            }
-                        }
-                        is VorbisComment -> {
-                            @Suppress("DEPRECATION")
-                            val value = entry.value
-                            when (entry.key) {
-                                "ARTIST" -> if (!value.isNullOrBlank()) artist = value
-                                "TITLE" -> if (!value.isNullOrBlank()) title = value
-                            }
-                        }
-                    }
-                }
-
-                if (artist.isNullOrBlank() && title.isNullOrBlank()) return
-                if (artist == lastRadioArtist && title == lastRadioTitle) return // Deduplicate
-                
-                lastRadioArtist = artist
-                lastRadioTitle = title
-
-                // Stop HTTP header checks since we have embedded metadata
-                stopRadioHeaderChecks()
-
-                val currentIndex = player.currentMediaItemIndex
-                if (currentIndex == C.INDEX_UNSET) return
-
-                val metadataBuilder = currentItem.mediaMetadata.buildUpon()
-                val newExtras = Bundle(extras ?: Bundle())
-
-                // Store individual values in extras for UI
-                artist?.let { newExtras.putString("radioArtist", it) }
-                title?.let { newExtras.putString("radioTitle", it) }
-
-                // Get station name (preserve if already set)
-                val stationName = extras?.getString("stationName")
-                    ?: currentItem.mediaMetadata.title?.toString()
-                    ?: ""
-                if (stationName.isNotBlank()) {
-                    newExtras.putString("stationName", stationName)
-                }
-
-                // Format for notification/player: Title = "Artist - Song", Artist = "Station Name"
-                val formattedTitle = when {
-                    !artist.isNullOrBlank() && !title.isNullOrBlank() -> "$artist - $title"
-                    !title.isNullOrBlank() -> title
-                    !artist.isNullOrBlank() -> artist
-                    else -> stationName
-                }
-
-                metadataBuilder.setTitle(formattedTitle)
-                if (stationName.isNotBlank()) {
-                    metadataBuilder.setArtist(stationName)
-                }
-
-                (player as? ExoPlayer)?.let { exo ->
-                    exo.replaceMediaItem(currentIndex, currentItem.buildUpon()
-                        .setMediaMetadata(metadataBuilder.setExtras(newExtras).build())
-                        .build())
-                }
-            }
-
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 Log.d(TAG, "onIsPlayingChanged " + player.currentMediaItemIndex)
                 if (!isPlaying) {
@@ -420,11 +292,6 @@ open class BaseMediaService : MediaLibraryService() {
                     )
                 } else {
                     MediaManager.scrobble(player.currentMediaItem, false)
-                }
-                if (isPlaying) {
-                    scheduleRadioHeaderChecks()
-                } else {
-                    stopRadioHeaderChecks()
                 }
             }
 
@@ -488,32 +355,6 @@ open class BaseMediaService : MediaLibraryService() {
                 sendBroadcast(Intent(ACTION_EQUALIZER_UPDATED))
             }
         })
-    }
-
-    // -------------------------------------------------------------------------
-    // Sleep timer
-    // -------------------------------------------------------------------------
-
-    /**
-     * Registers a [SleepTimerManager.ServiceActionListener] on the singleton so
-     * that fade-out and pause happen in the service regardless of whether the
-     * Fragment is attached. Call once after the player is ready.
-     */
-    private fun initializeSleepTimer() {
-        SleepTimerManager.getInstance().setServiceActionListener(object : SleepTimerManager.ServiceActionListener {
-            override fun onTick(expired: Boolean) {
-                if (expired) SleepTimerManager.getInstance().startFadeOutThenPause(mediaLibrarySession.player)
-            }
-            override fun onEndOfTrackArmed() {
-                SleepTimerManager.getInstance().armEndOfTrackFadePoller(mediaLibrarySession.player)
-            }
-        })
-        // If end-of-track was already armed when the service restarted (state
-        // restored from SharedPreferences), re-arm the poller against the live player.
-        if (SleepTimerManager.getInstance().isActive &&
-                SleepTimerManager.getInstance().isEndOfTrack) {
-            SleepTimerManager.getInstance().armEndOfTrackFadePoller(mediaLibrarySession.player)
-        }
     }
 
     open fun onInstantMix(session: MediaSession, onComplete: Runnable? = null) {
@@ -591,10 +432,6 @@ open class BaseMediaService : MediaLibraryService() {
         releaseNetworkCallback()
         equalizerManager.release(exoplayer.audioSessionId)
         ReplayGainUtil.release()
-        stopRadioHeaderChecks()
-        SleepTimerManager.getInstance().stopEndOfTrackPoller()
-        SleepTimerManager.getInstance().setServiceActionListener(null)
-        radioHeaderCheckExecutor.shutdown()
         if (::bitmapLoader.isInitialized) bitmapLoader.shutdown()
         releasePlayers()
         mediaLibrarySession.release()
@@ -711,147 +548,6 @@ open class BaseMediaService : MediaLibraryService() {
         getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
     }
 
-    private fun scheduleRadioHeaderChecks() {
-        val player = mediaLibrarySession.player
-        val currentItem = player.currentMediaItem ?: return
-        val mediaType = currentItem.mediaMetadata.extras?.getString("type")
-        if (mediaType != Constants.MEDIA_TYPE_RADIO) return
-        
-        if (radioHeaderCheckScheduled) return
-        
-        // Check immediately, then periodically
-        checkRadioHttpHeaders()
-        radioHeaderCheckFuture = radioHeaderCheckExecutor.scheduleWithFixedDelay(
-            radioHeaderCheckRunnable,
-            RADIO_HEADER_CHECK_INTERVAL_SECONDS,
-            RADIO_HEADER_CHECK_INTERVAL_SECONDS,
-            TimeUnit.SECONDS
-        )
-        radioHeaderCheckScheduled = true
-    }
-
-    private fun stopRadioHeaderChecks() {
-        if (!radioHeaderCheckScheduled) return
-        radioHeaderCheckFuture?.cancel(false)
-        radioHeaderCheckFuture = null
-        radioHeaderCheckScheduled = false
-    }
-
-    private fun checkRadioHttpHeaders() {
-        val player = mediaLibrarySession.player
-        val currentItem = player.currentMediaItem ?: return
-        val extras = currentItem.mediaMetadata.extras
-        val mediaType = extras?.getString("type")
-        if (mediaType != Constants.MEDIA_TYPE_RADIO) return
-        
-        // Skip if we already have embedded metadata (ICY/ID3) - HTTP headers are only fallback
-        val hasEmbeddedMetadata = !currentItem.mediaMetadata.artist.isNullOrBlank() ||
-                !currentItem.mediaMetadata.title.isNullOrBlank() ||
-                (extras != null && !extras.getString("radioArtist").isNullOrBlank()) ||
-                (extras != null && !extras.getString("radioTitle").isNullOrBlank())
-        if (hasEmbeddedMetadata) return
-        
-        val streamUrl = extras?.getString("uri") ?: currentItem.requestMetadata.mediaUri?.toString()
-        if (streamUrl.isNullOrBlank()) return
-
-        try {
-            val url = URL(streamUrl)
-            val connection = url.openConnection() as? HttpURLConnection ?: return
-            
-            // Only try HEAD request (lightweight) - skip GET fallback as it's unreliable
-            connection.requestMethod = "HEAD"
-            connection.setRequestProperty("Icy-MetaData", "1")
-            connection.setRequestProperty("User-Agent", "Siskin/1.0")
-            connection.connectTimeout = 3000 // Reduced timeout
-            connection.readTimeout = 3000
-            
-            connection.connect()
-            
-            if (connection.responseCode >= 400) {
-                connection.disconnect()
-                return
-            }
-            
-            // Check for metadata in HTTP headers
-            val streamTitle = connection.getHeaderField("icy-name")
-                ?: connection.getHeaderField("StreamTitle")
-                ?: connection.getHeaderField("stream-title")
-            
-            connection.disconnect()
-            
-            if (!streamTitle.isNullOrBlank()) {
-                processStreamTitle(streamTitle, player)
-            }
-        } catch (e: Exception) {
-            // Silently fail - this is a fallback mechanism, ICY metadata is primary
-        }
-    }
-    
-    private fun processStreamTitle(streamTitle: String, player: Player) {
-        // Parse "Artist - Title" format
-        val parts = streamTitle.split(" - ", limit = 2)
-        val artist = if (parts.size == 2) parts[0].trim().ifEmpty { null } else null
-        val title = if (parts.size == 2) parts[1].trim().ifEmpty { null } else streamTitle.trim().ifEmpty { null }
-        
-        if (artist.isNullOrBlank() && title.isNullOrBlank()) return
-        if (artist == lastRadioArtist && title == lastRadioTitle) return // Deduplicate
-        
-        lastRadioArtist = artist
-        lastRadioTitle = title
-        
-        // Update on main thread
-        mainHandler.post {
-            val currentItemNow = player.currentMediaItem ?: return@post
-            val currentIndex = player.currentMediaItemIndex
-            if (currentIndex == C.INDEX_UNSET) return@post
-            
-            val currentExtras = currentItemNow.mediaMetadata.extras
-            if (currentExtras?.getString("type") != Constants.MEDIA_TYPE_RADIO) return@post
-            
-            // Double-check we still don't have embedded metadata (might have arrived since check)
-            val hasEmbeddedMetadata = !currentItemNow.mediaMetadata.artist.isNullOrBlank() ||
-                    !currentItemNow.mediaMetadata.title.isNullOrBlank() ||
-                    (currentExtras != null && !currentExtras.getString("radioArtist").isNullOrBlank()) ||
-                    (currentExtras != null && !currentExtras.getString("radioTitle").isNullOrBlank())
-            if (hasEmbeddedMetadata) return@post
-            
-            val metadataBuilder = currentItemNow.mediaMetadata.buildUpon()
-            val newExtras = Bundle(currentExtras ?: Bundle())
-            
-            // Store individual values in extras for UI
-            artist?.let { newExtras.putString("radioArtist", it) }
-            title?.let { newExtras.putString("radioTitle", it) }
-            
-            // Get station name (preserve if already set)
-            val stationName = currentExtras?.getString("stationName")
-                ?: currentItemNow.mediaMetadata.title?.toString()
-                ?: ""
-            if (stationName.isNotBlank()) {
-                newExtras.putString("stationName", stationName)
-            }
-            
-            // Format for notification/player: Title = "Artist - Song", Artist = "Station Name"
-            val formattedTitle = when {
-                !artist.isNullOrBlank() && !title.isNullOrBlank() -> "$artist - $title"
-                !title.isNullOrBlank() -> title
-                !artist.isNullOrBlank() -> artist
-                else -> stationName
-            }
-            
-            metadataBuilder.setTitle(formattedTitle)
-            if (stationName.isNotBlank()) {
-                metadataBuilder.setArtist(stationName)
-            }
-            metadataBuilder.setExtras(newExtras)
-            
-            (player as? ExoPlayer)?.let { exo ->
-                exo.replaceMediaItem(currentIndex, currentItemNow.buildUpon()
-                    .setMediaMetadata(metadataBuilder.build())
-                    .build())
-            }
-        }
-    }
-
     private fun getRenderersFactory(): DefaultRenderersFactory {
         val extensionRendererMode = if (DownloadUtil.useExtensionRenderers())
             DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
@@ -918,5 +614,3 @@ open class BaseMediaService : MediaLibraryService() {
         }
     }
 }
-
-private const val RADIO_HEADER_CHECK_INTERVAL_SECONDS = 30L // Reduced frequency - only fallback when ICY fails

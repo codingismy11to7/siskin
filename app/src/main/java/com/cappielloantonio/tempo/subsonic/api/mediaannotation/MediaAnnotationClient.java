@@ -29,11 +29,6 @@ public class MediaAnnotationClient {
         return mediaAnnotationService.unstar(subsonic.getParams(), id, albumId, artistId);
     }
 
-    public Call<ApiResponse> setRating(String id, int rating) {
-        Log.d(TAG, "setRating()");
-        return mediaAnnotationService.setRating(subsonic.getParams(), id, rating);
-    }
-
     public Call<ApiResponse> scrobble(String id, boolean submission) {
         Log.d(TAG, "scrobble()");
         return mediaAnnotationService.scrobble(subsonic.getParams(), id, submission);

@@ -13,28 +13,22 @@ import androidx.media3.datasource.ResolvingDataSource;
 import androidx.media3.datasource.cache.Cache;
 import androidx.media3.datasource.cache.CacheDataSource;
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor;
-import androidx.media3.datasource.cache.NoOpCacheEvictor;
 import androidx.media3.datasource.cache.SimpleCache;
 
 import java.io.File;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
-import java.util.HashMap;
-import java.util.Map;
 
 @UnstableApi
 public final class DownloadUtil {
 
     private static final String STREAMING_CACHE_CONTENT_DIRECTORY = "streaming_cache";
-    private static final String DOWNLOAD_CONTENT_DIRECTORY = "downloads";
 
     private static DataSource.Factory dataSourceFactory;
     private static DataSource.Factory httpDataSourceFactory;
     private static DatabaseProvider databaseProvider;
     private static File streamingCacheDirectory;
-    private static File downloadDirectory;
-    private static Cache downloadCache;
     private static SimpleCache streamingCache;
 
     public static boolean useExtensionRenderers() {
@@ -54,31 +48,9 @@ public final class DownloadUtil {
         return httpDataSourceFactory;
     }
 
-    public static synchronized DataSource.Factory getHttpDataSourceFactoryForRadio() {
-        CookieManager cookieManager = new CookieManager();
-        cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
-        CookieHandler.setDefault(cookieManager);
-        
-        // Create a factory with ICY metadata support for radio streams
-        Map<String, String> defaultRequestProperties = new HashMap<>();
-        defaultRequestProperties.put("Icy-MetaData", "1");
-        defaultRequestProperties.put("User-Agent", "Siskin/1.0");
-        
-        return new DefaultHttpDataSource
-                .Factory()
-                .setAllowCrossProtocolRedirects(true)
-                .setDefaultRequestProperties(defaultRequestProperties);
-    }
-
     public static synchronized DataSource.Factory getUpstreamDataSourceFactory(Context context) {
-        DefaultDataSource.Factory upstreamFactory = new DefaultDataSource.Factory(context, getHttpDataSourceFactory());
-        dataSourceFactory = buildReadOnlyCacheDataSource(upstreamFactory, getDownloadCache(context));
+        dataSourceFactory = new DefaultDataSource.Factory(context, getHttpDataSourceFactory());
         return dataSourceFactory;
-    }
-
-    public static synchronized DataSource.Factory getUpstreamDataSourceFactoryForRadio(Context context) {
-        DefaultDataSource.Factory upstreamFactory = new DefaultDataSource.Factory(context, getHttpDataSourceFactoryForRadio());
-        return buildReadOnlyCacheDataSource(upstreamFactory, getDownloadCache(context));
     }
 
     public static synchronized DataSource.Factory getCacheDataSourceFactory(Context context) {
@@ -95,7 +67,7 @@ public final class DownloadUtil {
                     return builder.build();
                 }
         );
-        dataSourceFactory = buildReadOnlyCacheDataSource(resolvingFactory, getDownloadCache(context));
+        dataSourceFactory = resolvingFactory;
         return dataSourceFactory;
     }
 
@@ -114,15 +86,6 @@ public final class DownloadUtil {
 
     public static synchronized Cache getStreamingCacheForPreload(Context context) {
         return getStreamingCache(context);
-    }
-
-    private static synchronized Cache getDownloadCache(Context context) {
-        if (downloadCache == null) {
-            File downloadContentDirectory = new File(getDownloadDirectory(context), DOWNLOAD_CONTENT_DIRECTORY);
-            downloadCache = new SimpleCache(downloadContentDirectory, new NoOpCacheEvictor(), getDatabaseProvider(context));
-        }
-
-        return downloadCache;
     }
 
     private static synchronized SimpleCache getStreamingCache(Context context) {
@@ -168,38 +131,4 @@ public final class DownloadUtil {
         return streamingCacheDirectory;
     }
 
-    private static synchronized File getDownloadDirectory(Context context) {
-        if (downloadDirectory == null) {
-            int pref = Preferences.getDownloadStoragePreference();
-            if (pref == 0) {
-                downloadDirectory = context.getExternalFilesDirs(null)[0];
-                if (downloadDirectory == null) {
-                    downloadDirectory = context.getFilesDir();
-                }
-            } else if (pref == 1) {
-                try {
-                    downloadDirectory = context.getExternalFilesDirs(null)[1];
-                } catch (Exception exception) {
-                    downloadDirectory = context.getExternalFilesDirs(null)[0];
-                    Preferences.setDownloadStoragePreference(0);
-                }
-            } else {
-                downloadDirectory = context.getExternalFilesDirs(null)[0];
-            }
-        }
-
-        return downloadDirectory;
-    }
-
-    private static CacheDataSource.Factory buildReadOnlyCacheDataSource(DataSource.Factory upstreamFactory, Cache cache) {
-        return new CacheDataSource.Factory()
-                .setCache(cache)
-                .setUpstreamDataSourceFactory(upstreamFactory)
-                .setCacheWriteDataSinkFactory(null)
-                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
-    }
-
-    public static synchronized long getStreamingCacheSize(Context context) {
-        return getStreamingCache(context).getCacheSpace();
-    }
 }

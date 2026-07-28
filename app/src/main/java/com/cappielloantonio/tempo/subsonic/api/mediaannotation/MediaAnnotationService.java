@@ -16,9 +16,6 @@ public interface MediaAnnotationService {
     @GET("unstar")
     Call<ApiResponse> unstar(@QueryMap Map<String, String> params, @Query("id") String id, @Query("albumId") String albumId, @Query("artistId") String artistId);
 
-    @GET("setRating")
-    Call<ApiResponse> setRating(@QueryMap Map<String, String> params, @Query("id") String id, @Query("rating") int rating);
-
     @GET("scrobble")
     Call<ApiResponse> scrobble(@QueryMap Map<String, String> params, @Query("id") String id, @Query("submission") Boolean submission);
 }

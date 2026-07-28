@@ -20,27 +20,10 @@ class DynamicMediaSourceFactory(
 ) : MediaSource.Factory {
 
     override fun createMediaSource(mediaItem: MediaItem): MediaSource {
-        // Detect radio streams in a backwards-compatible way.
-        // Older Tempus versions tagged radio items via MediaMetadata extras
-        // (`type == MEDIA_TYPE_RADIO`), while newer upstream changes use an
-        // "ir-" mediaId prefix. Support BOTH so radio works after rebases.
-        val mediaType = mediaItem.mediaMetadata.extras?.getString("type", "")
-        val isRadio = mediaType == Constants.MEDIA_TYPE_RADIO || mediaItem.mediaId.startsWith("ir-")
-
         val streamingCacheSize = Preferences.getStreamingCacheSize()
-        val bypassCache = isRadio
+        val useUpstream = streamingCacheSize <= 0L
 
-        val useUpstream = when {
-            streamingCacheSize.toInt() == 0 -> true
-            streamingCacheSize > 0 && bypassCache -> true
-            streamingCacheSize > 0 && !bypassCache -> false
-            else -> true
-        }
-
-        val dataSourceFactory: DataSource.Factory = if (bypassCache) {
-            // For radio streams, use a DataSourceFactory with ICY metadata support
-            DownloadUtil.getUpstreamDataSourceFactoryForRadio(context)
-        } else if (useUpstream) {
+        val dataSourceFactory: DataSource.Factory = if (useUpstream) {
             DownloadUtil.getUpstreamDataSourceFactory(context)
         } else {
             DownloadUtil.getCacheDataSourceFactory(context)

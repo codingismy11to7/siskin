@@ -19,11 +19,6 @@ public class AlbumSongListClient {
         this.albumSongListService = new RetrofitClient(subsonic).getRetrofit().create(AlbumSongListService.class);
     }
 
-    public Call<ApiResponse> getAlbumList(String type, int size, int offset) {
-        Log.d(TAG, "getAlbumList()");
-        return albumSongListService.getAlbumList(subsonic.getParams(), type, size, offset);
-    }
-
     public Call<ApiResponse> getAlbumList2(String type, int size, int offset, Integer fromYear, Integer toYear) {
         Log.d(TAG, "getAlbumList2()");
         return albumSongListService.getAlbumList2(subsonic.getParams(), type, size, offset, fromYear, toYear);
@@ -37,16 +32,6 @@ public class AlbumSongListClient {
     public Call<ApiResponse> getRandomSongs(int size, Integer fromYear, Integer toYear, String genre) {
         Log.d(TAG, "getRandomSongs()");
         return albumSongListService.getRandomSongs(subsonic.getParams(), size, fromYear, toYear, genre);
-    }
-
-    public Call<ApiResponse> getSongsByGenre(String genre, int count, int offset) {
-        Log.d(TAG, "getSongsByGenre()");
-        return albumSongListService.getSongsByGenre(subsonic.getParams(), genre, count, offset);
-    }
-
-    public Call<ApiResponse> getNowPlaying() {
-        Log.d(TAG, "getNowPlaying()");
-        return albumSongListService.getNowPlaying(subsonic.getParams());
     }
 
 }
