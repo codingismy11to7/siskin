@@ -4,6 +4,7 @@ import android.os.Bundle;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.media3.common.util.UnstableApi;
 
 import com.cappielloantonio.tempo.R;
@@ -29,6 +30,16 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        // Pinned dark rather than following system night mode. A head unit is a
+        // large screen at eye level, so a full-white panel at night is genuinely
+        // unpleasant, and Plex's own apps are dark throughout -- matching them
+        // makes this read as a Plex sign-in. Following the system would be the
+        // better default if the user could override it, but the three-tab sweep
+        // removed the settings screen, so Preferences.getTheme() is frozen at
+        // "default" and no one can. Scoped to this activity's delegate, not
+        // AppCompatDelegate's process-wide default, so it does not fight
+        // ThemeHelper.
+        getDelegate().setLocalNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         ThemeHelper.applyActivityTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_car_sign_in);

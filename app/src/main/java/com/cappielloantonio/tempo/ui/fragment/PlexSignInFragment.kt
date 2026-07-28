@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
@@ -63,11 +64,14 @@ class PlexSignInFragment : Fragment() {
             is PlexSignInState.AwaitingApproval -> {
                 bind.approvalGroup.visibility = View.VISIBLE
                 bind.codeText.text = state.code
+                // Hide the card, not just the image: the card supplies the white
+                // the QR is drawn on, so leaving it up with no code in it shows a
+                // blank white square rather than nothing.
                 if (state.qrUrl != null) {
-                    bind.qrImage.visibility = View.VISIBLE
+                    bind.qrCard.visibility = View.VISIBLE
                     Glide.with(this).load(state.qrUrl).into(bind.qrImage)
                 } else {
-                    bind.qrImage.visibility = View.GONE
+                    bind.qrCard.visibility = View.GONE
                 }
             }
 
@@ -106,14 +110,22 @@ class PlexSignInFragment : Fragment() {
         val button = MaterialButton(requireContext()).apply {
             text = label
             minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+            // MaterialButton's default 6dp insets would shave 12dp off that
+            // minHeight. Same reasoning as retry_button in the layout: the
+            // oversized target is the point on a head unit.
+            insetTop = 0
+            insetBottom = 0
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
             setOnClickListener { onClick() }
         }
         bind.choiceContainer.addView(
             button,
-            ViewGroup.LayoutParams(
+            LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            ).apply {
+                bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
+            }
         )
     }
 }

@@ -1,3 +1,12 @@
 <resources>
+    <!-- A head unit is reached at arm's length, so touch targets run larger than phone defaults. -->
     <dimen name="plex_sign_in_choice_min_height">72dp</dimen>
+    <!-- The picker column. Full width would stretch two buttons across a 1080px dash. -->
+    <dimen name="plex_sign_in_choice_width">480dp</dimen>
+    <!-- Outer box; 16dp of that is the QR's white quiet zone. -->
+    <dimen name="plex_sign_in_qr_size">240dp</dimen>
+    <!-- Keeps a short label like "Try again" from collapsing to a thin target. -->
+    <dimen name="plex_sign_in_button_min_width">240dp</dimen>
+    <!-- Separates stacked picker entries so neighbours are not mis-tapped. -->
+    <dimen name="plex_sign_in_choice_gap">12dp</dimen>
 </resources>
