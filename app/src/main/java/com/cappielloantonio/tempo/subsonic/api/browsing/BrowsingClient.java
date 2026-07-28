@@ -19,11 +19,6 @@ public class BrowsingClient {
         this.browsingService = new RetrofitClient(subsonic).getRetrofit().create(BrowsingService.class);
     }
 
-    public Call<ApiResponse> getMusicFolders() {
-        Log.d(TAG, "getMusicFolders()");
-        return browsingService.getMusicFolders(subsonic.getParams());
-    }
-
     public Call<ApiResponse> getIndexes(String musicFolderId, Long ifModifiedSince) {
         Log.d(TAG, "getIndexes()");
         return browsingService.getIndexes(subsonic.getParams(), musicFolderId, ifModifiedSince);
@@ -32,11 +27,6 @@ public class BrowsingClient {
     public Call<ApiResponse> getMusicDirectory(String id) {
         Log.d(TAG, "getMusicDirectory()");
         return browsingService.getMusicDirectory(subsonic.getParams(), id);
-    }
-
-    public Call<ApiResponse> getGenres() {
-        Log.d(TAG, "getGenres()");
-        return browsingService.getGenres(subsonic.getParams());
     }
 
     public Call<ApiResponse> getArtists() {
@@ -57,16 +47,6 @@ public class BrowsingClient {
     public Call<ApiResponse> getSong(String id) {
         Log.d(TAG, "getSong()");
         return browsingService.getSong(subsonic.getParams(), id);
-    }
-
-    public Call<ApiResponse> getVideos() {
-        Log.d(TAG, "getVideos()");
-        return browsingService.getVideos(subsonic.getParams());
-    }
-
-    public Call<ApiResponse> getVideoInfo(String id) {
-        Log.d(TAG, "getVideoInfo()");
-        return browsingService.getVideoInfo(subsonic.getParams(), id);
     }
 
     public Call<ApiResponse> getArtistInfo(String id) {

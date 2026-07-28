@@ -21,7 +21,6 @@ import com.cappielloantonio.tempo.repository.ChronologyRepository;
 import com.cappielloantonio.tempo.repository.QueueRepository;
 import com.cappielloantonio.tempo.repository.SongRepository;
 import com.cappielloantonio.tempo.subsonic.models.Child;
-import com.cappielloantonio.tempo.subsonic.models.InternetRadioStation;
 import com.cappielloantonio.tempo.subsonic.models.PodcastEpisode;
 import com.cappielloantonio.tempo.util.Constants;
 import com.cappielloantonio.tempo.util.MappingUtil;
@@ -259,24 +258,6 @@ public class MediaManager {
                         mediaBrowser.prepare();
                         mediaBrowser.play();
                         clearDatabase();
-                    }
-                } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }, MoreExecutors.directExecutor());
-        }
-    }
-
-    public static void startRadio(ListenableFuture<MediaBrowser> mediaBrowserListenableFuture, InternetRadioStation internetRadioStation) {
-        if (mediaBrowserListenableFuture != null) {
-            mediaBrowserListenableFuture.addListener(() -> {
-                try {
-                    if (mediaBrowserListenableFuture.isDone()) {
-                        MediaBrowser browser = mediaBrowserListenableFuture.get();
-                        justStarted.set(true);
-                        browser.setMediaItem(MappingUtil.mapInternetRadioStation(internetRadioStation));
-                        browser.prepare();
-                        browser.play();
                     }
                 } catch (ExecutionException | InterruptedException e) {
                     e.printStackTrace();

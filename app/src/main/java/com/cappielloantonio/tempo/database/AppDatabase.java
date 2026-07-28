@@ -3,54 +3,38 @@ package com.cappielloantonio.tempo.database;
 import androidx.media3.common.util.UnstableApi;
 import androidx.room.AutoMigration;
 import androidx.room.Database;
+import androidx.room.DeleteTable;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 import androidx.room.TypeConverters;
+import androidx.room.migration.AutoMigrationSpec;
 
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.database.converter.DateConverters;
 import com.cappielloantonio.tempo.database.converter.StringListConverter;
 import com.cappielloantonio.tempo.database.dao.ChronologyDao;
-import com.cappielloantonio.tempo.database.dao.DownloadDao;
-import com.cappielloantonio.tempo.database.dao.FavoriteDao;
-import com.cappielloantonio.tempo.database.dao.InternetRadioStationDao;
-import com.cappielloantonio.tempo.database.dao.LyricsDao;
 import com.cappielloantonio.tempo.database.dao.PinnedPlaylistDao;
 import com.cappielloantonio.tempo.database.dao.PlaylistDao;
-import com.cappielloantonio.tempo.database.dao.PlaylistSongDao;
 import com.cappielloantonio.tempo.database.dao.QueueDao;
-import com.cappielloantonio.tempo.database.dao.RecentSearchDao;
 import com.cappielloantonio.tempo.database.dao.ServerDao;
 import com.cappielloantonio.tempo.database.dao.SessionMediaItemDao;
 import com.cappielloantonio.tempo.model.Chronology;
-import com.cappielloantonio.tempo.model.Download;
-import com.cappielloantonio.tempo.model.Favorite;
-import com.cappielloantonio.tempo.model.InternetRadioStationCache;
-import com.cappielloantonio.tempo.model.LyricsCache;
 import com.cappielloantonio.tempo.model.PinnedPlaylist;
-import com.cappielloantonio.tempo.model.PlaylistSong;
 import com.cappielloantonio.tempo.model.Queue;
-import com.cappielloantonio.tempo.model.RecentSearch;
 import com.cappielloantonio.tempo.model.Server;
 import com.cappielloantonio.tempo.model.SessionMediaItem;
 import com.cappielloantonio.tempo.subsonic.models.Playlist;
 
 @UnstableApi
 @Database(
-        version = 20,
+        version = 21,
         entities = {
             Queue.class,
             Server.class,
-            RecentSearch.class,
-            Download.class,
             Chronology.class,
-            Favorite.class,
             SessionMediaItem.class,
             Playlist.class,
             PinnedPlaylist.class,
-            LyricsCache.class,
-            InternetRadioStationCache.class,
-            PlaylistSong.class,
         },
         autoMigrations = {
                 @AutoMigration(from = 10, to = 11),
@@ -63,12 +47,27 @@ import com.cappielloantonio.tempo.subsonic.models.Playlist;
                 @AutoMigration(from = 17, to = 18),
                 @AutoMigration(from = 18, to = 19),
                 @AutoMigration(from = 19, to = 20),
+                @AutoMigration(from = 20, to = 21, spec = AppDatabase.DropTablesForPrunedFeatures.class),
         }
 )
 @TypeConverters({DateConverters.class, StringListConverter.class})
 public abstract class AppDatabase extends RoomDatabase {
     private final static String DB_NAME = "tempo_db";
     private static AppDatabase instance;
+
+    // The download, recent-search, favorite, lyrics-cache and internet-radio-station-cache
+    // features were pruned along with their models and DAOs; this migration drops their
+    // now-orphaned tables instead of retroactively rewriting the version-20 schema.
+    @DeleteTable.Entries({
+            @DeleteTable(tableName = "download"),
+            @DeleteTable(tableName = "recent_search"),
+            @DeleteTable(tableName = "favorite"),
+            @DeleteTable(tableName = "lyrics_cache"),
+            @DeleteTable(tableName = "internet_radio_station_cache"),
+            @DeleteTable(tableName = "playlist_song"),
+    })
+    static class DropTablesForPrunedFeatures implements AutoMigrationSpec {
+    }
 
     public static synchronized AppDatabase getInstance() {
         if (instance == null) {
@@ -84,23 +83,11 @@ public abstract class AppDatabase extends RoomDatabase {
 
     public abstract ServerDao serverDao();
 
-    public abstract RecentSearchDao recentSearchDao();
-
-    public abstract DownloadDao downloadDao();
-
     public abstract ChronologyDao chronologyDao();
-
-    public abstract FavoriteDao favoriteDao();
 
     public abstract SessionMediaItemDao sessionMediaItemDao();
 
     public abstract PlaylistDao playlistDao();
 
     public abstract PinnedPlaylistDao pinnedPlaylistDao();
-
-    public abstract PlaylistSongDao playlistSongDao();
-
-    public abstract LyricsDao lyricsDao();
-
-    public abstract InternetRadioStationDao internetRadioStationDao();
 }

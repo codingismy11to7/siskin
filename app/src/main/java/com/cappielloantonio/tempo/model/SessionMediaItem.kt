@@ -17,7 +17,6 @@ import com.cappielloantonio.tempo.glide.CustomGlideRequest
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import androidx.room.Embedded
 import com.cappielloantonio.tempo.subsonic.models.Child
-import com.cappielloantonio.tempo.subsonic.models.InternetRadioStation
 import com.cappielloantonio.tempo.subsonic.models.PodcastEpisode
 import com.cappielloantonio.tempo.subsonic.models.ReplayGainInfo
 import com.cappielloantonio.tempo.util.Constants
@@ -195,22 +194,6 @@ class SessionMediaItem() {
         artistId = podcastEpisode.artistId
         streamId = podcastEpisode.streamId
         type = Constants.MEDIA_TYPE_PODCAST
-    }
-
-    constructor(internetRadioStation: InternetRadioStation) : this() {
-        id = internetRadioStation.id
-        title = internetRadioStation.name
-        streamUrl = internetRadioStation.streamUrl
-        type = Constants.MEDIA_TYPE_RADIO
-
-        val homePageUrl = internetRadioStation.homePageUrl
-        if (homePageUrl != null && homePageUrl.isNotEmpty() && MusicUtil.isImageUrl(homePageUrl)) {
-            val encodedUrl = android.util.Base64.encodeToString(
-                homePageUrl.toByteArray(java.nio.charset.StandardCharsets.UTF_8),
-                android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP
-            )
-            coverArtId = "ir_$encodedUrl"
-        }
     }
 
     fun getMediaItem(): MediaItem {

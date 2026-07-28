@@ -3,7 +3,6 @@ package com.cappielloantonio.tempo.util
 import android.util.Log
 import androidx.media3.common.Player
 import com.cappielloantonio.tempo.App
-import com.cappielloantonio.tempo.model.HomeSector
 import com.cappielloantonio.tempo.subsonic.models.OpenSubsonicExtension
 import com.google.gson.Gson
 
@@ -66,12 +65,7 @@ object Preferences {
     private const val AUDIO_TRANSCODE_PRIORITY = "audio_transcode_priority"
     private const val STREAMING_CACHE_STORAGE = "streaming_cache_storage"
     private const val DOWNLOAD_STORAGE = "download_storage"
-    private const val DOWNLOAD_DIRECTORY_URI = "download_directory_uri"
     private const val DEFAULT_DOWNLOAD_VIEW_TYPE = "default_download_view_type"
-    private const val AUDIO_TRANSCODE_DOWNLOAD = "audio_transcode_download"
-    private const val AUDIO_TRANSCODE_DOWNLOAD_PRIORITY = "audio_transcode_download_priority"
-    private const val MAX_BITRATE_DOWNLOAD = "max_bitrate_download"
-    private const val AUDIO_TRANSCODE_FORMAT_DOWNLOAD = "audio_transcode_format_download"
     private const val SHARE = "share"
     private const val SCROBBLING = "scrobbling"
     private const val SONG_PRELOAD_BUFFER = "song_preload_buffer"
@@ -81,7 +75,6 @@ object Preferences {
     private const val MIN_STAR_RATING = "min_star_rating"
     private const val ALWAYS_ON_DISPLAY = "always_on_display"
     private const val AUDIO_QUALITY_PER_ITEM = "audio_quality_per_item"
-    private const val HOME_SECTOR_LIST = "home_sector_list"
     private const val SONG_RATING_PER_ITEM = "song_rating_per_item"
     private const val RATING_PER_ITEM = "rating_per_item"
     private const val CONTINUOUS_PLAY = "continuous_play"
@@ -643,20 +636,6 @@ object Preferences {
     }
 
     @JvmStatic
-    fun getDownloadDirectoryUri(): String? {
-        return App.getInstance().preferences.getString(DOWNLOAD_DIRECTORY_URI, null)
-    }
-
-    @JvmStatic
-    fun setDownloadDirectoryUri(uri: String?) {
-        val current = App.getInstance().preferences.getString(DOWNLOAD_DIRECTORY_URI, null)
-        if (current != uri) {
-            ExternalDownloadMetadataStore.clear()
-        }
-        App.getInstance().preferences.edit().putString(DOWNLOAD_DIRECTORY_URI, uri).apply()
-    }
-
-    @JvmStatic
     fun getDefaultDownloadViewType(): String {
         return App.getInstance().preferences.getString(
                 DEFAULT_DOWNLOAD_VIEW_TYPE,
@@ -670,26 +649,6 @@ object Preferences {
                 DEFAULT_DOWNLOAD_VIEW_TYPE,
                 viewType
         ).apply()
-    }
-
-    @JvmStatic
-    fun preferTranscodedDownload(): Boolean {
-        return App.getInstance().preferences.getBoolean(AUDIO_TRANSCODE_DOWNLOAD, false)
-    }
-
-    @JvmStatic
-    fun isServerPrioritizedInTranscodedDownload(): Boolean {
-        return App.getInstance().preferences.getBoolean(AUDIO_TRANSCODE_DOWNLOAD_PRIORITY, false)
-    }
-
-    @JvmStatic
-    fun getBitrateTranscodedDownload(): String {
-        return App.getInstance().preferences.getString(MAX_BITRATE_DOWNLOAD, "0")!!
-    }
-
-    @JvmStatic
-    fun getAudioTranscodeFormatTranscodedDownload(): String {
-        return App.getInstance().preferences.getString(AUDIO_TRANSCODE_FORMAT_DOWNLOAD, "raw")!!
     }
 
     @JvmStatic
@@ -730,16 +689,6 @@ object Preferences {
     @JvmStatic
     fun showAudioQuality(): Boolean {
         return App.getInstance().preferences.getBoolean(AUDIO_QUALITY_PER_ITEM, false)
-    }
-
-    @JvmStatic
-    fun getHomeSectorList(): String? {
-        return App.getInstance().preferences.getString(HOME_SECTOR_LIST, null)
-    }
-
-    @JvmStatic
-    fun setHomeSectorList(extension: List<HomeSector>?) {
-        App.getInstance().preferences.edit().putString(HOME_SECTOR_LIST, Gson().toJson(extension)).apply()
     }
 
     @JvmStatic

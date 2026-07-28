@@ -27,10 +27,4 @@ public interface AlbumSongListService {
 
     @GET("getNowPlaying")
     Call<ApiResponse> getNowPlaying(@QueryMap Map<String, String> params);
-
-    @GET("getStarred")
-    Call<ApiResponse> getStarred(@QueryMap Map<String, String> params);
-
-    @GET("getStarred2")
-    Call<ApiResponse> getStarred2(@QueryMap Map<String, String> params);
 }

@@ -1,13 +1,10 @@
 package com.cappielloantonio.tempo.util;
 
-import android.content.ContentResolver;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.Base64;
 
 import androidx.annotation.OptIn;
-import androidx.lifecycle.LifecycleOwner;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.MimeTypes;
@@ -17,15 +14,12 @@ import androidx.media3.common.HeartRating;
 import com.cappielloantonio.tempo.glide.CustomGlideRequest;
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider;
 import com.cappielloantonio.tempo.subsonic.models.Child;
-import com.cappielloantonio.tempo.subsonic.models.InternetRadioStation;
 import com.cappielloantonio.tempo.subsonic.models.PodcastEpisode;
 import com.google.common.collect.ImmutableList;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.nio.charset.StandardCharsets;
 
 @OptIn(markerClass = UnstableApi.class)
 public class MappingUtil {
@@ -200,75 +194,6 @@ public class MappingUtil {
                 .build();
     }
 
-    public static MediaItem mapInternetRadioStation(InternetRadioStation internetRadioStation) {
-        Uri uri = Uri.parse(internetRadioStation.getStreamUrl());
-        Uri artworkUri = null;
-        String coverArtId = null;
-
-        if (internetRadioStation.getId() != null) {
-            File localCover = RadioCoverArtDownloader.getLocalCoverFile(internetRadioStation.getId());
-            if (localCover.exists()) {
-                // Serve via the content provider (not a file:// uri into app-private storage) so
-                // cross-process consumers (SystemUI media controls, Android Auto) can read it.
-                // The ?v=<mtime> busts caches when the cover is edited. coverArtId stays null on
-                // purpose: it drives server getCoverArt loads (e.g. the widget), and a local cover
-                // has no server id — the artworkUri above already carries it.
-                String localCoverId = "rl_" + internetRadioStation.getId();
-                artworkUri = AlbumArtContentProvider.contentUri(localCoverId).buildUpon()
-                        .appendQueryParameter("v", String.valueOf(localCover.lastModified()))
-                        .build();
-            }
-        }
-
-        if (artworkUri == null && internetRadioStation.getCoverArt() != null && !internetRadioStation.getCoverArt().isEmpty()) {
-            coverArtId = internetRadioStation.getCoverArt();
-            artworkUri = AlbumArtContentProvider.contentUri(coverArtId);
-        }
-
-        if (artworkUri == null) {
-            String homePageUrl = internetRadioStation.getHomePageUrl();
-            if (homePageUrl != null && !homePageUrl.isEmpty() && MusicUtil.isImageUrl(homePageUrl)) {
-                    String encodedUrl = Base64.encodeToString(homePageUrl.getBytes(StandardCharsets.UTF_8),
-                                    Base64.URL_SAFE | Base64.NO_WRAP);
-                    coverArtId = "ir_" + encodedUrl;
-                    artworkUri = AlbumArtContentProvider.contentUri(coverArtId);
-            }
-        }
-
-        Bundle bundle = new Bundle();
-        bundle.putString("id", internetRadioStation.getId());
-        bundle.putString("title", internetRadioStation.getName());
-        bundle.putString("stationName", internetRadioStation.getName());
-        bundle.putString("uri", uri.toString());
-        bundle.putString("type", Constants.MEDIA_TYPE_RADIO);
-        bundle.putString("coverArtId", coverArtId);
-        String homePageUrl = internetRadioStation.getHomePageUrl();
-        if (homePageUrl != null) {
-                bundle.putString("homepageUrl", homePageUrl);
-        }
-
-        return new MediaItem.Builder()
-                .setMediaId(internetRadioStation.getId())
-                .setMediaMetadata(
-                        new MediaMetadata.Builder()
-                                .setTitle(internetRadioStation.getName())
-                                .setArtworkUri(artworkUri)
-                                .setExtras(bundle)
-                                .setIsBrowsable(false)
-                                .setIsPlayable(true)
-                                .build()
-                )
-                .setRequestMetadata(
-                        new MediaItem.RequestMetadata.Builder()
-                                .setMediaUri(uri)
-                                .setExtras(bundle)
-                                .build()
-                )
-                // .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
-                .setUri(uri)
-                .build();
-    }
-
     public static MediaItem mapMediaItem(PodcastEpisode podcastEpisode) {
         Uri uri = getUri(podcastEpisode);
         Uri artworkUri = AlbumArtContentProvider.contentUri(podcastEpisode.getCoverArtId());
@@ -398,29 +323,10 @@ public class MappingUtil {
     }
 
     private static Uri getUri(Child media) {
-        // Legacy check for external directory, i think this was broken/buggy
-        if (Preferences.getDownloadDirectoryUri() != null) {
-            Uri local = ExternalAudioReader.getUri(media);
-            if (local != null) return local;
-        }
-
-        // Fallback to streaming
-        Log.d(TAG, "No local file found. Streaming: " + media.getTitle());
         return MusicUtil.getStreamUri(media.getId());
     }
 
     private static Uri getUri(PodcastEpisode podcastEpisode) {
-        if (Preferences.getDownloadDirectoryUri() != null) {
-            Uri local = ExternalAudioReader.getUri(podcastEpisode);
-            return local != null ? local : MusicUtil.getStreamUri(podcastEpisode.getStreamId());
-        }
         return MusicUtil.getStreamUri(podcastEpisode.getStreamId());
-    }
-
-    public static void observeExternalAudioRefresh(LifecycleOwner owner, Runnable onRefresh) {
-        if (owner == null || onRefresh == null) {
-            return;
-        }
-        ExternalAudioReader.getRefreshEvents().observe(owner, event -> onRefresh.run());
     }
 }

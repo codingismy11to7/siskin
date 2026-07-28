@@ -15,8 +15,6 @@ import androidx.media3.datasource.cache.CacheDataSource;
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor;
 import androidx.media3.datasource.cache.NoOpCacheEvictor;
 import androidx.media3.datasource.cache.SimpleCache;
-import androidx.media3.exoplayer.DefaultRenderersFactory;
-import androidx.media3.exoplayer.RenderersFactory;
 
 import java.io.File;
 import java.net.CookieHandler;
@@ -41,15 +39,6 @@ public final class DownloadUtil {
 
     public static boolean useExtensionRenderers() {
         return true;
-    }
-
-    public static RenderersFactory buildRenderersFactory(Context context, boolean preferExtensionRenderer) {
-        @DefaultRenderersFactory.ExtensionRendererMode int extensionRendererMode =
-                useExtensionRenderers()
-                        ? (preferExtensionRenderer ? DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
-                        : DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF;
-
-        return new DefaultRenderersFactory(context.getApplicationContext()).setExtensionRendererMode(extensionRendererMode);
     }
 
     public static synchronized DataSource.Factory getHttpDataSourceFactory() {

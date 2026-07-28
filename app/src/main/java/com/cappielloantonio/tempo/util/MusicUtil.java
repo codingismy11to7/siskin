@@ -97,39 +97,6 @@ public class MusicUtil {
         return Uri.parse(s);
     }
 
-    public static Uri getTranscodedDownloadUri(String id) {
-        Map<String, String> params = App.getSubsonicClientInstance(false).getParams();
-
-        StringBuilder uri = new StringBuilder();
-
-        uri.append(App.getSubsonicClientInstance(false).getUrl());
-        uri.append("stream");
-
-        if (params.containsKey("u") && params.get("u") != null)
-            uri.append("?u=").append(Util.encode(params.get("u")));
-        if (params.containsKey("p") && params.get("p") != null)
-            uri.append("&p=").append(params.get("p"));
-        if (params.containsKey("s") && params.get("s") != null)
-            uri.append("&s=").append(params.get("s"));
-        if (params.containsKey("t") && params.get("t") != null)
-            uri.append("&t=").append(params.get("t"));
-        if (params.containsKey("v") && params.get("v") != null)
-            uri.append("&v=").append(params.get("v"));
-        if (params.containsKey("c") && params.get("c") != null)
-            uri.append("&c=").append(params.get("c"));
-
-        if (!Preferences.isServerPrioritizedInTranscodedDownload())
-            uri.append("&maxBitRate=").append(getBitratePreferenceForDownload());
-        if (!Preferences.isServerPrioritizedInTranscodedDownload())
-            uri.append("&format=").append(getTranscodingFormatPreferenceForDownload());
-
-        uri.append("&id=").append(id);
-
-        Log.d(TAG, "getTranscodedDownloadUri: " + uri);
-
-        return Uri.parse(uri.toString());
-    }
-
     public static String getReadableDurationString(Long duration, boolean millis) {
         long lenght = duration != null ? duration : 0;
 
@@ -286,19 +253,6 @@ public class MusicUtil {
             format = Preferences.getAudioTranscodeFormatWifi();
         }
         return format;
-    }
-
-    public static String getBitratePreferenceForDownload() {
-        String audioTranscodeFormat = getTranscodingFormatPreferenceForDownload();
-
-        if (audioTranscodeFormat.equals("raw"))
-            return "0";
-
-        return Preferences.getBitrateTranscodedDownload();
-    }
-
-    public static String getTranscodingFormatPreferenceForDownload() {
-        return Preferences.getAudioTranscodeFormatTranscodedDownload();
     }
 
     public static List<Child> limitPlayableMedia(List<Child> toLimit, int position) {

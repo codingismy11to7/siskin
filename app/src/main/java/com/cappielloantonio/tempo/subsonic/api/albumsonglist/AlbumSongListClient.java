@@ -49,13 +49,4 @@ public class AlbumSongListClient {
         return albumSongListService.getNowPlaying(subsonic.getParams());
     }
 
-    public Call<ApiResponse> getStarred() {
-        Log.d(TAG, "getStarred()");
-        return albumSongListService.getStarred(subsonic.getParams());
-    }
-
-    public Call<ApiResponse> getStarred2() {
-        Log.d(TAG, "getStarred2()");
-        return albumSongListService.getStarred2(subsonic.getParams());
-    }
 }

@@ -10,17 +10,11 @@ import retrofit2.http.Query;
 import retrofit2.http.QueryMap;
 
 public interface BrowsingService {
-    @GET("getMusicFolders")
-    Call<ApiResponse> getMusicFolders(@QueryMap Map<String, String> params);
-
     @GET("getIndexes")
     Call<ApiResponse> getIndexes(@QueryMap Map<String, String> params, @Query("musicFolderId") String musicFolderId, @Query("ifModifiedSince") Long ifModifiedSince);
 
     @GET("getMusicDirectory")
     Call<ApiResponse> getMusicDirectory(@QueryMap Map<String, String> params, @Query("id") String id);
-
-    @GET("getGenres")
-    Call<ApiResponse> getGenres(@QueryMap Map<String, String> params);
 
     @GET("getArtists")
     Call<ApiResponse> getArtists(@QueryMap Map<String, String> params);
@@ -33,12 +27,6 @@ public interface BrowsingService {
 
     @GET("getSong")
     Call<ApiResponse> getSong(@QueryMap Map<String, String> params, @Query("id") String id);
-
-    @GET("getVideos")
-    Call<ApiResponse> getVideos(@QueryMap Map<String, String> params);
-
-    @GET("getVideoInfo")
-    Call<ApiResponse> getVideoInfo(@QueryMap Map<String, String> params, @Query("id") String id);
 
     @GET("getArtistInfo")
     Call<ApiResponse> getArtistInfo(@QueryMap Map<String, String> params, @Query("id") String id);
