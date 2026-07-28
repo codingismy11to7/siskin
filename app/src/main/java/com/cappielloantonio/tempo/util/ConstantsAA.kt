@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.util
 object ConstantsAA {
     // Android Auto max items
     const val MAX_ITEMS = 500
+    const val MAX_SHUFFLE_ITEMS = 100
 
     // Android Root function
     const val ROOT_ID = "[rootID]"

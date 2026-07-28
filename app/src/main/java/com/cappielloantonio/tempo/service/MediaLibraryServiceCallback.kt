@@ -152,11 +152,6 @@ class MediaLibrarySessionCallback(
 
         Log.d(TAG, "mediaId = ${firstItem.mediaId}, startIndex = $startIndex, startPositionMs = $startPositionMs")
 
-        if (isRadio(firstItem)) {
-            QueueRepository().deleteAll()
-            return super.onSetMediaItems(mediaSession, controller, mediaItems, 0, 0)
-        }
-
         val futureQueue = resolveQueueForItem(firstItem, mediaItems)
 
         return Futures.transform(
@@ -201,29 +196,7 @@ class MediaLibrarySessionCallback(
         val extras = firstItem.requestMetadata.extras ?: firstItem.mediaMetadata.extras
         Log.d(TAG, "extras: ${extras?.keySet()?.joinToString { key -> "$key=${extras.getString(key)}" } ?: "null"}")
 
-        if (isRadio(firstItem)) {
-            Log.d(TAG, "Radio")
-            return fetchRadioItem(firstItem)
-        }
-
         return resolveQueueForItem(firstItem, mediaItems)
-    }
-
-    private fun isRadio(item: MediaItem): Boolean {
-        return item.mediaId.startsWith("ir-") ||
-                item.mediaMetadata.extras?.getString("type", "") == Constants.MEDIA_TYPE_RADIO ||
-                item.requestMetadata.extras?.getString("type", "") == Constants.MEDIA_TYPE_RADIO
-    }
-
-    // AutomotiveRepository no longer serves an internet-radio browse node (Task 4
-    // reduced it to the three surviving tabs: Playlists, Artists, Albums), so there
-    // is no repository lookup left that can hydrate a fuller MediaItem for a
-    // radio-tagged id. Nothing currently wires a radio-tagged MediaItem into
-    // onAddMediaItems -- no browse node creates one, and MediaManager.startRadio()
-    // has no callers -- but isRadio() below is still consulted by onSetMediaItems,
-    // so this degrades to the item as given rather than deleting the dead branch.
-    private fun fetchRadioItem(firstItem: MediaItem): ListenableFuture<List<MediaItem>> {
-        return Futures.immediateFuture(listOf(firstItem))
     }
 
     private fun resolveQueueForItem(

@@ -373,7 +373,7 @@ public class AutomotiveRepository {
                             }
                             else {
                                 Collections.shuffle(tracks);
-                                tracks = tracks.subList(0, Math.min(ConstantsAA.MAX_ITEMS, tracks.size()));
+                                tracks = tracks.subList(0, Math.min(ConstantsAA.MAX_SHUFFLE_ITEMS, tracks.size()));
                             }
 
                             setChildrenMetadata(tracks);
