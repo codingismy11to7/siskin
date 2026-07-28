@@ -9,7 +9,7 @@
     <string name="error_server_prefix">Требуется префикс http или https</string>
     <string name="exo_controls_heart_off_description">Убрать лайк</string>
     <string name="exo_controls_heart_on_description">Поставить лайк</string>
-    <string name="cast_expanded_controller_loading">Загрузка…</string>
+    <string name="exo_controls_heart_loading_description">Загрузка…</string>
     <string name="label_placeholder" translatable="false">--</string>
     <string name="login_empty">Сервер не добавлен</string>
     <string name="login_title">Subsonic серверы</string>

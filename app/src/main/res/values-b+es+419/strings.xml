@@ -10,7 +10,7 @@
     <string name="error_server_prefix">La URL necesita http o https al inicio</string>
     <string name="exo_controls_heart_off_description">Ocultar botón de favoritos</string>
     <string name="exo_controls_heart_on_description">Mostrar botón de favoritos</string>
-    <string name="cast_expanded_controller_loading">Cargando…</string>
+    <string name="exo_controls_heart_loading_description">Cargando…</string>
     <string name="label_placeholder" translatable="false">--</string>
     <string name="login_empty">No has añadido un servidor</string>
     <string name="login_title">Servidores</string>

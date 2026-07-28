@@ -9,7 +9,7 @@
     <string name="error_server_prefix">Adresse muss mit http oder https beginnen</string>
     <string name="exo_controls_heart_off_description">Herz ausschalten</string>
     <string name="exo_controls_heart_on_description">Herz einschalten</string>
-    <string name="cast_expanded_controller_loading">Laden…</string>
+    <string name="exo_controls_heart_loading_description">Laden…</string>
     <string name="label_placeholder" translatable="false">--</string>
     <string name="login_empty">Kein Server hinzugefügt</string>
     <string name="login_title">Subsonic-Server</string>

@@ -6,7 +6,7 @@
     <string name="error_server_prefix">Prefixul http sau https este necesar</string>
     <string name="exo_controls_heart_off_description">Comutați inima în stare inactivă</string>
     <string name="exo_controls_heart_on_description">Comutați inima în stare activă</string>
-    <string name="cast_expanded_controller_loading">Se încarcă…</string>
+    <string name="exo_controls_heart_loading_description">Se încarcă…</string>
     <string name="label_placeholder" translatable="false">--</string>
     <string name="login_empty">Niciun server adăugat</string>
     <string name="login_title">Servere Subsonic</string>

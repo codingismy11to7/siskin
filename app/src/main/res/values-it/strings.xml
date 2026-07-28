@@ -5,7 +5,7 @@
     <string name="error_server_prefix">Prefisso http o https richiesto</string>
     <string name="exo_controls_heart_off_description">Aggiungi ai preferiti</string>
     <string name="exo_controls_heart_on_description">Rimuovi dai preferiti</string>
-    <string name="cast_expanded_controller_loading">Caricamento…</string>
+    <string name="exo_controls_heart_loading_description">Caricamento…</string>
     <string name="label_placeholder" translatable="false">--</string>
     <string name="login_empty">Nessun server aggiunto</string>
     <string name="login_title">Server Subsonic</string>

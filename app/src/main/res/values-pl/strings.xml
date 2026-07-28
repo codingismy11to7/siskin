@@ -9,7 +9,7 @@
     <string name="error_server_prefix">wymagany jest prefiks http lub https</string>
     <string name="exo_controls_heart_off_description">Wyłącz serce</string>
     <string name="exo_controls_heart_on_description">Włącz serce</string>
-    <string name="cast_expanded_controller_loading">Ładowanie…</string>
+    <string name="exo_controls_heart_loading_description">Ładowanie…</string>
     <string name="label_placeholder" translatable="false">--</string>
     <string name="login_empty">Brak dodanych serwerów</string>
     <string name="login_title">Serwery Subsonic</string>

@@ -11,7 +11,7 @@
     <string name="error_server_prefix">El prefix «http» o «https» és obligatori</string>
     <string name="exo_controls_heart_off_description">Treu el cor</string>
     <string name="exo_controls_heart_on_description">Posa un cor</string>
-    <string name="cast_expanded_controller_loading">S\'està carregant...</string>
+    <string name="exo_controls_heart_loading_description">S\'està carregant...</string>
     <string name="label_placeholder" translatable="false">--</string>
     <string name="login_empty">No s\'ha afegit cap servidor</string>
     <string name="login_title">Servidors del Subsonic</string>

@@ -4,7 +4,7 @@
     <string name="error_required">Obligatorio</string>
     <string name="error_server_prefix">Se necesita un prefijo http o https</string>
     <string name="exo_controls_heart_on_description">Añadir a favoritos</string>
-    <string name="cast_expanded_controller_loading">Cargando…</string>
+    <string name="exo_controls_heart_loading_description">Cargando…</string>
     <string name="login_empty">No has añadido ningún servidor</string>
     <string name="login_title">Servidores de Subsonic</string>
     <string name="login_title_expanded">Servidores de Subsonic</string>

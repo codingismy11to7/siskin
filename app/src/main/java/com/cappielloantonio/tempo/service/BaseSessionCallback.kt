@@ -98,7 +98,7 @@ open class BaseSessionCallback(
     @Suppress("DEPRECATION")
     private val customCommandToggleHeartLoading =
         CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-            .setDisplayName(context.getString(R.string.cast_expanded_controller_loading))
+            .setDisplayName(context.getString(R.string.exo_controls_heart_loading_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_HEART_LOADING, Bundle.EMPTY))
             .setIconResId(R.drawable.ic_bookmark_sync)
             .setSlots(CommandButton.SLOT_OVERFLOW)

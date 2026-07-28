@@ -44,10 +44,12 @@ Quick/My/Discovery Mix, Starred (bundle, tracks, albums, artists), Tracks, Rando
 Recent Tracks, Genres, Folders, Podcasts, Radio, Downloaded.
 
 Surviving `ConstantsAA` ids: `ROOT_ID`, `PLAYLIST_ID`, `ARTISTS_ID`, `ALBUMS_ID`,
-`ALBUM_ID`, `ARTIST_ID`, plus `JUMP_TO_ALBUMS_ID`, `JUMP_TO_ARTISTS_ID` and
-`ARTISTS_BY_ALBUMS_ID` — the in-list navigation shortcuts `AutomotiveRepository`
-injects at lines 239, 439 and 496, which still make sense with albums and artists
-present. `JUMP_TO_STARRED_*` die with starred.
+`ALBUM_ID`, `ARTIST_ID`, plus `ARTISTS_BY_ALBUMS_ID` — the in-list navigation
+shortcut `AutomotiveRepository` injects at line 207, which still makes sense with
+albums and artists present. `JUMP_TO_ALBUMS_ID` and `JUMP_TO_ARTISTS_ID` die with
+starred: their only producers, `getStarredAlbums`/`getStarredArtists`, are gone, so
+nothing could ever reach those ids. `JUMP_TO_STARRED_*` dies with starred for the
+same reason.
 
 Search is untouched. The car path is `MediaLibraryServiceCallback.onSearch` /
 `onGetSearchResult` → `MediaBrowserTree.search()` → `AutomotiveRepository.search()`,
@@ -138,7 +140,7 @@ rather than requiring the restart target to be repointed at `CarSignInActivity`.
 
 ## The keep-list
 
-Kept in full: `plex/`, `equalizer/`, `glide/`, `provider/`, `broadcast/`. Kept with
+Kept in full: `plex/`, `equalizer/`, `glide/`, `provider/`. Kept with
 edits: `App.java` and `service/` — the latter loses `DownloaderService`,
 `DownloaderManager` and the Cast player, and has `MediaBrowserTree` rewritten.
 
@@ -149,7 +151,7 @@ package wholesale.
 |---|---|
 | `CarSignInActivity`, `LoginFragment` | the only screen; sign-in |
 | `ServerAdapter` (`ui/adapter`), `ServerSignupDialog` (`ui/dialog`) | `LoginFragment` depends on both |
-| `LoginViewModel`, `PlaybackViewModel` | the first for sign-in, the second imported by `MediaManager` |
+| `LoginViewModel` | for sign-in |
 | `LoginHost`, `ClickCallback`, `SystemCallback` (`interfaces/`) | `LoginFragment` implements against them |
 | `ThemeHelper` (`helper/`) | `CarSignInActivity.onCreate` calls it |
 | Glide (`glide/`, dependency) | `SyncBitmapLoader` and `AlbumArtContentProvider` render media-session artwork |
@@ -190,8 +192,8 @@ dead-code removal — if browse breaks afterwards, a deletion went too far.
 files but `LoginFragment`, all 35 adapters but `ServerAdapter`, all 22 dialogs but
 `ServerSignupDialog`, the crash UI, `navigation/` (536 lines, entirely phone
 chrome), the seven files in `helper/recyclerview/`, `AssetLinkUtil` /
-`AssetLinkNavigator`, `radiobrowser/`, and every viewmodel but `LoginViewModel` and
-`PlaybackViewModel`. The manifest loses `MainActivity`, its `tempo://asset`
+`AssetLinkNavigator`, `radiobrowser/`, and every viewmodel but `LoginViewModel`. The
+manifest loses `MainActivity`, its `tempo://asset`
 intent-filter, `CrashActivity` and the `:error_activity` process. Layouts and menus
 go with their owners.
 
@@ -221,7 +223,7 @@ read and delete `global_preferences.xml`. Apply the Room reduction and version b
 
 **Phase 5 — Resources.** 123 layouts across `layout/`, `layout-land/`,
 `layout-sw600dp/` and `layout-sw600dp-land/` down to the sign-in handful; 23 menus
-to none; `arrays.xml` and the string catalogue across seven locales; the `drawable/`
+to none; `arrays.xml` and the string catalogue across 14 locales; the `drawable/`
 set (604K). `font/` is 2.6M — the largest single thing in `res/` — and is audited
 here.
 
