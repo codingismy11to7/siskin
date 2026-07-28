@@ -36,7 +36,7 @@ class PlexMixRepository {
     private val token: String? get() = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken)
 
     fun similarTracks(ratingKey: String, count: Int, callback: TracksCallback) {
-        enqueue(libraryClient.getSimilar(ratingKey, count), callback)
+        enqueue(libraryClient.getNearest(ratingKey, count), callback)
     }
 
     fun randomTracks(count: Int, callback: TracksCallback) {

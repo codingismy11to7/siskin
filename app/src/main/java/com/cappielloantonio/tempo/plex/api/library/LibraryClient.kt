@@ -39,9 +39,9 @@ class LibraryClient(api: PlexApi) {
     suspend fun getChildren(ratingKey: String, start: Int, size: Int): PlexResponse =
         service.getChildren(ratingKey, start, size)
 
-    suspend fun getSimilar(ratingKey: String, limit: Int): PlexResponse {
-        Log.d(TAG, "getSimilar($ratingKey, limit=$limit)")
-        return service.getSimilar(ratingKey, limit)
+    suspend fun getNearest(ratingKey: String, limit: Int): PlexResponse {
+        Log.d(TAG, "getNearest($ratingKey, limit=$limit)")
+        return service.getNearest(ratingKey, limit)
     }
 
     suspend fun getMetadata(ratingKey: String): PlexResponse = service.getMetadata(ratingKey)
@@ -52,7 +52,13 @@ class LibraryClient(api: PlexApi) {
         /** Plex reports a music library section's type as "artist". */
         private const val MUSIC_SECTION_TYPE = "artist"
 
-        /** Sorts an album listing by artist, for the "view by albums" tab. */
+        /**
+         * Sorts an album listing by artist, for the "view by albums" tab.
+         *
+         * Verified against a live PMS 1.43.3 server: `artist.titleSort` returns
+         * albums ordered by artist, where plain `titleSort` (see [SORT_TITLE])
+         * orders by album title instead.
+         */
         const val SORT_ARTIST = "artist.titleSort"
 
         /**

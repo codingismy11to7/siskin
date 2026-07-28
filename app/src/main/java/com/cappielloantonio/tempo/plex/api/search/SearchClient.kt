@@ -57,9 +57,18 @@ class SearchClient(api: PlexApi) {
         const val STATE_PAUSED = "paused"
         const val STATE_STOPPED = "stopped"
 
-        /** Plex's 0-10 scale: 10 is five stars. */
+        /**
+         * Plex's 0-10 scale: 10 is five stars.
+         *
+         * Verified against a live PMS 1.43.3 server: `rating=10` sets
+         * `userRating` to `10.0`. `rating=0` was tried as the "cleared" value
+         * and does **not** clear it -- it sets `userRating` to `0.0`, a real
+         * zero-star rating, which is not the same as absent. `rating=-1` is
+         * what actually clears `userRating` back to null/absent, which is why
+         * it is used here rather than the more obvious `0`.
+         */
         const val RATING_HEARTED = 10
-        const val RATING_CLEARED = 0
+        const val RATING_CLEARED = -1
 
         private val PLAYABLE_TYPES = setOf("track", "album", "artist")
 

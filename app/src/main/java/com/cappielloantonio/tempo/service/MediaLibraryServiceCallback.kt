@@ -186,10 +186,11 @@ class MediaLibrarySessionCallback(
             futureQueue,
             { resolvedItems ->
                 if (!resolvedItems.isNullOrEmpty()) {
-                    val resolvedItemsUntagged = resolvedItems.map { detagForQueue(it) }
-                    if (resolvedItemsUntagged.isNotEmpty()) {
-                        QueueRepository().insertAll(resolvedItemsUntagged, true, 0)
-                    }
+                    // No detagging needed here: Queue.fromMediaItem reads its fields
+                    // through PlexMediaMapper.readTrackFields, which never reads
+                    // EXTRA_PARENT_ID, and the `queue` table has no parent_id column.
+                    // A left-over parent tag on a queued item is inert.
+                    QueueRepository().insertAll(resolvedItems, true, 0)
                 }
                 MediaSession.MediaItemsWithStartPosition(
                     resolvedItems ?: emptyList(),
@@ -199,18 +200,6 @@ class MediaLibrarySessionCallback(
             },
             MoreExecutors.directExecutor()
         )
-    }
-
-    private fun detagForQueue(item: MediaItem): MediaItem {
-        val extras = item.mediaMetadata.extras?.let { Bundle(it) } ?: Bundle()
-        extras.remove(PlexMediaMapper.EXTRA_PARENT_ID)
-        return item.buildUpon()
-            .setMediaMetadata(
-                item.mediaMetadata.buildUpon()
-                    .setExtras(extras)
-                    .build()
-            )
-            .build()
     }
 
     override fun onAddMediaItems(

@@ -51,13 +51,24 @@ interface LibraryService {
     ): PlexResponse
 
     /**
-     * Tracks Plex considers similar to this one. Depends on Plex Pass sonic
-     * analysis: without it the server answers with an empty container rather
-     * than an error, which is why the caller treats "no results" as an ordinary
-     * outcome and falls back to random.
+     * Tracks Plex considers similar to this one.
+     *
+     * Verified against PMS 1.43.3: `library/metadata/{id}/similar` -- the name
+     * used by Plex's own web UI networking calls -- 404s. This path,
+     * `.../nearest`, is the one that actually answers: 200 with real sonic
+     * matches on a library that has been analyzed, and 200 with an *empty*
+     * container (never an error) on one that has not. That is why the caller
+     * treats "no results" as an ordinary outcome and falls back to random,
+     * rather than treating it as a failure.
+     *
+     * Whether a library has been analyzed is not exposed as a section-level
+     * flag; the detectable signal is per-track: a `Metadata` carries a
+     * `musicAnalysisVersion` field once its library has run sonic analysis,
+     * and omits it otherwise. That took live probing to find and is recorded
+     * here rather than assumed.
      */
-    @GET("library/metadata/{id}/similar")
-    suspend fun getSimilar(
+    @GET("library/metadata/{id}/nearest")
+    suspend fun getNearest(
         @Path("id") ratingKey: String,
         @Query("limit") limit: Int
     ): PlexResponse

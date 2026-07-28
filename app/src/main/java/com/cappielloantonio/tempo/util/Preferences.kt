@@ -50,7 +50,6 @@ object Preferences {
     private const val NETWORK_PING_TIMEOUT = "network_ping_timeout_base"
     
     private const val DARK_THEME_STYLE = "dark_theme_style"
-    private const val AA_SHUFFLE_PLAYLISTS = "androidauto_shuffle_playlists"
 
 	@JvmStatic
     fun getServer(): String? {
@@ -308,9 +307,17 @@ object Preferences {
         return App.getInstance().preferences.getInt(NUMBER_TRACKS_KEEP_IN_QUEUE, 30) - 1
     }
 
+    /**
+     * Defaults to true. There is no settings screen to turn this on -- the
+     * three-tab sweep removed the settings surface -- so leaving the old
+     * `false` default meant continuous play could never fall back to random
+     * tracks on a library without sonic analysis, silently doing nothing once
+     * the similar-tracks tier ran dry. The preference itself is kept for a
+     * future settings surface; only the default flips.
+     */
     @JvmStatic
     fun isFallbackToRandomTracksEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(FALLBACK_TO_RANDOM_TRACKS, false)
+        return App.getInstance().preferences.getBoolean(FALLBACK_TO_RANDOM_TRACKS, true)
     }
     @JvmStatic
     fun setLastInstantMix() {
@@ -341,10 +348,6 @@ object Preferences {
         val parts = str.split(",")
         if (parts.size < bandCount) return ShortArray(bandCount.toInt())
         return ShortArray(bandCount.toInt()) { i -> parts[i].toShortOrNull() ?: 0 }
-    }
-    @JvmStatic
-    fun isAndroidAutoShufflePlaylistsEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(AA_SHUFFLE_PLAYLISTS, false)
     }
     @JvmStatic
     fun getTheme(): String {
