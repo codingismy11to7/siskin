@@ -7,17 +7,12 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
 import androidx.media3.common.util.UnstableApi;
-import androidx.preference.PreferenceManager;
 
 import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.subsonic.Subsonic;
 import com.cappielloantonio.tempo.subsonic.SubsonicPreferences;
-import com.cappielloantonio.tempo.ui.activity.CrashActivity;
-import com.cappielloantonio.tempo.ui.activity.MainActivity;
 import com.cappielloantonio.tempo.util.ClientCertManager;
 import com.cappielloantonio.tempo.util.Preferences;
-
-import cat.ereza.customactivityoncrash.config.CaocConfig;
 
 public class App extends Application {
     private static App instance;
@@ -30,33 +25,13 @@ public class App extends Application {
     public void onCreate() {
         super.onCreate();
 
-        // Capture crash logs
-        CaocConfig.Builder.create()
-                .backgroundMode(CaocConfig.BACKGROUND_MODE_SHOW_CUSTOM) //default: CaocConfig.BACKGROUND_MODE_SHOW_CUSTOM
-                .enabled(true) //default: true
-                .showErrorDetails(true) //default: true
-                .showRestartButton(true) //default: true
-                .logErrorOnRestart(true) //default: true
-                .trackActivities(false) //default: false
-                .minTimeBetweenCrashesMs(3000) //default: 3000
-                .errorDrawable(R.drawable.ui_crash) //default: bug image
-                // Named explicitly rather than left null. The null default resolves
-                // through PackageManager.getLaunchIntentForPackage(), which returns
-                // null now that no activity declares LAUNCHER -- the Restart button
-                // would silently stop restarting anything.
-                .restartActivity(MainActivity.class)
-                .errorActivity(CrashActivity.class) //default: null (default error activity)
-                .eventListener(null) //default: null
-                .customCrashDataCollector(null) //default: null
-                .apply();
-
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        SharedPreferences sharedPreferences = getApplicationContext().getSharedPreferences(getApplicationContext().getPackageName() + "_preferences", Context.MODE_PRIVATE);
         String themePref = sharedPreferences.getString(Preferences.THEME, ThemeHelper.DEFAULT_MODE);
         ThemeHelper.applyTheme(themePref);
 
         instance = new App();
         context = getApplicationContext();
-        preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        preferences = context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
 
         ClientCertManager.setupSslSocketFactory(context);
     }
@@ -84,58 +59,12 @@ public class App extends Application {
         return subsonic;
     }
     
-    public static Subsonic getSubsonicPublicClientInstance(boolean override) {
-
-        /*
-        If I do the shortcut that the IDE suggests:
-            SubsonicPreferences preferences = getSubsonicPreferences1();
-        During the chain of calls it will run the following:
-            String server = Preferences.getInUseServerAddress();
-        Which could return Local URL, causing issues like generating public shares with Local URL
-
-        To prevent this I just replicated the entire chain of functions here,
-        if you need a call to Subsonic using the Server (Public) URL use this function.
-         */
-
-        String server = Preferences.getServer();
-        String username = Preferences.getUser();
-        String password = Preferences.getPassword();
-        String token = Preferences.getToken();
-        String salt = Preferences.getSalt();
-        boolean isLowSecurity = Preferences.isLowScurity();
-
-        SubsonicPreferences preferences = new SubsonicPreferences();
-        preferences.setServerUrl(server);
-        preferences.setUsername(username);
-        preferences.setAuthentication(password, token, salt, isLowSecurity);
-
-        if (subsonic == null || override) {
-            
-            if (preferences.getAuthentication() != null) {
-                if (preferences.getAuthentication().getPassword() != null)
-                    Preferences.setPassword(preferences.getAuthentication().getPassword());
-                if (preferences.getAuthentication().getToken() != null)
-                    Preferences.setToken(preferences.getAuthentication().getToken());
-                if (preferences.getAuthentication().getSalt() != null)
-                    Preferences.setSalt(preferences.getAuthentication().getSalt());
-            }
-
-            
-        }
-        
-        return new Subsonic(preferences);
-    }
-
     public SharedPreferences getPreferences() {
         if (preferences == null) {
-            preferences = PreferenceManager.getDefaultSharedPreferences(context);
+            preferences = context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
         }
 
         return preferences;
-    }
-
-    public static void refreshSubsonicClient() {
-        subsonic = getSubsonicClient();
     }
 
     private static Subsonic getSubsonicClient() {

@@ -72,12 +72,6 @@
         <item name="floatingActionButtonStyle">@style/FloatingActionButtonStyle</item>
     </style>
 
-    <style name="Divider">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">0.5dp</item>
-        <item name="android:background">@color/dividerColor</item>
-    </style>
-
     <style name="FloatingActionButtonStyle" parent="Widget.MaterialComponents.FloatingActionButton">
         <item name="backgroundTint">?attr/colorSecondary</item>
         <item name="tint">?attr/colorOnPrimary</item>
@@ -91,11 +85,6 @@
         <item name="cornerFamilyTopRight">rounded</item>
         <item name="cornerFamilyBottomLeft">rounded</item>
         <item name="cornerFamilyBottomRight">rounded</item>
-    </style>
-
-    <style name="NoConnectionTextView">
-        <item name="background">?attr/colorErrorContainer</item>
-        <item name="android:textColor">?attr/colorOnErrorContainer</item>
     </style>
 
     <style name="ThemeOverlay.App.Amoled" parent="">

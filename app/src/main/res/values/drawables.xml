@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Toolbar and nav-drawer header render the same badge as the splash screen.
-         Aliased rather than duplicated so the mark has one source of truth.
-         The ic_toolbar_tempo name is retained because four layouts reference it. -->
-    <item name="ic_toolbar_tempo" type="drawable">@drawable/ic_splash_logo</item>
-</resources>

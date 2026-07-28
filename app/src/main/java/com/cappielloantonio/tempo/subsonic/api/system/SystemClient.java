@@ -36,14 +36,4 @@ public class SystemClient {
         }
         return pingCall;
     }
-
-    public Call<ApiResponse> getLicense() {
-        Log.d(TAG, "getLicense()");
-        return systemService.getLicense(subsonic.getParams());
-    }
-
-    public Call<ApiResponse> getOpenSubsonicExtensions() {
-        Log.d(TAG, "getOpenSubsonicExtensions()");
-        return systemService.getOpenSubsonicExtensions(subsonic.getParams());
-    }
 }

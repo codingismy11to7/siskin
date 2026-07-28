@@ -1,6 +1,5 @@
 package com.cappielloantonio.tempo.service
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
@@ -43,7 +42,6 @@ open class BaseSessionCallback(
     // CommandButtons
     // ─────────────────────────────────────────────────────────────
 
-    @SuppressLint("PrivateResource")
     private val customCommandToggleShuffleModeOn =
         CommandButton.Builder(CommandButton.ICON_SHUFFLE_OFF)
             .setDisplayName(context.getString(R.string.exo_controls_shuffle_on_description))
@@ -51,7 +49,6 @@ open class BaseSessionCallback(
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
-    @SuppressLint("PrivateResource")
     private val customCommandToggleShuffleModeOff =
         CommandButton.Builder(CommandButton.ICON_SHUFFLE_ON)
             .setDisplayName(context.getString(R.string.exo_controls_shuffle_off_description))
@@ -59,7 +56,6 @@ open class BaseSessionCallback(
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
-    @SuppressLint("PrivateResource")
     private val customCommandToggleRepeatModeOff =
         CommandButton.Builder(CommandButton.ICON_REPEAT_OFF)
             .setDisplayName(context.getString(R.string.exo_controls_repeat_off_description))
@@ -67,7 +63,6 @@ open class BaseSessionCallback(
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
-    @SuppressLint("PrivateResource")
     private val customCommandToggleRepeatModeOne =
         CommandButton.Builder(CommandButton.ICON_REPEAT_ONE)
             .setDisplayName(context.getString(R.string.exo_controls_repeat_one_description))
@@ -75,7 +70,6 @@ open class BaseSessionCallback(
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
-    @SuppressLint("PrivateResource")
     private val customCommandToggleRepeatModeAll =
         CommandButton.Builder(CommandButton.ICON_REPEAT_ALL)
             .setDisplayName(context.getString(R.string.exo_controls_repeat_all_description))
@@ -104,7 +98,7 @@ open class BaseSessionCallback(
     @Suppress("DEPRECATION")
     private val customCommandToggleHeartLoading =
         CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-            .setDisplayName(context.getString(R.string.cast_expanded_controller_loading))
+            .setDisplayName(context.getString(R.string.exo_controls_heart_loading_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_HEART_LOADING, Bundle.EMPTY))
             .setIconResId(R.drawable.ic_bookmark_sync)
             .setSlots(CommandButton.SLOT_OVERFLOW)
@@ -182,7 +176,7 @@ open class BaseSessionCallback(
     private var currentSession: MediaSession? = null
 
     /**
-     * Updates the player listener when the player changes (e.g., when switching to Cast).
+     * Updates the player listener when the session's player changes.
      */
     fun handlePlayerChanged(oldPlayer: Player?, newPlayer: Player) {
         oldPlayer?.removeListener(playerListener)

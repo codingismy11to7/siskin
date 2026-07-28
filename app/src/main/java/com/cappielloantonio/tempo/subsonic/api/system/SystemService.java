@@ -12,9 +12,6 @@ public interface SystemService {
     @GET("ping")
     Call<ApiResponse> ping(@QueryMap Map<String, String> params);
 
-    @GET("getLicense")
-    Call<ApiResponse> getLicense(@QueryMap Map<String, String> params);
-
     @GET("getOpenSubsonicExtensions")
     Call<ApiResponse> getOpenSubsonicExtensions(@QueryMap Map<String, String> params);
 }

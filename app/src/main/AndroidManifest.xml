@@ -3,11 +3,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- Siskin exists to run natively on Android Automotive OS head units, not on
          phones. Declaring the feature as required states that plainly and lets the
@@ -34,40 +32,8 @@
             android:resource="@xml/auto_app_desc" />
 
         <meta-data
-            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="androidx.media3.cast.DefaultCastOptionsProvider" />
-
-        <meta-data
             android:name="androidx.car.app.TintableAttributionIcon"
             android:resource="@drawable/ic_graphic_eq" />
-
-        <activity
-            android:name=".ui.activity.MainActivity"
-            android:exported="true"
-            android:windowSoftInputMode="adjustPan|adjustResize">
-
-            <!-- No MAIN/LAUNCHER filter, deliberately. A head unit would otherwise
-                 list Siskin twice: once as a media source and once as a phone-UI
-                 app. The activity stays exported and launchable by explicit intent,
-                 which is how the media session's setSessionActivity reaches it
-                 (BaseMediaService.initializeMediaLibrarySession) and how the crash
-                 handler restarts the app (App.java). Only the launcher listing is
-                 gone. -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data
-                    android:host="asset"
-                    android:scheme="tempo" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".ui.activity.CrashActivity"
-            android:label="@string/ca_info_title"
-            android:process=":error_activity" />
 
         <!-- Android Automotive OS sign-in. Reached only through the resolution
              PendingIntent on the browse error, so it is not exported and has no
@@ -78,14 +44,15 @@
              distraction-optimized in a compliant way. Its absence makes the
              platform block this screen while the car is moving.
 
-             taskAffinity is its own task, separate from MainActivity's (both
-             would otherwise default to the applicationId affinity and share
-             one task). CarSignInResolution's PendingIntent launches this
-             activity with NEW_TASK|CLEAR_TASK, and CLEAR_TASK clears whatever
-             task shares this activity's affinity. Without a distinct
-             affinity here, tapping "Sign in" would finish MainActivity (and
-             everything above it) instead of only clearing this activity's
-             own task: silently destructive if removed. -->
+             taskAffinity gives this activity its own task, separate from the
+             applicationId default any other activity would share.
+             CarSignInResolution's PendingIntent launches this activity with
+             NEW_TASK|CLEAR_TASK, and CLEAR_TASK clears whatever task shares
+             this activity's affinity. CarSignInActivity is the app's only
+             activity, so nothing else occupies that default task today, but
+             the distinct affinity is what keeps CLEAR_TASK scoped to just
+             this activity's own task rather than relying on that staying
+             true. -->
         <activity
             android:name=".ui.activity.CarSignInActivity"
             android:exported="false"
@@ -113,16 +80,6 @@
                 <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="android.media.browse.MediaBrowserService"/>
                 <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH"/>
-            </intent-filter>
-        </service>
-
-        <service
-            android:name=".service.DownloaderService"
-            android:exported="true"
-            android:foregroundServiceType="dataSync">
-            <intent-filter>
-                <action android:name="androidx.media3.exoplayer.downloadService.action.RESTART" />
-                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </service>
 

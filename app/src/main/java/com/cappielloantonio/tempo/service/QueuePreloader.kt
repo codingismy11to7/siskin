@@ -10,7 +10,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.cache.CacheWriter
 import androidx.media3.datasource.cache.ContentMetadata
-import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DownloadUtil
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheKeyFactory
@@ -23,9 +22,10 @@ import java.util.concurrent.atomic.AtomicInteger
  * player reads through the same cache with the same keys, so anything written
  * here is picked up transparently.
  *
- * Runs only when the user enabled it (settings > data), never for radio
- * streams or already-downloaded tracks, and by default only on unmetered
- * networks.
+ * Disabled by default and permanently off in practice: there is no settings
+ * screen to change PRECACHE_TRACKS_COUNT from its "0" default. Never runs for
+ * radio streams or already-downloaded tracks, and by default only on
+ * unmetered networks.
  */
 @UnstableApi
 object QueuePreloader {
@@ -110,11 +110,6 @@ object QueuePreloader {
             if (index == C.INDEX_UNSET || index == currentIndex) break
 
             val mediaItem = player.getMediaItemAt(index)
-
-            val type = mediaItem.mediaMetadata.extras?.getString("type")
-            if (type == Constants.MEDIA_TYPE_RADIO || mediaItem.mediaId.startsWith("ir-")) continue
-
-            if (DownloadUtil.getDownloadTracker(context).isDownloaded(mediaItem.mediaId)) continue
 
             val uri = mediaItem.localConfiguration?.uri
                 ?: mediaItem.requestMetadata.mediaUri

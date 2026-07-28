@@ -117,7 +117,7 @@ class BaseSessionCallbackTest {
             callback.onConnect(session, controller)
             verify(oldPlayer, times(1)).addListener(any())
             
-            // 2. Player changes (e.g. switch to Cast)
+            // 2. Session's player changes
             callback.handlePlayerChanged(oldPlayer, newPlayer)
             
             // Should move the listener

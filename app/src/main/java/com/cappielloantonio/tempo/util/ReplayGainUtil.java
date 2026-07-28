@@ -76,11 +76,6 @@ public class ReplayGainUtil {
 
             if (item.mediaId == null || item.localConfiguration == null) continue;
 
-            String mediaType = item.mediaMetadata.extras != null
-                    ? item.mediaMetadata.extras.getString("type") : null;
-            if (Constants.MEDIA_TYPE_RADIO.equals(mediaType)) continue;
-            if (item.mediaId.startsWith("ir-")) continue;
-
             // If the server-provided RG is already on the MediaItem, stash it
             // and skip the expensive MetadataRetriever network roundtrip.
             ReplayGainInfo serverInfo = extractServerInfo(item);

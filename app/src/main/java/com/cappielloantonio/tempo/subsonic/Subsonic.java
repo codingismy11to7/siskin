@@ -1,17 +1,10 @@
 package com.cappielloantonio.tempo.subsonic;
 
 import com.cappielloantonio.tempo.subsonic.api.albumsonglist.AlbumSongListClient;
-import com.cappielloantonio.tempo.subsonic.api.bookmarks.BookmarksClient;
 import com.cappielloantonio.tempo.subsonic.api.browsing.BrowsingClient;
-import com.cappielloantonio.tempo.subsonic.api.internetradio.InternetRadioClient;
 import com.cappielloantonio.tempo.subsonic.api.mediaannotation.MediaAnnotationClient;
-import com.cappielloantonio.tempo.subsonic.api.medialibraryscanning.MediaLibraryScanningClient;
-import com.cappielloantonio.tempo.subsonic.api.mediaretrieval.MediaRetrievalClient;
-import com.cappielloantonio.tempo.subsonic.api.open.OpenClient;
 import com.cappielloantonio.tempo.subsonic.api.playlist.PlaylistClient;
-import com.cappielloantonio.tempo.subsonic.api.podcast.PodcastClient;
 import com.cappielloantonio.tempo.subsonic.api.searching.SearchingClient;
-import com.cappielloantonio.tempo.subsonic.api.sharing.SharingClient;
 import com.cappielloantonio.tempo.subsonic.api.system.SystemClient;
 import com.cappielloantonio.tempo.subsonic.base.Version;
 
@@ -26,17 +19,10 @@ public class Subsonic {
 
     private SystemClient systemClient;
     private BrowsingClient browsingClient;
-    private MediaRetrievalClient mediaRetrievalClient;
     private PlaylistClient playlistClient;
     private SearchingClient searchingClient;
     private AlbumSongListClient albumSongListClient;
     private MediaAnnotationClient mediaAnnotationClient;
-    private PodcastClient podcastClient;
-    private MediaLibraryScanningClient mediaLibraryScanningClient;
-    private BookmarksClient bookmarksClient;
-    private InternetRadioClient internetRadioClient;
-    private SharingClient sharingClient;
-    private OpenClient openClient;
 
     public Subsonic(SubsonicPreferences preferences) {
         this.preferences = preferences;
@@ -58,13 +44,6 @@ public class Subsonic {
             browsingClient = new BrowsingClient(this);
         }
         return browsingClient;
-    }
-
-    public MediaRetrievalClient getMediaRetrievalClient() {
-        if (mediaRetrievalClient == null) {
-            mediaRetrievalClient = new MediaRetrievalClient(this);
-        }
-        return mediaRetrievalClient;
     }
 
     public PlaylistClient getPlaylistClient() {
@@ -93,48 +72,6 @@ public class Subsonic {
             mediaAnnotationClient = new MediaAnnotationClient(this);
         }
         return mediaAnnotationClient;
-    }
-
-    public PodcastClient getPodcastClient() {
-        if (podcastClient == null) {
-            podcastClient = new PodcastClient(this);
-        }
-        return podcastClient;
-    }
-
-    public MediaLibraryScanningClient getMediaLibraryScanningClient() {
-        if (mediaLibraryScanningClient == null) {
-            mediaLibraryScanningClient = new MediaLibraryScanningClient(this);
-        }
-        return mediaLibraryScanningClient;
-    }
-
-    public BookmarksClient getBookmarksClient() {
-        if (bookmarksClient == null) {
-            bookmarksClient = new BookmarksClient(this);
-        }
-        return bookmarksClient;
-    }
-
-    public InternetRadioClient getInternetRadioClient() {
-        if (internetRadioClient == null) {
-            internetRadioClient = new InternetRadioClient(this);
-        }
-        return internetRadioClient;
-    }
-
-    public SharingClient getSharingClient() {
-        if (sharingClient == null) {
-            sharingClient = new SharingClient(this);
-        }
-        return sharingClient;
-    }
-
-    public OpenClient getOpenClient() {
-        if (openClient == null) {
-            openClient = new OpenClient(this);
-        }
-        return openClient;
     }
 
     public String getUrl() {

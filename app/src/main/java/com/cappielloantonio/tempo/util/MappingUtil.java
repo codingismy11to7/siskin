@@ -1,34 +1,23 @@
 package com.cappielloantonio.tempo.util;
 
-import android.content.ContentResolver;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.Base64;
 
 import androidx.annotation.OptIn;
-import androidx.lifecycle.LifecycleOwner;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.MimeTypes;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.HeartRating;
 
-import com.cappielloantonio.tempo.App;
-import com.cappielloantonio.tempo.glide.CustomGlideRequest;
-import com.cappielloantonio.tempo.model.Download;
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider;
-import com.cappielloantonio.tempo.repository.DownloadRepository;
 import com.cappielloantonio.tempo.subsonic.models.Child;
-import com.cappielloantonio.tempo.subsonic.models.InternetRadioStation;
-import com.cappielloantonio.tempo.subsonic.models.PodcastEpisode;
 import com.google.common.collect.ImmutableList;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.nio.charset.StandardCharsets;
 
 @OptIn(markerClass = UnstableApi.class)
 public class MappingUtil {
@@ -107,13 +96,6 @@ public class MappingUtil {
             // can apply gain synchronously at track transitions without a
             // MetadataRetriever round-trip.
             ReplayGainBundleUtil.writeToBundle(bundle, media.getReplayGain());
-            
-            bundle.putString("assetLinkSong", media.getId() != null ? AssetLinkUtil.buildLink(AssetLinkUtil.TYPE_SONG, media.getId()) : null);
-            bundle.putString("assetLinkAlbum", media.getAlbumId() != null ? AssetLinkUtil.buildLink(AssetLinkUtil.TYPE_ALBUM, media.getAlbumId()) : null);
-            bundle.putString("assetLinkArtist", media.getArtistId() != null ? AssetLinkUtil.buildLink(AssetLinkUtil.TYPE_ARTIST, media.getArtistId()) : null);
-            bundle.putString("assetLinkGenre", AssetLinkUtil.buildLink(AssetLinkUtil.TYPE_GENRE, media.getGenre()));
-            Integer year = media.getYear();
-            bundle.putString("assetLinkYear", year != null && year != 0 ? AssetLinkUtil.buildLink(AssetLinkUtil.TYPE_YEAR, String.valueOf(year)) : null);
 
             return new MediaItem.Builder()
                     .setMediaId(media.getId())
@@ -161,13 +143,6 @@ public class MappingUtil {
     }
 
     public static MediaItem mapMediaItem(MediaItem old) {
-        String mediaId = null;
-        if (old.requestMetadata.extras != null)
-            mediaId = old.requestMetadata.extras.getString("id");
-
-        if (mediaId != null && DownloadUtil.getDownloadTracker(App.getContext()).isDownloaded(mediaId)) {
-            return old;
-        }
         Uri uri = old.requestMetadata.mediaUri == null ? null : MusicUtil.updateStreamUri(old.requestMetadata.mediaUri);
         return new MediaItem.Builder()
                 .setMediaId(old.mediaId)
@@ -215,169 +190,6 @@ public class MappingUtil {
                 .setMediaMetadata(metadata)
                 .setRequestMetadata(requestMetadata)
                 .build();
-    }
-
-    public static List<MediaItem> mapDownloads(List<Child> items) {
-        ArrayList<MediaItem> downloads = new ArrayList<>();
-
-        for (int i = 0; i < items.size(); i++) {
-            downloads.add(mapDownload(items.get(i)));
-        }
-
-        return downloads;
-    }
-
-    public static MediaItem mapDownload(Child media) {
-
-        Bundle bundle = new Bundle();
-        bundle.putInt("samplingRate", media.getSamplingRate() != null ? media.getSamplingRate() : 0);
-        bundle.putInt("bitDepth", media.getBitDepth() != null ? media.getBitDepth() : 0);
-
-        return new MediaItem.Builder()
-                .setMediaId(media.getId())
-                .setMediaMetadata(
-                        new MediaMetadata.Builder()
-                                .setTitle(media.getTitle())
-                                .setTrackNumber(media.getTrack() != null ? media.getTrack() : 0)
-                                .setDiscNumber(media.getDiscNumber() != null ? media.getDiscNumber() : 0)
-                                .setReleaseYear(media.getYear() != null ? media.getYear() : 0)
-                                .setAlbumTitle(media.getAlbum())
-                                .setArtist(media.getArtist())
-                                .setExtras(bundle)
-                                .setIsBrowsable(false)
-                                .setIsPlayable(true)
-                                .build()
-                )
-                .setRequestMetadata(
-                        new MediaItem.RequestMetadata.Builder()
-                                .setExtras(bundle)
-                                .setMediaUri(Preferences.preferTranscodedDownload() ? MusicUtil.getTranscodedDownloadUri(media.getId()) : MusicUtil.getDownloadUri(media.getId()))
-                                .build()
-                )
-                .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
-                .setUri(Preferences.preferTranscodedDownload() ? MusicUtil.getTranscodedDownloadUri(media.getId()) : MusicUtil.getDownloadUri(media.getId()))
-                .build();
-    }
-
-    public static MediaItem mapInternetRadioStation(InternetRadioStation internetRadioStation) {
-        Uri uri = Uri.parse(internetRadioStation.getStreamUrl());
-        Uri artworkUri = null;
-        String coverArtId = null;
-
-        if (internetRadioStation.getId() != null) {
-            File localCover = RadioCoverArtDownloader.getLocalCoverFile(internetRadioStation.getId());
-            if (localCover.exists()) {
-                // Serve via the content provider (not a file:// uri into app-private storage) so
-                // cross-process consumers (SystemUI media controls, Android Auto) can read it.
-                // The ?v=<mtime> busts caches when the cover is edited. coverArtId stays null on
-                // purpose: it drives server getCoverArt loads (e.g. the widget), and a local cover
-                // has no server id — the artworkUri above already carries it.
-                String localCoverId = "rl_" + internetRadioStation.getId();
-                artworkUri = AlbumArtContentProvider.contentUri(localCoverId).buildUpon()
-                        .appendQueryParameter("v", String.valueOf(localCover.lastModified()))
-                        .build();
-            }
-        }
-
-        if (artworkUri == null && internetRadioStation.getCoverArt() != null && !internetRadioStation.getCoverArt().isEmpty()) {
-            coverArtId = internetRadioStation.getCoverArt();
-            artworkUri = AlbumArtContentProvider.contentUri(coverArtId);
-        }
-
-        if (artworkUri == null) {
-            String homePageUrl = internetRadioStation.getHomePageUrl();
-            if (homePageUrl != null && !homePageUrl.isEmpty() && MusicUtil.isImageUrl(homePageUrl)) {
-                    String encodedUrl = Base64.encodeToString(homePageUrl.getBytes(StandardCharsets.UTF_8),
-                                    Base64.URL_SAFE | Base64.NO_WRAP);
-                    coverArtId = "ir_" + encodedUrl;
-                    artworkUri = AlbumArtContentProvider.contentUri(coverArtId);
-            }
-        }
-
-        Bundle bundle = new Bundle();
-        bundle.putString("id", internetRadioStation.getId());
-        bundle.putString("title", internetRadioStation.getName());
-        bundle.putString("stationName", internetRadioStation.getName());
-        bundle.putString("uri", uri.toString());
-        bundle.putString("type", Constants.MEDIA_TYPE_RADIO);
-        bundle.putString("coverArtId", coverArtId);
-        String homePageUrl = internetRadioStation.getHomePageUrl();
-        if (homePageUrl != null) {
-                bundle.putString("homepageUrl", homePageUrl);
-        }
-
-        return new MediaItem.Builder()
-                .setMediaId(internetRadioStation.getId())
-                .setMediaMetadata(
-                        new MediaMetadata.Builder()
-                                .setTitle(internetRadioStation.getName())
-                                .setArtworkUri(artworkUri)
-                                .setExtras(bundle)
-                                .setIsBrowsable(false)
-                                .setIsPlayable(true)
-                                .build()
-                )
-                .setRequestMetadata(
-                        new MediaItem.RequestMetadata.Builder()
-                                .setMediaUri(uri)
-                                .setExtras(bundle)
-                                .build()
-                )
-                // .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
-                .setUri(uri)
-                .build();
-    }
-
-    public static MediaItem mapMediaItem(PodcastEpisode podcastEpisode) {
-        Uri uri = getUri(podcastEpisode);
-        Uri artworkUri = AlbumArtContentProvider.contentUri(podcastEpisode.getCoverArtId());
-
-        Bundle bundle = new Bundle();
-        bundle.putString("id", podcastEpisode.getId());
-        bundle.putString("parentId", podcastEpisode.getParentId());
-        bundle.putBoolean("isDir", podcastEpisode.isDir());
-        bundle.putString("title", podcastEpisode.getTitle());
-        bundle.putString("album", podcastEpisode.getAlbum());
-        bundle.putString("artist", podcastEpisode.getArtist());
-        bundle.putInt("year", podcastEpisode.getYear() != null ? podcastEpisode.getYear() : 0);
-        bundle.putString("coverArtId", podcastEpisode.getCoverArtId());
-        bundle.putLong("size", podcastEpisode.getSize() != null ? podcastEpisode.getSize() : 0);
-        bundle.putString("contentType", podcastEpisode.getContentType());
-        bundle.putString("suffix", podcastEpisode.getSuffix());
-        bundle.putInt("duration", podcastEpisode.getDuration() != null ? podcastEpisode.getDuration() : 0);
-        bundle.putInt("bitrate", podcastEpisode.getBitrate() != null ? podcastEpisode.getBitrate() : 0);
-        bundle.putBoolean("isVideo", podcastEpisode.isVideo());
-        bundle.putLong("created", podcastEpisode.getCreated() != null ? podcastEpisode.getCreated().getTime() : 0);
-        bundle.putString("artistId", podcastEpisode.getArtistId());
-        bundle.putString("description", podcastEpisode.getDescription());
-        bundle.putString("type", Constants.MEDIA_TYPE_PODCAST);
-        bundle.putString("uri", uri.toString());
-
-        MediaItem item = new MediaItem.Builder()
-                .setMediaId(podcastEpisode.getId())
-                .setMediaMetadata(
-                        new MediaMetadata.Builder()
-                                .setTitle(podcastEpisode.getTitle())
-                                .setReleaseYear(podcastEpisode.getYear() != null ? podcastEpisode.getYear() : 0)
-                                .setAlbumTitle(podcastEpisode.getAlbum())
-                                .setArtist(podcastEpisode.getArtist())
-                                .setArtworkUri(artworkUri)
-                                .setExtras(bundle)
-                                .setIsBrowsable(false)
-                                .setIsPlayable(true)
-                                .build()
-                )
-                .setRequestMetadata(
-                        new MediaItem.RequestMetadata.Builder()
-                                .setMediaUri(uri)
-                                .setExtras(bundle)
-                                .build()
-                )
-                .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
-                .setUri(uri)
-                .build();
-
-        return item;
     }
 
     public static Child mapToChild(MediaItem item) {
@@ -457,45 +269,6 @@ public class MappingUtil {
     }
 
     private static Uri getUri(Child media) {
-        // Check if it's in our local SQL Database
-        DownloadRepository repo = new DownloadRepository();
-        Download localDownload = repo.getDownload(media.getId());
-
-        if (localDownload != null && localDownload.getDownloadUri() != null && !localDownload.getDownloadUri().isEmpty()) {
-            Log.d(TAG, "Playing local file for: " + media.getTitle());
-            return Uri.parse(localDownload.getDownloadUri());
-        }
-
-        // Legacy check for external directory, i think this was broken/buggy
-        if (Preferences.getDownloadDirectoryUri() != null) {
-            Uri local = ExternalAudioReader.getUri(media);
-            if (local != null) return local;
-        }
-
-        // Fallback to streaming
-        Log.d(TAG, "No local file found. Streaming: " + media.getTitle());
         return MusicUtil.getStreamUri(media.getId());
-    }
-
-    private static Uri getUri(PodcastEpisode podcastEpisode) {
-        if (Preferences.getDownloadDirectoryUri() != null) {
-            Uri local = ExternalAudioReader.getUri(podcastEpisode);
-            return local != null ? local : MusicUtil.getStreamUri(podcastEpisode.getStreamId());
-        }
-        return DownloadUtil.getDownloadTracker(App.getContext()).isDownloaded(podcastEpisode.getStreamId())
-                ? getDownloadUri(podcastEpisode.getStreamId())
-                : MusicUtil.getStreamUri(podcastEpisode.getStreamId());
-    }
-
-    private static Uri getDownloadUri(String id) {
-        Download download = new DownloadRepository().getDownload(id);
-        return download != null && !download.getDownloadUri().isEmpty() ? Uri.parse(download.getDownloadUri()) : MusicUtil.getDownloadUri(id);
-    }
-
-    public static void observeExternalAudioRefresh(LifecycleOwner owner, Runnable onRefresh) {
-        if (owner == null || onRefresh == null) {
-            return;
-        }
-        ExternalAudioReader.getRefreshEvents().observe(owner, event -> onRefresh.run());
     }
 }

@@ -9,12 +9,9 @@ import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.interfaces.CredentialStateCallback;
 import com.cappielloantonio.tempo.interfaces.SystemCallback;
 import com.cappielloantonio.tempo.subsonic.base.ApiResponse;
-import com.cappielloantonio.tempo.subsonic.models.OpenSubsonicExtension;
 import com.cappielloantonio.tempo.subsonic.models.ResponseStatus;
 import com.cappielloantonio.tempo.subsonic.models.SubsonicResponse;
 import com.cappielloantonio.tempo.util.CredentialGate;
-
-import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -90,53 +87,5 @@ public class SystemRepository {
         if (!ResponseStatus.FAILED.equals(subsonicResponse.getStatus())) return false;
         com.cappielloantonio.tempo.subsonic.models.Error apiError = subsonicResponse.getError();
         return CredentialGate.isAuthFailure(apiError != null ? apiError.getCode() : null);
-    }
-
-    public MutableLiveData<SubsonicResponse> ping() {
-        MutableLiveData<SubsonicResponse> pingResult = new MutableLiveData<>();
-
-        App.getSubsonicClientInstance(false)
-                .getSystemClient()
-                .ping()
-                .enqueue(new Callback<ApiResponse>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ApiResponse> call, @NonNull Response<ApiResponse> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            pingResult.postValue(response.body().getSubsonicResponse());
-                        } else {
-                            pingResult.postValue(null);
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<ApiResponse> call, @NonNull Throwable t) {
-                        pingResult.postValue(null);
-                    }
-                });
-
-        return pingResult;
-    }
-
-    public MutableLiveData<List<OpenSubsonicExtension>> getOpenSubsonicExtensions() {
-        MutableLiveData<List<OpenSubsonicExtension>> extensionsResult = new MutableLiveData<>();
-
-        App.getSubsonicClientInstance(false)
-                .getSystemClient()
-                .getOpenSubsonicExtensions()
-                .enqueue(new Callback<ApiResponse>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ApiResponse> call, @NonNull Response<ApiResponse> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            extensionsResult.postValue(response.body().getSubsonicResponse().getOpenSubsonicExtensions());
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<ApiResponse> call, @NonNull Throwable t) {
-                        extensionsResult.postValue(null);
-                    }
-                });
-
-        return extensionsResult;
     }
 }
