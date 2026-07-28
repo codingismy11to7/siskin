@@ -14,7 +14,6 @@ import androidx.media3.common.HeartRating;
 import com.cappielloantonio.tempo.glide.CustomGlideRequest;
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider;
 import com.cappielloantonio.tempo.subsonic.models.Child;
-import com.cappielloantonio.tempo.subsonic.models.PodcastEpisode;
 import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
@@ -194,58 +193,6 @@ public class MappingUtil {
                 .build();
     }
 
-    public static MediaItem mapMediaItem(PodcastEpisode podcastEpisode) {
-        Uri uri = getUri(podcastEpisode);
-        Uri artworkUri = AlbumArtContentProvider.contentUri(podcastEpisode.getCoverArtId());
-
-        Bundle bundle = new Bundle();
-        bundle.putString("id", podcastEpisode.getId());
-        bundle.putString("parentId", podcastEpisode.getParentId());
-        bundle.putBoolean("isDir", podcastEpisode.isDir());
-        bundle.putString("title", podcastEpisode.getTitle());
-        bundle.putString("album", podcastEpisode.getAlbum());
-        bundle.putString("artist", podcastEpisode.getArtist());
-        bundle.putInt("year", podcastEpisode.getYear() != null ? podcastEpisode.getYear() : 0);
-        bundle.putString("coverArtId", podcastEpisode.getCoverArtId());
-        bundle.putLong("size", podcastEpisode.getSize() != null ? podcastEpisode.getSize() : 0);
-        bundle.putString("contentType", podcastEpisode.getContentType());
-        bundle.putString("suffix", podcastEpisode.getSuffix());
-        bundle.putInt("duration", podcastEpisode.getDuration() != null ? podcastEpisode.getDuration() : 0);
-        bundle.putInt("bitrate", podcastEpisode.getBitrate() != null ? podcastEpisode.getBitrate() : 0);
-        bundle.putBoolean("isVideo", podcastEpisode.isVideo());
-        bundle.putLong("created", podcastEpisode.getCreated() != null ? podcastEpisode.getCreated().getTime() : 0);
-        bundle.putString("artistId", podcastEpisode.getArtistId());
-        bundle.putString("description", podcastEpisode.getDescription());
-        bundle.putString("type", Constants.MEDIA_TYPE_PODCAST);
-        bundle.putString("uri", uri.toString());
-
-        MediaItem item = new MediaItem.Builder()
-                .setMediaId(podcastEpisode.getId())
-                .setMediaMetadata(
-                        new MediaMetadata.Builder()
-                                .setTitle(podcastEpisode.getTitle())
-                                .setReleaseYear(podcastEpisode.getYear() != null ? podcastEpisode.getYear() : 0)
-                                .setAlbumTitle(podcastEpisode.getAlbum())
-                                .setArtist(podcastEpisode.getArtist())
-                                .setArtworkUri(artworkUri)
-                                .setExtras(bundle)
-                                .setIsBrowsable(false)
-                                .setIsPlayable(true)
-                                .build()
-                )
-                .setRequestMetadata(
-                        new MediaItem.RequestMetadata.Builder()
-                                .setMediaUri(uri)
-                                .setExtras(bundle)
-                                .build()
-                )
-                .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
-                .setUri(uri)
-                .build();
-
-        return item;
-    }
-
     public static Child mapToChild(MediaItem item) {
         if (item == null) return null;
 
@@ -324,9 +271,5 @@ public class MappingUtil {
 
     private static Uri getUri(Child media) {
         return MusicUtil.getStreamUri(media.getId());
-    }
-
-    private static Uri getUri(PodcastEpisode podcastEpisode) {
-        return MusicUtil.getStreamUri(podcastEpisode.getStreamId());
     }
 }

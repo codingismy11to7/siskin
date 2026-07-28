@@ -291,17 +291,12 @@ open class BaseMediaService : MediaLibraryService() {
                     if (item.mediaMetadata.extras != null)
                         MediaManager.scrobble(item, false)
 
-                    val browserFuture = MediaBrowser.Builder(
-                        this@BaseMediaService,
-                        SessionToken(this@BaseMediaService, ComponentName(this@BaseMediaService, this@BaseMediaService::class.java))
-                    ).buildAsync()
-
-                    val handled = MediaServiceExtensionRegistry.handler
-                        ?.handle(player, currentMediaItem, browserFuture)
-                        ?: false
-
                     if (player.nextMediaItemIndex == C.INDEX_UNSET) {
-                        if (!handled && Preferences.isContinuousPlayEnabled()) {
+                        if (Preferences.isContinuousPlayEnabled()) {
+                            val browserFuture = MediaBrowser.Builder(
+                                this@BaseMediaService,
+                                SessionToken(this@BaseMediaService, ComponentName(this@BaseMediaService, this@BaseMediaService::class.java))
+                            ).buildAsync()
                             MediaManager.continuousPlay(currentMediaItem, browserFuture)
                         }
                     }

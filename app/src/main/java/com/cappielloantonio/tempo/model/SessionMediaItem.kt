@@ -17,7 +17,6 @@ import com.cappielloantonio.tempo.glide.CustomGlideRequest
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import androidx.room.Embedded
 import com.cappielloantonio.tempo.subsonic.models.Child
-import com.cappielloantonio.tempo.subsonic.models.PodcastEpisode
 import com.cappielloantonio.tempo.subsonic.models.ReplayGainInfo
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.MusicUtil
@@ -171,29 +170,6 @@ class SessionMediaItem() {
         originalWidth = child.originalWidth
         originalHeight = child.originalHeight
         replayGain = child.replayGain
-    }
-
-    constructor(podcastEpisode: PodcastEpisode) : this() {
-        id = podcastEpisode.id
-        parentId = podcastEpisode.parentId
-        isDir = podcastEpisode.isDir
-        title = podcastEpisode.title
-        album = podcastEpisode.album
-        artist = podcastEpisode.artist
-        year = podcastEpisode.year
-        genre = podcastEpisode.genre
-        coverArtId = podcastEpisode.coverArtId
-        size = podcastEpisode.size
-        contentType = podcastEpisode.contentType
-        suffix = podcastEpisode.suffix
-        duration = podcastEpisode.duration
-        bitrate = podcastEpisode.bitrate
-        path = podcastEpisode.path
-        isVideo = podcastEpisode.isVideo
-        created = podcastEpisode.created
-        artistId = podcastEpisode.artistId
-        streamId = podcastEpisode.streamId
-        type = Constants.MEDIA_TYPE_PODCAST
     }
 
     fun getMediaItem(): MediaItem {

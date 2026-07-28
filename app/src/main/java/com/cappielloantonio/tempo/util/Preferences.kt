@@ -29,8 +29,6 @@ object Preferences {
     private const val AUDIO_TRANSCODE_FORMAT_WIFI = "audio_transcode_format_wifi"
     private const val AUDIO_TRANSCODE_FORMAT_MOBILE = "audio_transcode_format_mobile"
     private const val DATA_SAVING_MODE = "data_saving_mode"
-    private const val ROUNDED_CORNER = "rounded_corner"
-    private const val ROUNDED_CORNER_SIZE = "rounded_corner_size"
     private const val REPLAY_GAIN_MODE = "replay_gain_mode"
     private const val REPLAY_GAIN_PREVENT_CLIPPING = "replay_gain_prevent_clipping"
     private const val LOUDNESS_PREAMP = "loudness_preamp"
@@ -41,8 +39,6 @@ object Preferences {
     private const val SONG_PRELOAD_BUFFER = "song_preload_buffer"
     private const val PRECACHE_TRACKS_COUNT = "precache_tracks_count"
     private const val PRECACHE_WIFI_ONLY = "precache_wifi_only"
-    private const val MIN_STAR_RATING = "min_star_rating"
-    private const val AUDIO_QUALITY_PER_ITEM = "audio_quality_per_item"
     private const val CONTINUOUS_PLAY = "continuous_play"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
     private const val FALLBACK_TO_RANDOM_TRACKS = "fallback_to_random_tracks"
@@ -252,15 +248,6 @@ object Preferences {
         return App.getInstance().preferences.getString(CUSTOM_COMMAND_SECOND_BUTTON, "[repeatID]")
     }
     @JvmStatic
-    fun isCornerRoundingEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(ROUNDED_CORNER, false)
-    }
-
-    @JvmStatic
-    fun getRoundedCornerSize(): Int {
-        return App.getInstance().preferences.getString(ROUNDED_CORNER_SIZE, "12")!!.toInt()
-    }
-    @JvmStatic
     fun getReplayGainMode(): String? {
         return App.getInstance().preferences.getString(REPLAY_GAIN_MODE, "disabled")
     }
@@ -324,14 +311,6 @@ object Preferences {
         return App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, true)
     }
 
-    @JvmStatic
-    fun getMinStarRatingAccepted(): Int {
-        return App.getInstance().preferences.getInt(MIN_STAR_RATING, 0)
-    }
-    @JvmStatic
-    fun showAudioQuality(): Boolean {
-        return App.getInstance().preferences.getBoolean(AUDIO_QUALITY_PER_ITEM, false)
-    }
     @JvmStatic
     fun isContinuousPlayEnabled(): Boolean {
         return App.getInstance().preferences.getBoolean(CONTINUOUS_PLAY, true)

@@ -1,7 +1,5 @@
 package com.cappielloantonio.tempo.repository;
 
-import androidx.lifecycle.LiveData;
-
 import com.cappielloantonio.tempo.database.AppDatabase;
 import com.cappielloantonio.tempo.database.dao.QueueDao;
 import com.cappielloantonio.tempo.model.Queue;
@@ -17,10 +15,6 @@ public class QueueRepository {
     private static final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
 
     private final QueueDao queueDao = AppDatabase.getInstance().queueDao();
-
-    public LiveData<List<Queue>> getLiveQueue() {
-        return queueDao.getAll();
-    }
 
     public List<Child> getMedia() {
         List<Child> media = new ArrayList<>();
@@ -40,25 +34,6 @@ public class QueueRepository {
         }
 
         return media;
-    }
-
-    public void insert(Child media, boolean reset, int afterIndex) {
-        dbExecutor.execute(() -> {
-            List<Queue> mediaList = new ArrayList<>();
-
-            if (!reset) {
-                mediaList = queueDao.getAllSimple();
-            }
-
-            Queue queueItem = new Queue(media);
-            mediaList.add(afterIndex, queueItem);
-
-            for (int i = 0; i < mediaList.size(); i++) {
-                mediaList.get(i).setTrackOrder(i);
-            }
-
-            queueDao.replaceQueue(mediaList);
-        });
     }
 
     private boolean isMediaInQueue(List<Queue> queue, Child media) {
@@ -94,31 +69,6 @@ public class QueueRepository {
 
             queueDao.replaceQueue(media);
         });
-    }
-
-    public void delete(int position) {
-        dbExecutor.execute(() -> queueDao.delete(position));
-    }
-
-    public void deleteAll() {
-        dbExecutor.execute(queueDao::deleteAll);
-    }
-
-    public int count() {
-        int count = 0;
-
-        CountThreadSafe countThread = new CountThreadSafe(queueDao);
-        Thread thread = new Thread(countThread);
-        thread.start();
-
-        try {
-            thread.join();
-            count = countThread.getCount();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        return count;
     }
 
     public void setLastPlayedTimestamp(String id) {
@@ -184,24 +134,6 @@ public class QueueRepository {
 
         public List<Queue> getMedia() {
             return media;
-        }
-    }
-
-    private static class CountThreadSafe implements Runnable {
-        private final QueueDao queueDao;
-        private int count = 0;
-
-        public CountThreadSafe(QueueDao queueDao) {
-            this.queueDao = queueDao;
-        }
-
-        @Override
-        public void run() {
-            count = queueDao.count();
-        }
-
-        public int getCount() {
-            return count;
         }
     }
 
