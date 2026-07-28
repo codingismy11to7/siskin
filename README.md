@@ -1,15 +1,13 @@
 # Siskin
 
-A Plex music client for Android Automotive OS.
+**Your car. Your music.**
 
-Siskin runs on the head unit itself — it is a media source in the car, not a
-phone app projecting into one. There is no phone launcher entry and no phone
+Siskin is a hyper-focused app that does one thing: play your Plex music library
+in your Android Automotive vehicle. No fluff, no ads, no tracking.
+
+It runs on the head unit itself — it is a media source in the car, not a phone
+app projecting into one. There is no phone launcher entry and no phone
 audience.
-
-**Status: mid-conversion.** Siskin is a fork of Tempo being retargeted from
-Subsonic to Plex. The Plex API layer has landed; browse-tree mapping, playback,
-QR sign-in and Subsonic removal have not. Design records for each piece are in
-[docs/decisions](docs/decisions).
 
 ## Building
 
