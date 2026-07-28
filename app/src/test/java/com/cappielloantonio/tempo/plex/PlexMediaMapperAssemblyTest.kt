@@ -1,10 +1,13 @@
 package com.cappielloantonio.tempo.plex
 
 import androidx.media3.common.HeartRating
+import androidx.media3.common.MediaItem
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
+import com.cappielloantonio.tempo.util.Constants
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,7 +50,7 @@ class PlexMediaMapperAssemblyTest {
         assertEquals("parent-42", extras.getString(PlexMediaMapper.EXTRA_PARENT_ID))
         assertEquals("/library/parts/9/file.flac", extras.getString(PlexMediaMapper.EXTRA_PART_KEY))
         assertEquals("/library/metadata/1234/thumb/1699999999", extras.getString(PlexMediaMapper.EXTRA_THUMB))
-        assertNotNull(extras.getString(PlexMediaMapper.EXTRA_TYPE))
+        assertEquals(Constants.MEDIA_TYPE_MUSIC, extras.getString(PlexMediaMapper.EXTRA_TYPE))
     }
 
     @Test
@@ -173,7 +176,31 @@ class PlexMediaMapperAssemblyTest {
     }
 
     @Test
-    fun readTrackFieldsReturnsNullForAnItemWithNoId() {
+    fun readTrackFieldsReturnsNullForANullItem() {
         assertEquals(null, PlexMediaMapper.readTrackFields(null))
+    }
+
+    @Test
+    fun readTrackFieldsReturnsNullWhenRatingKeyIsBlank() {
+        // No EXTRA_ID in the extras, and mediaId left at media3's default
+        // (the empty string) rather than unset -- this is the
+        // ratingKey.isNullOrBlank() branch, distinct from the item == null
+        // guard covered above.
+        val item = MediaItem.Builder().build()
+        assertEquals(MediaItem.DEFAULT_MEDIA_ID, item.mediaId)
+
+        assertEquals(null, PlexMediaMapper.readTrackFields(item))
+    }
+
+    @Test
+    fun anUnheartedTrackCarriesAFalseHeartRating() {
+        val unhearted = PlexMediaMapper.buildTrackMediaItem(
+            ratingKey = "1234", title = "T", albumTitle = "A", artist = "R",
+            thumb = null, partKey = "/p", durationMs = 1L, trackIndex = 1, year = 2020,
+            parentRatingKey = "55", grandparentRatingKey = "77", isHearted = false,
+            parentId = null, serverUri = serverUri, token = token
+        )
+
+        assertFalse((unhearted.mediaMetadata.userRating as HeartRating).isHeart)
     }
 }

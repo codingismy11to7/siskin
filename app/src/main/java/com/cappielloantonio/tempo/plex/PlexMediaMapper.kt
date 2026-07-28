@@ -27,9 +27,12 @@ import com.google.common.collect.ImmutableList
  * docs/decisions/2026-07-28-plex-browse-playback-design.md.
  *
  * The pure functions here (partKey, artworkThumb, mergeSearchResults) carry the
- * logic that can go wrong and are unit-tested. The MediaItem builders touch
- * Uri, Bundle and MediaItem.Builder, all of which return defaults under
- * unitTests.returnDefaultValues, so they are verified on the emulator instead.
+ * logic that can go wrong and are unit-tested with plain JUnit. The MediaItem
+ * builders touch Uri, Bundle and MediaItem.Builder, all of which return
+ * defaults under unitTests.returnDefaultValues -- a plain JUnit assertion on
+ * their output would pass against a broken implementation just as readily as
+ * a correct one -- so they are verified under Robolectric instead, in
+ * PlexMediaMapperAssemblyTest, where the real framework classes are loaded.
  */
 @OptIn(UnstableApi::class)
 object PlexMediaMapper {
@@ -43,12 +46,21 @@ object PlexMediaMapper {
     const val EXTRA_THUMB = "thumb"
 
     /**
-     * The track's album. Nothing reads it today -- unlike EXTRA_ARTIST_ID,
-     * which continuous play uses -- but the Room entities persist it per the
-     * spec, and a field that cannot round-trip through the bundle would make
-     * buildTrackMediaItem's parentRatingKey parameter dead.
+     * The track's album. Its only current readers are Subsonic-era code
+     * being removed in a later task (Chronology.kt and MappingUtil.java both
+     * read extras.getString("albumId")); no Plex-side code reads it yet.
+     * The Room entities persist it per the spec regardless, and a field that
+     * cannot round-trip through the bundle would make buildTrackMediaItem's
+     * parentRatingKey parameter dead.
      */
     const val EXTRA_PARENT_RATING_KEY = "albumId"
+
+    /**
+     * Plex rates 0-10; this app writes this value for a hearted track, so
+     * reading it back is what keeps the heart state in sync with every
+     * other Plex client.
+     */
+    const val HEARTED_RATING = 10.0
 
     // ── pure helpers ──────────────────────────────────────────
 
@@ -78,15 +90,11 @@ object PlexMediaMapper {
     }
 
     /**
-     * Plex rates 0-10 and this app writes 10 for a hearted track, so reading
-     * back the same value is what keeps the car's heart in sync with every
-     * other Plex client. Without this a browsed track always showed an empty
-     * heart no matter what it was rated.
+     * Without this a browsed track always showed an empty heart no matter
+     * what it was rated.
      */
     @JvmStatic
     fun isHearted(metadata: Metadata): Boolean = (metadata.userRating ?: 0.0) >= HEARTED_RATING
-
-    const val HEARTED_RATING = 10.0
 
     /**
      * Plex rejects a multi-type search with HTTP 400, so the browse layer issues
@@ -211,7 +219,7 @@ object PlexMediaMapper {
     /**
      * Everything the Room entities persist about a track, read out of a
      * MediaItem in one place so SessionMediaItem and Queue do not each repeat
-     * the same eleven-field read.
+     * the same field-by-field read.
      *
      * Deliberately not a pivot type: nothing outside those two entities
      * constructs or consumes one. Tracks flow through the app as MediaItem.
@@ -306,6 +314,15 @@ object PlexMediaMapper {
         )
     }
 
+    /**
+     * Deliberately does not call setUri: media3's setUri(String) parses even
+     * "" to a non-null Uri, which would give this item a non-null
+     * localConfiguration. MediaLibraryServiceCallback.resolveQueueForItem
+     * treats item.localConfiguration?.uri?.let { item } as "already
+     * resolved, use as-is" -- a browsable item carrying that would bypass
+     * queue resolution entirely. Matches MediaBrowserTree.buildMediaItem,
+     * whose sourceUri defaults to null for the same reason.
+     */
     private fun browsableItem(
         mediaId: String,
         title: String?,
@@ -343,7 +360,6 @@ object PlexMediaMapper {
                     .setExtras(extras)
                     .build()
             )
-            .setUri("")
             .build()
     }
 }
