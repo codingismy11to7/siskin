@@ -261,12 +261,19 @@ than a freebie.
 
 `./gradlew assembleDebug` after every phase.
 
-`./gradlew test` after every phase. Of the 12 test files, `AutomotiveRepositoryTest`
-and `SystemRepositoryTest` shrink with their subjects in phase 3 and
-`LiveDataUtilsTest` is deleted there. The other nine — `BaseSessionCallbackTest`,
-`CredentialGateTest` and the seven Plex tests — stay green untouched. **A red Plex
-test means a deletion reached too far**, and is the sharpest signal available that a
-phase overshot.
+`./gradlew test` after every phase. Of the 12 test files, two are deleted in phase 3:
+`AutomotiveRepositoryTest` — all three of its tests cover
+`mergeAndSortRadioStations`, which is pure radio — and `LiveDataUtilsTest`, with its
+subject. The other ten stay green untouched, including `SystemRepositoryTest`, whose
+seven credential-rejection tests are unaffected because `SystemRepository` survives.
+**A red Plex test means a deletion reached too far**, and is the sharpest signal
+available that a phase overshot.
+
+Phase 1 adds `MediaBrowserTreeTest`, asserting the root has exactly three children in
+the specified order. It is the only new test in this work, and the only executable
+statement of the decision this spec exists to record. The project sets
+`unitTests.returnDefaultValues = true` (`app/build.gradle:34`), so a plain JUnit +
+mockito-kotlin test can build tree nodes without Robolectric.
 
 Emulator smoke test after phases 1, 2 and 6: browse all three tabs, drill Artists →
 albums → tracks, play a track, run a search, and confirm the sign-in resolution
