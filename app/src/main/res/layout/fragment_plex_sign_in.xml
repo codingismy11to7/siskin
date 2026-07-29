@@ -138,18 +138,25 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/choice_container"
-                android:layout_width="@dimen/plex_sign_in_choice_width"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
-
+            <!--
+                Above the list, not below it: in the ChoosingServer state this
+                explains why the list is being shown a second time, and reading
+                a list before finding out why you are looking at it is
+                backwards. The Failed state is unaffected: choice_container is
+                emptied by render() and collapses to nothing between them.
+            -->
             <TextView
                 android:id="@+id/error_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/choice_container"
+                android:layout_width="@dimen/plex_sign_in_choice_width"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
 
             <!--
                 insetTop/Bottom default to 6dp on MaterialButton and eat into
