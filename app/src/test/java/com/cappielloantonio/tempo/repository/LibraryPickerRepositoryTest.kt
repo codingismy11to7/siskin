@@ -32,4 +32,18 @@ class LibraryPickerRepositoryTest {
     fun `an absent resource list is no servers, not a crash`() {
         assertEquals(emptyList<String>(), LibraryPickerRepository.serverRows(null).map { it.name })
     }
+
+    @Test
+    fun `the current library is ticked and others are not`() {
+        assertEquals("✓ Music", LibraryPickerRepository.libraryRowTitle("Music", true))
+        assertEquals("Audiobooks", LibraryPickerRepository.libraryRowTitle("Audiobooks", false))
+    }
+
+    @Test
+    fun `library ids carry both server and section`() {
+        assertEquals(
+            "abc123|3",
+            LibraryPickerRepository.libraryIdPayload("abc123", "3")
+        )
+    }
 }

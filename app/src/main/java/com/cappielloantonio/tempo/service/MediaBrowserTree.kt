@@ -256,6 +256,11 @@ object MediaBrowserTree {
                         id.removePrefix(ConstantsAA.ARTIST_ID)
                     )
                 }
+                if (id.startsWith(ConstantsAA.PICK_SERVER_ID)) {
+                    return pickerRepository.getLibraries(
+                        id.removePrefix(ConstantsAA.PICK_SERVER_ID)
+                    )
+                }
                 return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
             }
         }

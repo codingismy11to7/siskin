@@ -9,8 +9,12 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexIdentity
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
+import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
+import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.google.common.collect.ImmutableList
@@ -38,6 +42,15 @@ class LibraryPickerRepository {
     private val api = PlexApi()
     private val authClient = AuthClient(api)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * The server the user is currently looking inside, with the address that
+     * answered. Held in memory and never persisted: a browse tree is something
+     * users wander into and back out of, and if entering a server mutated the
+     * stored session then backing out would leave a working install signed out.
+     */
+    @Volatile
+    private var candidate: Pair<String, Resource>? = null
 
     fun getServers(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
@@ -82,9 +95,69 @@ class LibraryPickerRepository {
         return future
     }
 
+    fun getLibraries(machineIdentifier: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
+        scope.launch {
+            try {
+                val resources = authClient.getResources().getOrNull()
+                val resource = AuthClient.mediaServers(resources)
+                    .firstOrNull { it.clientIdentifier == machineIdentifier }
+                if (resource == null) {
+                    Log.d(TAG, "server $machineIdentifier is no longer on the account")
+                    future.set(LibraryResult.ofError(SessionError.ERROR_IO))
+                    return@launch
+                }
+
+                val probe = ServerProbe(
+                    headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null)
+                )
+                val uri = probe.bestConnectionUri(resource)
+                if (uri == null) {
+                    Log.d(TAG, "no advertised connection answered for ${resource.name}")
+                    future.set(LibraryResult.ofError(SessionError.ERROR_IO))
+                    return@launch
+                }
+
+                candidate = uri to resource
+
+                val sections = LibraryClient(api, uri, resource.accessToken)
+                    .getSections()
+                    .getOrNull()
+                val session = api.session
+                val items = LibraryClient.musicSections(sections).map { directory ->
+                    val key = directory.key.orEmpty()
+                    browsableRow(
+                        mediaId = ConstantsAA.PICK_LIBRARY_ID +
+                            libraryIdPayload(machineIdentifier, key),
+                        title = libraryRowTitle(
+                            directory.title.orEmpty().ifBlank { "Library $key" },
+                            LibrarySelection.isCurrent(session, machineIdentifier, uri, key)
+                        )
+                    )
+                }
+                future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), null))
+            } catch (t: Throwable) {
+                Log.w(TAG, "listing libraries failed", t)
+                future.setException(t)
+            }
+        }
+        return future
+    }
+
     companion object {
 
         data class ServerRow(val machineIdentifier: String?, val name: String)
+
+        /** U+2713 CHECK MARK. The tick is the only signal of which library is in use. */
+        private const val TICK = "✓ "
+
+        @JvmStatic
+        fun libraryRowTitle(name: String, current: Boolean): String =
+            if (current) TICK + name else name
+
+        @JvmStatic
+        fun libraryIdPayload(machineIdentifier: String, sectionKey: String): String =
+            "$machineIdentifier|$sectionKey"
 
         /**
          * Narrows /resources to servers this app could talk to, reusing the same
