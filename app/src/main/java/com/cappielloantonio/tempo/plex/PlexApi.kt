@@ -48,6 +48,33 @@ class PlexApi {
         get() = preferences.getString(KEY_MUSIC_SECTION_KEY, null)
         set(value) = preferences.edit().putString(KEY_MUSIC_SECTION_KEY, value).apply()
 
+    /**
+     * The signed-in connection, or null when there is not a complete one.
+     *
+     * Written as a unit: one `edit()` carrying all four keys, or all four
+     * removed. That atomicity is the point -- a reader between two separate
+     * writes could otherwise see one server's address beside another's section
+     * key and treat it as a working sign-in.
+     */
+    var session: PlexSession?
+        get() = PlexSession.from(accountToken, serverUri, musicSectionKey, serverToken)
+        set(value) {
+            preferences.edit().apply {
+                if (value == null) {
+                    // Clearing the session deliberately leaves accountToken alone --
+                    // the PIN grant is still valid and plex.tv calls still need it.
+                    remove(KEY_SERVER_URI)
+                    remove(KEY_SERVER_TOKEN)
+                    remove(KEY_MUSIC_SECTION_KEY)
+                } else {
+                    putString(KEY_ACCOUNT_TOKEN, value.accountToken)
+                    putString(KEY_SERVER_URI, value.serverUri)
+                    putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey)
+                    putString(KEY_SERVER_TOKEN, value.serverToken)
+                }
+            }.apply()
+        }
+
     val appVersion: String get() = BuildConfig.VERSION_NAME
 
     fun plexTvHeaders(): Map<String, String> =
