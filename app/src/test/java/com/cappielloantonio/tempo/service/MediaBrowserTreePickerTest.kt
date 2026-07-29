@@ -34,9 +34,10 @@ class MediaBrowserTreePickerTest {
         val row = requireNotNull(result.value).single()
         assertEquals(id, row.mediaId)
         assertEquals(
-            // No getLibraries has run in this process, so the name falls back --
-            // which is the state a tap after a process restart arrives in.
-            App.getContext().getString(R.string.aa_now_browsing, "Library 7"),
+            // No getLibraries has run in this process, so both the library name
+            // and the candidate's server name are gone -- the state a tap after a
+            // process restart arrives in, and why the no-server string exists.
+            App.getContext().getString(R.string.aa_now_browsing_no_server, "Library 7"),
             row.mediaMetadata.title?.toString()
         )
         assertEquals(true, row.mediaMetadata.isBrowsable)

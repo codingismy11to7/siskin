@@ -311,11 +311,25 @@ class LibraryPickerRepository {
     internal fun confirmationRow(payload: String): MediaItem {
         val sectionKey = payload.substringAfter('|', "")
         val name = libraryNames[payload] ?: "Library $sectionKey"
+
+        // The server name comes from the held candidate rather than a second
+        // map: the payload already carries the machine identifier, and the
+        // candidate is what selectLibrary just committed from. It names the
+        // server because a library called "Music" is ambiguous across an
+        // account -- most servers have one.
+        val serverName = candidates[payload.substringBefore('|')]?.second?.name
+        val context = App.getContext()
         return browsableRow(
             mediaId = ConstantsAA.PICK_LIBRARY_ID + payload + CONFIRMED_SUFFIX,
             // Browsable purely so the car draws it: an item with neither
             // isBrowsable nor isPlayable set is dropped from the list entirely.
-            title = App.getContext().getString(R.string.aa_now_browsing, name)
+            title = if (serverName.isNullOrBlank()) {
+                // Reachable after a process restart between listing the
+                // libraries and tapping one, when the candidate is gone.
+                context.getString(R.string.aa_now_browsing_no_server, name)
+            } else {
+                context.getString(R.string.aa_now_browsing, name, serverName)
+            }
         )
     }
 

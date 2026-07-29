@@ -399,7 +399,11 @@ class LibraryPickerCommitTest {
         val item = requireNotNull(result.value).single()
         assertEquals(true, item.mediaMetadata.isBrowsable)
         assertEquals(false, item.mediaMetadata.isPlayable)
-        val expectedTitle = App.getContext().getString(R.string.aa_now_browsing, "Big Music Library")
+        // Names the server too: a library called "Music" is ambiguous across an
+        // account, and "Basement" is the candidate's server name.
+        val expectedTitle = App.getContext()
+            .getString(R.string.aa_now_browsing, "Big Music Library", "Basement")
         assertEquals(expectedTitle, item.mediaMetadata.title?.toString())
+        assertEquals("Now browsing: Big Music Library (Basement)", expectedTitle)
     }
 }
