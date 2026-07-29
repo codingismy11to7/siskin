@@ -1,10 +1,16 @@
 package com.cappielloantonio.tempo.plex.api.auth
 
 import android.util.Log
+import arrow.core.Either
+import arrow.core.raise.either
+import arrow.core.raise.ensureNotNull
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexFailure
+import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.plex.plexCall
 import java.time.Instant
 import java.time.format.DateTimeParseException
 
@@ -13,22 +19,31 @@ private const val TAG = "AuthClient"
 /**
  * The plex.tv half of the API: create a PIN, poll it, then discover which servers
  * the account can reach.
+ *
+ * Every call is a plex.tv call, so every failure carries [PlexHost.PlexTv].
  */
 class AuthClient(api: PlexApi) {
 
     private val service: AuthService =
         PlexRetrofitFactory.plexTv(api).create(AuthService::class.java)
 
-    suspend fun createPin(): Pin {
+    /**
+     * Validated on the way out, so callers get a PIN they can use rather than one
+     * they have to re-check.
+     */
+    suspend fun createPin(): Either<PlexFailure, CreatedPin> = either {
         Log.d(TAG, "createPin()")
-        return service.createPin()
+        val pin = plexCall(PlexHost.PlexTv) { service.createPin() }.bind()
+        validate(pin).bind()
     }
 
-    suspend fun getPin(pinId: Long): Pin = service.getPin(pinId)
+    /** Unvalidated on purpose: the poll only reads [Pin.authToken] and the expiry. */
+    suspend fun getPin(pinId: Long): Either<PlexFailure, Pin> =
+        plexCall(PlexHost.PlexTv) { service.getPin(pinId) }
 
-    suspend fun getResources(): List<Resource> {
+    suspend fun getResources(): Either<PlexFailure, List<Resource>> {
         Log.d(TAG, "getResources()")
-        return service.getResources()
+        return plexCall(PlexHost.PlexTv) { service.getResources() }
     }
 
     companion object {
@@ -55,6 +70,26 @@ class AuthClient(api: PlexApi) {
                     .orEmpty()
                 provides.contains(PROVIDES_SERVER) && ServerProbe.hasUsableConnection(resource)
             }
+
+        /**
+         * Turns a wire [Pin] into a [CreatedPin], or reports what plex.tv omitted.
+         *
+         * Separated from [createPin] so the refinement is a pure function that can
+         * be tested without a network.
+         */
+        @JvmStatic
+        fun validate(pin: Pin): Either<PlexFailure, CreatedPin> = either {
+            val id = ensureNotNull(pin.id) { PlexFailure.NoPinCode }
+            val code = ensureNotNull(pin.code?.takeIf { it.isNotBlank() }) {
+                PlexFailure.NoPinCode
+            }
+            CreatedPin(
+                id = id,
+                code = code,
+                qrUrl = pin.qr?.takeIf { it.isNotBlank() },
+                expiresAtEpochSeconds = expiresAtEpochSeconds(pin)
+            )
+        }
 
         /**
          * Plex reports pin expiry as ISO-8601. Converted here rather than in
