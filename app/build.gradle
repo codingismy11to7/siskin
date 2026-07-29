@@ -111,6 +111,9 @@ dependencies {
     implementation libs.kotlinx.coroutines.android
     implementation libs.androidx.lifecycle.viewmodel.ktx
 
+    // Arrow
+    implementation libs.arrow.core
+
     // Misc
     implementation libs.kotlin.metadata
 
