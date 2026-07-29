@@ -71,11 +71,13 @@ android {
     }
 }
 
-// Room is what pins this. Every room-compiler release -- including the
-// current 2.8.4 -- bundles kotlin-metadata-jvm 2.2.0, which reads metadata
-// format 2.2.0 at most. This project compiles with a newer Kotlin (see
-// libs.versions.toml), so without this force compileDebugJavaWithJavac fails
-// on every annotation-processed file with:
+// Room is what pins this, and upgrading Room does not release it. This
+// project is on room-compiler 2.7.0 (libs.versions.toml), but *every*
+// release up to and including 2.8.4 -- the newest published as of July 2026
+// -- bundles kotlin-metadata-jvm 2.2.0, which reads metadata format 2.2.0 at
+// most. This project compiles with a newer Kotlin (see libs.versions.toml),
+// so without this force compileDebugJavaWithJavac fails on every
+// annotation-processed file with:
 //
 //   Provided Metadata instance has version 2.4.0, while maximum supported
 //   version is 2.2.0. To support newer versions, update the kotlin-metadata-jvm

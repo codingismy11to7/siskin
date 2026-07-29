@@ -378,10 +378,13 @@ class PlexBrowseRepositoryTest {
     @Test
     fun searchKeepsTheOtherTiersWhenOneFails() {
         // One failed tier must not lose the other two: a 500 on albums still
-        // leaves usable artist and track results on screen. plexCall turns
-        // that 500 into a Left(PlexFailure.Http(...)), and collect() folds it
-        // to an empty list rather than binding or propagating it -- there is
-        // no per-tier catch doing that job any more, just Either.fold.
+        // leaves usable artist and track results on screen. This pins the
+        // typed half of that guarantee -- plexCall turns the 500 into a
+        // Left(PlexFailure.Http(...)) and collect() folds it to an empty list
+        // rather than binding or propagating it. collect()'s catch is the
+        // other half, covering what is not a PlexFailure at all (a Gson
+        // JsonSyntaxException is not wrapped in IOException by Retrofit, so
+        // it reaches collect as itself); no test drives that path.
         PlexApi().musicSectionKey = "1"
         server.dispatcher = searchDispatcher(failingType = PlexItemType.ALBUM)
 
