@@ -280,9 +280,21 @@ object MediaBrowserTree {
                 }
                 if (id.startsWith(ConstantsAA.PICK_LIBRARY_ID)) {
                     val payload = id.removePrefix(ConstantsAA.PICK_LIBRARY_ID)
-                    if (payload.endsWith(":confirmed")) {
+                    if (payload.endsWith(LibraryPickerRepository.CONFIRMED_SUFFIX)) {
+                        // Tapping the confirmation row returns the row. Committing
+                        // again would be wrong and an empty list is the blank
+                        // screen the row exists to avoid.
                         return Futures.immediateFuture(
-                            LibraryResult.ofItemList(ImmutableList.of(), null)
+                            LibraryResult.ofItemList(
+                                ImmutableList.of(
+                                    pickerRepository.confirmationRow(
+                                        payload.removeSuffix(
+                                            LibraryPickerRepository.CONFIRMED_SUFFIX
+                                        )
+                                    )
+                                ),
+                                null
+                            )
                         )
                     }
                     return pickerRepository.selectLibrary(payload)

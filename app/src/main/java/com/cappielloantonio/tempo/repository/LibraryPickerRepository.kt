@@ -80,7 +80,7 @@ class LibraryPickerRepository {
      * an entry is gone there is nowhere else `selectLibrary` could recover
      * that name from. Held in memory only, like [candidates] -- never
      * persisted, and empty again after a process restart, which
-     * [selectLibrary] covers with a fallback title.
+     * [confirmationRow] covers with a fallback title.
      *
      * [getLibraries] writes from a background IO coroutine and [selectLibrary]
      * reads from whatever thread the car's callback runs on, so this has to be
@@ -287,28 +287,30 @@ class LibraryPickerRepository {
             0
         )
 
-        // Not a MediaBrowserTree.getItem lookup: the tree's static nodes are
-        // only ever the ones buildTree() registers, so this row's id would
-        // never resolve there. libraryNames is the only place this name
-        // lives; the fallback covers a process restart between listing the
-        // libraries and tapping one, when the map is empty again.
-        val name = libraryNames[payload] ?: "Library $sectionKey"
-        future.set(
-            LibraryResult.ofItemList(
-                ImmutableList.of(
-                    browsableRow(
-                        mediaId = ConstantsAA.PICK_LIBRARY_ID + payload + ":confirmed",
-                        // Browsable purely so the car draws it: an item with
-                        // neither isBrowsable nor isPlayable set is dropped from
-                        // the list entirely.
-                        title = App.getInstance()
-                            .getString(R.string.aa_now_browsing, name)
-                    )
-                ),
-                null
-            )
-        )
+        future.set(LibraryResult.ofItemList(ImmutableList.of(confirmationRow(payload)), null))
         return future
+    }
+
+    /**
+     * The row [selectLibrary] answers with, rebuilt from its payload so that a
+     * tap on it can return the row itself rather than an empty list -- see
+     * `MediaBrowserTree.getChildren`.
+     *
+     * Not a `MediaBrowserTree.getItem` lookup: the tree's static nodes are only
+     * ever the ones `buildTree()` registers, so this row's id would never
+     * resolve there. [libraryNames] is the only place this name lives; the
+     * fallback covers a process restart between listing the libraries and
+     * tapping one, when the map is empty again.
+     */
+    internal fun confirmationRow(payload: String): MediaItem {
+        val sectionKey = payload.substringAfter('|', "")
+        val name = libraryNames[payload] ?: "Library $sectionKey"
+        return browsableRow(
+            mediaId = ConstantsAA.PICK_LIBRARY_ID + payload + CONFIRMED_SUFFIX,
+            // Browsable purely so the car draws it: an item with neither
+            // isBrowsable nor isPlayable set is dropped from the list entirely.
+            title = App.getInstance().getString(R.string.aa_now_browsing, name)
+        )
     }
 
     /**
@@ -339,6 +341,13 @@ class LibraryPickerRepository {
     companion object {
 
         data class ServerRow(val machineIdentifier: String?, val name: String)
+
+        /**
+         * Marks the row [selectLibrary] answers with, so tapping it is
+         * recognisable as "show me that row again" rather than "commit this
+         * library" a second time.
+         */
+        const val CONFIRMED_SUFFIX = ":confirmed"
 
         /** U+2713 CHECK MARK. The tick is the only signal of which library is in use. */
         private const val TICK = "✓ "
