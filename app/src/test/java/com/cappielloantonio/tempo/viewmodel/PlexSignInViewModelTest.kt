@@ -302,6 +302,16 @@ class PlexSignInViewModelTest {
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
         viewModel.start()
         advanceUntilIdle()
+
+        // Snapshot immediately before the call under test, same as
+        // chooseServerPersistsNothing: uri, resource and candidate are all in
+        // scope inside chooseServer's onLeft, so the rejection path is
+        // exactly where a partial credential write would be tempting to add
+        // later.
+        val serverUriBefore = PlexApi().serverUri
+        val sectionKeyBefore = PlexApi().musicSectionKey
+        val serverTokenBefore = PlexApi().serverToken
+
         viewModel.chooseServer(resource)
         awaitSettled(viewModel)
 
@@ -316,6 +326,11 @@ class PlexSignInViewModelTest {
         state as PlexSignInState.ChoosingServer
         assertEquals(listOf(resource), state.servers)
         assertEquals(R.string.plex_sign_in_error_no_libraries, state.messageRes)
+
+        assertNull("the rejection path must not persist a session", PlexApi().session)
+        assertEquals(serverUriBefore, PlexApi().serverUri)
+        assertEquals(sectionKeyBefore, PlexApi().musicSectionKey)
+        assertEquals(serverTokenBefore, PlexApi().serverToken)
     }
 
     @Test

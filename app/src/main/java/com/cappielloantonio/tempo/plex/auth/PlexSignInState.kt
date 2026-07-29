@@ -8,8 +8,11 @@ import com.cappielloantonio.tempo.plex.models.Resource
 /**
  * What the sign-in screen is showing.
  *
- * Holds data only -- every transition into one of these lives in [PlexSignInFlow],
- * so the flow can be tested without a network or an Android framework class.
+ * Holds data only -- these types carry no behaviour of their own, so a state
+ * can be constructed and compared without a network or an Android framework
+ * class. Most transitions are built directly at the call site in
+ * [com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel]; [PlexSignInFlow]
+ * keeps the one that still needs a function, [PlexSignInFlow.afterPinCreated].
  */
 sealed interface PlexSignInState {
 

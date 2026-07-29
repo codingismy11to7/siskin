@@ -84,8 +84,8 @@ Neither says anything about the account token.
 So `chooseServer`'s `onLeft` routes to the picker unconditionally. There is no
 need to discriminate error types, and no risk of an account-scoped failure
 quietly being treated as recoverable: the account-scoped errors (`NoPinCode`,
-`PinExpired`, `NoServers`) are raised in `signIn` and `discoverServers`, whose
-`onLeft` handlers are untouched and still produce `Failed`.
+`PinExpired`, `NoServers`) are raised in `signIn`, whose `onLeft` handler is
+untouched and still produces `Failed`.
 
 ### The routing lives in the ViewModel
 
@@ -142,19 +142,26 @@ So the rejection path is directly testable, and gets a test: seed
 `ChoosingServer`, make the chosen server yield no music sections, assert the
 resulting state is `ChoosingServer` carrying the message rather than `Failed`.
 
-The test that matters most asserts the **capture ordering**: moving the capture
-below `_state.value = Working` makes the list permanently null and silently
-reintroduces this exact bug, while every other test still passes.
+No single test asserts the **capture ordering** by itself — the list is
+captured from the state before `_state.value = Working` overwrites it, and if
+that capture ever moved below the overwrite, the list would go permanently
+null on every call, silently reintroducing this exact bug. Three tests depend
+on that list surviving rejection — `aServerWithNoMusicReturnsToThePickerInsteadOfFailing`,
+`anUnreachableServerReturnsToThePickerInsteadOfFailing`, and
+`aSecondPickAfterARejectedOneStillSignsIn` — so all three would go red
+together if the ordering broke. A dedicated ordering test would only assert
+the same thing a third time, which is why neither the ViewModel nor the test
+file carries one.
 
 `chooseServerPersistsNothing` already covers the credential side and must keep
 passing unchanged — the recovery path must not write a partial session.
 
 ## Not in scope
 
-**The "no servers on this account" case** (`SignInError.NoServers`). Raised in
-`discoverServers`, and re-linking cannot help — the account is valid and simply
-has no servers. Same shape of defect, deliberately left to keep this change to
-what #18 reports.
+**The "no servers on this account" case** (`SignInError.NoServers`). Raised
+inline inside `signIn()`, and re-linking cannot help — the account is valid
+and simply has no servers. Same shape of defect, deliberately left to keep
+this change to what #18 reports.
 
 **PIN expiry.** It genuinely needs a new PIN.
 
