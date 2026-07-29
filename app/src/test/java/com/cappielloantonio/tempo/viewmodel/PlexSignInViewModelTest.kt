@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import arrow.core.left
 import arrow.core.right
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexSession
@@ -273,5 +274,193 @@ class PlexSignInViewModelTest {
             ),
             PlexApi().session
         )
+    }
+
+    // ── recovering from a bad server pick (#18) ────────────────────────
+    //
+    // These three are also the guard on the ordering inside chooseServer:
+    // the server list is captured from the state *before* that state is
+    // overwritten with Working, so moving the capture below the overwrite
+    // makes it null on every call and turns all three of these red. No
+    // separate ordering test is needed, and adding one would assert the
+    // same thing a third time.
+
+    /** A getSections() body whose only section is not music. */
+    private fun noMusicSectionsBody() =
+        """{"MediaContainer":{"Directory":[{"key":"1","type":"movie","title":"Films"}]}}"""
+
+    @Test
+    fun aServerWithNoMusicReturnsToThePickerInsteadOfFailing() = runTest(dispatcher) {
+        val resource = aMediaServer()
+        val serverUri = server.url("/").toString()
+        val authClient = setUpToChoosingServer(resource)
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+        viewModel.start()
+        advanceUntilIdle()
+
+        // Snapshot immediately before the call under test, same as
+        // chooseServerPersistsNothing: uri, resource and candidate are all in
+        // scope inside chooseServer's onLeft, so the rejection path is
+        // exactly where a partial credential write would be tempting to add
+        // later.
+        val serverUriBefore = PlexApi().serverUri
+        val sectionKeyBefore = PlexApi().musicSectionKey
+        val serverTokenBefore = PlexApi().serverToken
+
+        viewModel.chooseServer(resource)
+        awaitSettled(viewModel)
+
+        // Failed here is the bug: its only exit calls retry() -> signIn() ->
+        // createPin(), which makes the user approve a new PIN to recover from
+        // a statement about a server.
+        val state = viewModel.state.value
+        assertTrue(
+            "expected to land back on the server picker, got $state",
+            state is PlexSignInState.ChoosingServer
+        )
+        state as PlexSignInState.ChoosingServer
+        assertEquals(listOf(resource), state.servers)
+        assertEquals(R.string.plex_sign_in_error_no_libraries, state.messageRes)
+
+        assertNull("the rejection path must not persist a session", PlexApi().session)
+        assertEquals(serverUriBefore, PlexApi().serverUri)
+        assertEquals(sectionKeyBefore, PlexApi().musicSectionKey)
+        assertEquals(serverTokenBefore, PlexApi().serverToken)
+    }
+
+    @Test
+    fun anUnreachableServerReturnsToThePickerInsteadOfFailing() = runTest(dispatcher) {
+        // The probe answering with nothing: no connection the server
+        // advertised responded. No MockWebServer traffic -- the flow never
+        // gets as far as a sections call.
+        val resource = aMediaServer()
+        val authClient = setUpToChoosingServer(resource)
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestConnectionUri(resource) } doReturn null
+        }
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+        viewModel.start()
+        advanceUntilIdle()
+        viewModel.chooseServer(resource)
+        awaitSettled(viewModel)
+
+        val state = viewModel.state.value
+        assertTrue(
+            "expected to land back on the server picker, got $state",
+            state is PlexSignInState.ChoosingServer
+        )
+        assertEquals(
+            R.string.plex_sign_in_error_server_unreachable,
+            (state as PlexSignInState.ChoosingServer).messageRes
+        )
+    }
+
+    @Test
+    fun aSecondPickAfterARejectedOneStillSignsIn() = runTest(dispatcher) {
+        // The actual fix. The message alone was already correct before this
+        // change; what was broken is that the list underneath it was gone.
+        //
+        // bad and good resolve to the same MockWebServer and its two enqueued
+        // responses are dequeued FIFO regardless of which Resource triggered
+        // the call, so reaching ChoosingLibrary alone would not prove index 1
+        // (good) was actually probed rather than bad again. The verify calls
+        // below are what pin that down.
+        val bad = aMediaServer()
+        val good = aMediaServer(accessToken = "good-token")
+        val serverUri = server.url("/").toString()
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { createPin() } doReturn created.right()
+            onBlocking { getPin(42L) } doReturn approvedPin().right()
+            onBlocking { getResources() } doReturn listOf(bad, good).right()
+        }
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestConnectionUri(bad) } doReturn serverUri
+            onBlocking { bestConnectionUri(good) } doReturn serverUri
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
+        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+        viewModel.start()
+        advanceUntilIdle()
+
+        viewModel.chooseServer(bad)
+        awaitSettled(viewModel)
+        val afterRejection = viewModel.state.value
+        assertTrue(
+            "expected the picker back after a bad pick, got $afterRejection",
+            afterRejection is PlexSignInState.ChoosingServer
+        )
+
+        // Picked straight off the state the user is actually looking at: the
+        // list survived rejection, so index 1 (good) is there to pick.
+        viewModel.chooseServer((afterRejection as PlexSignInState.ChoosingServer).servers[1])
+        awaitSettled(viewModel)
+
+        val state = viewModel.state.value
+        assertTrue(
+            "expected the second pick to reach the library picker, got $state",
+            state is PlexSignInState.ChoosingLibrary
+        )
+
+        // The two things the state assertion above cannot tell apart on its
+        // own: that the second pick actually probed good and not bad again
+        // (a re-pick of bad would still reach ChoosingLibrary off the second
+        // queued response -- see the comment at the top of this test), and
+        // that recovering from the rejection did not mint a fresh PIN.
+        verify(probe, times(1)).bestConnectionUri(bad)
+        verify(probe, times(1)).bestConnectionUri(good)
+        verify(authClient, times(1)).createPin()
+    }
+
+    // ── surviving activity recreation (#24) ───────────────────────────
+
+    @Test
+    fun startDoesNotBeginAgainOnceAPickerIsShowing() = runTest(dispatcher) {
+        // CarSignInActivity declares no android:configChanges, so a day/night
+        // uiMode flip -- routine in a car -- recreates it, and onCreateView
+        // calls start() again. The ViewModel survives, so the picker state
+        // survives; start() is what used to destroy it.
+        val authClient = setUpToChoosingServer(aMediaServer())
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+        viewModel.start()
+        advanceUntilIdle()
+        val picker = viewModel.state.value
+        assertTrue("setup did not reach ChoosingServer, got $picker", picker is PlexSignInState.ChoosingServer)
+
+        // The recreation.
+        viewModel.start()
+        advanceUntilIdle()
+
+        // Guarding on attempt?.isActive alone is not enough: signIn() has run to
+        // COMPLETION by now, so isActive is false and the old guard fell through
+        // to createPin() -- discarding an account token that is still good.
+        verify(authClient, times(1)).createPin()
+        assertEquals(picker, viewModel.state.value)
+    }
+
+    @Test
+    fun startStillBeginsWhenNothingHasBeenPublishedYet() = runTest(dispatcher) {
+        // The other half, and the reason the guard keys on Working rather than
+        // on "not null": Working is the initial value, so a first start() must
+        // still sign in. Reaching it with a dead attempt means the job died
+        // without publishing, which is also worth restarting.
+        val authClient = setUpToChoosingServer(aMediaServer())
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+        assertEquals(PlexSignInState.Working, viewModel.state.value)
+
+        viewModel.start()
+        advanceUntilIdle()
+
+        verify(authClient, times(1)).createPin()
+        assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
     }
 }

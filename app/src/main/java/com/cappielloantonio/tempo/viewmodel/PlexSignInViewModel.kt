@@ -73,9 +73,27 @@ class PlexSignInViewModel @JvmOverloads constructor(
     /** The server picked but not yet committed; chooseLibrary needs it to build a session. */
     private var candidate: Pair<String, Resource>? = null
 
-    /** Safe to call repeatedly; does nothing while an attempt is already running. */
+    /**
+     * Safe to call repeatedly; does nothing once there is anything worth keeping.
+     *
+     * The fragment calls this from every `onCreateView`, so it runs again on
+     * every activity recreation -- and `CarSignInActivity` declares no
+     * `android:configChanges`, so a day/night `uiMode` switch is enough.
+     *
+     * Being active is not the only thing that makes an attempt worth keeping,
+     * which is what the isActive check alone missed. It holds while the poll
+     * loop runs, because `viewModelScope` outlives the activity -- but once
+     * signIn() has published a picker it has run to *completion*, so isActive is
+     * false and a recreation used to fall through to createPin(), discarding an
+     * account token that was still good. See issue #24.
+     *
+     * [PlexSignInState.Working] is the one state with nothing to preserve: it is
+     * the initial value, and arriving here in it with no live attempt means the
+     * job died without publishing, which is worth restarting.
+     */
     fun start() {
         if (attempt?.isActive == true) return
+        if (_state.value !is PlexSignInState.Working) return
         signIn()
     }
 
@@ -85,6 +103,13 @@ class PlexSignInViewModel @JvmOverloads constructor(
     }
 
     fun chooseServer(resource: Resource) {
+        // Read before the overwrite below, because the state is the only place
+        // this list lives -- a parallel field would give it two owners. If this
+        // line ever moves under the assignment it becomes permanently null and
+        // #18 is silently back; PlexSignInViewModelTest's three recovery tests
+        // are what hold it here.
+        val servers = (_state.value as? PlexSignInState.ChoosingServer)?.servers
+
         // Picking a server supersedes the poll loop and any earlier pick: an
         // outstanding probe or sections call describes a server the user is no
         // longer signing in to.
@@ -118,7 +143,26 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 ) { SignInError.NoLibraries }
 
                 _state.value = PlexSignInState.ChoosingLibrary(sections)
-            }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
+            }.onLeft { error ->
+                // Unconditional, and that is the whole decision: every failure
+                // raised in the block above is about the server just picked --
+                // the probe finding nothing, getSections failing, no music
+                // section. None of them says anything about the account token,
+                // so none of them justifies Failed, whose only exit re-creates
+                // the pin. The account-scoped errors (NoPinCode, PinExpired,
+                // NoServers) are raised in signIn and still land in Failed
+                // through its own onLeft.
+                //
+                // Failed remains the fallback for the one case with nothing to
+                // go back to: chooseServer reached from a state that is not the
+                // picker, which the UI cannot currently do.
+                val message = PlexSignInFlow.messageFor(error)
+                _state.value = if (servers != null) {
+                    PlexSignInState.ChoosingServer(servers, message)
+                } else {
+                    PlexSignInState.Failed(message)
+                }
+            }
         }
     }
 

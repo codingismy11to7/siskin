@@ -131,8 +131,18 @@ class PlexSignInFragment : Fragment() {
                 }
             }
 
-            is PlexSignInState.ChoosingServer -> state.servers.forEach { server ->
-                addChoice(server.name.orEmpty()) { viewModel.chooseServer(server) }
+            is PlexSignInState.ChoosingServer -> {
+                // Set only when the user is back here because the server they
+                // picked was unusable. retryButton stays hidden: the list is
+                // the recovery, and there is nothing to retry -- only a
+                // different choice to make.
+                state.messageRes?.let {
+                    bind.errorText.visibility = View.VISIBLE
+                    bind.errorText.setText(it)
+                }
+                state.servers.forEach { server ->
+                    addChoice(server.name.orEmpty()) { viewModel.chooseServer(server) }
+                }
             }
 
             is PlexSignInState.ChoosingLibrary -> state.sections.forEach { section ->

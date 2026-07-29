@@ -8,8 +8,11 @@ import com.cappielloantonio.tempo.plex.models.Resource
 /**
  * What the sign-in screen is showing.
  *
- * Holds data only -- every transition into one of these lives in [PlexSignInFlow],
- * so the flow can be tested without a network or an Android framework class.
+ * Holds data only -- these types carry no behaviour of their own, so a state
+ * can be constructed and compared without a network or an Android framework
+ * class. Most transitions are built directly at the call site in
+ * [com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel]; [PlexSignInFlow]
+ * keeps the one that still needs a function, [PlexSignInFlow.afterPinCreated].
  */
 sealed interface PlexSignInState {
 
@@ -27,8 +30,19 @@ sealed interface PlexSignInState {
         val expiresAtEpochSeconds: Long?
     ) : PlexSignInState
 
-    /** Non-empty by construction: an empty picker is [SignInError.NoServers]. */
-    data class ChoosingServer(val servers: NonEmptyList<Resource>) : PlexSignInState
+    /**
+     * Non-empty by construction: an empty picker is [SignInError.NoServers].
+     *
+     * [messageRes] is set when the user arrives here by rejection rather than
+     * by progress -- the server they picked had no music library, or did not
+     * answer. That is a statement about that server, not about the account, so
+     * the account token is still good and this list is still the right next
+     * step. Null on the way *in* to the picker.
+     */
+    data class ChoosingServer(
+        val servers: NonEmptyList<Resource>,
+        @param:StringRes val messageRes: Int? = null
+    ) : PlexSignInState
 
     /** Non-empty by construction: an empty picker is [SignInError.NoLibraries]. */
     data class ChoosingLibrary(val sections: NonEmptyList<Directory>) : PlexSignInState
