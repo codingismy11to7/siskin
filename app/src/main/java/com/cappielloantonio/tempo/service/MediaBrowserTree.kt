@@ -216,8 +216,31 @@ object MediaBrowserTree {
      */
     fun getItem(mediaId: String): MediaItem? {
         if (treeNodes.isEmpty()) buildTree()
-        return treeNodes[mediaId]?.item
+        treeNodes[mediaId]?.let { return it.item }
+
+        // The picker's rows are built ad hoc by LibraryPickerRepository and are
+        // never registered in treeNodes, so the lookup above can only miss them
+        // -- and a miss here is not cosmetic. onSubscribe (see
+        // MediaLibrarySessionCallback.onGetItem) drops the subscription unless
+        // this returns an item *and* that item is browsable, and
+        // BrowseTreeInvalidator.invalidateNode dispatches only to live
+        // subscriptions. Without this placeholder every invalidation of a server
+        // node is a guaranteed no-op and the tick only ever moves on a fresh
+        // re-entry -- which is precisely the interaction the More tab exists for.
+        //
+        // The placeholder is never drawn: the car renders these lists from
+        // onGetChildren. It looks pointless for that reason. It is not.
+        if (mediaId.startsWith(ConstantsAA.PICK_SERVER_ID) ||
+            mediaId.startsWith(ConstantsAA.PICK_LIBRARY_ID)
+        ) {
+            return LibraryPickerRepository.browsableRow(
+                mediaId = mediaId,
+                title = appContext.getString(R.string.aa_select_library)
+            )
+        }
+        return null
     }
+
 
     fun getChildren(id: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return when (id) {
