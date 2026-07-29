@@ -85,6 +85,13 @@ class PlexSignInViewModel @JvmOverloads constructor(
     }
 
     fun chooseServer(resource: Resource) {
+        // Read before the overwrite below, because the state is the only place
+        // this list lives -- a parallel field would give it two owners. If this
+        // line ever moves under the assignment it becomes permanently null and
+        // #18 is silently back; PlexSignInViewModelTest's three recovery tests
+        // are what hold it here.
+        val servers = (_state.value as? PlexSignInState.ChoosingServer)?.servers
+
         // Picking a server supersedes the poll loop and any earlier pick: an
         // outstanding probe or sections call describes a server the user is no
         // longer signing in to.
@@ -118,7 +125,26 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 ) { SignInError.NoLibraries }
 
                 _state.value = PlexSignInState.ChoosingLibrary(sections)
-            }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
+            }.onLeft { error ->
+                // Unconditional, and that is the whole decision: every failure
+                // raised in the block above is about the server just picked --
+                // the probe finding nothing, getSections failing, no music
+                // section. None of them says anything about the account token,
+                // so none of them justifies Failed, whose only exit re-creates
+                // the pin. The account-scoped errors (NoPinCode, PinExpired,
+                // NoServers) are raised in signIn and still land in Failed
+                // through its own onLeft.
+                //
+                // Failed remains the fallback for the one case with nothing to
+                // go back to: chooseServer reached from a state that is not the
+                // picker, which the UI cannot currently do.
+                val message = PlexSignInFlow.messageFor(error)
+                _state.value = if (servers != null) {
+                    PlexSignInState.ChoosingServer(servers, message)
+                } else {
+                    PlexSignInState.Failed(message)
+                }
+            }
         }
     }
 

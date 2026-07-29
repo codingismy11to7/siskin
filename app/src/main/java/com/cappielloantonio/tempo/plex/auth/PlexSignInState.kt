@@ -27,8 +27,19 @@ sealed interface PlexSignInState {
         val expiresAtEpochSeconds: Long?
     ) : PlexSignInState
 
-    /** Non-empty by construction: an empty picker is [SignInError.NoServers]. */
-    data class ChoosingServer(val servers: NonEmptyList<Resource>) : PlexSignInState
+    /**
+     * Non-empty by construction: an empty picker is [SignInError.NoServers].
+     *
+     * [messageRes] is set when the user arrives here by rejection rather than
+     * by progress -- the server they picked had no music library, or did not
+     * answer. That is a statement about that server, not about the account, so
+     * the account token is still good and this list is still the right next
+     * step. Null on the way *in* to the picker.
+     */
+    data class ChoosingServer(
+        val servers: NonEmptyList<Resource>,
+        @param:StringRes val messageRes: Int? = null
+    ) : PlexSignInState
 
     /** Non-empty by construction: an empty picker is [SignInError.NoLibraries]. */
     data class ChoosingLibrary(val sections: NonEmptyList<Directory>) : PlexSignInState
