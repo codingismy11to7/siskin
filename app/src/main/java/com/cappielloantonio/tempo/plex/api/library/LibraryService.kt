@@ -22,10 +22,10 @@ import retrofit2.http.Query
  *
  * A non-2xx still throws `HttpException` here -- Retrofit's behaviour, unchanged
  * -- but no call site sees that any more. `LibraryClient` wraps every call in
- * `plexCall`, which catches it and returns `Either<PlexFailure, T>`; a 401 from
- * a stale token arrives as `PlexFailure.Http(Server, 401)`, and that is what
- * now keeps "the server said no" apart from "I could not reach it" at the call
- * site.
+ * `plexCall`, which catches it and returns `Either<PlexTransportFailure, T>`; a
+ * 401 from a stale token arrives as `PlexTransportFailure.Http(Server, 401)`,
+ * and that is what now keeps "the server said no" apart from "I could not
+ * reach it" at the call site.
  */
 interface LibraryService {
 

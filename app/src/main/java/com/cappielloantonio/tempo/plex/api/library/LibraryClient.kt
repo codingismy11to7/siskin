@@ -3,9 +3,9 @@ package com.cappielloantonio.tempo.plex.api.library
 import android.util.Log
 import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.base.PlexResponse
@@ -30,7 +30,7 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
     private val service: LibraryService =
         PlexRetrofitFactory.server(api, serverUri, serverToken).create(LibraryService::class.java)
 
-    suspend fun getSections(): Either<PlexFailure, PlexResponse> {
+    suspend fun getSections(): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getSections()")
         return plexCall(PlexHost.Server) { service.getSections() }
     }
@@ -41,7 +41,7 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         start: Int,
         size: Int,
         sort: String? = null
-    ): Either<PlexFailure, PlexResponse> {
+    ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getSectionContent($sectionKey, type=$type, start=$start, size=$size, sort=$sort)")
         return plexCall(PlexHost.Server) {
             service.getSectionContent(sectionKey.value, type, start, size, sort)
@@ -52,18 +52,18 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         ratingKey: RatingKey,
         start: Int,
         size: Int
-    ): Either<PlexFailure, PlexResponse> =
+    ): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getChildren(ratingKey.value, start, size) }
 
-    suspend fun getNearest(ratingKey: RatingKey, limit: Int): Either<PlexFailure, PlexResponse> {
+    suspend fun getNearest(ratingKey: RatingKey, limit: Int): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getNearest($ratingKey, limit=$limit)")
         return plexCall(PlexHost.Server) { service.getNearest(ratingKey.value, limit) }
     }
 
-    suspend fun getMetadata(ratingKey: RatingKey): Either<PlexFailure, PlexResponse> =
+    suspend fun getMetadata(ratingKey: RatingKey): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getMetadata(ratingKey.value) }
 
-    suspend fun getSectionHubs(sectionKey: SectionKey): Either<PlexFailure, PlexResponse> =
+    suspend fun getSectionHubs(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getSectionHubs(sectionKey.value) }
 
     companion object {

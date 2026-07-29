@@ -19,8 +19,8 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.util.Constants
@@ -414,8 +414,8 @@ open class BaseSessionCallback(
      * on purpose, so the two failure modes stay distinguishable in logs instead
      * of both reading as an HTTP error that never happened.
      */
-    private fun sessionResultFor(failure: PlexFailure): SessionResult = when (failure) {
-        is PlexFailure.Http -> {
+    private fun sessionResultFor(failure: PlexTransportFailure): SessionResult = when (failure) {
+        is PlexTransportFailure.Http -> {
             val code = when (failure.code) {
                 401, 403 -> SessionError.ERROR_PERMISSION_DENIED
                 else -> SessionError.ERROR_UNKNOWN

@@ -12,12 +12,13 @@ import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import arrow.core.toNonEmptyListOrNull
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexIdentity
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
+import com.cappielloantonio.tempo.plex.api.auth.CreatePinError
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
@@ -100,7 +101,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 // is, so it reports as the same thing rather than via a second case.
                 val uri = ensureNotNull(probe.bestConnectionUri(resource)) {
                     Log.d(TAG, "no advertised connection answered for ${resource.name}")
-                    SignInError.Api(PlexFailure.Unreachable(PlexHost.Server))
+                    SignInError.Api(PlexTransportFailure.Unreachable(PlexHost.Server))
                 }
 
                 candidate = uri to resource
@@ -174,7 +175,12 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
         attempt = viewModelScope.launch {
             either {
-                val created = authClient.createPin().mapLeft(SignInError::Api).bind()
+                val created = authClient.createPin().mapLeft {
+                    when (it) {
+                        is CreatePinError.Transport -> SignInError.Api(it.failure)
+                        CreatePinError.NoPinCode -> SignInError.NoPinCode
+                    }
+                }.bind()
 
                 val awaiting = PlexSignInFlow.afterPinCreated(created)
                 _state.value = awaiting

@@ -12,10 +12,10 @@ import arrow.core.right
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
@@ -209,7 +209,7 @@ class PlexBrowseRepository {
                     ?.let(items::add)
             }
             // Always a Right: collect() folds each tier's failure into an empty
-            // list, so nothing here has a PlexFailure left to report.
+            // list, so nothing here has a PlexTransportFailure left to report.
             LibraryResult.ofItemList(ImmutableList.copyOf(items), null).right()
         }
     }
@@ -225,7 +225,7 @@ class PlexBrowseRepository {
      * building artist entries out of albums.
      *
      * A failure is an empty tier, so one failed tier does not lose the other two.
-     * `fold` handles every typed [PlexFailure] this way, but Retrofit's Gson
+     * `fold` handles every typed [PlexTransportFailure] this way, but Retrofit's Gson
      * converter does not wrap a malformed response body in `IOException` -- a
      * `JsonSyntaxException` from one tier would escape `plexCall` and this
      * function entirely, aborting the other two tiers and completing the whole
@@ -264,7 +264,7 @@ class PlexBrowseRepository {
      * than "rejected".
      */
     private fun fetch(
-        request: suspend () -> Either<PlexFailure, PlexResponse>,
+        request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
         map: (PlexResponse) -> List<MediaItem>
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
         launchInto { resultFor(request, map) }
@@ -282,7 +282,7 @@ class PlexBrowseRepository {
      * `raise` for it to swallow.
      */
     private fun launchInto(
-        block: suspend () -> Either<PlexFailure, LibraryResult<ImmutableList<MediaItem>>>
+        block: suspend () -> Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>>
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
 
@@ -351,9 +351,9 @@ class PlexBrowseRepository {
          * it is a `when` over a sealed type now.
          */
         internal suspend fun resultFor(
-            request: suspend () -> Either<PlexFailure, PlexResponse>,
+            request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
             map: (PlexResponse) -> List<MediaItem>
-        ): Either<PlexFailure, LibraryResult<ImmutableList<MediaItem>>> = either {
+        ): Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>> = either {
             val failure = when (val outcome = request()) {
                 is Either.Right ->
                     return@either LibraryResult.ofItemList(
@@ -364,12 +364,12 @@ class PlexBrowseRepository {
             }
 
             when (failure) {
-                is PlexFailure.Http -> {
+                is PlexTransportFailure.Http -> {
                     Log.w(TAG, "browse failed with HTTP ${failure.code}")
                     errorFor(failure.code)
                 }
 
-                else -> raise(failure)
+                is PlexTransportFailure.Unreachable -> raise(failure)
             }
         }
 

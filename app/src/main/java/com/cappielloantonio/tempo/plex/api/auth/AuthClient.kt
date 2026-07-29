@@ -5,9 +5,9 @@ import arrow.core.Either
 import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.plex.plexCall
@@ -31,17 +31,19 @@ class AuthClient(api: PlexApi) {
      * Validated on the way out, so callers get a PIN they can use rather than one
      * they have to re-check.
      */
-    suspend fun createPin(): Either<PlexFailure, CreatedPin> = either {
+    suspend fun createPin(): Either<CreatePinError, CreatedPin> = either {
         Log.d(TAG, "createPin()")
-        val pin = plexCall(PlexHost.PlexTv) { service.createPin() }.bind()
+        val pin = plexCall(PlexHost.PlexTv) { service.createPin() }
+            .mapLeft(CreatePinError::Transport)
+            .bind()
         validate(pin).bind()
     }
 
     /** Unvalidated on purpose: the poll only reads [Pin.authToken] and the expiry. */
-    suspend fun getPin(pinId: Long): Either<PlexFailure, Pin> =
+    suspend fun getPin(pinId: Long): Either<PlexTransportFailure, Pin> =
         plexCall(PlexHost.PlexTv) { service.getPin(pinId) }
 
-    suspend fun getResources(): Either<PlexFailure, List<Resource>> {
+    suspend fun getResources(): Either<PlexTransportFailure, List<Resource>> {
         Log.d(TAG, "getResources()")
         return plexCall(PlexHost.PlexTv) { service.getResources() }
     }
@@ -78,10 +80,10 @@ class AuthClient(api: PlexApi) {
          * be tested without a network.
          */
         @JvmStatic
-        fun validate(pin: Pin): Either<PlexFailure, CreatedPin> = either {
-            val id = ensureNotNull(pin.id) { PlexFailure.NoPinCode }
+        fun validate(pin: Pin): Either<CreatePinError, CreatedPin> = either {
+            val id = ensureNotNull(pin.id) { CreatePinError.NoPinCode }
             val code = ensureNotNull(pin.code?.takeIf { it.isNotBlank() }) {
-                PlexFailure.NoPinCode
+                CreatePinError.NoPinCode
             }
             CreatedPin(
                 id = id,

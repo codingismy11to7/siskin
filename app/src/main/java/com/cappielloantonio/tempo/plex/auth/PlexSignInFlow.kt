@@ -2,8 +2,8 @@ package com.cappielloantonio.tempo.plex.auth
 
 import androidx.annotation.StringRes
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 
 /**
@@ -32,13 +32,14 @@ object PlexSignInFlow {
     /**
      * The single place a failure becomes a message.
      *
-     * Exhaustive with no `else`, so a new [SignInError] or [PlexFailure] case
-     * will not compile until it has a string. That is the point: these used to be
-     * six scattered `Failed(R.string...)` calls across two files.
+     * Exhaustive with no `else`, so a new [SignInError] or [PlexTransportFailure]
+     * case will not compile until it has a string. That is the point: these used
+     * to be six scattered `Failed(R.string...)` calls across two files.
      */
     @StringRes
     fun messageFor(error: SignInError): Int = when (error) {
         is SignInError.Api -> messageForApi(error.failure)
+        SignInError.NoPinCode -> R.string.plex_sign_in_error_pin
         SignInError.PinExpired -> R.string.plex_sign_in_error_expired
         SignInError.NoServers -> R.string.plex_sign_in_error_no_servers
         SignInError.NoLibraries -> R.string.plex_sign_in_error_no_libraries
@@ -50,14 +51,13 @@ object PlexSignInFlow {
      *
      * This preserves a deliberate behaviour: a dropped connection and a 401 from
      * the server both read as "could not reach that Plex server". It falls out of
-     * the host now rather than being asserted at each call site.
+     * the host now rather than being asserted at each call site. No case has to
+     * be matched here any more -- every [PlexTransportFailure] carries a host, so
+     * this reads it directly rather than switching on the failure's own shape.
      */
     @StringRes
-    private fun messageForApi(failure: PlexFailure): Int = when (failure) {
-        PlexFailure.NoPinCode -> R.string.plex_sign_in_error_pin
-        is PlexFailure.Unreachable, is PlexFailure.Http -> when (failure.host) {
-            PlexHost.PlexTv -> R.string.plex_sign_in_error_network
-            PlexHost.Server -> R.string.plex_sign_in_error_server_unreachable
-        }
+    private fun messageForApi(failure: PlexTransportFailure): Int = when (failure.host) {
+        PlexHost.PlexTv -> R.string.plex_sign_in_error_network
+        PlexHost.Server -> R.string.plex_sign_in_error_server_unreachable
     }
 }

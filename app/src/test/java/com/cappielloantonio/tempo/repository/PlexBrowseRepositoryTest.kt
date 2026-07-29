@@ -6,9 +6,9 @@ import androidx.media3.session.SessionError
 import arrow.core.left
 import arrow.core.right
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.base.MediaContainer
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Metadata
@@ -144,7 +144,7 @@ class PlexBrowseRepositoryTest {
     // ── resultFor: the fetch() outcome→LibraryResult decision ─────────
     //
     // plexCall (see PlexCall.kt) is what turns Retrofit's HttpException and
-    // IOException into PlexFailure values, so resultFor itself never touches
+    // IOException into PlexTransportFailure values, so resultFor itself never touches
     // an exception -- only an Either. These drive it directly with
     // already-folded Right/Left request stubs, to pin the outcome→LibraryResult
     // mapping in isolation from Retrofit and the network.
@@ -168,7 +168,7 @@ class PlexBrowseRepositoryTest {
     @Test
     fun resultForHttp401IsPermissionDenied() = runTest {
         val result = PlexBrowseRepository.resultFor(
-            { PlexFailure.Http(PlexHost.Server, 401).left() },
+            { PlexTransportFailure.Http(PlexHost.Server, 401).left() },
             mapThatMustNotRun
         ).getOrNull()!!
 
@@ -178,7 +178,7 @@ class PlexBrowseRepositoryTest {
     @Test
     fun resultForHttp403IsPermissionDenied() = runTest {
         val result = PlexBrowseRepository.resultFor(
-            { PlexFailure.Http(PlexHost.Server, 403).left() },
+            { PlexTransportFailure.Http(PlexHost.Server, 403).left() },
             mapThatMustNotRun
         ).getOrNull()!!
 
@@ -188,7 +188,7 @@ class PlexBrowseRepositoryTest {
     @Test
     fun resultForHttp500IsBadValue() = runTest {
         val result = PlexBrowseRepository.resultFor(
-            { PlexFailure.Http(PlexHost.Server, 500).left() },
+            { PlexTransportFailure.Http(PlexHost.Server, 500).left() },
             mapThatMustNotRun
         ).getOrNull()!!
 
@@ -200,7 +200,7 @@ class PlexBrowseRepositoryTest {
         // The distinction resultFor has to keep: an unreachable server must not
         // reach the user as "rejected". Staying Left is what makes launchInto
         // complete the future exceptionally instead of with a LibraryResult.
-        val failure = PlexFailure.Unreachable(PlexHost.Server)
+        val failure = PlexTransportFailure.Unreachable(PlexHost.Server)
 
         val result = PlexBrowseRepository.resultFor({ failure.left() }, mapThatMustNotRun)
 
@@ -212,7 +212,7 @@ class PlexBrowseRepositoryTest {
     // These drive the public future-returning API against a socket, so they
     // cover the whole bridge the seam tests above cannot see: the coroutine
     // launch, plexCall actually folding a real HttpException/IOException that
-    // Retrofit raises into a PlexFailure, and the SettableFuture completion.
+    // Retrofit raises into a PlexTransportFailure, and the SettableFuture completion.
 
     private fun tracksBody(vararg ratingKeys: String) = """
         {"MediaContainer":{"Metadata":[${
@@ -237,7 +237,7 @@ class PlexBrowseRepositoryTest {
     @Test
     fun a401BecomesPermissionDeniedRatherThanAnExceptionallyCompletedFuture() {
         // The central hazard now: plexCall folds the real HttpException
-        // Retrofit throws for a 401 into Left(PlexFailure.Http(..., 401)), and
+        // Retrofit throws for a 401 into Left(PlexTransportFailure.Http(..., 401)), and
         // resultFor has to route that to a LibraryResult error rather than
         // raise it -- raising would flow through launchInto's Left branch and
         // complete the future exceptionally instead, classifyFailure would
@@ -380,9 +380,9 @@ class PlexBrowseRepositoryTest {
         // One failed tier must not lose the other two: a 500 on albums still
         // leaves usable artist and track results on screen. This pins the
         // typed half of that guarantee -- plexCall turns the 500 into a
-        // Left(PlexFailure.Http(...)) and collect() folds it to an empty list
+        // Left(PlexTransportFailure.Http(...)) and collect() folds it to an empty list
         // rather than binding or propagating it. collect()'s catch is the
-        // other half, covering what is not a PlexFailure at all (a Gson
+        // other half, covering what is not a PlexTransportFailure at all (a Gson
         // JsonSyntaxException is not wrapped in IOException by Retrofit, so
         // it reaches collect as itself); no test drives that path.
         PlexApi().musicSectionKey = "1"

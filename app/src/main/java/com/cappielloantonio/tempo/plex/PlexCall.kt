@@ -22,11 +22,11 @@ import java.io.IOException
 internal suspend fun <T> plexCall(
     host: PlexHost,
     block: suspend () -> T
-): Either<PlexFailure, T> =
+): Either<PlexTransportFailure, T> =
     try {
         block().right()
     } catch (e: IOException) {
-        PlexFailure.Unreachable(host).left()
+        PlexTransportFailure.Unreachable(host).left()
     } catch (e: HttpException) {
-        PlexFailure.Http(host, e.code()).left()
+        PlexTransportFailure.Http(host, e.code()).left()
     }

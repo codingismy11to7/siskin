@@ -30,14 +30,14 @@ class PlexCallTest {
     fun mapsAnIOExceptionToUnreachableCarryingTheHost() = runTest {
         val result = plexCall(PlexHost.Server) { throw IOException("no route") }
 
-        assertEquals(Either.Left(PlexFailure.Unreachable(PlexHost.Server)), result)
+        assertEquals(Either.Left(PlexTransportFailure.Unreachable(PlexHost.Server)), result)
     }
 
     @Test
     fun mapsAnHttpExceptionToHttpCarryingTheHostAndCode() = runTest {
         val result = plexCall(PlexHost.PlexTv) { throw httpException(401) }
 
-        assertEquals(Either.Left(PlexFailure.Http(PlexHost.PlexTv, 401)), result)
+        assertEquals(Either.Left(PlexTransportFailure.Http(PlexHost.PlexTv, 401)), result)
     }
 
     @Test
@@ -73,10 +73,5 @@ class PlexCallTest {
         } catch (expected: IllegalArgumentException) {
             assertEquals("bug", expected.message)
         }
-    }
-
-    @Test
-    fun noPinCodeIsAlwaysAPlexTvFailure() {
-        assertEquals(PlexHost.PlexTv, PlexFailure.NoPinCode.host)
     }
 }

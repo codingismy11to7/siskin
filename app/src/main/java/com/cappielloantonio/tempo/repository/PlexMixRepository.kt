@@ -6,9 +6,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
@@ -93,7 +93,7 @@ class PlexMixRepository {
      */
     private fun deliver(
         callback: TracksCallback,
-        request: suspend () -> Either<PlexFailure, PlexResponse>
+        request: suspend () -> Either<PlexTransportFailure, PlexResponse>
     ) {
         scope.launch {
             val tracks = try {

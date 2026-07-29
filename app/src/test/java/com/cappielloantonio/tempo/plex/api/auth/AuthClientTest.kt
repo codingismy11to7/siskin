@@ -1,7 +1,6 @@
 package com.cappielloantonio.tempo.plex.api.auth
 
 import arrow.core.Either
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
@@ -77,7 +76,7 @@ class AuthClientTest {
         val pin = Pin().apply { code = "ABCD" }
 
         assertEquals(
-            Either.Left(PlexFailure.NoPinCode),
+            Either.Left(CreatePinError.NoPinCode),
             AuthClient.validate(pin)
         )
     }
@@ -87,7 +86,7 @@ class AuthClientTest {
         val pin = Pin().apply { id = 42L }
 
         assertEquals(
-            Either.Left(PlexFailure.NoPinCode),
+            Either.Left(CreatePinError.NoPinCode),
             AuthClient.validate(pin)
         )
     }
@@ -97,7 +96,7 @@ class AuthClientTest {
         val pin = Pin().apply { id = 42L; code = "   " }
 
         assertEquals(
-            Either.Left(PlexFailure.NoPinCode),
+            Either.Left(CreatePinError.NoPinCode),
             AuthClient.validate(pin)
         )
     }

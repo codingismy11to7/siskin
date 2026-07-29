@@ -5,9 +5,9 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import arrow.core.left
 import arrow.core.right
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
@@ -138,8 +138,8 @@ class PlexSignInViewModelTest {
         val authClient = mock<AuthClient>().stub {
             onBlocking { createPin() } doReturn created.right()
             onBlocking { getPin(42L) } doReturnConsecutively listOf(
-                PlexFailure.Unreachable(PlexHost.PlexTv).left(),
-                PlexFailure.Http(PlexHost.PlexTv, 500).left(),
+                PlexTransportFailure.Unreachable(PlexHost.PlexTv).left(),
+                PlexTransportFailure.Http(PlexHost.PlexTv, 500).left(),
                 approvedPin().right()
             )
             onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
