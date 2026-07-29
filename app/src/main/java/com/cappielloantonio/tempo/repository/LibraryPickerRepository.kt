@@ -281,6 +281,12 @@ class LibraryPickerRepository {
         // The three music tabs are showing the old library. PlexBrowseRepository
         // rebuilds its own clients on the next call because refreshClients()
         // compares sessions, so only the car needs telling.
+        //
+        // These two have opposite threading contracts -- invalidateRoot() must be
+        // called on the main thread, invalidateNode() posts to it -- which is only
+        // safe because selectLibrary runs on the car's callback thread and not on
+        // this class's IO scope. Moving this body into a coroutine means posting
+        // invalidateRoot() as well.
         BrowseTreeInvalidator.invalidateRoot()
         BrowseTreeInvalidator.invalidateNode(
             ConstantsAA.PICK_SERVER_ID + machineIdentifier,
