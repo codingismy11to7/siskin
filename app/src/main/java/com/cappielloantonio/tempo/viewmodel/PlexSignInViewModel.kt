@@ -15,6 +15,7 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexIdentity
+import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
@@ -67,6 +68,9 @@ class PlexSignInViewModel @JvmOverloads constructor(
      */
     private var attempt: Job? = null
 
+    /** The server picked but not yet committed; chooseLibrary needs it to build a session. */
+    private var candidate: Pair<String, Resource>? = null
+
     /** Safe to call repeatedly; does nothing while an attempt is already running. */
     fun start() {
         if (attempt?.isActive == true) return
@@ -87,27 +91,9 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
         attempt = viewModelScope.launch {
             either {
-                // THE INVARIANT: accountToken, serverUri and musicSectionKey describe one
-                // connection, and CredentialGate.isSignedIn() reads all three as a set.
-                // They are written at different moments, so every moment that invalidates
-                // one of them must invalidate the rest -- a *mixed* set must never be
-                // readable, because the gate would report it as signed in and browse would
-                // then ask this server for another server's section.
-                //
-                // Cleared before the new server is adopted, and serverUri is not written
-                // again until the probe has found an address that answers. The worst a
-                // reader can see in between is no server at all: signed out, which is
-                // true.
-                //
-                // CarSignInActivity is the media session's activity, so the car's app
-                // affordance opens this screen at any time, including while fully signed
-                // in. Approving a pin, picking a different server and walking away is
-                // therefore reachable, and this is what makes the state it leaves behind
-                // read as signed out rather than as a working sign-in pointed at the
-                // wrong library.
-                api.musicSectionKey = null
-                api.serverUri = null
-                api.serverToken = resource.accessToken
+                // Nothing is written here. The session is committed whole in
+                // chooseLibrary, so an abandoned sign-in leaves the previous one
+                // untouched rather than half-cleared.
 
                 // The probe answering with nothing is the same failure a dead call
                 // is, so it reports as the same thing rather than via a second case.
@@ -116,11 +102,12 @@ class PlexSignInViewModel @JvmOverloads constructor(
                     SignInError.Api(PlexFailure.Unreachable(PlexHost.Server))
                 }
 
-                api.serverUri = uri
+                candidate = uri to resource
 
-                // Constructed *after* the assignment above on purpose: LibraryClient pins
-                // api.serverUri at construction time and never re-reads it.
-                val response = LibraryClient(api).getSections()
+                // Built from the candidate directly: nothing is persisted until
+                // chooseLibrary commits a whole PlexSession, so there is no
+                // window in which a reader could see a mixed set.
+                val response = LibraryClient(api, uri, resource.accessToken).getSections()
                     .mapLeft(SignInError::Api)
                     .bind()
 
@@ -138,7 +125,26 @@ class PlexSignInViewModel @JvmOverloads constructor(
         // well as of the flow: nothing still outstanding can publish a Failed over a
         // finished sign-in.
         attempt?.cancel()
-        api.musicSectionKey = section.key
+
+        // Normally unreachable -- chooseServer is what populates candidate, and
+        // ChoosingLibrary only exists after it succeeded -- but publishing a
+        // Failed state here rather than returning silently means a stuck screen
+        // reads as an error the user can retry rather than a dead button.
+        val (uri, resource) = candidate ?: run {
+            Log.d(TAG, "chooseLibrary called with no candidate server on record")
+            _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
+            return
+        }
+        val key = section.key ?: return
+        val token = api.accountToken ?: return
+
+        // The one write. All four values land together or not at all.
+        api.session = PlexSession(
+            accountToken = token,
+            serverUri = uri,
+            musicSectionKey = key,
+            serverToken = resource.accessToken
+        )
         _state.value = PlexSignInState.Done
     }
 

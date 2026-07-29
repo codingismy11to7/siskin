@@ -52,15 +52,16 @@ class PlexMixRepository {
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val serverUri: String? get() = api.serverUri
-    private val token: String? get() = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken)
+    private val serverUri: String? get() = api.session?.serverUri
+    private val token: String?
+        get() = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
 
     fun similarTracks(ratingKey: String, count: Int, callback: TracksCallback) {
         deliver(callback) { libraryClient.getNearest(ratingKey, count) }
     }
 
     fun randomTracks(count: Int, callback: TracksCallback) {
-        val key = api.musicSectionKey
+        val key = api.session?.musicSectionKey
         if (key == null) {
             Log.w(TAG, "no music section selected")
             callback.onTracks(emptyList())

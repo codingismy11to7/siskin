@@ -29,13 +29,24 @@ object PlexRetrofitFactory {
     fun plexTv(api: PlexApi): Retrofit = build(PLEX_TV_BASE_URL, api::plexTvHeaders)
 
     /**
-     * Resolves `api.serverUri` once, at call time, and bakes it into the
-     * returned Retrofit instance's base URL. It is not rebuilt if the server
-     * changes afterwards -- callers that hold onto a service built from this
-     * (e.g. LibraryClient, SearchClient) must discard and reconstruct it
-     * whenever the server changes.
+     * Bakes [serverUri] into the returned instance's base URL, and uses
+     * [serverToken] for its identity headers.
+     *
+     * Taken as parameters rather than read from [api] so a caller can build a
+     * client for a server that is not the persisted one -- which sign-in needs,
+     * because it probes and reads a candidate server's sections *before*
+     * committing a PlexSession. The instance is still pinned to whatever it was
+     * given: callers that outlive a server change must rebuild, as
+     * PlexBrowseRepository.refreshClients does.
      */
-    fun server(api: PlexApi): Retrofit = build(normalize(api.serverUri), api::serverHeaders)
+    fun server(api: PlexApi, serverUri: String?, serverToken: String?): Retrofit =
+        build(normalize(serverUri)) {
+            PlexIdentity.headers(
+                api.clientIdentifier,
+                api.appVersion,
+                PlexApi.serverTokenOrAccount(serverToken, api.accountToken)
+            )
+        }
 
     private val gson = GsonBuilder().setLenient().create()
 

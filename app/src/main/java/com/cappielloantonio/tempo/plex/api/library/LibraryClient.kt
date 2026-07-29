@@ -15,14 +15,18 @@ private const val TAG = "LibraryClient"
 /**
  * Browsing a Plex music library: sections, their contents, and hub rows.
  *
- * Captures `api.serverUri` at construction time, via [PlexRetrofitFactory.server].
- * It does not observe later changes -- discard and reconstruct this client
- * whenever the server changes.
+ * Pinned to the [serverUri] it was constructed with and never re-reads it --
+ * discard and reconstruct whenever the server changes. Taking the address as a
+ * parameter is what lets sign-in read a candidate server's sections before it
+ * has committed a [com.cappielloantonio.tempo.plex.PlexSession].
  */
-class LibraryClient(api: PlexApi) {
+class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
+
+    /** Uses whatever server the persisted session names. */
+    constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken)
 
     private val service: LibraryService =
-        PlexRetrofitFactory.server(api).create(LibraryService::class.java)
+        PlexRetrofitFactory.server(api, serverUri, serverToken).create(LibraryService::class.java)
 
     suspend fun getSections(): Either<PlexFailure, PlexResponse> {
         Log.d(TAG, "getSections()")

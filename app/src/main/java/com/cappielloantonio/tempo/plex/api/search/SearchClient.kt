@@ -14,14 +14,18 @@ private const val TAG = "SearchClient"
 /**
  * Search, playlists, and reporting playback position back to Plex.
  *
- * Captures `api.serverUri` at construction time, via [PlexRetrofitFactory.server].
- * It does not observe later changes -- discard and reconstruct this client
- * whenever the server changes.
+ * Pinned to the [serverUri] it was constructed with and never re-reads it --
+ * discard and reconstruct whenever the server changes. Taking the address as a
+ * parameter is what lets sign-in read a candidate server's sections before it
+ * has committed a [com.cappielloantonio.tempo.plex.PlexSession].
  */
-class SearchClient(api: PlexApi) {
+class SearchClient(api: PlexApi, serverUri: String?, serverToken: String?) {
+
+    /** Uses whatever server the persisted session names. */
+    constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken)
 
     private val service: SearchService =
-        PlexRetrofitFactory.server(api).create(SearchService::class.java)
+        PlexRetrofitFactory.server(api, serverUri, serverToken).create(SearchService::class.java)
 
     /**
      * [type] is a PlexItemType value and is not optional: Plex rejects a search

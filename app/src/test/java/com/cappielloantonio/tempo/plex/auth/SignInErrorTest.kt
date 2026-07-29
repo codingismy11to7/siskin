@@ -59,6 +59,10 @@ class SignInErrorTest {
             R.string.plex_sign_in_error_no_libraries,
             PlexSignInFlow.messageFor(SignInError.NoLibraries)
         )
+        assertEquals(
+            R.string.plex_sign_in_error_lost_candidate,
+            PlexSignInFlow.messageFor(SignInError.NoCandidate)
+        )
     }
 
     @Test
@@ -71,7 +75,8 @@ class SignInErrorTest {
             SignInError.Api(PlexFailure.NoPinCode),
             SignInError.PinExpired,
             SignInError.NoServers,
-            SignInError.NoLibraries
+            SignInError.NoLibraries,
+            SignInError.NoCandidate
         )
 
         val messages = errors.map { PlexSignInFlow.messageFor(it) }
@@ -82,6 +87,6 @@ class SignInErrorTest {
             errors.size,
             messages.toSet().size
         )
-        assertTrue(messages.size == 6)
+        assertTrue(messages.size == 7)
     }
 }

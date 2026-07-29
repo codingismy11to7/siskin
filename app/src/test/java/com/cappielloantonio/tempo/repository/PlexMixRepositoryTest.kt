@@ -38,8 +38,12 @@ class PlexMixRepositoryTest {
         server = MockWebServer()
         server.start()
         // App caches SharedPreferences in a static field Robolectric does not
-        // reset between methods, so both keys are set explicitly.
+        // reset between methods, so every key is set explicitly. accountToken is
+        // needed here too: randomTracks now reads the section key through
+        // PlexApi.session, which -- being all-or-nothing -- only reports the key
+        // a test sets below once the account token and server URI are also present.
         PlexApi().apply {
+            accountToken = "account-token"
             serverUri = server.url("/").toString()
             musicSectionKey = null
         }

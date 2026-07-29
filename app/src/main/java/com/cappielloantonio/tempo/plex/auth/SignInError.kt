@@ -26,4 +26,12 @@ sealed interface SignInError {
 
     /** The server is fine; it just has no music libraries. */
     data object NoLibraries : SignInError
+
+    /**
+     * The library picker was answered with no candidate server on record --
+     * normally unreachable through the UI, since the picker only appears after
+     * a server has been chosen, but a silent no-op here would otherwise leave
+     * the screen stuck rather than telling the user to start over.
+     */
+    data object NoCandidate : SignInError
 }

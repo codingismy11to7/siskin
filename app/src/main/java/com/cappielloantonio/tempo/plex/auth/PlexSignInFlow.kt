@@ -42,6 +42,7 @@ object PlexSignInFlow {
         SignInError.PinExpired -> R.string.plex_sign_in_error_expired
         SignInError.NoServers -> R.string.plex_sign_in_error_no_servers
         SignInError.NoLibraries -> R.string.plex_sign_in_error_no_libraries
+        SignInError.NoCandidate -> R.string.plex_sign_in_error_lost_candidate
     }
 
     /**

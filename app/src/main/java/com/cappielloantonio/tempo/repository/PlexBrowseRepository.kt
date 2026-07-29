@@ -15,6 +15,7 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.plex.base.PlexResponse
@@ -63,7 +64,7 @@ class PlexBrowseRepository {
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private var clientsUri: String? = null
+    private var clientsSession: PlexSession? = null
     private var cachedLibraryClient: LibraryClient? = null
     private var cachedSearchClient: SearchClient? = null
 
@@ -73,18 +74,27 @@ class PlexBrowseRepository {
     private val searchClient: SearchClient
         get() = synchronized(this) { refreshClients(); cachedSearchClient!! }
 
+    /**
+     * Rebuilds when the session changes, because PlexRetrofitFactory bakes the
+     * server URI into the base URL at construction. This instance outlives
+     * sign-in -- MediaService creates it when the car first browses, which on a
+     * fresh install is before any server is known -- so clients captured then
+     * would pin every later browse to the placeholder base URL and leave the
+     * tabs permanently empty.
+     */
     private fun refreshClients() {
-        val uri = api.serverUri
-        if (cachedLibraryClient == null || uri != clientsUri) {
-            clientsUri = uri
-            cachedLibraryClient = LibraryClient(api)
-            cachedSearchClient = SearchClient(api)
+        val session = api.session
+        if (cachedLibraryClient == null || session != clientsSession) {
+            clientsSession = session
+            cachedLibraryClient = LibraryClient(api, session?.serverUri, session?.serverToken)
+            cachedSearchClient = SearchClient(api, session?.serverUri, session?.serverToken)
         }
     }
 
-    private val sectionKey: String? get() = api.musicSectionKey
-    private val serverUri: String? get() = api.serverUri
-    private val token: String? get() = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken)
+    private val sectionKey: String? get() = api.session?.musicSectionKey
+    private val serverUri: String? get() = api.session?.serverUri
+    private val token: String?
+        get() = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
 
     // ── browse nodes ──────────────────────────────────────────
 

@@ -48,16 +48,22 @@ class PlexBrowseRepositoryTest {
         server = MockWebServer()
         server.start()
         // Points the repository's Retrofit base URL at the mock server. It reads
-        // this back through PlexApi on every call, so it must be set before the
-        // first request rather than injected.
+        // this back through PlexApi.session on every call (see refreshClients),
+        // so it must be set before the first request rather than injected --
+        // and accountToken and musicSectionKey have to be present too, because
+        // PlexSession only exists as a complete unit: a real serverUri with no
+        // section chosen is a state the atomic session model no longer allows,
+        // so an incomplete one here would fall back to the placeholder base URL
+        // exactly like a missing one.
         //
-        // musicSectionKey is reset explicitly rather than assumed absent: App
+        // Every field is reset explicitly rather than assumed absent: App
         // caches the SharedPreferences in a static field that Robolectric does
-        // not reset between methods, so a key written by one test is otherwise
-        // visible to the next.
+        // not reset between methods, so a value written by one test is
+        // otherwise visible to the next.
         PlexApi().apply {
+            accountToken = "account-token"
             serverUri = server.url("/").toString()
-            musicSectionKey = null
+            musicSectionKey = "1"
         }
     }
 
@@ -381,11 +387,10 @@ class PlexBrowseRepositoryTest {
         // Playlists must be scoped to the chosen music section exactly like
         // getArtists/getAlbums (see PlexBrowseRepository.getPlaylists KDoc) --
         // without that, this tab shows playlists from whichever library Plex
-        // feels like rather than the one the user picked. No section has been
-        // chosen in this test (PlexApi.musicSectionKey defaults to null, and
-        // nothing here sets it), so this must hit the same errorFuture() the
-        // other section-scoped methods fall back to -- ERROR_PERMISSION_DENIED
-        // -- without ever reaching the network.
+        // feels like rather than the one the user picked. No section is chosen
+        // here (overriding startServer()'s default), so this must hit the same
+        // errorFuture() the other section-scoped methods fall back to --
+        // ERROR_PERMISSION_DENIED -- without ever reaching the network.
         //
         // The bounded get() is deliberate, not just tidiness: errorFuture()
         // completes its future synchronously, so a correctly scoped
@@ -393,6 +398,8 @@ class PlexBrowseRepositoryTest {
         // implementation would instead reach the mock server, which has no
         // response queued -- turning what should be a fast, clear assertion
         // failure into a real network attempt and, on an unbounded get(), a hang.
+        PlexApi().musicSectionKey = null
+
         val result = PlexBrowseRepository().getPlaylists("prefix").get(2, TimeUnit.SECONDS)
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
