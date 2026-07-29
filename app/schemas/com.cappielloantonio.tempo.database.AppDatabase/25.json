@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 24,
-    "identityHash": "6abec936a0b4df49d569fc3cf7d757d9",
+    "version": 25,
+    "identityHash": "a3ae81062e4f23d455c52ea9d17b9bc5",
     "entities": [
       {
         "tableName": "queue",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT, `track_order` INTEGER NOT NULL, `last_play` INTEGER NOT NULL, `playing_changed` INTEGER NOT NULL, `title` TEXT, `album` TEXT, `artist` TEXT, `thumb` TEXT, `part_key` TEXT, `duration` INTEGER, `track_index` INTEGER, `year` INTEGER, `parent_rating_key` TEXT, `grandparent_rating_key` TEXT, `hearted` INTEGER NOT NULL, PRIMARY KEY(`track_order`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT, `track_order` INTEGER NOT NULL, `last_play` INTEGER NOT NULL, `playing_changed` INTEGER NOT NULL, `title` TEXT, `album` TEXT, `artist` TEXT, `thumb` TEXT, `part_key` TEXT, `duration` INTEGER, `track_index` INTEGER, `year` INTEGER, `grandparent_rating_key` TEXT, `hearted` INTEGER NOT NULL, PRIMARY KEY(`track_order`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -72,11 +72,6 @@
             "affinity": "INTEGER"
           },
           {
-            "fieldPath": "parentRatingKey",
-            "columnName": "parent_rating_key",
-            "affinity": "TEXT"
-          },
-          {
             "fieldPath": "grandparentRatingKey",
             "columnName": "grandparent_rating_key",
             "affinity": "TEXT"
@@ -97,7 +92,7 @@
       },
       {
         "tableName": "session_media_item",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `id` TEXT, `title` TEXT, `album` TEXT, `artist` TEXT, `thumb` TEXT, `part_key` TEXT, `duration` INTEGER, `track_index` INTEGER, `year` INTEGER, `parent_rating_key` TEXT, `grandparent_rating_key` TEXT, `hearted` INTEGER NOT NULL, `timestamp` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`index` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `id` TEXT, `title` TEXT, `album` TEXT, `artist` TEXT, `thumb` TEXT, `part_key` TEXT, `duration` INTEGER, `track_index` INTEGER, `year` INTEGER, `grandparent_rating_key` TEXT, `hearted` INTEGER NOT NULL, `timestamp` INTEGER)",
         "fields": [
           {
             "fieldPath": "index",
@@ -151,11 +146,6 @@
             "affinity": "INTEGER"
           },
           {
-            "fieldPath": "parentRatingKey",
-            "columnName": "parent_rating_key",
-            "affinity": "TEXT"
-          },
-          {
             "fieldPath": "grandparentRatingKey",
             "columnName": "grandparent_rating_key",
             "affinity": "TEXT"
@@ -182,7 +172,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6abec936a0b4df49d569fc3cf7d757d9')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a3ae81062e4f23d455c52ea9d17b9bc5')"
     ]
   }
 }
