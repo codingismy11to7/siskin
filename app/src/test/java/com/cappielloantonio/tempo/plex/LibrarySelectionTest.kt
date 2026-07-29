@@ -62,4 +62,44 @@ class LibrarySelectionTest {
     fun `a first ever selection has no queue to discard`() {
         assertFalse(LibrarySelection.invalidatesQueue(null, session()))
     }
+
+    @Test
+    fun `switching library on same server with null old identifier keeps queue`() {
+        val old = session(section = "3", machine = null)
+        val new = session(section = "4", machine = "zzz999")
+        assertFalse(LibrarySelection.invalidatesQueue(old, new))
+    }
+
+    @Test
+    fun `switching to different server with null old identifier discards queue`() {
+        val old = session(uri = "http://pms:32400", section = "3", machine = null)
+        val new = session(uri = "http://other:32400", section = "4", machine = "zzz999")
+        assertTrue(LibrarySelection.invalidatesQueue(old, new))
+    }
+
+    @Test
+    fun `switching library on same server with null new identifier keeps queue`() {
+        val old = session(section = "3", machine = "abc123")
+        val new = session(section = "4", machine = null)
+        assertFalse(LibrarySelection.invalidatesQueue(old, new))
+    }
+
+    @Test
+    fun `switching to different server with null new identifier discards queue`() {
+        val old = session(uri = "http://pms:32400", section = "3", machine = "abc123")
+        val new = session(uri = "http://other:32400", section = "4", machine = null)
+        assertTrue(LibrarySelection.invalidatesQueue(old, new))
+    }
+
+    @Test
+    fun `falls back to server uri when session has stored identifier but caller passes none`() {
+        val stored = session(machine = "abc123")
+        assertTrue(LibrarySelection.isCurrent(stored, null, "http://pms:32400", "3"))
+    }
+
+    @Test
+    fun `fallback fails closed when stored identifier present but caller passes none and address changed`() {
+        val stored = session(machine = "abc123")
+        assertFalse(LibrarySelection.isCurrent(stored, null, "http://relay", "3"))
+    }
 }
