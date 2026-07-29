@@ -13,11 +13,22 @@ import com.cappielloantonio.tempo.model.SessionMediaItem;
 
 /**
  * Version 1 is the first schema number this app has ever had that means
- * anything. The twenty-five versions and fourteen auto-migrations that preceded
- * it were inherited from upstream tempo, whose applicationId differs from this
- * fork's -- Android treats that as a different app, so none of those migrations
- * could ever have run here. See
- * docs/decisions/2026-07-28-room-schema-reset-design.md.
+ * anything. Twenty-five versions and fourteen auto-migrations preceded it, and
+ * they fall into two groups for two different reasons:
+ *
+ * <p>Versions 1-20 came from upstream tempo, whose applicationId differs from
+ * this fork's. Android treats a different applicationId as a different app, so
+ * those could never have run here at all.
+ *
+ * <p>Versions 21-25 were written *in this fork*, under this applicationId, and
+ * did run -- on development machines. Siskin has never released, so that is the
+ * only place they ever ran.
+ *
+ * <p>What makes collapsing them safe is therefore the rename of DB_NAME below,
+ * not the applicationId difference: a different filename is a database that
+ * does not exist yet, which covers the second group as well as the first. If
+ * you are ever tempted to "tidy up" that constant, this is the reason not to.
+ * See docs/decisions/2026-07-28-room-schema-reset-design.md.
  *
  * There is deliberately no fallbackToDestructiveMigration. Real migrations are
  * written from here on, and that only works if forgetting one is noticeable:

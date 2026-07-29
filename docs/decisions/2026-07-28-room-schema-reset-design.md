@@ -4,10 +4,13 @@
 **Status:** Approved
 
 Supersedes the Room sections of
-`docs/decisions/2026-07-28-plex-browse-playback-design.md` and
-`docs/decisions/2026-07-28-plex-sign-in-design.md`. Those remain as written —
-they record decisions that were correct against the schema history that existed
-at the time.
+`docs/decisions/2026-07-27-three-tab-rip-out-design.md`,
+`docs/decisions/2026-07-28-plex-sign-in-design.md` and
+`docs/decisions/2026-07-28-plex-browse-playback-design.md` — the three changes
+that authored versions 21 through 25. Those remain as written; they record
+decisions that were correct against the schema history that existed at the
+time, and the three-tab spec in particular still describes a version-21 bump
+and DAOs (`ServerDao`, `ChronologyDao`) that no longer exist.
 
 ## Context
 
@@ -67,6 +70,20 @@ database whose version has no path, which happens on the developer's own device
 the first time they run the change.
 
 The failure is loud, immediate, and local. That is the trade.
+
+**One case that trade also covers, which is worth revisiting before release.**
+The destructive fallback did not only rebuild after a missing migration — it
+also rebuilt after a *corrupt* database file. Without it, corruption is a crash
+too, and on a head unit the recovery story becomes "uninstall the app", which is
+not something a car owner can reasonably be asked to do.
+
+Correct for a pre-release app whose two tables hold a play queue and a browse
+cache, both of which are cheap to lose and cheap to rebuild. Genuinely not
+correct for a shipped one, where the right answer is probably to catch the open
+failure and rebuild deliberately rather than to reinstate a blanket fallback.
+Recorded here so the decision gets a second look at ship time rather than being
+inherited silently, which is exactly how the migration history this spec deletes
+came to exist.
 
 ### The database file is renamed to `siskin`
 
@@ -140,7 +157,7 @@ Confirm one `1.json` exists afterwards and that it names both tables.
 
 ### Converting `AppDatabase` to Kotlin
 
-The collapse takes the file from 121 lines to about 42, which makes converting
+The collapse takes the file from 121 lines to 80, which makes converting
 it look like a rename. It is not, and the reason is worth recording because it
 is invisible until the build breaks.
 
