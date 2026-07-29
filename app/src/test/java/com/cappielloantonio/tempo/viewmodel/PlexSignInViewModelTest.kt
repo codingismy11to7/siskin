@@ -350,7 +350,12 @@ class PlexSignInViewModelTest {
     fun aSecondPickAfterARejectedOneStillSignsIn() = runTest(dispatcher) {
         // The actual fix. The message alone was already correct before this
         // change; what was broken is that the list underneath it was gone.
-        // Two servers so the second pick is a genuinely different choice.
+        //
+        // bad and good resolve to the same MockWebServer and its two enqueued
+        // responses are dequeued FIFO regardless of which Resource triggered
+        // the call, so reaching ChoosingLibrary alone would not prove index 1
+        // (good) was actually probed rather than bad again. The verify calls
+        // below are what pin that down.
         val bad = aMediaServer()
         val good = aMediaServer(accessToken = "good-token")
         val serverUri = server.url("/").toString()
@@ -378,8 +383,8 @@ class PlexSignInViewModelTest {
             afterRejection is PlexSignInState.ChoosingServer
         )
 
-        // Picked straight off the state the user is actually looking at, which
-        // is the point: the list survived, so no new PIN was needed.
+        // Picked straight off the state the user is actually looking at: the
+        // list survived rejection, so index 1 (good) is there to pick.
         viewModel.chooseServer((afterRejection as PlexSignInState.ChoosingServer).servers[1])
         awaitSettled(viewModel)
 
@@ -388,5 +393,14 @@ class PlexSignInViewModelTest {
             "expected the second pick to reach the library picker, got $state",
             state is PlexSignInState.ChoosingLibrary
         )
+
+        // The two things the state assertion above cannot tell apart on its
+        // own: that the second pick actually probed good and not bad again
+        // (a re-pick of bad would still reach ChoosingLibrary off the second
+        // queued response -- see the comment at the top of this test), and
+        // that recovering from the rejection did not mint a fresh PIN.
+        verify(probe, times(1)).bestConnectionUri(bad)
+        verify(probe, times(1)).bestConnectionUri(good)
+        verify(authClient, times(1)).createPin()
     }
 }
