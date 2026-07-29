@@ -13,6 +13,7 @@ import androidx.media3.session.MediaConstants
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
+import com.cappielloantonio.tempo.repository.LibraryPickerRepository
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.ResourceUris
@@ -25,6 +26,7 @@ import com.google.common.util.concurrent.SettableFuture
 object MediaBrowserTree {
     private lateinit var appContext: Context
     private lateinit var browseRepository: PlexBrowseRepository
+    private val pickerRepository = LibraryPickerRepository()
 
     private var treeNodes: MutableMap<String, MediaItemNode> = mutableMapOf()
 
@@ -234,6 +236,8 @@ object MediaBrowserTree {
             )
 
             ConstantsAA.MORE_ID -> treeNodes[ConstantsAA.MORE_ID]!!.getChildren()
+
+            ConstantsAA.SELECT_LIBRARY_ID -> pickerRepository.getServers()
 
             else -> {
                 if (id.startsWith(ConstantsAA.PLAYLIST_ID)) {
