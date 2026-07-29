@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.repository
 
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
@@ -20,11 +21,11 @@ import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.CarSignInResolution
-import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -56,6 +57,25 @@ class LibraryPickerRepository {
      */
     @Volatile
     private var candidate: Pair<String, Resource>? = null
+
+    /**
+     * Plain, un-ticked display name for each library row, keyed by its
+     * [libraryIdPayload]. [getLibraries] records one entry per row it builds;
+     * [selectLibrary] reads it back to name the confirmation row.
+     *
+     * This is **not** a cache that could be dropped to save memory: the
+     * picker's rows are built ad hoc in [getLibraries] and never registered
+     * with `MediaBrowserTree` (only `buildTree()`'s fixed nodes are), so once
+     * an entry is gone there is nowhere else `selectLibrary` could recover
+     * that name from. Held in memory only, like [candidate] -- never
+     * persisted, and empty again after a process restart, which
+     * [selectLibrary] covers with a fallback title.
+     *
+     * [getLibraries] writes from a background IO coroutine and [selectLibrary]
+     * reads from whatever thread the car's callback runs on, so this has to be
+     * a thread-safe structure rather than a plain map.
+     */
+    private val libraryNames = ConcurrentHashMap<String, String>()
 
     fun getServers(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
@@ -131,11 +151,15 @@ class LibraryPickerRepository {
                 val session = api.session
                 val items = LibraryClient.musicSections(sections).map { directory ->
                     val key = directory.key.orEmpty()
+                    val payload = libraryIdPayload(machineIdentifier, key)
+                    val plainName = directory.title.orEmpty().ifBlank { "Library $key" }
+                    // Recorded before ticking so selectLibrary never has to
+                    // strip the tick back off later.
+                    libraryNames[payload] = plainName
                     browsableRow(
-                        mediaId = ConstantsAA.PICK_LIBRARY_ID +
-                            libraryIdPayload(machineIdentifier, key),
+                        mediaId = ConstantsAA.PICK_LIBRARY_ID + payload,
                         title = libraryRowTitle(
-                            directory.title.orEmpty().ifBlank { "Library $key" },
+                            plainName,
                             LibrarySelection.isCurrent(session, machineIdentifier, uri, key)
                         )
                     )
@@ -216,10 +240,12 @@ class LibraryPickerRepository {
             0
         )
 
-        val name = stripTick(
-            MediaBrowserTree.getItem(ConstantsAA.PICK_LIBRARY_ID + payload)
-                ?.mediaMetadata?.title?.toString()
-        )
+        // Not a MediaBrowserTree.getItem lookup: the tree's static nodes are
+        // only ever the ones buildTree() registers, so this row's id would
+        // never resolve there. libraryNames is the only place this name
+        // lives; the fallback covers a process restart between listing the
+        // libraries and tapping one, when the map is empty again.
+        val name = libraryNames[payload] ?: "Library $sectionKey"
         future.set(
             LibraryResult.ofItemList(
                 ImmutableList.of(
@@ -238,6 +264,28 @@ class LibraryPickerRepository {
         return future
     }
 
+    /**
+     * Test seam only. A live [getLibraries] is the only production writer of
+     * [candidate] and [libraryNames], and it needs a real plex.tv round trip
+     * plus a server probe -- neither available under Robolectric. Tests use
+     * this to put a fresh repository into the state [getLibraries] would have
+     * left it in, so [selectLibrary] can be exercised without restructuring
+     * its signature or widening either field's visibility beyond this seam.
+     */
+    @VisibleForTesting
+    internal fun primeCandidateForTest(
+        uri: String,
+        resource: Resource,
+        sectionKey: String,
+        libraryName: String
+    ) {
+        candidate = uri to resource
+        val machineIdentifier = requireNotNull(resource.clientIdentifier) {
+            "test resource needs a clientIdentifier"
+        }
+        libraryNames[libraryIdPayload(machineIdentifier, sectionKey)] = libraryName
+    }
+
     companion object {
 
         data class ServerRow(val machineIdentifier: String?, val name: String)
@@ -248,9 +296,6 @@ class LibraryPickerRepository {
         @JvmStatic
         fun libraryRowTitle(name: String, current: Boolean): String =
             if (current) TICK + name else name
-
-        @JvmStatic
-        fun stripTick(title: String?): String = title.orEmpty().removePrefix(TICK)
 
         @JvmStatic
         fun libraryIdPayload(machineIdentifier: String, sectionKey: String): String =
