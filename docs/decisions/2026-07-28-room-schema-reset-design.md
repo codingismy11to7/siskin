@@ -11,7 +11,7 @@ at the time.
 
 ## Context
 
-`AppDatabase` declares version 25, fifteen `@AutoMigration` entries, four
+`AppDatabase` declares version 25, fourteen `@AutoMigration` entries, four
 `AutoMigrationSpec` classes, and exports twenty-five schema files totalling
 828K. The database it describes is two tables:
 
@@ -68,10 +68,10 @@ the first time they run the change.
 
 The failure is loud, immediate, and local. That is the trade.
 
-### The database file is renamed to `siskin_db`
+### The database file is renamed to `siskin`
 
 `DB_NAME` is `"tempo_db"`, inherited from upstream along with everything else in
-this section. It becomes `"siskin_db"`.
+this section. It becomes `"siskin"`.
 
 This is not cosmetic. **A different filename is a different database**, so
 version 1 opens a file that does not exist yet and Room creates it fresh. The
@@ -99,7 +99,7 @@ resolve itself quietly. Recorded because the symptom does not name its cause.
 
 ## Consequences
 
-`AppDatabase.java` loses its fifteen `@AutoMigration` entries, its four
+`AppDatabase.java` loses its fourteen `@AutoMigration` entries, its four
 `AutoMigrationSpec` classes, and the thirteen-line comment block explaining a
 version-24 identity-hash trap. That comment goes with the machinery it
 describes — it is a code comment, not a record, and leaving it would explain a
@@ -125,7 +125,7 @@ uninstalling first**: play a track, force-stop, and confirm the queue is
 restored.
 
 Installing over the top is the point of the check, not a shortcut. The rename
-means the app should find no `siskin_db`, create one at version 1, and work —
+means the app should find no `siskin` database, create one at version 1, and work —
 while the old `tempo_db` sits beside it untouched. Uninstalling first would
 prove a clean install works and say nothing about the transition, which is the
 case every existing device will actually take.
