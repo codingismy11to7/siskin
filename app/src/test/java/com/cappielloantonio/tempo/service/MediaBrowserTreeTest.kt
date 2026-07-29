@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
-import com.cappielloantonio.tempo.repository.AutomotiveRepository
+import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
@@ -23,7 +23,7 @@ class MediaBrowserTreeTest {
         val context = mock<Context>()
         whenever(context.applicationContext).thenReturn(context)
         whenever(context.getString(anyInt())).thenReturn("mock_string")
-        MediaBrowserTree.initialize(context, mock<AutomotiveRepository>())
+        MediaBrowserTree.initialize(context, mock<PlexBrowseRepository>())
 
         // ResourceUris.forResource() builds a real android.net.Uri via Uri.Builder,
         // an unmocked Android platform class. Under this module's

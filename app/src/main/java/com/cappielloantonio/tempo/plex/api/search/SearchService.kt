@@ -29,8 +29,23 @@ interface SearchService {
         @Query("limit") limit: Int
     ): PlexResponse
 
+    /**
+     * Playlists, scoped to one music library section via [sectionId].
+     *
+     * Verified against a live PMS 1.43.3 server: `sectionID` is the query
+     * parameter that actually filters the listing -- `librarySectionID` is
+     * accepted (HTTP 200) but silently ignored; both were tried against the
+     * same server and only `sectionID` changed the result set. A playlist
+     * object itself carries no section field of its own -- in Plex a
+     * playlist is a server-level collection that can span libraries -- which
+     * is why this has to be a request parameter rather than something
+     * filterable from the response.
+     */
     @GET("playlists")
-    suspend fun getPlaylists(@Query("playlistType") playlistType: String = "audio"): PlexResponse
+    suspend fun getPlaylists(
+        @Query("sectionID") sectionId: String,
+        @Query("playlistType") playlistType: String = "audio"
+    ): PlexResponse
 
     /**
      * The playlist's tracks. Plex also exposes GET playlists/{playlistId} for a
@@ -51,5 +66,17 @@ interface SearchService {
         @Query("key") key: String,
         @Query("state") state: String,
         @Query("time") timeMs: Long
+    )
+
+    /**
+     * Sets or clears a track's rating. Like :/timeline, Plex serves this write
+     * over GET and returns an empty body. [rating] is 0-10, where 10 is the five
+     * stars Plex collects into its heart-named playlist.
+     */
+    @GET(":/rate")
+    suspend fun rate(
+        @Query("key") key: String,
+        @Query("identifier") identifier: String,
+        @Query("rating") rating: Int
     )
 }

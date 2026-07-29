@@ -17,18 +17,21 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
-import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.subsonic.base.ApiResponse
+import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 private const val TAG = "BaseSessionCallback"
 
@@ -174,6 +177,29 @@ open class BaseSessionCallback(
     }
 
     private var currentSession: MediaSession? = null
+
+    /**
+     * Where the rating call runs.
+     *
+     * Main, not IO, and that is load-bearing rather than a default: the
+     * continuation touches `session.player`, and ExoPlayer's
+     * `verifyApplicationThread` throws "Player is accessed on the wrong thread"
+     * for anything else -- an uncaught crash on every heart tap, confirmed on a
+     * running emulator. This is not new behaviour being chosen here, it is the
+     * old behaviour being kept: Retrofit's Android platform posts `Call.enqueue`
+     * callbacks through a main-thread executor, so the callback this replaced
+     * already ran here. Nothing blocks the main thread as a result -- Retrofit's
+     * `suspend` support is `enqueue` underneath, so the request itself still
+     * runs on OkHttp's own threads and only the resumption lands here.
+     *
+     * SupervisorJob because two hearts tapped in quick succession are
+     * independent requests -- under a plain Job the first one failing would
+     * cancel the second.
+     *
+     * Not cancelled anywhere: this callback lives as long as the service that
+     * holds it, and a rating already sent to Plex has nothing left to cancel.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     /**
      * Updates the player listener when the session's player changes.
@@ -332,49 +358,84 @@ open class BaseSessionCallback(
         rating: Rating
     ): ListenableFuture<SessionResult> {
         val isStarring = (rating as HeartRating).isHeart
-
-        val networkCall = if (isStarring)
-            App.getSubsonicClientInstance(false)
-                .mediaAnnotationClient
-                .star(mediaId, null, null)
-        else
-            App.getSubsonicClientInstance(false)
-                .mediaAnnotationClient
-                .unstar(mediaId, null, null)
-
         val future = SettableFuture.create<SessionResult>()
 
-        networkCall.enqueue(object : Callback<ApiResponse?> {
-            @OptIn(UnstableApi::class)
-            override fun onResponse(call: Call<ApiResponse?>, response: Response<ApiResponse?>) {
-                if (response.isSuccessful) {
-                    for (i in 0 until session.player.mediaItemCount) {
-                        val mediaItem = session.player.getMediaItemAt(i)
-                        if (mediaItem.mediaId == mediaId) {
-                            val newMetadata = mediaItem.mediaMetadata.buildUpon()
-                                .setUserRating(HeartRating(isStarring)).build()
-                            session.player.replaceMediaItem(
-                                i,
-                                mediaItem.buildUpon().setMediaMetadata(newMetadata).build()
-                            )
-                        }
-                    }
-                    updateMediaNotificationCustomLayout(session)
-                    future.set(SessionResult(SessionResult.RESULT_SUCCESS))
-                } else {
-                    updateMediaNotificationCustomLayout(session)
-                    future.set(SessionResult(SessionError(response.code(), response.message())))
+        scope.launch {
+            val result = try {
+                // Plex rates 0-10; 10 is the five stars it collects into its
+                // heart-named playlist, which is why the car shows a heart for a
+                // field Plex renders as stars everywhere else.
+                //
+                // `rate` returns Unit and throws on anything but a 2xx, so
+                // reaching the next line *is* the success case.
+                SearchClient(PlexApi()).rate(
+                    mediaId,
+                    if (isStarring) SearchClient.RATING_HEARTED else SearchClient.RATING_CLEARED
+                )
+                applyRatingToQueue(session, mediaId, isStarring)
+                SessionResult(SessionResult.RESULT_SUCCESS)
+            } catch (http: HttpException) {
+                // SessionError's constructor requires `code < 0 || code == 1`
+                // (SessionError.java:209, media3 1.9.2), so passing the raw HTTP
+                // status straight through -- 401, 404, 500 -- fails that
+                // precondition and throws IllegalArgumentException from inside
+                // this catch. That used to escape the coroutine instead of
+                // completing the future: the heart button stayed on its loading
+                // icon forever and the uncaught exception reached the main
+                // thread's default handler -- exactly as it did from inside the
+                // Retrofit callback this replaced, which Retrofit also ran on the
+                // main thread. See BaseSessionCallbackRatingTest for the pinned
+                // mechanism and the regression test for this fix.
+                //
+                // Map onto a legal SessionError constant instead. 401/403 are the
+                // one case a car UI could plausibly act on differently (prompt
+                // re-auth); everything else collapses to ERROR_UNKNOWN. The real
+                // HTTP status still goes into the message -- it is not a legal
+                // `code`, but it is the useful part for debugging -- alongside
+                // http.message() (the status line, e.g. "Unauthorized"; the
+                // inherited `message` property would read "HTTP 401
+                // Unauthorized" and duplicate the code we're already printing).
+                val code = when (http.code()) {
+                    401, 403 -> SessionError.ERROR_PERMISSION_DENIED
+                    else -> SessionError.ERROR_UNKNOWN
                 }
+                SessionResult(SessionError(code, "HTTP ${http.code()} ${http.message()}"))
+            } catch (failure: Throwable) {
+                // Not an HTTP response at all -- e.g. the socket never connected --
+                // so there is no status to map or report. The message is worded
+                // differently from the HTTP branch above on purpose, so the two
+                // failure modes stay distinguishable in logs instead of both
+                // reading as an HTTP error that never happened.
+                SessionResult(SessionError(SessionError.ERROR_UNKNOWN, "Transport failure: ${failure.message}"))
             }
 
-            @OptIn(UnstableApi::class)
-            override fun onFailure(call: Call<ApiResponse?>, t: Throwable) {
-                updateMediaNotificationCustomLayout(session)
-                future.set(SessionResult(SessionError(SessionError.ERROR_UNKNOWN, "An error has occurred")))
-            }
-        })
+            // On every path, success included: the heart button was switched to
+            // its loading icon before the request went out, so skipping this
+            // leaves it spinning forever.
+            updateMediaNotificationCustomLayout(session)
+            future.set(result)
+        }
 
         return future
+    }
+
+    /**
+     * Carries the new rating into the queue so the heart survives a track
+     * change: the button is rebuilt from `player.mediaMetadata.userRating`, and
+     * without this the item the player holds still says what Plex used to think.
+     */
+    private fun applyRatingToQueue(session: MediaSession, mediaId: String, isStarring: Boolean) {
+        for (i in 0 until session.player.mediaItemCount) {
+            val mediaItem = session.player.getMediaItemAt(i)
+            if (mediaItem.mediaId == mediaId) {
+                val newMetadata = mediaItem.mediaMetadata.buildUpon()
+                    .setUserRating(HeartRating(isStarring)).build()
+                session.player.replaceMediaItem(
+                    i,
+                    mediaItem.buildUpon().setMediaMetadata(newMetadata).build()
+                )
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -453,7 +514,7 @@ open class BaseSessionCallback(
             val newMetadata = mediaMetadata.buildUpon()
                 .setArtist(
                     mediaMetadata.artist
-                        ?: mediaMetadata.extras?.getString("uri")
+                        ?: mediaMetadata.extras?.getString(PlexMediaMapper.EXTRA_URI)
                         ?: ""
                 )
                 .build()

@@ -20,7 +20,6 @@ class Metadata {
     var type: String? = null
     var title: String? = null
 
-    var parentRatingKey: String? = null
     var parentTitle: String? = null
     var parentThumb: String? = null
 
@@ -29,6 +28,14 @@ class Metadata {
     var grandparentThumb: String? = null
 
     var thumb: String? = null
+
+    /**
+     * Playlists carry no [thumb]; Plex instead generates this mosaic of the
+     * playlist's own contents. Only meaningful on a playlist -- tracks,
+     * albums and artists don't populate it.
+     */
+    var composite: String? = null
+
     /** Milliseconds. */
     var duration: Long? = null
     /** Track number within its album. */
@@ -36,6 +43,17 @@ class Metadata {
     var year: Int? = null
     var addedAt: Long? = null
     var leafCount: Int? = null
+
+    /**
+     * Plex rates 0-10; 10 renders as five stars. This app writes 10 to heart a
+     * track and -1 to clear it (`SearchClient.RATING_HEARTED` /
+     * `RATING_CLEARED`) -- **not** 0, which a live server was measured to store
+     * as a real zero-star rating rather than as no rating at all. Any other
+     * client can still have written anything in 0..10, which is why
+     * [PlexMediaMapper.isHearted] treats >= 10 as hearted rather than requiring
+     * an exact match.
+     */
+    var userRating: Double? = null
 
     @SerializedName("Media")
     var media: List<Media>? = null

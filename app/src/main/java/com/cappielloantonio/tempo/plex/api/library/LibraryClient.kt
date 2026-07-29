@@ -29,14 +29,20 @@ class LibraryClient(api: PlexApi) {
         sectionKey: String,
         type: Int,
         start: Int,
-        size: Int
+        size: Int,
+        sort: String? = null
     ): PlexResponse {
-        Log.d(TAG, "getSectionContent($sectionKey, type=$type, start=$start, size=$size)")
-        return service.getSectionContent(sectionKey, type, start, size)
+        Log.d(TAG, "getSectionContent($sectionKey, type=$type, start=$start, size=$size, sort=$sort)")
+        return service.getSectionContent(sectionKey, type, start, size, sort)
     }
 
     suspend fun getChildren(ratingKey: String, start: Int, size: Int): PlexResponse =
         service.getChildren(ratingKey, start, size)
+
+    suspend fun getNearest(ratingKey: String, limit: Int): PlexResponse {
+        Log.d(TAG, "getNearest($ratingKey, limit=$limit)")
+        return service.getNearest(ratingKey, limit)
+    }
 
     suspend fun getMetadata(ratingKey: String): PlexResponse = service.getMetadata(ratingKey)
 
@@ -45,6 +51,27 @@ class LibraryClient(api: PlexApi) {
     companion object {
         /** Plex reports a music library section's type as "artist". */
         private const val MUSIC_SECTION_TYPE = "artist"
+
+        /**
+         * Sorts an album listing by artist, for the "view by albums" tab.
+         *
+         * Verified against a live PMS 1.43.3 server: `artist.titleSort` returns
+         * albums ordered by artist, where plain `titleSort` (see [SORT_TITLE])
+         * orders by album title instead.
+         */
+        const val SORT_ARTIST = "artist.titleSort"
+
+        /**
+         * Sorts an album listing by album title, for the Albums tab.
+         *
+         * Passed explicitly rather than left to the server default, which is
+         * already artist order -- without this the Albums tab and the "view by
+         * albums" entry render the same list and one of the two is pointless.
+         */
+        const val SORT_TITLE = "titleSort"
+
+        /** Server-side shuffle, for continuous play's random tier. */
+        const val SORT_RANDOM = "random"
 
         /**
          * Narrows a sections listing to the music libraries. An account commonly

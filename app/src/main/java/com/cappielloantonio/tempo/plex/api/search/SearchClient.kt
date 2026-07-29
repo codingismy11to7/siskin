@@ -4,7 +4,6 @@ import android.util.Log
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.base.PlexResponse
-import com.cappielloantonio.tempo.plex.models.Metadata
 
 private const val TAG = "SearchClient"
 
@@ -35,7 +34,8 @@ class SearchClient(api: PlexApi) {
         return service.search(sectionKey, query, type, limit)
     }
 
-    suspend fun getPlaylists(): PlexResponse = service.getPlaylists()
+    /** [sectionKey] scopes the listing to one music library section -- see SearchService.getPlaylists. */
+    suspend fun getPlaylists(sectionKey: String): PlexResponse = service.getPlaylists(sectionKey)
 
     suspend fun getPlaylistItems(playlistId: String, start: Int, size: Int): PlexResponse =
         service.getPlaylistItems(playlistId, start, size)
@@ -43,24 +43,31 @@ class SearchClient(api: PlexApi) {
     suspend fun reportProgress(ratingKey: String, key: String, state: String, timeMs: Long) =
         service.reportProgress(ratingKey, key, state, timeMs)
 
+    suspend fun rate(ratingKey: String, rating: Int) {
+        Log.d(TAG, "rate($ratingKey, rating=$rating)")
+        service.rate(ratingKey, LIBRARY_IDENTIFIER, rating)
+    }
+
     companion object {
         private const val DEFAULT_SEARCH_LIMIT = 50
+
+        private const val LIBRARY_IDENTIFIER = "com.plexapp.plugins.library"
 
         const val STATE_PLAYING = "playing"
         const val STATE_PAUSED = "paused"
         const val STATE_STOPPED = "stopped"
 
-        private val PLAYABLE_TYPES = setOf("track", "album", "artist")
-
         /**
-         * Narrows a result set to what this app can present. Even a section-scoped
-         * search returns clips and other types, and a result without a ratingKey
-         * cannot be browsed or played.
+         * Plex's 0-10 scale: 10 is five stars.
+         *
+         * Verified against a live PMS 1.43.3 server: `rating=10` sets
+         * `userRating` to `10.0`. `rating=0` was tried as the "cleared" value
+         * and does **not** clear it -- it sets `userRating` to `0.0`, a real
+         * zero-star rating, which is not the same as absent. `rating=-1` is
+         * what actually clears `userRating` back to null/absent, which is why
+         * it is used here rather than the more obvious `0`.
          */
-        @JvmStatic
-        fun playableResults(response: PlexResponse?): List<Metadata> =
-            response?.mediaContainer?.metadata
-                ?.filter { it.type in PLAYABLE_TYPES && !it.ratingKey.isNullOrBlank() }
-                ?: emptyList()
+        const val RATING_HEARTED = 10
+        const val RATING_CLEARED = -1
     }
 }

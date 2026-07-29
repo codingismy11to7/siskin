@@ -1,45 +1,32 @@
 package com.cappielloantonio.tempo.model
 
-import android.content.ContentResolver
-import android.net.Uri
-import android.os.Bundle
 import androidx.annotation.Keep
-import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaItem.RequestMetadata
-import androidx.media3.common.MediaMetadata
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.cappielloantonio.tempo.glide.CustomGlideRequest
-import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
-import androidx.room.Embedded
-import com.cappielloantonio.tempo.subsonic.models.Child
-import com.cappielloantonio.tempo.subsonic.models.ReplayGainInfo
-import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.MusicUtil
-import com.cappielloantonio.tempo.util.Preferences.getImageSize
-import com.cappielloantonio.tempo.util.ReplayGainBundleUtil
-import java.util.Date
+import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
 
+/**
+ * A track a browse node returned, remembered so tapping one entry can rebuild
+ * the whole list as the play queue.
+ *
+ * Stores the part key rather than a stream URL: a Plex stream URL carries
+ * X-Plex-Token, so a persisted one breaks when the token rotates. [toMediaItem]
+ * rebuilds the URL against the current credentials.
+ */
 @UnstableApi
 @Keep
 @Entity(tableName = "session_media_item")
-class SessionMediaItem() {
+class SessionMediaItem {
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = "index")
     var index: Int = 0
 
     @ColumnInfo(name = "id")
     var id: String? = null
-
-    @ColumnInfo(name = "parent_id")
-    var parentId: String? = null
-
-    @ColumnInfo(name = "is_dir")
-    var isDir: Boolean = false
 
     @ColumnInfo
     var title: String? = null
@@ -51,212 +38,66 @@ class SessionMediaItem() {
     var artist: String? = null
 
     @ColumnInfo
-    var track: Int? = null
+    var thumb: String? = null
+
+    @ColumnInfo(name = "part_key")
+    var partKey: String? = null
+
+    @ColumnInfo
+    var duration: Long? = null
+
+    @ColumnInfo(name = "track_index")
+    var trackIndex: Int? = null
 
     @ColumnInfo
     var year: Int? = null
 
-    @ColumnInfo
-    var genre: String? = null
-
-    @ColumnInfo(name = "cover_art_id")
-    var coverArtId: String? = null
+    @ColumnInfo(name = "grandparent_rating_key")
+    var grandparentRatingKey: String? = null
 
     @ColumnInfo
-    var size: Long? = null
-
-    @ColumnInfo(name = "content_type")
-    var contentType: String? = null
-
-    @ColumnInfo
-    var suffix: String? = null
-
-    @ColumnInfo("transcoding_content_type")
-    var transcodedContentType: String? = null
-
-    @ColumnInfo(name = "transcoded_suffix")
-    var transcodedSuffix: String? = null
-
-    @ColumnInfo
-    var duration: Int? = null
-
-    @ColumnInfo("bitrate")
-    var bitrate: Int? = null
-
-    @ColumnInfo
-    var path: String? = null
-
-    @ColumnInfo(name = "is_video")
-    var isVideo: Boolean = false
-
-    @ColumnInfo(name = "user_rating")
-    var userRating: Int? = null
-
-    @ColumnInfo(name = "average_rating")
-    var averageRating: Double? = null
-
-    @ColumnInfo(name = "play_count")
-    var playCount: Long? = null
-
-    @ColumnInfo(name = "disc_number")
-    var discNumber: Int? = null
-
-    @ColumnInfo
-    var created: Date? = null
-
-    @ColumnInfo
-    var starred: Date? = null
-
-    @ColumnInfo(name = "album_id")
-    var albumId: String? = null
-
-    @ColumnInfo(name = "artist_id")
-    var artistId: String? = null
-
-    @ColumnInfo
-    var type: String? = null
-
-    @ColumnInfo(name = "bookmark_position")
-    var bookmarkPosition: Long? = null
-
-    @ColumnInfo(name = "original_width")
-    var originalWidth: Int? = null
-
-    @ColumnInfo(name = "original_height")
-    var originalHeight: Int? = null
-
-    @ColumnInfo(name = "stream_id")
-    var streamId: String? = null
-
-    @ColumnInfo(name = "stream_url")
-    var streamUrl: String? = null
+    var hearted: Boolean = false
 
     @ColumnInfo(name = "timestamp")
     var timestamp: Long? = null
 
-    @Embedded(prefix = "rg_")
-    var replayGain: ReplayGainInfo? = null
-
-    constructor(child: Child) : this() {
-        id = child.id
-        parentId = child.parentId
-        isDir = child.isDir
-        title = child.title
-        album = child.album
-        artist = child.artist
-        track = child.track
-        year = child.year
-        genre = child.genre
-        coverArtId = child.coverArtId
-        size = child.size
-        contentType = child.contentType
-        suffix = child.suffix
-        transcodedContentType = child.transcodedContentType
-        transcodedSuffix = child.transcodedSuffix
-        duration = child.duration
-        bitrate = child.bitrate
-        path = child.path
-        isVideo = child.isVideo
-        userRating = child.userRating
-        averageRating = child.averageRating
-        playCount = child.playCount
-        discNumber = child.discNumber
-        created = child.created
-        starred = child.starred
-        albumId = child.albumId
-        artistId = child.artistId
-        type = Constants.MEDIA_TYPE_MUSIC
-        bookmarkPosition = child.bookmarkPosition
-        originalWidth = child.originalWidth
-        originalHeight = child.originalHeight
-        replayGain = child.replayGain
+    fun toMediaItem(): MediaItem {
+        val api = PlexApi()
+        return PlexMediaMapper.buildTrackMediaItem(
+            ratingKey = id!!,
+            title = title,
+            albumTitle = album,
+            artist = artist,
+            thumb = thumb,
+            partKey = partKey,
+            durationMs = duration,
+            trackIndex = trackIndex,
+            year = year,
+            grandparentRatingKey = grandparentRatingKey,
+            isHearted = hearted,
+            parentId = null,
+            serverUri = api.serverUri,
+            token = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken)
+        )
     }
 
-    fun getMediaItem(): MediaItem {
-        val uri: Uri = getStreamUri()
-        val artworkUri = if (coverArtId != null) AlbumArtContentProvider.contentUri(coverArtId!!) else null
+    companion object {
+        @JvmStatic
+        fun fromMediaItem(item: MediaItem?): SessionMediaItem? {
+            val fields = PlexMediaMapper.readTrackFields(item) ?: return null
 
-        val bundle = Bundle()
-        bundle.putString("id", id)
-        bundle.putString("parentId", parentId)
-        bundle.putBoolean("isDir", isDir)
-        bundle.putString("title", title)
-        bundle.putString("album", album)
-        bundle.putString("artist", artist)
-        bundle.putInt("track", track ?: 0)
-        bundle.putInt("year", year ?: 0)
-        bundle.putString("genre", genre)
-        bundle.putString("coverArtId", coverArtId)
-        bundle.putLong("size", size ?: 0)
-        bundle.putString("contentType", contentType)
-        bundle.putString("suffix", suffix)
-        bundle.putString("transcodedContentType", transcodedContentType)
-        bundle.putString("transcodedSuffix", transcodedSuffix)
-        bundle.putInt("duration", duration ?: 0)
-        bundle.putInt("bitrate", bitrate ?: 0)
-        bundle.putString("path", path)
-        bundle.putBoolean("isVideo", isVideo)
-        bundle.putInt("userRating", userRating ?: 0)
-        bundle.putDouble("averageRating", averageRating ?: .0)
-        bundle.putLong("playCount", playCount ?: 0)
-        bundle.putInt("discNumber", discNumber ?: 0)
-        bundle.putLong("created", created?.time ?: 0)
-        bundle.putLong("starred", starred?.time ?: 0)
-        bundle.putString("albumId", albumId)
-        bundle.putString("artistId", artistId)
-        bundle.putString("type", type)
-        bundle.putLong("bookmarkPosition", bookmarkPosition ?: 0)
-        bundle.putInt("originalWidth", originalWidth ?: 0)
-        bundle.putInt("originalHeight", originalHeight ?: 0)
-        bundle.putString("uri", uri.toString())
-        ReplayGainBundleUtil.writeToBundle(bundle, replayGain)
-
-        return MediaItem.Builder()
-            .setMediaId(id!!)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setTrackNumber(track ?: 0)
-                    .setDiscNumber(discNumber ?: 0)
-                    .setReleaseYear(year ?: 0)
-                    .setAlbumTitle(album)
-                    .setArtist(artist)
-                    .setArtworkUri(artworkUri)
-                    .setUserRating(HeartRating(starred != null))
-                    .setSupportedCommands(
-                        listOf(
-                            Constants.CUSTOM_COMMAND_TOGGLE_HEART_ON,
-                            Constants.CUSTOM_COMMAND_TOGGLE_HEART_OFF
-                        )
-                    )
-                    .setExtras(bundle)
-                    .setIsBrowsable(false)
-                    .setIsPlayable(true)
-                    .build()
-            )
-            .setRequestMetadata(
-                RequestMetadata.Builder()
-                    .setMediaUri(uri)
-                    .setExtras(bundle)
-                    .build()
-            )
-            .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
-            .setUri(uri)
-            .build()
-    }
-
-    private fun getStreamUri(): Uri {
-        return when (type) {
-            Constants.MEDIA_TYPE_MUSIC -> {
-                MusicUtil.getStreamUri(id)
-            }
-
-            Constants.MEDIA_TYPE_PODCAST -> {
-                MusicUtil.getStreamUri(streamId)
-            }
-
-            else -> {
-                MusicUtil.getStreamUri(id)
+            return SessionMediaItem().apply {
+                id = fields.ratingKey
+                title = fields.title
+                album = fields.albumTitle
+                artist = fields.artist
+                thumb = fields.thumb
+                partKey = fields.partKey
+                duration = fields.durationMs
+                trackIndex = fields.trackIndex
+                year = fields.year
+                grandparentRatingKey = fields.grandparentRatingKey
+                hearted = fields.isHearted
             }
         }
     }

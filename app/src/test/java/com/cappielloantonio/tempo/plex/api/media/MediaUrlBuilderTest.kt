@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.plex.api.media
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaUrlBuilderTest {
@@ -41,6 +42,34 @@ class MediaUrlBuilderTest {
     fun artworkUrlIsNullWithoutAServerOrToken() {
         assertNull(MediaUrlBuilder.artworkUrl(null, "/thumb", token, 600, 600))
         assertNull(MediaUrlBuilder.artworkUrl(server, "/thumb", null, 600, 600))
+    }
+
+    @Test
+    fun artworkUrlRefusesAThumbPathThatIsNotServerRelative() {
+        // Plex's photo transcoder fetches whatever `url=` names, absolute URLs
+        // on other hosts included, so composing one out of a caller-supplied
+        // path turns the user's own server into an authenticated proxy for it.
+        // AlbumArtContentProvider is exported, which is how a caller other than
+        // this app gets to supply the path in the first place.
+        //
+        // Each of these is a way to name somewhere other than the Plex server:
+        // an absolute URL, a protocol-relative one that still starts with a
+        // slash, a bare relative path, and a backslash form that several URL
+        // parsers normalise into a forward slash.
+        assertNull(MediaUrlBuilder.artworkUrl(server, "http://internal-host/secret", token, 600, 600))
+        assertNull(MediaUrlBuilder.artworkUrl(server, "https://internal-host/secret", token, 600, 600))
+        assertNull(MediaUrlBuilder.artworkUrl(server, "//internal-host/secret", token, 600, 600))
+        assertNull(MediaUrlBuilder.artworkUrl(server, "library/metadata/42/thumb/1", token, 600, 600))
+        assertNull(MediaUrlBuilder.artworkUrl(server, "/\\internal-host/secret", token, 600, 600))
+    }
+
+    @Test
+    fun isServerRelativePathAcceptsTheThumbShapesPlexActuallyReturns() {
+        // The other half of the check above: a validator that rejected
+        // everything would pass those assertions while blanking every cover in
+        // the car. These two are real paths measured from a live server.
+        assertTrue(MediaUrlBuilder.isServerRelativePath("/library/metadata/1234/thumb/1699999999"))
+        assertTrue(MediaUrlBuilder.isServerRelativePath("/playlists/169077/composite/1781213364"))
     }
 
     @Test

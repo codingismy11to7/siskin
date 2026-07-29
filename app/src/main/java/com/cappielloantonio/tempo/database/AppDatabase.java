@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.database;
 import androidx.media3.common.util.UnstableApi;
 import androidx.room.AutoMigration;
 import androidx.room.Database;
+import androidx.room.DeleteColumn;
 import androidx.room.DeleteTable;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
@@ -12,19 +13,29 @@ import androidx.room.migration.AutoMigrationSpec;
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.database.converter.DateConverters;
 import com.cappielloantonio.tempo.database.converter.StringListConverter;
-import com.cappielloantonio.tempo.database.dao.ChronologyDao;
 import com.cappielloantonio.tempo.database.dao.QueueDao;
 import com.cappielloantonio.tempo.database.dao.SessionMediaItemDao;
-import com.cappielloantonio.tempo.model.Chronology;
 import com.cappielloantonio.tempo.model.Queue;
 import com.cappielloantonio.tempo.model.SessionMediaItem;
 
+// Version 24 deliberately has no @AutoMigration entry: queue and
+// session_media_item are rebuilt around Plex rating keys and part keys, which is
+// far past what Room can derive. getInstance() below falls back to a destructive
+// migration, and that is the intent -- a queue of Subsonic ids is meaningless
+// against a Plex server, so there is nothing worth carrying across.
+//
+// Version 25 then drops parent_rating_key from both tables, a column nothing
+// ever read back. That is a version bump rather than an edit of 24 in place
+// because Room hashes the schema and refuses to open a database whose hash does
+// not match -- fallbackToDestructiveMigration below only covers a *version* it
+// has no path for, so reshaping 24 while leaving the number alone crashes on
+// open for every install that already has a version-24 database, which on this
+// branch is every developer who has run it.
 @UnstableApi
 @Database(
-        version = 23,
+        version = 25,
         entities = {
             Queue.class,
-            Chronology.class,
             SessionMediaItem.class,
         },
         autoMigrations = {
@@ -41,6 +52,7 @@ import com.cappielloantonio.tempo.model.SessionMediaItem;
                 @AutoMigration(from = 20, to = 21, spec = AppDatabase.DropTablesForPrunedFeatures.class),
                 @AutoMigration(from = 21, to = 22, spec = AppDatabase.DropPlaylistTables.class),
                 @AutoMigration(from = 22, to = 23, spec = AppDatabase.DropServerTable.class),
+                @AutoMigration(from = 24, to = 25, spec = AppDatabase.DropParentRatingKey.class),
         }
 )
 @TypeConverters({DateConverters.class, StringListConverter.class})
@@ -81,6 +93,18 @@ public abstract class AppDatabase extends RoomDatabase {
     static class DropServerTable implements AutoMigrationSpec {
     }
 
+    // parent_rating_key was persisted on both tables and never read back: the
+    // readers its constant named (Chronology, MappingUtil) were Subsonic-era and
+    // are gone. Dropped rather than left in place because a column nothing reads
+    // is a schema claim that a track's album id matters, which it does not --
+    // and unlike a destructive rebuild this keeps the saved queue.
+    @DeleteColumn.Entries({
+            @DeleteColumn(tableName = "queue", columnName = "parent_rating_key"),
+            @DeleteColumn(tableName = "session_media_item", columnName = "parent_rating_key")
+    })
+    static class DropParentRatingKey implements AutoMigrationSpec {
+    }
+
     public static synchronized AppDatabase getInstance() {
         if (instance == null) {
             instance = Room.databaseBuilder(App.getContext(), AppDatabase.class, DB_NAME)
@@ -92,8 +116,6 @@ public abstract class AppDatabase extends RoomDatabase {
     }
 
     public abstract QueueDao queueDao();
-
-    public abstract ChronologyDao chronologyDao();
 
     public abstract SessionMediaItemDao sessionMediaItemDao();
 }

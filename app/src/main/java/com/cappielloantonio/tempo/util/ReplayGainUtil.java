@@ -19,7 +19,6 @@ import androidx.media3.extractor.metadata.id3.TextInformationFrame;
 
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.model.ReplayGain;
-import com.cappielloantonio.tempo.subsonic.models.ReplayGainInfo;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -75,17 +74,6 @@ public class ReplayGainUtil {
             MediaItem item = player.getMediaItemAt(i);
 
             if (item.mediaId == null || item.localConfiguration == null) continue;
-
-            // If the server-provided RG is already on the MediaItem, stash it
-            // and skip the expensive MetadataRetriever network roundtrip.
-            ReplayGainInfo serverInfo = extractServerInfo(item);
-            if (serverInfo != null) {
-                if (prefetchedIds.add(item.mediaId)) {
-                    gainDataMap.put(item.mediaId, serverInfoToGains(serverInfo));
-                    Log.d(TAG, "Prefetch skip (server RG available) " + item.mediaId);
-                }
-                continue;
-            }
 
             if (!prefetchedIds.add(item.mediaId)) continue;
 
@@ -173,29 +161,7 @@ public class ReplayGainUtil {
             return;
         }
 
-        // Fast path: OpenSubsonic RG data packed into the MediaItem extras.
-        // This is always available synchronously for servers that return
-        // replayGain on Child responses - no MetadataRetriever needed.
-        ReplayGainInfo serverInfo = extractServerInfo(mediaItem);
-        if (serverInfo != null) {
-            List<ReplayGain> gains = serverInfoToGains(serverInfo);
-            // Cache alongside any tag-extracted values so subsequent lookups
-            // (queuePendingForNextTrack, etc.) don't re-parse the bundle.
-            gainDataMap.put(mediaItem.mediaId, gains);
-            prefetchedIds.add(mediaItem.mediaId);
-
-            float gain = resolveGain(player, gains);
-            float peak = resolvePeak(player, gains);
-            float totalGain = computeTotalGain(gain, peak);
-            Log.d(TAG, "applyGain: server RG for " + mediaItem.mediaId
-                    + " gain=" + gain + " peak=" + peak
-                    + " totalGain=" + totalGain);
-            audioProcessor.setGainImmediate(totalGain);
-            queuePendingForNextTrack(player);
-            return;
-        }
-
-        // Fallback path: values extracted from file tags via MetadataRetriever.
+        // Values extracted from file tags via MetadataRetriever.
         List<ReplayGain> gains = gainDataMap.get(mediaItem.mediaId);
         if (gains != null) {
             float gain = resolveGain(player, gains);
@@ -227,18 +193,6 @@ public class ReplayGainUtil {
         if (tracks == null || tracks.getGroups().isEmpty()) return;
 
         MediaItem currentItem = player.getCurrentMediaItem();
-
-        // If the server already supplied RG for the current track, trust
-        // that over tag-extracted values - the server's data is authoritative
-        // (it reflects user-configured preamp, album grouping, etc.) and was
-        // already applied synchronously in applyGain(). Avoid overwriting it
-        // with tag-extracted values that may differ.
-        if (currentItem != null && extractServerInfo(currentItem) != null) {
-            Log.d(TAG, "setReplayGain: server RG already applied for "
-                    + currentItem.mediaId + ", ignoring tag-extracted values");
-            queuePendingForNextTrack(player);
-            return;
-        }
 
         List<Metadata> metadataList = extractMetadata(tracks);
         List<ReplayGain> gains = getReplayGains(metadataList);
@@ -331,20 +285,7 @@ public class ReplayGainUtil {
             return;
         }
 
-        // Fast path: server-supplied RG on the MediaItem (OpenSubsonic).
-        ReplayGainInfo serverInfo = extractServerInfo(currentItem);
-        if (serverInfo != null) {
-            List<ReplayGain> gains = serverInfoToGains(serverInfo);
-            float gain = resolveGain(player, gains);
-            float peak = resolvePeak(player, gains);
-            float totalGain = computeTotalGain(gain, peak);
-            Log.d(TAG, "reapplyCurrentTrackGain: server RG for " + currentItem.mediaId
-                    + " totalGain=" + totalGain);
-            audioProcessor.setGainImmediate(totalGain);
-            return;
-        }
-
-        // Fallback: tag-based gains from the in-memory cache.
+        // Tag-based gains from the in-memory cache.
         List<ReplayGain> cached = gainDataMap.get(currentItem.mediaId);
         if (cached != null) {
             float gain = resolveGain(player, cached);
@@ -609,39 +550,5 @@ public class ReplayGainUtil {
         }
 
         return Math.max(-60f, Math.min(15f, totalGain));
-    }
-
-    /**
-     * Reads OpenSubsonic ReplayGain info from the MediaItem's extras bundle
-     * (populated at mapping time from the `replayGain` object on the
-     * server's Child response). Returns null if the server didn't provide
-     * data, if the data carries no meaningful values, or if the bundle is
-     * missing.
-     */
-    private static ReplayGainInfo extractServerInfo(MediaItem item) {
-        if (item == null || item.mediaMetadata == null) return null;
-        if (!ReplayGainBundleUtil.isPresent(item.mediaMetadata.extras)) return null;
-        ReplayGainInfo info = ReplayGainBundleUtil.fromBundle(item.mediaMetadata.extras);
-        return (info != null && info.hasAnyValue()) ? info : null;
-    }
-
-    private static List<ReplayGain> serverInfoToGains(ReplayGainInfo info) {
-        ReplayGain primary = new ReplayGain();
-        if (info.getTrackGain() != null) primary.setTrackGain(info.getTrackGain());
-        if (info.getAlbumGain() != null) primary.setAlbumGain(info.getAlbumGain());
-        if (info.getTrackPeak() != null) primary.setTrackPeak(info.getTrackPeak());
-        if (info.getAlbumPeak() != null) primary.setAlbumPeak(info.getAlbumPeak());
-
-        ReplayGain secondary = new ReplayGain();
-        Float fallback = info.getFallbackGain();
-        if (fallback != null) {
-            secondary.setTrackGain(fallback);
-            secondary.setAlbumGain(fallback);
-        }
-
-        List<ReplayGain> gains = new ArrayList<>();
-        gains.add(primary);
-        gains.add(secondary);
-        return gains;
     }
 }

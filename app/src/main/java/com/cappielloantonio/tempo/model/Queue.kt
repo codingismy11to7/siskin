@@ -1,60 +1,105 @@
 package com.cappielloantonio.tempo.model
 
 import androidx.annotation.Keep
+import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.cappielloantonio.tempo.subsonic.models.Child
-import kotlinx.parcelize.Parcelize
+import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
 
+/**
+ * One entry of the persisted play queue, restored on service start.
+ *
+ * Like SessionMediaItem this stores the part key, not a stream URL, so a
+ * restored queue survives a token rotation.
+ */
+@UnstableApi
 @Keep
-@Parcelize
 @Entity(tableName = "queue")
-class Queue(
-    override val id: String,
+class Queue {
+    @ColumnInfo(name = "id")
+    var id: String? = null
+
     @PrimaryKey
     @ColumnInfo(name = "track_order")
-    var trackOrder: Int = 0,
+    var trackOrder: Int = 0
+
     @ColumnInfo(name = "last_play")
-    var lastPlay: Long = 0,
+    var lastPlay: Long = 0
+
     @ColumnInfo(name = "playing_changed")
-    var playingChanged: Long = 0,
-    @ColumnInfo(name = "stream_id")
-    var streamId: String? = null,
-) : Child(id) {
-    constructor(child: Child) : this(child.id) {
-        parentId = child.parentId
-        isDir = child.isDir
-        title = child.title
-        album = child.album
-        artist = child.artist
-        track = child.track
-        year = child.year
-        genre = child.genre
-        coverArtId = child.coverArtId
-        size = child.size
-        contentType = child.contentType
-        suffix = child.suffix
-        transcodedContentType = child.transcodedContentType
-        transcodedSuffix = child.transcodedSuffix
-        duration = child.duration
-        bitrate = child.bitrate
-        samplingRate = child.samplingRate
-        bitDepth = child.bitDepth
-        path = child.path
-        isVideo = child.isVideo
-        userRating = child.userRating
-        averageRating = child.averageRating
-        playCount = child.playCount
-        discNumber = child.discNumber
-        created = child.created
-        starred = child.starred
-        albumId = child.albumId
-        artistId = child.artistId
-        type = child.type
-        bookmarkPosition = child.bookmarkPosition
-        originalWidth = child.originalWidth
-        originalHeight = child.originalHeight
-        replayGain = child.replayGain
+    var playingChanged: Long = 0
+
+    @ColumnInfo
+    var title: String? = null
+
+    @ColumnInfo
+    var album: String? = null
+
+    @ColumnInfo
+    var artist: String? = null
+
+    @ColumnInfo
+    var thumb: String? = null
+
+    @ColumnInfo(name = "part_key")
+    var partKey: String? = null
+
+    @ColumnInfo
+    var duration: Long? = null
+
+    @ColumnInfo(name = "track_index")
+    var trackIndex: Int? = null
+
+    @ColumnInfo
+    var year: Int? = null
+
+    @ColumnInfo(name = "grandparent_rating_key")
+    var grandparentRatingKey: String? = null
+
+    @ColumnInfo
+    var hearted: Boolean = false
+
+    fun toMediaItem(): MediaItem {
+        val api = PlexApi()
+        return PlexMediaMapper.buildTrackMediaItem(
+            ratingKey = id!!,
+            title = title,
+            albumTitle = album,
+            artist = artist,
+            thumb = thumb,
+            partKey = partKey,
+            durationMs = duration,
+            trackIndex = trackIndex,
+            year = year,
+            grandparentRatingKey = grandparentRatingKey,
+            isHearted = hearted,
+            parentId = null,
+            serverUri = api.serverUri,
+            token = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken)
+        )
+    }
+
+    companion object {
+        @JvmStatic
+        fun fromMediaItem(item: MediaItem?): Queue? {
+            val fields = PlexMediaMapper.readTrackFields(item) ?: return null
+
+            return Queue().apply {
+                id = fields.ratingKey
+                title = fields.title
+                album = fields.albumTitle
+                artist = fields.artist
+                thumb = fields.thumb
+                partKey = fields.partKey
+                duration = fields.durationMs
+                trackIndex = fields.trackIndex
+                year = fields.year
+                grandparentRatingKey = fields.grandparentRatingKey
+                hearted = fields.isHearted
+            }
+        }
     }
 }

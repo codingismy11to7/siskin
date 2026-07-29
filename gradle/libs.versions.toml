@@ -17,6 +17,7 @@ retrofit = "2.11.0"
 okhttpLogging = "5.0.0-alpha.14"
 coroutines = "1.10.2"
 lifecycle = "2.9.4"
+robolectric = "4.16"
 
 [libraries]
 androidx-activity = { group = "androidx.activity", name="activity", version.ref = "activity" }
@@ -49,6 +50,7 @@ androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifec
 # Test-only
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttpLogging" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
