@@ -1,5 +1,7 @@
 package com.cappielloantonio.tempo.service
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -88,5 +90,28 @@ object BrowseTreeInvalidator {
             },
             MoreExecutors.directExecutor()
         )
+    }
+
+    /**
+     * Tells the car that one node's children changed.
+     *
+     * Needed because the car caches a browse list and does not re-fetch it when
+     * the user navigates back into it -- without this, the tick marking the
+     * selected library is drawn from whatever was current when that screen was
+     * first loaded, and silently lies.
+     *
+     * Posts to the main thread rather than requiring callers to be on it: unlike
+     * [invalidateRoot], whose callers are Activity callbacks, this one is called
+     * from PlexBrowseRepository's IO scope.
+     */
+    fun invalidateNode(nodeId: String, childCount: Int) {
+        val current = session ?: run {
+            Log.d(TAG, "no live session; nothing to invalidate for $nodeId")
+            return
+        }
+        Handler(Looper.getMainLooper()).post {
+            Log.d(TAG, "notifyChildrenChanged($nodeId, $childCount)")
+            current.notifyChildrenChanged(nodeId, childCount, null)
+        }
     }
 }
