@@ -240,6 +240,35 @@ class LibraryPickerCommitTest {
     }
 
     @Test
+    fun `a candidate survives entering a second server and backing out to the first`() {
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://first:32400",
+            resource = resource(id = "aaa111", accessToken = "a-tok"),
+            sectionKey = "1",
+            libraryName = "A Music"
+        )
+        repo.primeCandidateForTest(
+            uri = "http://second:32400",
+            resource = resource(id = "bbb222", accessToken = "b-tok"),
+            sectionKey = "2",
+            libraryName = "B Music"
+        )
+
+        // The car caches a browse list and does not re-fetch it on the way back,
+        // so the tap on the first server's list arrives after the second server
+        // has already been entered.
+        val result = repo.selectLibrary("aaa111|1").get()
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        val session = api.session
+        assertEquals("http://first:32400", session?.serverUri)
+        assertEquals("aaa111", session?.machineIdentifier)
+        assertEquals(SectionKey("1"), session?.musicSectionKey)
+        assertEquals("a-tok", session?.serverToken)
+    }
+
+    @Test
     fun `a candidate held for a different server is rejected without touching the session`() {
         val repo = LibraryPickerRepository()
         repo.primeCandidateForTest(

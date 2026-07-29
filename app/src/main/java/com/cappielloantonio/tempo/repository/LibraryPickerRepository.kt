@@ -50,13 +50,22 @@ class LibraryPickerRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
-     * The server the user is currently looking inside, with the address that
-     * answered. Held in memory and never persisted: a browse tree is something
-     * users wander into and back out of, and if entering a server mutated the
-     * stored session then backing out would leave a working install signed out.
+     * Every server the user has looked inside this session, with the address
+     * that answered, keyed by machine identifier. Held in memory and never
+     * persisted: a browse tree is something users wander into and back out of,
+     * and if entering a server mutated the stored session then backing out would
+     * leave a working install signed out.
+     *
+     * A map rather than a single slot because the car caches a browse list and
+     * does not re-fetch it on a back-navigation: enter server A, enter server B,
+     * back out to A's still-cached library list and tap a row, and a one-slot
+     * candidate would hold B while the payload names A. That fails closed --
+     * nothing is written -- but on a screen that looks perfectly fine.
+     *
+     * Same threading story as [libraryNames]: written from [getLibraries]'s IO
+     * coroutine and read from whatever thread the car's callback runs on.
      */
-    @Volatile
-    private var candidate: Pair<String, Resource>? = null
+    private val candidates = ConcurrentHashMap<String, Pair<String, Resource>>()
 
     /**
      * Plain, un-ticked display name for each library row, keyed by its
@@ -67,7 +76,7 @@ class LibraryPickerRepository {
      * picker's rows are built ad hoc in [getLibraries] and never registered
      * with `MediaBrowserTree` (only `buildTree()`'s fixed nodes are), so once
      * an entry is gone there is nowhere else `selectLibrary` could recover
-     * that name from. Held in memory only, like [candidate] -- never
+     * that name from. Held in memory only, like [candidates] -- never
      * persisted, and empty again after a process restart, which
      * [selectLibrary] covers with a fallback title.
      *
@@ -143,7 +152,7 @@ class LibraryPickerRepository {
                     return@launch
                 }
 
-                candidate = uri to resource
+                candidates[machineIdentifier] = uri to resource
 
                 val sections = LibraryClient(api, uri, resource.accessToken)
                     .getSections()
@@ -188,11 +197,14 @@ class LibraryPickerRepository {
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
         val machineIdentifier = payload.substringBefore('|')
         val sectionKey = payload.substringAfter('|', "")
-        val held = candidate
+        val held = candidates[machineIdentifier]
 
+        // The clientIdentifier check is a backstop now that the map is keyed by
+        // the same value: it only fires if getLibraries ever files a resource
+        // under a key that is not its own.
         if (sectionKey.isBlank() || held == null || held.second.clientIdentifier != machineIdentifier) {
             // Reachable if the process was restarted between listing the
-            // libraries and tapping one: the candidate lives in memory only.
+            // libraries and tapping one: the candidates live in memory only.
             Log.d(TAG, "no candidate server for $machineIdentifier; re-enter the server")
             future.set(LibraryResult.ofError(SessionError.ERROR_INVALID_STATE))
             return future
@@ -271,11 +283,14 @@ class LibraryPickerRepository {
 
     /**
      * Test seam only. A live [getLibraries] is the only production writer of
-     * [candidate] and [libraryNames], and it needs a real plex.tv round trip
+     * [candidates] and [libraryNames], and it needs a real plex.tv round trip
      * plus a server probe -- neither available under Robolectric. Tests use
      * this to put a fresh repository into the state [getLibraries] would have
      * left it in, so [selectLibrary] can be exercised without restructuring
      * its signature or widening either field's visibility beyond this seam.
+     *
+     * Additive, like the production writer: calling it twice records two
+     * servers rather than replacing the first.
      */
     @VisibleForTesting
     internal fun primeCandidateForTest(
@@ -284,10 +299,10 @@ class LibraryPickerRepository {
         sectionKey: String,
         libraryName: String
     ) {
-        candidate = uri to resource
         val machineIdentifier = requireNotNull(resource.clientIdentifier) {
             "test resource needs a clientIdentifier"
         }
+        candidates[machineIdentifier] = uri to resource
         libraryNames[libraryIdPayload(machineIdentifier, sectionKey)] = libraryName
     }
 
