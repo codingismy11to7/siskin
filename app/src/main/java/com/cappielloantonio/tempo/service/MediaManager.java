@@ -8,7 +8,6 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaBrowser;
 
-import com.cappielloantonio.tempo.plex.PlexApi;
 import com.cappielloantonio.tempo.plex.PlexMediaMapper;
 import com.cappielloantonio.tempo.plex.api.search.SearchClient;
 import com.cappielloantonio.tempo.repository.PlexMixRepository;
@@ -56,17 +55,9 @@ public class MediaManager {
         if (ratingKey == null || partKey == null) return;
 
         String state = submission ? SearchClient.STATE_STOPPED : SearchClient.STATE_PLAYING;
-        new SearchClient(new PlexApi())
-                .reportProgress(ratingKey, partKey, state, 0L)
-                .enqueue(new retrofit2.Callback<Void>() {
-                    @Override
-                    public void onResponse(retrofit2.Call<Void> call, retrofit2.Response<Void> response) {}
-
-                    @Override
-                    public void onFailure(retrofit2.Call<Void> call, Throwable t) {
-                        Log.w(TAG, "scrobble failed", t);
-                    }
-                });
+        // Via PlexScrobbler because SearchClient.reportProgress is a suspend
+        // function, which Java has no way to call.
+        PlexScrobbler.report(ratingKey, partKey, state, 0L);
     }
 
     @OptIn(markerClass = UnstableApi.class)

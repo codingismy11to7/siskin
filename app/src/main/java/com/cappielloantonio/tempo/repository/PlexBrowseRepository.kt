@@ -19,9 +19,12 @@ import com.cappielloantonio.tempo.util.ConstantsAA
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 private const val TAG = "PlexBrowseRepository"
 
@@ -41,6 +44,21 @@ private const val TAG = "PlexBrowseRepository"
 class PlexBrowseRepository {
 
     private val api = PlexApi()
+
+    /**
+     * Every browse request runs here. SupervisorJob because the browse calls are
+     * unrelated to one another -- a failing Albums fetch must not cancel the
+     * Playlists fetch the car issued a moment earlier, which a plain Job would
+     * do by cancelling its siblings.
+     *
+     * IO rather than Main, unlike PlexMixRepository and BaseSessionCallback,
+     * which both have to resume on the main thread because their continuations
+     * touch a Player or a MediaBrowser. Nothing on this path does: the futures
+     * are handed to media3, which posts them onto the application thread itself,
+     * and the one cache write behind them (SessionMediaItemRepository.cache)
+     * already hops to its own single-threaded executor.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var clientsUri: String? = null
     private var cachedLibraryClient: LibraryClient? = null
@@ -81,7 +99,7 @@ class PlexBrowseRepository {
      */
     fun getPlaylists(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
-        return fetch(searchClient.getPlaylists(key)) { body ->
+        return fetch({ searchClient.getPlaylists(key) }) { body ->
             itemsOf(body, TYPE_PLAYLIST)
                 .take(ConstantsAA.MAX_ITEMS)
                 .mapNotNull { PlexMediaMapper.playlistToMediaItem(it, prefix) }
@@ -89,7 +107,7 @@ class PlexBrowseRepository {
     }
 
     fun getPlaylistTracks(playlistId: String) =
-        fetch(searchClient.getPlaylistItems(playlistId, 0, ConstantsAA.MAX_ITEMS)) { body ->
+        fetch({ searchClient.getPlaylistItems(playlistId, 0, ConstantsAA.MAX_ITEMS) }) { body ->
             tracksOf(body).mapNotNull {
                 PlexMediaMapper.trackToMediaItem(it, ConstantsAA.QUEUE_CACHED_SOURCE, serverUri, token)
             }
@@ -107,7 +125,7 @@ class PlexBrowseRepository {
     fun getArtists(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch(
-            libraryClient.getSectionContent(key, PlexItemType.ARTIST, 0, ConstantsAA.MAX_ITEMS)
+            { libraryClient.getSectionContent(key, PlexItemType.ARTIST, 0, ConstantsAA.MAX_ITEMS) }
         ) { body ->
             listOf(viewByAlbumsShortcut()) + itemsOf(body, TYPE_ARTIST).mapNotNull {
                 PlexMediaMapper.artistToMediaItem(it, prefix, serverUri, token)
@@ -122,7 +140,7 @@ class PlexBrowseRepository {
     )
 
     fun getArtistAlbums(albumPrefix: String, artistRatingKey: String) =
-        fetch(libraryClient.getChildren(artistRatingKey, 0, ConstantsAA.MAX_ITEMS)) { body ->
+        fetch({ libraryClient.getChildren(artistRatingKey, 0, ConstantsAA.MAX_ITEMS) }) { body ->
             itemsOf(body, TYPE_ALBUM).mapNotNull {
                 PlexMediaMapper.albumToMediaItem(it, albumPrefix, serverUri, token)
             }
@@ -131,7 +149,7 @@ class PlexBrowseRepository {
     fun getAlbums(prefix: String, sort: String?): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch(
-            libraryClient.getSectionContent(key, PlexItemType.ALBUM, 0, ConstantsAA.MAX_ITEMS, sort)
+            { libraryClient.getSectionContent(key, PlexItemType.ALBUM, 0, ConstantsAA.MAX_ITEMS, sort) }
         ) { body ->
             itemsOf(body, TYPE_ALBUM).mapNotNull {
                 PlexMediaMapper.albumToMediaItem(it, prefix, serverUri, token)
@@ -140,7 +158,7 @@ class PlexBrowseRepository {
     }
 
     fun getAlbumTracks(albumRatingKey: String) =
-        fetch(libraryClient.getChildren(albumRatingKey, 0, ConstantsAA.MAX_ITEMS)) { body ->
+        fetch({ libraryClient.getChildren(albumRatingKey, 0, ConstantsAA.MAX_ITEMS) }) { body ->
             tracksOf(body).mapNotNull {
                 PlexMediaMapper.trackToMediaItem(it, ConstantsAA.QUEUE_CACHED_SOURCE, serverUri, token)
             }
@@ -158,81 +176,82 @@ class PlexBrowseRepository {
         artistPrefix: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
+
+        return launchInto {
+            val artists = collect(key, query, PlexItemType.ARTIST)
+            val albums = collect(key, query, PlexItemType.ALBUM)
+            val tracks = collect(key, query, PlexItemType.TRACK)
+
+            val items = mutableListOf<MediaItem>()
+            artists.forEach { m ->
+                PlexMediaMapper.artistToMediaItem(m, artistPrefix, serverUri, token)
+                    ?.let(items::add)
+            }
+            albums.forEach { m ->
+                PlexMediaMapper.albumToMediaItem(m, albumPrefix, serverUri, token)
+                    ?.let(items::add)
+            }
+            tracks.forEach { m ->
+                PlexMediaMapper.trackToMediaItem(m, null, serverUri, token)
+                    ?.let(items::add)
+            }
+            LibraryResult.ofItemList(ImmutableList.copyOf(items), null)
+        }
+    }
+
+    /** One failed tier must not lose the other two, so every failure is an empty tier. */
+    private suspend fun collect(sectionKey: String, query: String, type: Int): List<Metadata> =
+        try {
+            SearchClient.playableResults(searchClient.search(sectionKey, query, type))
+        } catch (failure: Throwable) {
+            Log.w(TAG, "search tier type=$type failed", failure)
+            emptyList()
+        }
+
+    // ── plumbing ──────────────────────────────────────────────
+
+    /**
+     * The one browse call shape. An HTTP failure becomes a LibraryResult error so
+     * MediaLibraryServiceCallback can offer the sign-in resolution on a 401; a
+     * transport failure escapes to [launchInto], which completes the future
+     * exceptionally so the callback reads it as "unreachable" rather than
+     * "rejected".
+     */
+    private fun fetch(
+        request: suspend () -> PlexResponse,
+        map: (PlexResponse) -> List<MediaItem>
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        launchInto { resultFor(request, map) }
+
+    /**
+     * The suspend-to-ListenableFuture bridge, needed because media3's
+     * MediaLibraryService.Callback takes a ListenableFuture and nothing else.
+     *
+     * Anything [block] throws completes the future exceptionally rather than
+     * escaping into the scope: media3 waits on this future, so a browse that
+     * neither succeeds nor fails leaves the tab spinning until the car gives up.
+     * That includes cancellation at [release] time, for the same reason.
+     */
+    private fun launchInto(
+        block: suspend () -> LibraryResult<ImmutableList<MediaItem>>
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
 
-        collect(key, query, PlexItemType.ARTIST) { artists ->
-            collect(key, query, PlexItemType.ALBUM) { albums ->
-                collect(key, query, PlexItemType.TRACK) { tracks ->
-                    val items = mutableListOf<MediaItem>()
-                    artists.forEach { m ->
-                        PlexMediaMapper.artistToMediaItem(m, artistPrefix, serverUri, token)
-                            ?.let(items::add)
-                    }
-                    albums.forEach { m ->
-                        PlexMediaMapper.albumToMediaItem(m, albumPrefix, serverUri, token)
-                            ?.let(items::add)
-                    }
-                    tracks.forEach { m ->
-                        PlexMediaMapper.trackToMediaItem(m, null, serverUri, token)
-                            ?.let(items::add)
-                    }
-                    future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), null))
-                }
+        scope.launch {
+            try {
+                future.set(block())
+            } catch (failure: Throwable) {
+                Log.w(TAG, "browse could not reach the server", failure)
+                future.setException(failure)
             }
         }
 
         return future
     }
 
-    private fun collect(
-        sectionKey: String,
-        query: String,
-        type: Int,
-        next: (List<Metadata>) -> Unit
-    ) {
-        searchClient.search(sectionKey, query, type).enqueue(object : Callback<PlexResponse> {
-            override fun onResponse(call: Call<PlexResponse>, response: Response<PlexResponse>) {
-                next(if (response.isSuccessful) SearchClient.playableResults(response.body()) else emptyList())
-            }
-
-            // One failed tier must not lose the other two.
-            override fun onFailure(call: Call<PlexResponse>, t: Throwable) {
-                Log.w(TAG, "search tier type=$type failed", t)
-                next(emptyList())
-            }
-        })
-    }
-
-    // ── plumbing ──────────────────────────────────────────────
-
-    /**
-     * The one Retrofit-to-ListenableFuture bridge. An HTTP failure becomes a
-     * LibraryResult error so MediaLibraryServiceCallback can offer the sign-in
-     * resolution on a 401; a transport failure completes the future
-     * exceptionally, which it reads as "unreachable" rather than "rejected".
-     */
-    private fun fetch(
-        call: Call<PlexResponse>,
-        map: (PlexResponse?) -> List<MediaItem>
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
-
-        call.enqueue(object : Callback<PlexResponse> {
-            override fun onResponse(call: Call<PlexResponse>, response: Response<PlexResponse>) {
-                val result = resultFor(response, map)
-                if (result.resultCode != LibraryResult.RESULT_SUCCESS) {
-                    Log.w(TAG, "browse failed with HTTP ${response.code()}")
-                }
-                future.set(result)
-            }
-
-            override fun onFailure(call: Call<PlexResponse>, t: Throwable) {
-                Log.w(TAG, "browse could not reach the server", t)
-                future.setException(t)
-            }
-        })
-
-        return future
+    /** Stops any browse still in flight. Called when MediaService is destroyed. */
+    fun release() {
+        scope.cancel()
     }
 
     private fun errorFuture(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -266,25 +285,35 @@ class PlexBrowseRepository {
                 ?: emptyList()
 
         /**
-         * The response→LibraryResult decision `fetch()` hands to its future,
-         * pulled out so it is reachable from a test without a live Retrofit
-         * `Call`. An empty library answers 200 with `MediaContainer` present and
-         * `Metadata` absent -- `map` (built on [tracksOf]/[itemsOf]) already
-         * degrades that to an empty list, so this must still report success:
-         * the Subsonic implementation this replaces mistook that shape for a
-         * failure and showed "Something went wrong" on the first browse tab for
-         * every user with no playlists. A non-2xx response is always an error,
-         * mapped by [errorFor].
+         * The outcome→LibraryResult decision `fetch()` hands to its future,
+         * pulled out so a test can drive it with a stub request instead of a
+         * live server. An empty library answers 200 with `MediaContainer`
+         * present and `Metadata` absent -- `map` (built on [tracksOf]/[itemsOf])
+         * already degrades that to an empty list, so this must still report
+         * success: the Subsonic implementation this replaces mistook that shape
+         * for a failure and showed "Something went wrong" on the first browse
+         * tab for every user with no playlists.
+         *
+         * Only [HttpException] is caught. Retrofit reports a non-2xx status that
+         * way now that the service methods are `suspend` -- there is no
+         * unsuccessful `Response` to inspect any more -- and it is the only
+         * failure that means "the server answered, and said no". Everything else
+         * (an `IOException`, a malformed body) is a reachability problem and is
+         * left to propagate, because [launchInto] turns that into an
+         * exceptionally completed future and MediaLibraryServiceCallback keys
+         * its "sign in again" button off the [SessionError] codes below. Widen
+         * this catch and a flaky network starts telling the user their
+         * credentials expired.
          */
-        @JvmStatic
-        internal fun resultFor(
-            response: Response<PlexResponse>,
-            map: (PlexResponse?) -> List<MediaItem>
+        internal suspend fun resultFor(
+            request: suspend () -> PlexResponse,
+            map: (PlexResponse) -> List<MediaItem>
         ): LibraryResult<ImmutableList<MediaItem>> =
-            if (!response.isSuccessful) {
-                errorFor(response.code())
-            } else {
-                LibraryResult.ofItemList(ImmutableList.copyOf(map(response.body())), null)
+            try {
+                LibraryResult.ofItemList(ImmutableList.copyOf(map(request())), null)
+            } catch (http: HttpException) {
+                Log.w(TAG, "browse failed with HTTP ${http.code()}")
+                errorFor(http.code())
             }
 
         /**

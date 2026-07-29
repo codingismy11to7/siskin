@@ -25,4 +25,11 @@ class MediaService : BaseMediaService() {
         sessionMediaItemRepository.deleteAll()
         super.releasePlayers()
     }
+
+    // This service is what owns the repository, so its teardown is the only
+    // point at which the repository's browse scope is known to be finished with.
+    override fun onDestroy() {
+        browseRepository.release()
+        super.onDestroy()
+    }
 }
