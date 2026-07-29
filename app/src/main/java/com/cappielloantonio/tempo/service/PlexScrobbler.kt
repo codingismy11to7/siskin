@@ -42,7 +42,10 @@ object PlexScrobbler {
         scope.launch {
             try {
                 SearchClient(PlexApi()).reportProgress(ratingKey, partKey, state, timeMs)
+                    .onLeft { Log.w(TAG, "scrobble failed: $it") }
             } catch (failure: Throwable) {
+                // Covers client construction and anything else still throwing.
+                // Outside any `either { }`, so there is no `raise` to swallow.
                 Log.w(TAG, "scrobble failed", failure)
             }
         }

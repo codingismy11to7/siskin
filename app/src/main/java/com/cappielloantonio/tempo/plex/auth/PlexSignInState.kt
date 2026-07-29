@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.plex.auth
 
 import androidx.annotation.StringRes
+import arrow.core.NonEmptyList
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Resource
 
@@ -26,9 +27,11 @@ sealed interface PlexSignInState {
         val expiresAtEpochSeconds: Long?
     ) : PlexSignInState
 
-    data class ChoosingServer(val servers: List<Resource>) : PlexSignInState
+    /** Non-empty by construction: an empty picker is [SignInError.NoServers]. */
+    data class ChoosingServer(val servers: NonEmptyList<Resource>) : PlexSignInState
 
-    data class ChoosingLibrary(val sections: List<Directory>) : PlexSignInState
+    /** Non-empty by construction: an empty picker is [SignInError.NoLibraries]. */
+    data class ChoosingLibrary(val sections: NonEmptyList<Directory>) : PlexSignInState
 
     data class Failed(@param:StringRes val messageRes: Int) : PlexSignInState
 

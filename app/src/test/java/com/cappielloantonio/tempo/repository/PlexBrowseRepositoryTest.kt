@@ -3,7 +3,11 @@ package com.cappielloantonio.tempo.repository
 import androidx.media3.common.MediaItem
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
+import arrow.core.left
+import arrow.core.right
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexFailure
+import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.base.MediaContainer
 import com.cappielloantonio.tempo.plex.base.PlexResponse
@@ -11,7 +15,6 @@ import com.cappielloantonio.tempo.plex.models.Metadata
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.test.runTest
-import okhttp3.ResponseBody
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -26,21 +29,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import retrofit2.HttpException
-import retrofit2.Response
 import java.io.IOException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
-// The resolved okhttp3 version only exposes ResponseBody.create(MediaType?, String)
-// as deprecated in favour of an extension function this alpha release doesn't
-// yet publish; the deprecated overload is otherwise exactly what's needed here.
-//
 // Robolectric rather than plain JUnit: the tests below construct a real
 // PlexBrowseRepository, and PlexApi (which it holds) reads
 // App.getInstance().preferences -- a live Context, which only exists under
 // Robolectric. The pure-function tests do not touch Android at all and behave
 // identically either way.
-@Suppress("DEPRECATION")
 @RunWith(RobolectricTestRunner::class)
 class PlexBrowseRepositoryTest {
 
@@ -77,21 +74,6 @@ class PlexBrowseRepositoryTest {
         this.ratingKey = ratingKey
         this.type = type
     }
-
-    private fun httpException(code: Int) =
-        HttpException(Response.error<PlexResponse>(code, ResponseBody.create(null, "")))
-
-    /**
-     * A stand-in for the real `getPlaylists`/`getArtists`/... map lambdas:
-     * narrow with [PlexBrowseRepository.tracksOf] like a real caller would,
-     * then blow up on anything that survives the narrowing. `resultFor`
-     * always invokes this on a successful response, even when the eventual
-     * list is empty -- only the per-item builder inside it is skipped, so a
-     * lambda that explodes unconditionally would fail against the real
-     * production lambdas too and would prove nothing.
-     */
-    private val trackMapThatMustNotBuildAnyItem: (PlexResponse) -> List<MediaItem> =
-        { body -> PlexBrowseRepository.tracksOf(body).map { error("built a MediaItem from $it, but the narrowed list should have been empty") } }
 
     /** For the error branch, where `resultFor` must not call `map` at all. */
     private val mapThatMustNotRun: (PlexResponse) -> List<MediaItem> =
@@ -150,15 +132,10 @@ class PlexBrowseRepositoryTest {
 
     @Test
     fun resultForAnEmptyLibrarySucceedsWithAnEmptyListRatherThanErroring() = runTest {
-        // The regression this whole task exists to catch: Plex answers a
-        // no-match listing with HTTP 200, MediaContainer present, Metadata
-        // absent. The Subsonic implementation this replaces mistook that shape
-        // for a failure and showed "Something went wrong" on the first of
-        // three browse tabs for every user with no playlists.
         val result = PlexBrowseRepository.resultFor(
-            { PlexResponse().apply { mediaContainer = MediaContainer() } },
-            trackMapThatMustNotBuildAnyItem
-        )
+            { PlexResponse().right() },
+            { emptyList() }
+        ).getOrNull()!!
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertTrue(result.value!!.isEmpty())
@@ -166,44 +143,44 @@ class PlexBrowseRepositoryTest {
 
     @Test
     fun resultForHttp401IsPermissionDenied() = runTest {
-        // 401/403 must map to ERROR_PERMISSION_DENIED specifically:
-        // MediaLibraryServiceCallback.classifyFailure keys the "sign in again"
-        // affordance off exactly that code.
-        val result = PlexBrowseRepository.resultFor({ throw httpException(401) }, mapThatMustNotRun)
+        val result = PlexBrowseRepository.resultFor(
+            { PlexFailure.Http(PlexHost.Server, 401).left() },
+            mapThatMustNotRun
+        ).getOrNull()!!
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
 
     @Test
     fun resultForHttp403IsPermissionDenied() = runTest {
-        val result = PlexBrowseRepository.resultFor({ throw httpException(403) }, mapThatMustNotRun)
+        val result = PlexBrowseRepository.resultFor(
+            { PlexFailure.Http(PlexHost.Server, 403).left() },
+            mapThatMustNotRun
+        ).getOrNull()!!
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
 
     @Test
     fun resultForHttp500IsBadValue() = runTest {
-        // Any other non-2xx code must not collapse into ERROR_PERMISSION_DENIED,
-        // which would tell the user their credentials expired because the
-        // server has a bug.
-        val result = PlexBrowseRepository.resultFor({ throw httpException(500) }, mapThatMustNotRun)
+        val result = PlexBrowseRepository.resultFor(
+            { PlexFailure.Http(PlexHost.Server, 500).left() },
+            mapThatMustNotRun
+        ).getOrNull()!!
 
         assertEquals(SessionError.ERROR_BAD_VALUE, result.resultCode)
     }
 
     @Test
-    fun resultForLetsATransportFailureEscapeRatherThanTurningItIntoAnError() {
-        // The distinction the catch in resultFor has to keep: an unreachable
-        // server is not a rejected one. Widening that catch to Throwable would
-        // swallow this into a LibraryResult error, and the browse callback
-        // cannot tell "no network" from "no permission" once it is one.
-        val boom = IOException("no route to host")
+    fun resultForKeepsATransportFailureAsALeftRatherThanTurningItIntoAnError() = runTest {
+        // The distinction resultFor has to keep: an unreachable server must not
+        // reach the user as "rejected". Staying Left is what makes launchInto
+        // complete the future exceptionally instead of with a LibraryResult.
+        val failure = PlexFailure.Unreachable(PlexHost.Server)
 
-        val thrown = assertThrows(IOException::class.java) {
-            runTest { PlexBrowseRepository.resultFor({ throw boom }, mapThatMustNotRun) }
-        }
+        val result = PlexBrowseRepository.resultFor({ failure.left() }, mapThatMustNotRun)
 
-        assertEquals(boom, thrown)
+        assertEquals(failure.left(), result)
     }
 
     // ── end to end, through real Retrofit ───────────────────────────

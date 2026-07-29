@@ -1,9 +1,13 @@
 package com.cappielloantonio.tempo.plex.api.search
 
 import android.util.Log
+import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexFailure
+import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.base.PlexResponse
+import com.cappielloantonio.tempo.plex.plexCall
 
 private const val TAG = "SearchClient"
 
@@ -29,23 +33,37 @@ class SearchClient(api: PlexApi) {
         query: String,
         type: Int,
         limit: Int = DEFAULT_SEARCH_LIMIT
-    ): PlexResponse {
+    ): Either<PlexFailure, PlexResponse> {
         Log.d(TAG, "search($sectionKey, type=$type, limit=$limit)")
-        return service.search(sectionKey, query, type, limit)
+        return plexCall(PlexHost.Server) { service.search(sectionKey, query, type, limit) }
     }
 
     /** [sectionKey] scopes the listing to one music library section -- see SearchService.getPlaylists. */
-    suspend fun getPlaylists(sectionKey: String): PlexResponse = service.getPlaylists(sectionKey)
+    suspend fun getPlaylists(sectionKey: String): Either<PlexFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getPlaylists(sectionKey) }
 
-    suspend fun getPlaylistItems(playlistId: String, start: Int, size: Int): PlexResponse =
-        service.getPlaylistItems(playlistId, start, size)
+    suspend fun getPlaylistItems(
+        playlistId: String,
+        start: Int,
+        size: Int
+    ): Either<PlexFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getPlaylistItems(playlistId, start, size) }
 
-    suspend fun reportProgress(ratingKey: String, key: String, state: String, timeMs: Long) =
-        service.reportProgress(ratingKey, key, state, timeMs)
+    suspend fun reportProgress(
+        ratingKey: String,
+        key: String,
+        state: String,
+        timeMs: Long
+    ): Either<PlexFailure, Unit> =
+        plexCall(PlexHost.Server) { service.reportProgress(ratingKey, key, state, timeMs) }
 
-    suspend fun rate(ratingKey: String, rating: Int) {
+    /**
+     * A `Right` is the success case: the service call returns Unit and any
+     * non-2xx becomes [PlexFailure.Http], so there is no body to inspect.
+     */
+    suspend fun rate(ratingKey: String, rating: Int): Either<PlexFailure, Unit> {
         Log.d(TAG, "rate($ratingKey, rating=$rating)")
-        service.rate(ratingKey, LIBRARY_IDENTIFIER, rating)
+        return plexCall(PlexHost.Server) { service.rate(ratingKey, LIBRARY_IDENTIFIER, rating) }
     }
 
     companion object {
