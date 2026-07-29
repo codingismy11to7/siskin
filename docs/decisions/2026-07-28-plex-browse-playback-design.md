@@ -539,9 +539,35 @@ back on — the random-tracks fallback above, and playlist shuffle here.
 
 The defaults that gate a car-reachable behaviour are flipped to the value that
 makes the feature work; the preferences stay, so a later settings surface has
-something to bind to. Auditing the rest of the frozen preference surface is not
-in scope here, but it is now a known category of latent dead switch rather than
-an assumption that they are all harmless.
+something to bind to.
+
+#### Two more found, deliberately left alone
+
+The final review pointed out that this policy was stated once and applied once.
+Two further preferences gate live machinery the same way, and both are recorded
+here rather than flipped:
+
+| Preference | Default | What it silently disables |
+|---|---|---|
+| `getReplayGainMode()` | `"disabled"` | Every entry point in `ReplayGainUtil` |
+| `getPrecacheTracksCount()` | `"0"` | `QueuePreloader` |
+
+The first is uncomfortable, and worth naming plainly: this spec argues above for
+keeping `ReplayGainUtil` and trimming only its dead Subsonic fast path, on the
+grounds that the `MetadataRetriever` tag-reading path carries the feature. That
+reasoning is sound about the code and wrong about the product — the feature is
+switched off by a default no user can reach, so the machinery preserved is
+machinery nobody runs.
+
+They are not flipped here because ReplayGain changes how audio *sounds*.
+Deciding that deserves a deliberate listen on real hardware, not a flag flip at
+the end of a long branch. Recording it is the point: the next person to read
+`ReplayGainUtil` should know it is dormant rather than infer from its careful
+preservation that it is live.
+
+A full audit of the frozen preference surface remains out of scope, but it is
+now a known category with named instances rather than an assumption that the
+survivors are all harmless.
 
 ## Not in scope
 
