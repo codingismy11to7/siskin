@@ -227,6 +227,11 @@ class LibraryPickerRepository {
             // against a server they never came from.
             Log.d(TAG, "server changed; discarding the saved queue")
             QueueRepository().deleteAll()
+            // Room is only half of the queue. ExoPlayer's timeline still holds
+            // the old server's URLs, so without this the current track plays on,
+            // the next one 404s, and BaseMediaService.onPlayerError re-prepares
+            // that dead URL every five seconds.
+            BrowseTreeInvalidator.stopPlayback()
         }
 
         api.session = next

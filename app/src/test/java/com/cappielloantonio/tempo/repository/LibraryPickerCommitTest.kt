@@ -1,6 +1,10 @@
 package com.cappielloantonio.tempo.repository
 
+import android.os.Looper
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
@@ -10,6 +14,9 @@ import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
+import com.cappielloantonio.tempo.service.MediaBrowserTree
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -17,12 +24,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
+@UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class LibraryPickerCommitTest {
 
     private val api = PlexApi()
+    private lateinit var player: Player
 
     @Before
     fun setUp() {
@@ -35,6 +49,22 @@ class LibraryPickerCommitTest {
         // any individual test submits next; FIFO ordering (see the barrier helpers
         // below) is what makes that safe rather than a race.
         QueueRepository().deleteAll()
+
+        // A live session is what makes selectLibrary's invalidateRoot() and
+        // stopPlayback() do anything at all -- both return early without one, so
+        // every assertion about them would pass vacuously.
+        player = mock()
+        val session = mock<MediaLibrarySession>()
+        whenever(session.player).thenReturn(player)
+        MediaBrowserTree.initialize(App.getInstance(), mock())
+        BrowseTreeInvalidator.attach(session)
+    }
+
+    @After
+    fun tearDown() {
+        // BrowseTreeInvalidator is a process-wide singleton; leaving a mock
+        // attached would leak into whatever test class runs next.
+        BrowseTreeInvalidator.detach()
     }
 
     private fun resource(id: String, accessToken: String? = null) = Resource().apply {
@@ -167,6 +197,46 @@ class LibraryPickerCommitTest {
         repo.selectLibrary("xyz999|7").get()
 
         assertFalse(queueIdsAfterBarrier().contains("keep-me"))
+    }
+
+    @Test
+    fun `switching to a different server stops playback and empties the timeline`() {
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://otherserver:32400",
+            resource = resource(id = "xyz999"),
+            sectionKey = "7",
+            libraryName = "Soundtrack"
+        )
+        repo.selectLibrary("xyz999|7").get()
+
+        // stopPlayback posts to the main thread, and Robolectric's looper is
+        // paused, so without this the queued Player calls never run and the
+        // verifications below would fail whether or not the fix is present.
+        shadowOf(Looper.getMainLooper()).idle()
+
+        // Deleting the Room queue is not enough on its own: ExoPlayer's timeline
+        // still holds the old server's stream URLs.
+        verify(player).stop()
+        verify(player).clearMediaItems()
+    }
+
+    @Test
+    fun `switching library on the same server leaves playback alone`() {
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://pms:32400",
+            resource = resource(id = "abc123"),
+            sectionKey = "7",
+            libraryName = "Soundtrack"
+        )
+        repo.selectLibrary("abc123|7").get()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        // Rating keys are server-wide, so the queue -- and what is playing from
+        // it -- is still entirely valid.
+        verify(player, never()).stop()
+        verify(player, never()).clearMediaItems()
     }
 
     @Test

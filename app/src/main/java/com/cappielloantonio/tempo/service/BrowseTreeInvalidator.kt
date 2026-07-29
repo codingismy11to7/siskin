@@ -14,12 +14,15 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.MoreExecutors
 
 /**
- * Lets the car sign-in screen tell the media session that the browse tree is
- * worth asking for again.
+ * The process's handle on the live [MediaLibrarySession]: it lets components
+ * outside the media service tell the car the browse tree is worth asking for
+ * again, and -- because the player lives behind that session -- stop playback.
  *
- * Sign-in happens in an activity; the browse tree lives in the media service. They
- * are in the same process, so a nullable session handle owned by the service is
- * enough -- no binding, no broadcast.
+ * Sign-in happens in an activity and the library picker in a repository; the
+ * session lives in the media service. They are in the same process, so a
+ * nullable session handle owned by the service is enough -- no binding, no
+ * broadcast. New callers belong here rather than in a second singleton holding
+ * the same session.
  */
 @UnstableApi
 object BrowseTreeInvalidator {
@@ -112,6 +115,33 @@ object BrowseTreeInvalidator {
         Handler(Looper.getMainLooper()).post {
             Log.d(TAG, "notifyChildrenChanged($nodeId, $childCount)")
             current.notifyChildrenChanged(nodeId, childCount, null)
+        }
+    }
+
+    /**
+     * Stops playback and empties the player's timeline.
+     *
+     * Called when the saved queue has just been discarded because the user
+     * switched Plex servers. Deleting the Room queue is only half of it: the
+     * timeline ExoPlayer is actually playing from is in memory and still holds
+     * the old server's stream URLs, so the current track would play on, the next
+     * one would 404, and [BaseMediaService]'s onPlayerError recovery would
+     * re-prepare that dead URL every five seconds.
+     *
+     * Posts to the main thread for the same reason [invalidateNode] does, with
+     * one extra: Player calls *must* be made on the thread the player was built
+     * on, and this is called from whatever thread the car's browse callback runs
+     * on.
+     */
+    fun stopPlayback() {
+        val current = session ?: run {
+            Log.d(TAG, "no live session; nothing to stop")
+            return
+        }
+        Handler(Looper.getMainLooper()).post {
+            Log.d(TAG, "stopping playback and clearing the player's items")
+            current.player.stop()
+            current.player.clearMediaItems()
         }
     }
 }
