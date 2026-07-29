@@ -45,8 +45,16 @@ public class MediaManager {
      * Plex wants the part being played and a transport state where Subsonic's
      * scrobble was a fire-and-forget "I played this": a track with no part key
      * has nothing to report against, so it is skipped rather than sent half-formed.
+     *
+     * {@code positionMs} matters because Plex, not this client, decides whether a
+     * play counts: the {@code /:/timeline} handler on the server compares the
+     * reported position against the track duration and its own watched-percentage
+     * threshold before it will mark the item played. A "stopped" report sent with
+     * position 0 reads to Plex as "left at the very start" regardless of how much
+     * actually played, so it silently never registers a play. Callers must pass
+     * the real position at the moment of the event, not a placeholder.
      */
-    public static void scrobble(MediaItem mediaItem, boolean submission) {
+    public static void scrobble(MediaItem mediaItem, boolean submission, long positionMs) {
         if (mediaItem == null || mediaItem.mediaMetadata.extras == null) return;
         if (!Preferences.isScrobblingEnabled()) return;
 
@@ -57,7 +65,7 @@ public class MediaManager {
         String state = submission ? SearchClient.STATE_STOPPED : SearchClient.STATE_PLAYING;
         // Via PlexScrobbler because SearchClient.reportProgress is a suspend
         // function, which Java has no way to call.
-        PlexScrobbler.report(ratingKey, partKey, state, 0L);
+        PlexScrobbler.report(ratingKey, partKey, state, positionMs);
     }
 
     @OptIn(markerClass = UnstableApi.class)

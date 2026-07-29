@@ -375,27 +375,38 @@ open class BaseSessionCallback(
                 applyRatingToQueue(session, mediaId, isStarring)
                 SessionResult(SessionResult.RESULT_SUCCESS)
             } catch (http: HttpException) {
-                // KNOWN DEFECT, carried over verbatim from the Retrofit-callback
-                // version this replaces rather than fixed here, because fixing it
-                // is a behaviour change and this commit is a port.
-                //
                 // SessionError's constructor requires `code < 0 || code == 1`
-                // (SessionError.java:209, media3 1.9.2), so *every* HTTP status
-                // Plex could answer with -- 401, 404, 500 -- fails that
+                // (SessionError.java:209, media3 1.9.2), so passing the raw HTTP
+                // status straight through -- 401, 404, 500 -- fails that
                 // precondition and throws IllegalArgumentException from inside
-                // this catch. It therefore escapes the coroutine instead of
-                // completing the future: the heart button stays on its loading
-                // icon forever and the uncaught exception reaches the main
+                // this catch. That used to escape the coroutine instead of
+                // completing the future: the heart button stayed on its loading
+                // icon forever and the uncaught exception reached the main
                 // thread's default handler -- exactly as it did from inside the
-                // Retrofit callback, which Retrofit also ran on the main thread.
-                // See BaseSessionCallbackRatingTest for the pinned mechanism.
+                // Retrofit callback this replaced, which Retrofit also ran on the
+                // main thread. See BaseSessionCallbackRatingTest for the pinned
+                // mechanism and the regression test for this fix.
                 //
-                // http.message() is the status line ("Unauthorized"); the
+                // Map onto a legal SessionError constant instead. 401/403 are the
+                // one case a car UI could plausibly act on differently (prompt
+                // re-auth); everything else collapses to ERROR_UNKNOWN. The real
+                // HTTP status still goes into the message -- it is not a legal
+                // `code`, but it is the useful part for debugging -- alongside
+                // http.message() (the status line, e.g. "Unauthorized"; the
                 // inherited `message` property would read "HTTP 401
-                // Unauthorized" and duplicate the code the car already shows.
-                SessionResult(SessionError(http.code(), http.message()))
+                // Unauthorized" and duplicate the code we're already printing).
+                val code = when (http.code()) {
+                    401, 403 -> SessionError.ERROR_PERMISSION_DENIED
+                    else -> SessionError.ERROR_UNKNOWN
+                }
+                SessionResult(SessionError(code, "HTTP ${http.code()} ${http.message()}"))
             } catch (failure: Throwable) {
-                SessionResult(SessionError(SessionError.ERROR_UNKNOWN, "An error has occurred"))
+                // Not an HTTP response at all -- e.g. the socket never connected --
+                // so there is no status to map or report. The message is worded
+                // differently from the HTTP branch above on purpose, so the two
+                // failure modes stay distinguishable in logs instead of both
+                // reading as an HTTP error that never happened.
+                SessionResult(SessionError(SessionError.ERROR_UNKNOWN, "Transport failure: ${failure.message}"))
             }
 
             // On every path, success included: the heart button was switched to

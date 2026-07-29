@@ -156,21 +156,21 @@ class BaseSessionCallbackRatingTest {
     }
 
     /**
-     * The HTTP-failure branch of onSetRating cannot work, and this is where that
-     * is written down.
+     * Documents *why* onSetRating cannot pass an HTTP status straight into
+     * SessionError, which is the defect [anHttp500BecomesErrorUnknownRatherThanHanging]
+     * and [anHttp401BecomesPermissionDenied] below exist to catch at the
+     * onSetRating level.
      *
-     * That branch builds `SessionError(http.code(), http.message())`, but
      * SessionError requires a code that is negative or exactly INFO_CANCELLED --
      * so every status Plex could reject a rating with (401 on a stale token, 404
-     * on a bad ratingKey, 500) throws IllegalArgumentException out of the catch
-     * that was meant to handle it. The future never completes and the heart
-     * button stays on its loading icon.
-     *
-     * It is a pre-existing defect, unchanged by the coroutine port and
-     * deliberately left alone by it. No end-to-end test drives that path: it
-     * would have to assert a hang. This pins the mechanism instead, so a fix
-     * lands here first -- and so that if media3 ever relaxes the precondition,
-     * this fails and sends someone back to onSetRating.
+     * on a bad ratingKey, 500) fails that precondition and throws
+     * IllegalArgumentException. Before the fix, onSetRating's HttpException
+     * branch did exactly this with `SessionError(http.code(), http.message())`,
+     * which escaped the coroutine instead of completing the future -- the heart
+     * button stayed on its loading icon forever. onSetRating now maps the status
+     * onto a legal constant instead of forwarding it; this test stays as a pin
+     * so that if media3 ever relaxes the precondition, it fails and sends
+     * someone back to check whether the mapping is still needed.
      */
     @Test(expected = IllegalArgumentException::class)
     fun anHttpStatusCannotBeCarriedInASessionErrorAtAll() {
@@ -185,6 +185,40 @@ class BaseSessionCallbackRatingTest {
         val result = rate(hearted = true)
 
         assertEquals(SessionError.ERROR_UNKNOWN, result.resultCode)
+        verify(player, never()).replaceMediaItem(any(), any())
+    }
+
+    /**
+     * Catches a regression back to `SessionError(http.code(), http.message())`:
+     * as shown by [anHttpStatusCannotBeCarriedInASessionErrorAtAll], code 500
+     * fails SessionError's precondition and throws IllegalArgumentException out
+     * of onSetRating's catch block, which never reaches `future.set(result)`.
+     * `rate()`'s bounded `get()` turns that hang into a timeout failure here
+     * instead of hanging the test suite.
+     */
+    @Test
+    fun anHttp500BecomesErrorUnknownRatherThanHanging() {
+        server.enqueue(MockResponse().setResponseCode(500).setBody("Internal Server Error"))
+
+        val result = rate(hearted = true)
+
+        assertEquals(SessionError.ERROR_UNKNOWN, result.resultCode)
+        verify(player, never()).replaceMediaItem(any(), any())
+    }
+
+    /**
+     * 401/403 map onto ERROR_PERMISSION_DENIED rather than the catch-all
+     * ERROR_UNKNOWN, since it's the one case a car UI could plausibly act on
+     * differently (e.g. prompt re-auth). Also confirms the future completes at
+     * all for this status, for the same reason as the 500 case above.
+     */
+    @Test
+    fun anHttp401BecomesPermissionDenied() {
+        server.enqueue(MockResponse().setResponseCode(401).setBody("Unauthorized"))
+
+        val result = rate(hearted = true)
+
+        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
         verify(player, never()).replaceMediaItem(any(), any())
     }
 }

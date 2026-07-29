@@ -192,7 +192,7 @@ open class BaseMediaService : MediaLibraryService() {
                 val currentMediaItem = player.currentMediaItem
                 if (currentMediaItem != null) {
                     if (currentMediaItem.mediaMetadata.extras != null)
-                        MediaManager.scrobble(currentMediaItem, false)
+                        MediaManager.scrobble(currentMediaItem, false, player.currentPosition)
 
                     if (player.nextMediaItemIndex == C.INDEX_UNSET) {
                         if (Preferences.isContinuousPlayEnabled()) {
@@ -233,7 +233,7 @@ open class BaseMediaService : MediaLibraryService() {
                         player.currentPosition
                     )
                 } else {
-                    MediaManager.scrobble(player.currentMediaItem, false)
+                    MediaManager.scrobble(player.currentMediaItem, false, player.currentPosition)
                 }
             }
 
@@ -244,7 +244,7 @@ open class BaseMediaService : MediaLibraryService() {
                     playbackState == Player.STATE_ENDED &&
                     player.mediaMetadata.extras?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC
                 ) {
-                    MediaManager.scrobble(player.currentMediaItem, true)
+                    MediaManager.scrobble(player.currentMediaItem, true, player.currentPosition)
                 }
             }
 
@@ -272,7 +272,12 @@ open class BaseMediaService : MediaLibraryService() {
 
                 if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
                     if (oldPosition.mediaItem?.mediaMetadata?.extras?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC) {
-                        MediaManager.scrobble(oldPosition.mediaItem, true)
+                        // oldPosition.positionMs, not player.currentPosition: by the time this
+                        // fires the player has already moved onto the next item, so
+                        // currentPosition would report the *new* track's position against the
+                        // *old* track's ratingKey. positionMs is where playback actually left
+                        // the old track -- exactly what a "stopped" report should carry.
+                        MediaManager.scrobble(oldPosition.mediaItem, true, oldPosition.positionMs)
                     }
 
                     if (newPosition.mediaItem?.mediaMetadata?.extras?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC) {
