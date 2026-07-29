@@ -36,7 +36,7 @@ class MediaBrowserTreePickerTest {
         assertEquals(
             // No getLibraries has run in this process, so the name falls back --
             // which is the state a tap after a process restart arrives in.
-            App.getInstance().getString(R.string.aa_now_browsing, "Library 7"),
+            App.getContext().getString(R.string.aa_now_browsing, "Library 7"),
             row.mediaMetadata.title?.toString()
         )
         assertEquals(true, row.mediaMetadata.isBrowsable)
@@ -45,7 +45,7 @@ class MediaBrowserTreePickerTest {
 
     @Test
     fun tappingAMessageRowReturnsTheRow() {
-        val message = App.getInstance().getString(R.string.aa_library_picker_offline)
+        val message = App.getContext().getString(R.string.aa_library_picker_offline)
         val id = ConstantsAA.PICK_MESSAGE_ID + message
 
         val result = MediaBrowserTree.getChildren(id).get()

@@ -57,7 +57,7 @@ class LibraryPickerCommitTest {
         player = mock()
         val session = mock<MediaLibrarySession>()
         whenever(session.player).thenReturn(player)
-        MediaBrowserTree.initialize(App.getInstance(), mock())
+        MediaBrowserTree.initialize(App.getContext(), mock())
         BrowseTreeInvalidator.attach(session)
     }
 
@@ -346,7 +346,7 @@ class LibraryPickerCommitTest {
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         val row = requireNotNull(result.value).single()
         assertEquals(
-            App.getInstance().getString(R.string.aa_library_picker_offline),
+            App.getContext().getString(R.string.aa_library_picker_offline),
             row.mediaMetadata.title?.toString()
         )
         assertEquals(true, row.mediaMetadata.isBrowsable)
@@ -364,14 +364,14 @@ class LibraryPickerCommitTest {
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(
-            App.getInstance().getString(R.string.aa_library_picker_offline),
+            App.getContext().getString(R.string.aa_library_picker_offline),
             requireNotNull(result.value).single().mediaMetadata.title?.toString()
         )
     }
 
     @Test
     fun `plex tv and the media server fail in different words`() {
-        val context = App.getInstance()
+        val context = App.getContext()
         // Three causes the car would otherwise render identically. If two of
         // these ever collapse into one string, the picker is back to a generic
         // failure screen.
@@ -399,7 +399,7 @@ class LibraryPickerCommitTest {
         val item = requireNotNull(result.value).single()
         assertEquals(true, item.mediaMetadata.isBrowsable)
         assertEquals(false, item.mediaMetadata.isPlayable)
-        val expectedTitle = App.getInstance().getString(R.string.aa_now_browsing, "Big Music Library")
+        val expectedTitle = App.getContext().getString(R.string.aa_now_browsing, "Big Music Library")
         assertEquals(expectedTitle, item.mediaMetadata.title?.toString())
     }
 }

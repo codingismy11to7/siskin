@@ -96,7 +96,7 @@ class LibraryPickerRepository {
         @StringRes messageRes: Int
     ): LibraryResult<ImmutableList<MediaItem>> =
         LibraryResult.ofItemList(
-            ImmutableList.of(messageRow(App.getInstance().getString(messageRes))),
+            ImmutableList.of(messageRow(App.getContext().getString(messageRes))),
             null
         )
 
@@ -248,7 +248,7 @@ class LibraryPickerRepository {
             // See its KDoc -- a plain ofError here is a dead end.
             future.set(
                 CarSignInResolution.errorResult(
-                    App.getInstance(), R.string.car_sign_in_again
+                    App.getContext(), R.string.car_sign_in_again
                 )
             )
             return future
@@ -315,7 +315,7 @@ class LibraryPickerRepository {
             mediaId = ConstantsAA.PICK_LIBRARY_ID + payload + CONFIRMED_SUFFIX,
             // Browsable purely so the car draws it: an item with neither
             // isBrowsable nor isPlayable set is dropped from the list entirely.
-            title = App.getInstance().getString(R.string.aa_now_browsing, name)
+            title = App.getContext().getString(R.string.aa_now_browsing, name)
         )
     }
 
