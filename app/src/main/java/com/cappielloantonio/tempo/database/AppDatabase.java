@@ -4,11 +4,8 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
-import androidx.room.TypeConverters;
 
 import com.cappielloantonio.tempo.App;
-import com.cappielloantonio.tempo.database.converter.DateConverters;
-import com.cappielloantonio.tempo.database.converter.StringListConverter;
 import com.cappielloantonio.tempo.database.dao.QueueDao;
 import com.cappielloantonio.tempo.database.dao.SessionMediaItemDao;
 import com.cappielloantonio.tempo.model.Queue;
@@ -46,7 +43,6 @@ import com.cappielloantonio.tempo.model.SessionMediaItem;
             SessionMediaItem.class,
         }
 )
-@TypeConverters({DateConverters.class, StringListConverter.class})
 public abstract class AppDatabase extends RoomDatabase {
     // Renamed from the inherited "tempo_db". A different filename is a
     // different database, so version 1 opens a file that does not exist yet and
