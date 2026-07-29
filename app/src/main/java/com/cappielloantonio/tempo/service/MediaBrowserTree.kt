@@ -241,7 +241,6 @@ object MediaBrowserTree {
         return null
     }
 
-
     fun getChildren(id: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return when (id) {
             ConstantsAA.ROOT_ID -> treeNodes[ConstantsAA.ROOT_ID]!!.getChildren()
@@ -291,6 +290,20 @@ object MediaBrowserTree {
                 if (id.startsWith(ConstantsAA.PICK_SERVER_ID)) {
                     return pickerRepository.getLibraries(
                         id.removePrefix(ConstantsAA.PICK_SERVER_ID)
+                    )
+                }
+                if (id.startsWith(ConstantsAA.PICK_MESSAGE_ID)) {
+                    // Same rule as the confirmation row: a row that explains a
+                    // failure must not become a blank screen when it is tapped.
+                    return Futures.immediateFuture(
+                        LibraryResult.ofItemList(
+                            ImmutableList.of(
+                                LibraryPickerRepository.messageRow(
+                                    id.removePrefix(ConstantsAA.PICK_MESSAGE_ID)
+                                )
+                            ),
+                            null
+                        )
                     )
                 }
                 return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))

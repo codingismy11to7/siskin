@@ -2,12 +2,14 @@ package com.cappielloantonio.tempo.repository
 
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.annotation.StringRes
 import androidx.annotation.VisibleForTesting
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
+import arrow.core.getOrElse
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.LibrarySelection
@@ -86,6 +88,18 @@ class LibraryPickerRepository {
      */
     private val libraryNames = ConcurrentHashMap<String, String>()
 
+    /**
+     * Wraps a message in the single-row result the picker uses to report
+     * failure. See [messageRow] for why this is not a [LibraryResult] error.
+     */
+    private fun messageResult(
+        @StringRes messageRes: Int
+    ): LibraryResult<ImmutableList<MediaItem>> =
+        LibraryResult.ofItemList(
+            ImmutableList.of(messageRow(App.getInstance().getString(messageRes))),
+            null
+        )
+
     fun getServers(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
         scope.launch {
@@ -96,17 +110,10 @@ class LibraryPickerRepository {
                         // with a reachable Plex server and no route to plex.tv, in
                         // which case browsing music still works and only this screen
                         // is unavailable. Reporting it as "no servers" would read as
-                        // an empty account.
+                        // an empty account, and the stored session is deliberately
+                        // left alone -- the current library keeps working.
                         Log.d(TAG, "could not list servers: $failure")
-                        future.set(
-                            LibraryResult.ofError(
-                                SessionError(
-                                    SessionError.ERROR_IO,
-                                    App.getInstance()
-                                        .getString(R.string.aa_library_picker_offline)
-                                )
-                            )
-                        )
+                        future.set(messageResult(R.string.aa_library_picker_offline))
                     },
                     { resources ->
                         val items = serverRows(resources).map { row ->
@@ -133,12 +140,20 @@ class LibraryPickerRepository {
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
         scope.launch {
             try {
-                val resources = authClient.getResources().getOrNull()
+                // Three separate causes, three separate sentences: a plex.tv
+                // outage, a server that has left the account, and a server that
+                // will not answer are indistinguishable to the user if they all
+                // land on the car's generic failure screen.
+                val resources = authClient.getResources().getOrElse { failure ->
+                    Log.d(TAG, "could not re-list servers: $failure")
+                    future.set(messageResult(R.string.aa_library_picker_offline))
+                    return@launch
+                }
                 val resource = AuthClient.mediaServers(resources)
                     .firstOrNull { it.clientIdentifier == machineIdentifier }
                 if (resource == null) {
                     Log.d(TAG, "server $machineIdentifier is no longer on the account")
-                    future.set(LibraryResult.ofError(SessionError.ERROR_IO))
+                    future.set(messageResult(R.string.aa_library_picker_server_gone))
                     return@launch
                 }
 
@@ -148,7 +163,7 @@ class LibraryPickerRepository {
                 val uri = probe.bestConnectionUri(resource)
                 if (uri == null) {
                     Log.d(TAG, "no advertised connection answered for ${resource.name}")
-                    future.set(LibraryResult.ofError(SessionError.ERROR_IO))
+                    future.set(messageResult(R.string.aa_library_picker_server_unreachable))
                     return@launch
                 }
 
@@ -156,9 +171,24 @@ class LibraryPickerRepository {
 
                 val sections = LibraryClient(api, uri, resource.accessToken)
                     .getSections()
-                    .getOrNull()
+                    .getOrElse { failure ->
+                        // It answered ServerProbe a moment ago, so this is the
+                        // server going away mid-navigation rather than a wrong
+                        // address -- the same sentence either way.
+                        Log.d(TAG, "could not list sections for ${resource.name}: $failure")
+                        future.set(messageResult(R.string.aa_library_picker_server_unreachable))
+                        return@launch
+                    }
+                val musicSections = LibraryClient.musicSections(sections)
+                if (musicSections.isEmpty()) {
+                    // A photo-and-video-only server is a real answer rather than
+                    // a failure, but an empty list renders as a blank screen.
+                    Log.d(TAG, "${resource.name} has no music sections")
+                    future.set(messageResult(R.string.aa_library_picker_no_music))
+                    return@launch
+                }
                 val session = api.session
-                val items = LibraryClient.musicSections(sections).map { directory ->
+                val items = musicSections.map { directory ->
                     val key = directory.key.orEmpty()
                     val payload = libraryIdPayload(machineIdentifier, key)
                     val plainName = directory.title.orEmpty().ifBlank { "Library $key" }
@@ -334,6 +364,27 @@ class LibraryPickerRepository {
                     name = resource.name.orEmpty().ifBlank { "Plex server" }
                 )
             }
+
+        /**
+         * A single browsable row that says why a picker list is otherwise
+         * empty.
+         *
+         * **Not** a `LibraryResult.ofError`. media3 1.9.2 replicates exactly two
+         * SessionError codes to a legacy MediaBrowserCompat client -- -102 and
+         * -105, see [CarSignInResolution] -- and `com.android.car.media` is such
+         * a client. Every other code arrives at
+         * `MediaLibraryServiceLegacyStub.onLoadChildren` as a null result, so
+         * the message never leaves the process and the car draws its own generic
+         * failure. A row is the only way a sentence reaches this screen, and it
+         * is the same trick the confirmation row plays.
+         *
+         * Browsable, never playable, like every other row here. The message
+         * rides in the media id so a tap can return the same row (see
+         * `MediaBrowserTree.getChildren`) without a map to keep in sync.
+         */
+        @JvmStatic
+        fun messageRow(message: String): MediaItem =
+            browsableRow(mediaId = ConstantsAA.PICK_MESSAGE_ID + message, title = message)
 
         @JvmStatic
         fun browsableRow(mediaId: String, title: String): MediaItem =

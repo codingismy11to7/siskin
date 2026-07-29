@@ -19,6 +19,7 @@ import com.cappielloantonio.tempo.service.MediaBrowserTree
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -327,6 +328,59 @@ class LibraryPickerCommitTest {
         assertEquals("3", api.musicSectionKey)
         assertNull(api.serverToken)
         assertEquals("abc123", api.machineIdentifier)
+    }
+
+    @Test
+    fun `a plex tv failure narrows to this node and does not clear the session`() {
+        val before = api.session
+
+        // Robolectric has no route to plex.tv, and if a build machine does, an
+        // unauthenticated /resources answers 401 -- plexCall turns either into
+        // the same PlexTransportFailure, so this is deterministic.
+        val result = LibraryPickerRepository().getServers().get()
+
+        // Deliberately not a LibraryResult error. media3 replicates only -102 and
+        // -105 to a legacy MediaBrowserCompat client, which com.android.car.media
+        // is, so a SessionError(ERROR_IO, msg) reaches the car as a bare null and
+        // the sentence is lost. A row is the only thing the user can read.
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        val row = requireNotNull(result.value).single()
+        assertEquals(
+            App.getInstance().getString(R.string.aa_library_picker_offline),
+            row.mediaMetadata.title?.toString()
+        )
+        assertEquals(true, row.mediaMetadata.isBrowsable)
+        assertEquals(false, row.mediaMetadata.isPlayable)
+
+        // The car can be on a LAN with a working Plex server and no internet;
+        // failing to list servers must not sign it out.
+        assertEquals(before, api.session)
+        assertEquals("acct", api.accountToken)
+    }
+
+    @Test
+    fun `a library list that cannot be built says why instead of erroring`() {
+        val result = LibraryPickerRepository().getLibraries("some-other-server").get()
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        assertEquals(
+            App.getInstance().getString(R.string.aa_library_picker_offline),
+            requireNotNull(result.value).single().mediaMetadata.title?.toString()
+        )
+    }
+
+    @Test
+    fun `plex tv and the media server fail in different words`() {
+        val context = App.getInstance()
+        // Three causes the car would otherwise render identically. If two of
+        // these ever collapse into one string, the picker is back to a generic
+        // failure screen.
+        val offline = context.getString(R.string.aa_library_picker_offline)
+        val gone = context.getString(R.string.aa_library_picker_server_gone)
+        val unreachable = context.getString(R.string.aa_library_picker_server_unreachable)
+        assertNotEquals(offline, gone)
+        assertNotEquals(offline, unreachable)
+        assertNotEquals(gone, unreachable)
     }
 
     @Test

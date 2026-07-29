@@ -26,6 +26,16 @@ object ConstantsAA {
      */
     const val PICK_LIBRARY_ID = "[pickLibraryID]"
 
+    /**
+     * Prefix; the remainder is the message text itself.
+     *
+     * The text rides in the id so a tap on the row can return the same row
+     * without a second in-memory map to keep in sync -- see
+     * `LibraryPickerRepository.messageRow`, which explains why the picker
+     * reports failures as rows rather than as errors.
+     */
+    const val PICK_MESSAGE_ID = "[pickMessageID]"
+
     // Android Auto System functions
     const val ALBUM_ID = "[albumID]"
     const val ARTIST_ID = "[artistID]"
