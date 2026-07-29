@@ -194,7 +194,9 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
             // Recovered, not bound: a 429, a 5xx, a 404 on a consumed pin or a
             // dropped connection is not worth abandoning a sign-in over.
-            val pin = authClient.getPin(created.id).getOrNull() ?: continue
+            val pin = authClient.getPin(created.id)
+                .onLeft { Log.d(TAG, "pin poll failed, retrying: $it") }
+                .getOrNull() ?: continue
 
             when (
                 val pinState = PlexPinState.evaluate(

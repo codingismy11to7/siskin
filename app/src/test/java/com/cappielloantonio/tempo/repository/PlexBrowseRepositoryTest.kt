@@ -79,6 +79,18 @@ class PlexBrowseRepositoryTest {
     private val mapThatMustNotRun: (PlexResponse) -> List<MediaItem> =
         { error("map must not run when the request failed") }
 
+    /**
+     * A stand-in for the real `getPlaylists`/`getArtists`/... map lambdas:
+     * narrow with [PlexBrowseRepository.tracksOf] like a real caller would,
+     * then blow up on anything that survives the narrowing. `resultFor`
+     * always invokes this on a successful response, even when the eventual
+     * list is empty -- only the per-item builder inside it is skipped, so a
+     * lambda that explodes unconditionally would fail against the real
+     * production lambdas too and would prove nothing.
+     */
+    private val trackMapThatMustNotBuildAnyItem: (PlexResponse) -> List<MediaItem> =
+        { body -> PlexBrowseRepository.tracksOf(body).map { error("built a MediaItem from $it, but the narrowed list should have been empty") } }
+
     @Test
     fun tracksOfKeepsOnlyTracks() {
         // A playlist or album listing can carry non-track entries; anything the
@@ -125,16 +137,22 @@ class PlexBrowseRepositoryTest {
 
     // ── resultFor: the fetch() outcome→LibraryResult decision ─────────
     //
-    // The service methods are `suspend`, so a non-2xx no longer arrives as an
-    // unsuccessful Response -- Retrofit throws HttpException instead, and a
-    // transport failure throws IOException. These drive resultFor with a stub
-    // request that throws exactly what Retrofit would.
+    // plexCall (see PlexCall.kt) is what turns Retrofit's HttpException and
+    // IOException into PlexFailure values, so resultFor itself never touches
+    // an exception -- only an Either. These drive it directly with
+    // already-folded Right/Left request stubs, to pin the outcome→LibraryResult
+    // mapping in isolation from Retrofit and the network.
 
     @Test
     fun resultForAnEmptyLibrarySucceedsWithAnEmptyListRatherThanErroring() = runTest {
+        // The regression this whole task exists to catch: Plex answers a
+        // no-match listing with HTTP 200, MediaContainer present, Metadata
+        // absent. The Subsonic implementation this replaces mistook that shape
+        // for a failure and showed "Something went wrong" on the first of
+        // three browse tabs for every user with no playlists.
         val result = PlexBrowseRepository.resultFor(
-            { PlexResponse().right() },
-            { emptyList() }
+            { PlexResponse().apply { mediaContainer = MediaContainer() }.right() },
+            trackMapThatMustNotBuildAnyItem
         ).getOrNull()!!
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
@@ -186,9 +204,9 @@ class PlexBrowseRepositoryTest {
     // ── end to end, through real Retrofit ───────────────────────────
     //
     // These drive the public future-returning API against a socket, so they
-    // cover the whole bridge: the coroutine launch, the HttpException that
-    // Retrofit raises for a non-2xx, and the SettableFuture completion. The
-    // seam tests above cannot see any of that.
+    // cover the whole bridge the seam tests above cannot see: the coroutine
+    // launch, plexCall actually folding a real HttpException/IOException that
+    // Retrofit raises into a PlexFailure, and the SettableFuture completion.
 
     private fun tracksBody(vararg ratingKeys: String) = """
         {"MediaContainer":{"Metadata":[${
@@ -212,11 +230,13 @@ class PlexBrowseRepositoryTest {
 
     @Test
     fun a401BecomesPermissionDeniedRatherThanAnExceptionallyCompletedFuture() {
-        // The port's central hazard: with Call<T> a 401 arrived as a Response
-        // with isSuccessful == false, and with suspend it arrives as a thrown
-        // HttpException. A bridge that lets it escape completes the future
-        // exceptionally, classifyFailure never sees ERROR_PERMISSION_DENIED,
-        // and the car loses the "sign in again" button entirely.
+        // The central hazard now: plexCall folds the real HttpException
+        // Retrofit throws for a 401 into Left(PlexFailure.Http(..., 401)), and
+        // resultFor has to route that to a LibraryResult error rather than
+        // raise it -- raising would flow through launchInto's Left branch and
+        // complete the future exceptionally instead, classifyFailure would
+        // never see ERROR_PERMISSION_DENIED, and the car would lose the
+        // "sign in again" button entirely.
         server.enqueue(MockResponse().setResponseCode(401))
 
         val result = await(PlexBrowseRepository().getAlbumTracks("5"))
@@ -308,9 +328,10 @@ class PlexBrowseRepositoryTest {
     @Test
     fun searchKeepsTheOtherTiersWhenOneFails() {
         // One failed tier must not lose the other two: a 500 on albums still
-        // leaves usable artist and track results on screen. With Call<T> that
-        // was an unsuccessful Response; now it is a thrown HttpException that
-        // would abandon the whole merge if it were not caught per tier.
+        // leaves usable artist and track results on screen. plexCall turns
+        // that 500 into a Left(PlexFailure.Http(...)), and collect() folds it
+        // to an empty list rather than binding or propagating it -- there is
+        // no per-tier catch doing that job any more, just Either.fold.
         PlexApi().musicSectionKey = "1"
         server.dispatcher = searchDispatcher(failingType = PlexItemType.ALBUM)
 
