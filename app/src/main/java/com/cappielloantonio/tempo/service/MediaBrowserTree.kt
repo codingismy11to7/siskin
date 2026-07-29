@@ -256,6 +256,15 @@ object MediaBrowserTree {
                         id.removePrefix(ConstantsAA.ARTIST_ID)
                     )
                 }
+                if (id.startsWith(ConstantsAA.PICK_LIBRARY_ID)) {
+                    val payload = id.removePrefix(ConstantsAA.PICK_LIBRARY_ID)
+                    if (payload.endsWith(":confirmed")) {
+                        return Futures.immediateFuture(
+                            LibraryResult.ofItemList(ImmutableList.of(), null)
+                        )
+                    }
+                    return pickerRepository.selectLibrary(payload)
+                }
                 if (id.startsWith(ConstantsAA.PICK_SERVER_ID)) {
                     return pickerRepository.getLibraries(
                         id.removePrefix(ConstantsAA.PICK_SERVER_ID)

@@ -12,10 +12,15 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexIdentity
+import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
+import com.cappielloantonio.tempo.service.CarSignInResolution
+import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -144,6 +149,95 @@ class LibraryPickerRepository {
         return future
     }
 
+    /**
+     * Commits the pick, then answers with a confirmation row.
+     *
+     * The confirmation is usually never drawn: invalidating the parent below
+     * makes the car re-render the list it is already showing, which supersedes
+     * the screen it was about to push. That is a race, not a guarantee -- a
+     * slower head unit may land the push -- so the row is what the user sees when
+     * the invalidation loses. Returning an empty list instead would degrade into
+     * a blank screen. **Do not delete this row because it appears never to
+     * render.**
+     */
+    fun selectLibrary(payload: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
+        val machineIdentifier = payload.substringBefore('|')
+        val sectionKey = payload.substringAfter('|', "")
+        val held = candidate
+
+        if (sectionKey.isBlank() || held == null || held.second.clientIdentifier != machineIdentifier) {
+            // Reachable if the process was restarted between listing the
+            // libraries and tapping one: the candidate lives in memory only.
+            Log.d(TAG, "no candidate server for $machineIdentifier; re-enter the server")
+            future.set(LibraryResult.ofError(SessionError.ERROR_INVALID_STATE))
+            return future
+        }
+
+        val (uri, resource) = held
+        val accountToken = api.accountToken
+        if (accountToken.isNullOrBlank()) {
+            // Routed through CarSignInResolution rather than raised bare: only the
+            // error *it* builds reaches the car as a tappable "Sign in" button.
+            // See its KDoc -- a plain ofError here is a dead end.
+            future.set(
+                CarSignInResolution.errorResult(
+                    App.getInstance(), R.string.car_sign_in_again
+                )
+            )
+            return future
+        }
+
+        val previous = api.session
+        val next = PlexSession(
+            accountToken = accountToken,
+            serverUri = uri,
+            musicSectionKey = SectionKey(sectionKey),
+            serverToken = resource.accessToken,
+            machineIdentifier = resource.clientIdentifier
+        )
+
+        if (LibrarySelection.invalidatesQueue(previous, next)) {
+            // Rating keys are server-wide, so only a server change makes the
+            // saved queue meaningless; its partKeys would otherwise be rebuilt
+            // against a server they never came from.
+            Log.d(TAG, "server changed; discarding the saved queue")
+            QueueRepository().deleteAll()
+        }
+
+        api.session = next
+
+        // The three music tabs are showing the old library. PlexBrowseRepository
+        // rebuilds its own clients on the next call because refreshClients()
+        // compares sessions, so only the car needs telling.
+        BrowseTreeInvalidator.invalidateRoot()
+        BrowseTreeInvalidator.invalidateNode(
+            ConstantsAA.PICK_SERVER_ID + machineIdentifier,
+            0
+        )
+
+        val name = stripTick(
+            MediaBrowserTree.getItem(ConstantsAA.PICK_LIBRARY_ID + payload)
+                ?.mediaMetadata?.title?.toString()
+        )
+        future.set(
+            LibraryResult.ofItemList(
+                ImmutableList.of(
+                    browsableRow(
+                        mediaId = ConstantsAA.PICK_LIBRARY_ID + payload + ":confirmed",
+                        // Browsable purely so the car draws it: an item with
+                        // neither isBrowsable nor isPlayable set is dropped from
+                        // the list entirely.
+                        title = App.getInstance()
+                            .getString(R.string.aa_now_browsing, name)
+                    )
+                ),
+                null
+            )
+        )
+        return future
+    }
+
     companion object {
 
         data class ServerRow(val machineIdentifier: String?, val name: String)
@@ -154,6 +248,9 @@ class LibraryPickerRepository {
         @JvmStatic
         fun libraryRowTitle(name: String, current: Boolean): String =
             if (current) TICK + name else name
+
+        @JvmStatic
+        fun stripTick(title: String?): String = title.orEmpty().removePrefix(TICK)
 
         @JvmStatic
         fun libraryIdPayload(machineIdentifier: String, sectionKey: String): String =
