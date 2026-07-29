@@ -33,8 +33,11 @@
       # The emulator runs Android Automotive OS, which is what this fork
       # targets. API 33 is not a preference: it is the only API level for
       # which nixpkgs carries an android-automotive system image (verified by
-      # probing 30/32/33/34/35/36 — only 33 resolves). minSdk is 24, so the
-      # app runs there fine, and the compile platform stays at 36.
+      # probing 30/32/33/34/35/36 — only 33 resolves). That sits above the
+      # app's minSdk — which cannot drop below 28, because AAOS itself only
+      # shipped from API 28 and the manifest requires
+      # android.hardware.type.automotive — so the app runs here fine, and the
+      # compile platform stays at 36.
       emulatorSdkVersion = "33";
       systemImageType = "android-automotive";
       abiVersion = "x86_64";
