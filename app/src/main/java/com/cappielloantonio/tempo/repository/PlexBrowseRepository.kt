@@ -121,12 +121,35 @@ class PlexBrowseRepository {
         }
     }
 
-    fun getPlaylistTracks(playlistId: String) =
-        fetch({ searchClient.getPlaylistItems(RatingKey(playlistId), 0, ConstantsAA.MAX_ITEMS) }) { body ->
+    /** The browse list: the shuffle row, then the playlist in its own order. */
+    fun getPlaylistTracks(playlistId: String) = playlistTracks(playlistId) { tracks ->
+        listOf(shufflePlaylistRow(playlistId)) + tracks
+    }
+
+    /**
+     * The same tracks with no shuffle row, for the queue that row builds.
+     *
+     * Kept separate rather than filtered later: a queue containing the row would
+     * hold a playable item with no stream.
+     */
+    fun getPlaylistTracksForShuffle(playlistId: String) = playlistTracks(playlistId) { it }
+
+    private fun playlistTracks(
+        playlistId: String,
+        decorate: (List<MediaItem>) -> List<MediaItem>
+    ) = fetch({ searchClient.getPlaylistItems(RatingKey(playlistId), 0, ConstantsAA.MAX_ITEMS) }) { body ->
+        decorate(
             tracksOf(body).mapNotNull {
                 PlexMediaMapper.trackToMediaItem(it, ConstantsAA.QUEUE_CACHED_SOURCE, serverUri, token)
             }
-        }
+        )
+    }
+
+    private fun shufflePlaylistRow(playlistId: String): MediaItem =
+        PlexMediaMapper.shuffleRowToMediaItem(
+            ConstantsAA.SHUFFLE_PLAYLIST_ID + playlistId,
+            App.getContext().getString(R.string.aa_shuffle_playlist)
+        )
 
     fun getArtists(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
@@ -167,8 +190,8 @@ class PlexBrowseRepository {
     }
 
     private fun shuffleArtistRow(artistRatingKey: String): MediaItem =
-        PlexMediaMapper.shuffleArtistToMediaItem(
-            artistRatingKey,
+        PlexMediaMapper.shuffleRowToMediaItem(
+            ConstantsAA.SHUFFLE_ARTIST_ID + artistRatingKey,
             App.getContext().getString(R.string.aa_shuffle_artist)
         )
 

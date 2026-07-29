@@ -2,6 +2,7 @@
     <string name="aa_albums">Albums</string>
     <string name="aa_artists">Artists</string>
     <string name="aa_shuffle_artist">Shuffle this artist</string>
+    <string name="aa_shuffle_playlist">Shuffle this playlist</string>
     <string name="aa_library_picker_no_music">No music libraries on this server</string>
     <string name="aa_library_picker_offline">Can\'t reach plex.tv to list your servers</string>
     <string name="aa_library_picker_server_gone">That server is no longer on your Plex account</string>

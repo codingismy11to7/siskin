@@ -272,13 +272,18 @@ object PlexMediaMapper {
     }
 
     /**
-     * The "shuffle this artist" row at the head of an artist's album list.
+     * A "shuffle this <thing>" row, at the head of the list of what it shuffles:
+     * an artist's albums, or a playlist's tracks.
+     *
+     * [mediaId] is one of ConstantsAA's shuffle prefixes plus the subject's
+     * ratingKey, and carrying it in the id is the whole mechanism --
+     * MediaLibrarySessionCallback dispatches on the prefix to decide which
+     * tracks to fetch.
      *
      * Playable but streamless, and deliberately so: there is no single track to
-     * point at, and MediaLibrarySessionCallback recognises the id and swaps the
-     * row for the artist's whole track list. Like [browsableItem] it never calls
-     * setUri -- a non-null localConfiguration would make resolveQueueForItem
-     * treat the row as already resolved and "play" a track with no stream.
+     * point at. Like [browsableItem] it never calls setUri -- a non-null
+     * localConfiguration would make resolveQueueForItem treat the row as already
+     * resolved and "play" a track with no stream.
      *
      * The icon is media3's own Material shuffle glyph rather than a vendored
      * copy. It is not declared in media3's public.xml, so a rename on upgrade
@@ -286,9 +291,9 @@ object PlexMediaMapper {
      * it is acceptable.
      */
     @JvmStatic
-    fun shuffleArtistToMediaItem(artistRatingKey: String, title: String?): MediaItem =
+    fun shuffleRowToMediaItem(mediaId: String, title: String?): MediaItem =
         MediaItem.Builder()
-            .setMediaId(ConstantsAA.SHUFFLE_ARTIST_ID + artistRatingKey)
+            .setMediaId(mediaId)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)

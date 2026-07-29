@@ -137,13 +137,48 @@ class MediaLibrarySessionCallback(
         // round-trips into an unplayable MediaItem -- the same reason browsable
         // rows are excluded here.
         val tracks = items.filter {
-            it.mediaMetadata.isPlayable == true && !isShuffleArtistRow(it)
+            it.mediaMetadata.isPlayable == true && !isShuffleRow(it)
         }
         if (tracks.isNotEmpty()) sessionMediaItemRepository.cache(tracks)
     }
 
-    private fun isShuffleArtistRow(item: MediaItem) =
-        item.mediaId.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID)
+    /**
+     * Pure prefix test, deliberately not "does [shuffleTracksFor] return
+     * something": that issues a request, and this runs against every row of
+     * every browse list from [rememberTracks].
+     */
+    private fun isShuffleRow(item: MediaItem) =
+        item.mediaId.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID) ||
+            item.mediaId.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID)
+
+    /**
+     * Fetches the tracks a tapped shuffle row stands for, or null if the item is
+     * not a shuffle row. **Issues a network request** -- call it once per tap.
+     *
+     * Dispatch is on the id prefix, which is the only thing the car sends back:
+     * it rebuilds the item from the media id alone, so the extras the row was
+     * built with are gone by the time it arrives here.
+     */
+    private fun shuffleTracksFor(
+        item: MediaItem
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
+        val id = item.mediaId
+        return when {
+            id.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID) -> {
+                val artist = id.removePrefix(ConstantsAA.SHUFFLE_ARTIST_ID)
+                Log.d(TAG, "Fetching every track by artist $artist to shuffle")
+                browseRepository.getArtistTracks(artist)
+            }
+
+            id.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID) -> {
+                val playlist = id.removePrefix(ConstantsAA.SHUFFLE_PLAYLIST_ID)
+                Log.d(TAG, "Fetching every track in playlist $playlist to shuffle")
+                browseRepository.getPlaylistTracksForShuffle(playlist)
+            }
+
+            else -> null
+        }
+    }
 
     /**
      * A browse request failed while credentials exist. Plex answers a rejected
@@ -192,7 +227,7 @@ class MediaLibrarySessionCallback(
         Log.d(TAG, "mediaId = ${firstItem.mediaId}, startIndex = $startIndex, startPositionMs = $startPositionMs")
 
         enableShuffleIfShuffleRow(firstItem, mediaSession.player)
-        val shuffling = isShuffleArtistRow(firstItem)
+        val shuffling = isShuffleRow(firstItem)
 
         val futureQueue = resolveQueueForItem(firstItem, mediaItems)
 
@@ -255,7 +290,7 @@ class MediaLibrarySessionCallback(
      * finished on -- and the player may only be touched from the former.
      */
     private fun enableShuffleIfShuffleRow(firstItem: MediaItem, player: Player) {
-        if (!isShuffleArtistRow(firstItem)) return
+        if (!isShuffleRow(firstItem)) return
         Log.d(TAG, "shuffle row tapped: enabling player shuffle")
         player.shuffleModeEnabled = true
     }
@@ -269,19 +304,18 @@ class MediaLibrarySessionCallback(
         val extras = firstItem.requestMetadata.extras ?: firstItem.mediaMetadata.extras
         val parentId = extras?.getString(PlexMediaMapper.EXTRA_PARENT_ID)
 
+        // Resolved once: this issues the request.
+        val shuffleTracks = shuffleTracksFor(firstItem)
+
         val futureQueue: ListenableFuture<List<MediaItem>> = when {
-            // Before the parent-tag branches: the shuffle row carries no parent
-            // tag and is not in any cache, so it would otherwise fall through to
-            // the fallback below and "play" itself -- a row with no stream.
-            isShuffleArtistRow(firstItem) -> {
-                val artistRatingKey = firstItem.mediaId.removePrefix(ConstantsAA.SHUFFLE_ARTIST_ID)
-                Log.d(TAG, "Fetching every track by artist $artistRatingKey to shuffle")
-                Futures.transform(
-                    browseRepository.getArtistTracks(artistRatingKey),
-                    { result -> result?.value ?: emptyList() },
-                    MoreExecutors.directExecutor()
-                )
-            }
+            // Before the parent-tag branches: a shuffle row carries no parent tag
+            // and is not in any cache, so it would otherwise fall through to the
+            // fallback below and "play" itself -- a row with no stream.
+            shuffleTracks != null -> Futures.transform(
+                shuffleTracks,
+                { result -> result?.value ?: emptyList() },
+                MoreExecutors.directExecutor()
+            )
 
             parentId?.startsWith(ConstantsAA.QUEUE_CACHED_SOURCE) == true -> {
                 Log.d(TAG, "Fetching AA list source tracks for $parentId")

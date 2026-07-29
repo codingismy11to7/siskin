@@ -280,6 +280,29 @@ class PlexBrowseRepositoryTest {
     }
 
     @Test
+    fun theShuffleRowLeadsAPlaylistsTracks() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
+
+        val result = await(PlexBrowseRepository().getPlaylistTracks("169077"))
+
+        val row = result.value!!.first()
+        assertEquals(ConstantsAA.SHUFFLE_PLAYLIST_ID + "169077", row.mediaId)
+        assertEquals(true, row.mediaMetadata.isPlayable)
+        assertNull(row.localConfiguration)
+        assertEquals(listOf("11", "22"), result.value!!.drop(1).map { it.mediaId })
+    }
+
+    @Test
+    fun theQueueAShuffleRowBuildsDoesNotContainTheRowItself() {
+        // A queue holding the row would hold a playable item with no stream.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
+
+        val result = await(PlexBrowseRepository().getPlaylistTracksForShuffle("169077"))
+
+        assertEquals(listOf("11", "22"), result.value!!.map { it.mediaId })
+    }
+
+    @Test
     fun anArtistsTracksAreFetchedFlatAndInLibraryOrderForTheShuffleRow() {
         // Left unshuffled deliberately: the player owns shuffling, so turning the
         // car's toggle off has to reveal the artist's real order.

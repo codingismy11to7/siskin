@@ -41,12 +41,17 @@ object ConstantsAA {
     const val ARTIST_ID = "[artistID]"
 
     /**
-     * Prefix of the synthetic "shuffle this artist" row, carrying the artist's
-     * ratingKey after it. Nothing on the server answers to this id: it is a
-     * playable row with no stream, and MediaLibrarySessionCallback swaps it for
-     * the artist's tracks when it is tapped.
+     * Prefixes of the synthetic shuffle rows, each carrying the ratingKey of the
+     * thing to shuffle after it. Nothing on the server answers to these ids:
+     * they are playable rows with no stream, and MediaLibrarySessionCallback
+     * swaps one for its subject's tracks when it is tapped.
+     *
+     * Two prefixes rather than one plus an embedded kind, because the prefix is
+     * what the callback dispatches on -- it decides which repository call
+     * supplies the tracks.
      */
     const val SHUFFLE_ARTIST_ID = "[shuffleArtistID]"
+    const val SHUFFLE_PLAYLIST_ID = "[shufflePlaylistID]"
 
     // Android Auto Source tag
     const val QUEUE_CACHED_SOURCE = "[aaQueueCachedSource]"
