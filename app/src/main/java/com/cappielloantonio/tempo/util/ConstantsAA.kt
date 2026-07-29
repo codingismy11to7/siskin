@@ -12,6 +12,20 @@ object ConstantsAA {
     const val ARTISTS_ID = "[artistsID]"
     const val PLAYLIST_ID = "[playlistID]"
 
+    // More tab
+    const val MORE_ID = "[moreID]"
+    const val SELECT_LIBRARY_ID = "[selectLibraryID]"
+
+    /** Prefix; the remainder is the server's machine identifier. */
+    const val PICK_SERVER_ID = "[pickServerID]"
+
+    /**
+     * Prefix; the remainder is "<machineIdentifier>|<sectionKey>". Pipe rather
+     * than colon because a machine identifier is hex and a section key is an
+     * integer, so neither can contain one.
+     */
+    const val PICK_LIBRARY_ID = "[pickLibraryID]"
+
     // Android Auto System functions
     const val ALBUM_ID = "[albumID]"
     const val ARTIST_ID = "[artistID]"

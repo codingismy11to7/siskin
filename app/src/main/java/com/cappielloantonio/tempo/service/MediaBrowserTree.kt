@@ -100,7 +100,11 @@ object MediaBrowserTree {
     }
 
     /**
-     * The browse root is fixed at Playlists | Artists | Albums.
+     * The browse root is fixed at Playlists | Artists | Albums | More.
+     *
+     * Four is the maximum the car allows: it enforces a root-children limit of
+     * four and silently drops a fifth, so do not add another top-level tab here
+     * -- nest it under More instead.
      *
      * Grid-versus-list styling is frozen at what a default install showed before
      * the settings screen was removed: albums and artists as grids
@@ -161,10 +165,39 @@ object MediaBrowserTree {
                 )
             )
 
+        treeNodes[ConstantsAA.MORE_ID] =
+            MediaItemNode(
+                buildMediaItem(
+                    gridView = false,
+                    title = appContext.getString(R.string.aa_more),
+                    mediaId = ConstantsAA.MORE_ID,
+                    isPlayable = false,
+                    isBrowsable = true,
+                    imageUri = iconUri(R.drawable.ic_aa_playlist),
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
+                )
+            )
+
+        treeNodes[ConstantsAA.SELECT_LIBRARY_ID] =
+            MediaItemNode(
+                buildMediaItem(
+                    gridView = false,
+                    title = appContext.getString(R.string.aa_select_library),
+                    mediaId = ConstantsAA.SELECT_LIBRARY_ID,
+                    isPlayable = false,
+                    isBrowsable = true,
+                    imageUri = iconUri(R.drawable.ic_aa_playlist),
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
+                )
+            )
+
+        treeNodes[ConstantsAA.MORE_ID]!!.addChild(ConstantsAA.SELECT_LIBRARY_ID)
+
         val root = treeNodes[ConstantsAA.ROOT_ID]!!
         root.addChild(ConstantsAA.PLAYLIST_ID)
         root.addChild(ConstantsAA.ARTISTS_ID)
         root.addChild(ConstantsAA.ALBUMS_ID)
+        root.addChild(ConstantsAA.MORE_ID)
     }
 
     fun getRootItem(): MediaItem {
@@ -199,6 +232,8 @@ object MediaBrowserTree {
                 ConstantsAA.ALBUM_ID,
                 LibraryClient.SORT_ARTIST
             )
+
+            ConstantsAA.MORE_ID -> treeNodes[ConstantsAA.MORE_ID]!!.getChildren()
 
             else -> {
                 if (id.startsWith(ConstantsAA.PLAYLIST_ID)) {

@@ -41,14 +41,26 @@ class MediaBrowserTreeTest {
     }
 
     @Test
-    fun rootHasExactlyThreeTabsInOrder() {
+    fun rootHasExactlyFourTabsInOrder() {
         val children = MediaBrowserTree.getChildren(ConstantsAA.ROOT_ID)
             .get().value!!.map { it.mediaId }
 
         assertEquals(
-            listOf(ConstantsAA.PLAYLIST_ID, ConstantsAA.ARTISTS_ID, ConstantsAA.ALBUMS_ID),
+            listOf(
+                ConstantsAA.PLAYLIST_ID,
+                ConstantsAA.ARTISTS_ID,
+                ConstantsAA.ALBUMS_ID,
+                ConstantsAA.MORE_ID
+            ),
             children
         )
+    }
+
+    @Test
+    fun rootHasExactlyFourChildrenBecauseTheCarDropsTheFifth() {
+        val children = MediaBrowserTree.getChildren(ConstantsAA.ROOT_ID).get().value!!
+
+        assertEquals(4, children.size)
     }
 
     @Test
