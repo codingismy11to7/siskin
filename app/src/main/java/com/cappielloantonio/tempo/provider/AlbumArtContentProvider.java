@@ -67,6 +67,21 @@ public class AlbumArtContentProvider extends ContentProvider {
         // arrives whole rather than truncated to its final component.
         String thumbPath = uri.getLastPathSegment();
 
+        // This provider is exported -- the car reads artwork through it -- so the
+        // path segment is attacker-controlled: any app on the head unit can ask
+        // for any URI under this authority. MediaUrlBuilder.artworkUrl embeds the
+        // segment as `url=` on Plex's photo transcoder, which will fetch whatever
+        // that names, absolute URLs on other hosts included. Unvalidated, that
+        // makes the user's Plex server a proxy the caller can point at anything
+        // reachable from it, authenticated with the user's own token.
+        //
+        // A genuine Plex thumb is always a server-relative path, so anything else
+        // is refused the same way an absent one is: FileNotFoundException, which
+        // the car renders as the placeholder icon.
+        if (!MediaUrlBuilder.isServerRelativePath(thumbPath)) {
+            throw new FileNotFoundException("Not a Plex artwork path");
+        }
+
         int size = Preferences.getImageSize() > 0 ? Preferences.getImageSize() : DEFAULT_ARTWORK_SIZE;
 
         PlexApi api = new PlexApi();

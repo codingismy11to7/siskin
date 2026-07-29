@@ -7,19 +7,26 @@ import androidx.media3.datasource.cache.CacheKeyFactory
 /**
  * Cache key for the streaming cache. dataSpec.key, when a caller sets it,
  * identifies the audio bytes directly; nothing currently does, so this falls
- * through to the request URL.
+ * through to the request URL with its query string dropped.
  *
- * A prior version parsed Subsonic's `id`/`maxBitRate`/`format`/`timeOffset`
- * query parameters and a stored server id so cache entries survived token and
- * server-address churn. Plex stream URLs (`MediaUrlBuilder.streamUrl`) carry
- * none of those parameters -- only a `partKey` path and `X-Plex-Token` -- so
- * that lookup always missed and fell back to the full URL anyway. Removed
- * with the rest of the Subsonic-only preferences it read.
+ * Dropping the query is the whole point. `MediaUrlBuilder.streamUrl` builds
+ * `<server><partKey>?X-Plex-Token=<token>`, so keying on the full URI would
+ * write the user's Plex token into the on-disk cache index, and would orphan
+ * every cached entry the moment that token rotated -- the same track would ask
+ * for a key it had never stored under and re-download. `partKey` alone
+ * identifies the bytes: it is the server-side path of one file, and it is
+ * exactly what the Room entities persist for the same reason (see
+ * docs/decisions/2026-07-28-plex-browse-playback-design.md, "partKey rather
+ * than a stream URL").
+ *
+ * The Subsonic predecessor stripped its own tokenised parameters for this
+ * reason; it was removed with the rest of the Subsonic-only preferences it
+ * read, which reintroduced the defect the stripping existed to prevent.
  */
 @UnstableApi
 class StreamingCacheKeyFactory : CacheKeyFactory {
     override fun buildCacheKey(dataSpec: DataSpec): String {
         dataSpec.key?.let { return it }
-        return dataSpec.uri.toString()
+        return dataSpec.uri.buildUpon().clearQuery().build().toString()
     }
 }

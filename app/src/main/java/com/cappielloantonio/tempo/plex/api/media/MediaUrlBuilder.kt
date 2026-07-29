@@ -13,6 +13,31 @@ import java.net.URLEncoder
  */
 object MediaUrlBuilder {
 
+    /**
+     * True only for a path Plex will resolve against its own library.
+     *
+     * Load-bearing because of what `url=` means to Plex's photo transcoder: it
+     * fetches whatever that parameter names, an absolute URL on another host
+     * included. A thumb path that is not server-relative therefore turns the
+     * user's own Plex server into a proxy that will fetch an arbitrary URL with
+     * the user's credentials and hand the bytes back to whoever asked -- and
+     * AlbumArtContentProvider, which is exported, is a way for any app on the
+     * head unit to ask.
+     *
+     * A genuine Plex thumb is always server-relative:
+     * `/library/metadata/1234/thumb/1699999999`,
+     * `/playlists/169077/composite/1781213364`. `//host/path` is rejected as
+     * well -- it begins with a slash but is protocol-relative, so a URL parser
+     * reads it as another host -- and so is any path containing a backslash,
+     * which several parsers normalise to a forward slash.
+     */
+    @JvmStatic
+    fun isServerRelativePath(path: String?): Boolean =
+        !path.isNullOrBlank() &&
+            path.startsWith("/") &&
+            !path.startsWith("//") &&
+            !path.contains('\\')
+
     fun artworkUrl(
         serverUri: String?,
         thumbPath: String?,
@@ -21,11 +46,15 @@ object MediaUrlBuilder {
         height: Int
     ): String? {
         val base = normalizeBase(serverUri) ?: return null
-        if (thumbPath.isNullOrBlank() || token.isNullOrBlank()) return null
+        // Defence in depth behind AlbumArtContentProvider's own check: this is
+        // the function that composes the transcode URL, so refusing here means
+        // no future caller can reintroduce the proxy by forgetting to validate.
+        val thumb = thumbPath?.takeIf { isServerRelativePath(it) } ?: return null
+        if (token.isNullOrBlank()) return null
 
         return "$base/photo/:/transcode" +
             "?width=$width&height=$height&minSize=1" +
-            "&url=${encode(thumbPath)}" +
+            "&url=${encode(thumb)}" +
             "&X-Plex-Token=${encode(token)}"
     }
 
