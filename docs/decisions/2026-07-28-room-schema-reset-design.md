@@ -68,18 +68,34 @@ the first time they run the change.
 
 The failure is loud, immediate, and local. That is the trade.
 
-### No downgrade fallback either
+### The database file is renamed to `siskin_db`
+
+`DB_NAME` is `"tempo_db"`, inherited from upstream along with everything else in
+this section. It becomes `"siskin_db"`.
+
+This is not cosmetic. **A different filename is a different database**, so
+version 1 opens a file that does not exist yet and Room creates it fresh. The
+whole transition problem — an existing version-25 database with no path down to
+version 1 — simply does not arise, and no uninstall is required.
+
+The old `tempo_db` file is left orphaned on any device that has one. Deleting it
+would mean a one-time `deleteDatabase("tempo_db")` call that then lives in the
+codebase forever to clean up a file that exists on one emulator. Not worth it
+for an app that has never released.
+
+### No downgrade fallback
 
 `fallbackToDestructiveMigrationOnDowngrade()` is deliberately not added.
 
-The consequence is worth stating plainly: after this change, any device holding
-a Siskin debug database at version 25 will crash when the app next opens it,
-and because the database is reached through the media service it presents as a
-service restart loop rather than a dialog. The fix is to uninstall.
+The rename means this no longer bites on *this* change. It still governs what
+happens later: checking out a branch whose schema version is lower than the
+database on the device will crash on open rather than rebuild, and because the
+database is reached through the media service that presents as a service restart
+loop rather than a dialog. The fix is to uninstall.
 
-Accepted because there is exactly one such device and its data has already been
-cleared. Recorded because the person who hits this later will not have that
-context, and the symptom does not name its cause.
+Left out for the same reason the destructive fallback is: a schema surprise
+should stop the developer who caused it, on their own device, rather than
+resolve itself quietly. Recorded because the symptom does not name its cause.
 
 ## Consequences
 
@@ -104,11 +120,19 @@ fallback — `SessionMediaItemDaoTest` builds an in-memory database, and
 `SessionMediaItemRepositoryTest` goes through the singleton against a fresh
 Robolectric database at the current version.
 
-Then, on the emulator: **uninstall**, install fresh, play a track, force-stop,
-and confirm the queue is restored. That check earns its place here rather than
-being routine — the fallback that used to rebuild a broken database silently is
-gone, so this is the first time a schema problem would surface as a failure
-rather than as a quietly empty queue.
+Then, on the emulator, **installing over the existing build rather than
+uninstalling first**: play a track, force-stop, and confirm the queue is
+restored.
+
+Installing over the top is the point of the check, not a shortcut. The rename
+means the app should find no `siskin_db`, create one at version 1, and work —
+while the old `tempo_db` sits beside it untouched. Uninstalling first would
+prove a clean install works and say nothing about the transition, which is the
+case every existing device will actually take.
+
+That check also earns its place because the fallback that used to rebuild a
+broken database silently is gone: this is the first time a schema problem
+surfaces as a failure rather than as a quietly empty queue.
 
 Confirm one `1.json` exists afterwards and that it names both tables.
 
