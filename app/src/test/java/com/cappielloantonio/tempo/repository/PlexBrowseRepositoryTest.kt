@@ -394,15 +394,27 @@ class PlexBrowseRepositoryTest {
         //
         // The bounded get() is deliberate, not just tidiness: errorFuture()
         // completes its future synchronously, so a correctly scoped
-        // implementation returns near-instantly. A broken (unscoped)
-        // implementation would instead reach the mock server, which has no
-        // response queued -- turning what should be a fast, clear assertion
-        // failure into a real network attempt and, on an unbounded get(), a hang.
+        // implementation returns near-instantly. There used to be a companion
+        // assertEquals(0, server.requestCount) here on the theory that a
+        // broken (unscoped) implementation would instead reach the mock
+        // server -- that stopped being true once PlexSession became
+        // all-or-nothing (see PlexSession's KDoc): clearing musicSectionKey
+        // here also clears the session, so refreshClients() bakes every
+        // client to the unreachable placeholder base URL regardless of
+        // whether getPlaylists is scoped correctly. A broken implementation
+        // would therefore also leave server.requestCount at 0 -- it would
+        // just fail against the placeholder host instead -- so that assertion
+        // held for correct and broken code alike and has been dropped rather
+        // than kept as decoration. The resultCode assertion below is the one
+        // that still catches the regression: a broken implementation reaches
+        // the client and either hangs against the unreachable placeholder
+        // (caught by the bounded get() above) or completes the future
+        // exceptionally, neither of which is the synchronous
+        // ERROR_PERMISSION_DENIED asserted here.
         PlexApi().musicSectionKey = null
 
         val result = PlexBrowseRepository().getPlaylists("prefix").get(2, TimeUnit.SECONDS)
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
-        assertEquals(0, server.requestCount)
     }
 }
