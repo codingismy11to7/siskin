@@ -30,7 +30,13 @@ data class PlexSession(
      * than an overwrite of [accountToken]: plex.tv still needs the account one
      * afterwards.
      */
-    val serverToken: String?
+    val serverToken: String?,
+    /**
+     * Stable per server, from Resource.clientIdentifier. Null for sessions
+     * written before this field existed, and for that reason every reader must
+     * tolerate its absence rather than treat it as a different server.
+     */
+    val machineIdentifier: String? = null
 ) {
     companion object {
 
@@ -43,12 +49,19 @@ data class PlexSession(
             accountToken: String?,
             serverUri: String?,
             musicSectionKey: String?,
-            serverToken: String?
+            serverToken: String?,
+            machineIdentifier: String? = null
         ): PlexSession? {
             if (accountToken.isNullOrBlank()) return null
             if (serverUri.isNullOrBlank()) return null
             if (musicSectionKey.isNullOrBlank()) return null
-            return PlexSession(accountToken, serverUri, SectionKey(musicSectionKey), serverToken)
+            return PlexSession(
+                accountToken,
+                serverUri,
+                SectionKey(musicSectionKey),
+                serverToken,
+                machineIdentifier
+            )
         }
     }
 }

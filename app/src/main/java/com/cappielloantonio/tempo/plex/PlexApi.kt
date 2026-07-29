@@ -48,6 +48,11 @@ class PlexApi {
         get() = preferences.getString(KEY_MUSIC_SECTION_KEY, null)
         set(value) = preferences.edit().putString(KEY_MUSIC_SECTION_KEY, value).apply()
 
+    /** Stable per server; absent for sessions written before it was recorded. */
+    var machineIdentifier: String?
+        get() = preferences.getString(KEY_MACHINE_IDENTIFIER, null)
+        set(value) = preferences.edit().putString(KEY_MACHINE_IDENTIFIER, value).apply()
+
     /**
      * The signed-in connection, or null when there is not a complete one.
      *
@@ -57,7 +62,9 @@ class PlexApi {
      * key and treat it as a working sign-in.
      */
     var session: PlexSession?
-        get() = PlexSession.from(accountToken, serverUri, musicSectionKey, serverToken)
+        get() = PlexSession.from(
+            accountToken, serverUri, musicSectionKey, serverToken, machineIdentifier
+        )
         set(value) {
             preferences.edit().apply {
                 if (value == null) {
@@ -66,11 +73,13 @@ class PlexApi {
                     remove(KEY_SERVER_URI)
                     remove(KEY_SERVER_TOKEN)
                     remove(KEY_MUSIC_SECTION_KEY)
+                    remove(KEY_MACHINE_IDENTIFIER)
                 } else {
                     putString(KEY_ACCOUNT_TOKEN, value.accountToken)
                     putString(KEY_SERVER_URI, value.serverUri)
                     putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
                     putString(KEY_SERVER_TOKEN, value.serverToken)
+                    putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
                 }
             }.apply()
         }
@@ -86,6 +95,7 @@ class PlexApi {
         private const val KEY_SERVER_TOKEN = "plex_server_token"
         private const val KEY_SERVER_URI = "plex_server_uri"
         private const val KEY_MUSIC_SECTION_KEY = "plex_music_section_key"
+        private const val KEY_MACHINE_IDENTIFIER = "plex_machine_identifier"
 
         /**
          * Process-wide, because each Plex client constructs its own PlexApi and the

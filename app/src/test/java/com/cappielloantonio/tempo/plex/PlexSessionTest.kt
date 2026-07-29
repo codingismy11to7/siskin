@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.plex
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -57,5 +58,18 @@ class PlexSessionTest {
         // different moments, any subset of which could be read as signed in.
         assertNull(PlexSession.from("account", null, null, null))
         assertNull(PlexSession.from(null, null, "3", null))
+    }
+
+    @Test
+    fun `carries the machine identifier when given one`() {
+        val session = PlexSession.from("acct", "http://pms:32400", "3", null, "abc123")
+        assertEquals("abc123", session?.machineIdentifier)
+    }
+
+    @Test
+    fun `machine identifier is optional, like the server token`() {
+        val session = PlexSession.from("acct", "http://pms:32400", "3", null, null)
+        assertNotNull(session)
+        assertNull(session?.machineIdentifier)
     }
 }
