@@ -20,8 +20,12 @@ import retrofit2.http.Query
  * verified directly against PMS 1.43.3: both endpoints honour Start/Size and return
  * size, totalSize and offset.
  *
- * A non-2xx throws `HttpException`. A 401 from a stale token is therefore not
- * something a caller can mistake for a server with no libraries.
+ * A non-2xx still throws `HttpException` here -- Retrofit's behaviour, unchanged
+ * -- but no call site sees that any more. `LibraryClient` wraps every call in
+ * `plexCall`, which catches it and returns `Either<PlexFailure, T>`; a 401 from
+ * a stale token arrives as `PlexFailure.Http(Server, 401)`, and that is what
+ * now keeps "the server said no" apart from "I could not reach it" at the call
+ * site.
  */
 interface LibraryService {
 

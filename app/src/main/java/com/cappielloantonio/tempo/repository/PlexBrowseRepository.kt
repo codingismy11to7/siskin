@@ -225,8 +225,15 @@ class PlexBrowseRepository {
      * building artist entries out of albums.
      *
      * A failure is an empty tier, so one failed tier does not lose the other two.
-     * That used to need a catch; the failure is a value now, so folding it says
-     * the same thing without one.
+     * `fold` handles every typed [PlexFailure] this way, but Retrofit's Gson
+     * converter does not wrap a malformed response body in `IOException` -- a
+     * `JsonSyntaxException` from one tier would escape `plexCall` and this
+     * function entirely, aborting the other two tiers and completing the whole
+     * search future exceptionally. The `catch` below is what still contains
+     * that: both typed failures and unexpected throwables cost only their own
+     * tier. `collect` is not lexically inside an `either { }` block -- it is a
+     * plain suspend function called from [launchInto]'s lambda in [search] --
+     * so a broad catch here cannot swallow a `raise`.
      */
     private suspend fun collect(
         sectionKey: SectionKey,
@@ -234,13 +241,18 @@ class PlexBrowseRepository {
         type: Int,
         expectedType: String
     ): List<Metadata> =
-        searchClient.search(sectionKey, query, type).fold(
-            { failure ->
-                Log.w(TAG, "search tier type=$type failed: $failure")
-                emptyList()
-            },
-            { itemsOf(it, expectedType) }
-        )
+        try {
+            searchClient.search(sectionKey, query, type).fold(
+                { failure ->
+                    Log.w(TAG, "search tier type=$type failed: $failure")
+                    emptyList()
+                },
+                { itemsOf(it, expectedType) }
+            )
+        } catch (failure: Throwable) {
+            Log.w(TAG, "search tier type=$type failed unexpectedly", failure)
+            emptyList()
+        }
 
     // ── plumbing ──────────────────────────────────────────────
 

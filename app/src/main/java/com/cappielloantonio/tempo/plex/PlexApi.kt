@@ -80,9 +80,6 @@ class PlexApi {
     fun plexTvHeaders(): Map<String, String> =
         PlexIdentity.headers(clientIdentifier, appVersion, accountToken)
 
-    fun serverHeaders(): Map<String, String> =
-        PlexIdentity.headers(clientIdentifier, appVersion, serverTokenOrAccount(serverToken, accountToken))
-
     companion object {
         private const val KEY_CLIENT_ID = "plex_client_identifier"
         private const val KEY_ACCOUNT_TOKEN = "plex_token"

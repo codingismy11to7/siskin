@@ -13,9 +13,12 @@ import retrofit2.http.Query
  *
  * Responses here are bare JSON with no MediaContainer envelope.
  *
- * A non-2xx throws `HttpException` rather than arriving as a body to inspect.
- * That is what keeps "the server said no" and "I could not reach it" apart at
- * the call site, instead of both showing up as a null body.
+ * A non-2xx still throws `HttpException` rather than arriving as a body to
+ * inspect -- Retrofit's behaviour, unchanged -- but that exception no longer
+ * reaches a call site directly. `AuthClient` wraps every call in `plexCall`,
+ * which catches it and returns `Either<PlexFailure, T>` instead; `PlexFailure`
+ * is what now keeps "the server said no" and "I could not reach it" apart,
+ * rather than both showing up as a null body.
  */
 interface AuthService {
 

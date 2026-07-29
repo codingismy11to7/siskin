@@ -8,7 +8,17 @@ package com.cappielloantonio.tempo.plex
  * set -- a section key from one server beside another server's address -- which
  * would report as signed in and then ask one server for the other's section.
  * Constructing this type is all-or-nothing, and [PlexApi.session] persists it
- * the same way, so no reader can observe a partial write.
+ * the same way, so no reader can observe [serverUri], [musicSectionKey] and
+ * [serverToken] out of step with one another -- those three always move
+ * together.
+ *
+ * [accountToken] is the one exception: `PlexSignInViewModel.signIn()` writes
+ * it on its own, mid-flow, before a session exists at all. Re-signing in while
+ * already signed in can therefore leave a window where a reader sees the *new*
+ * account token beside the *old* server's URI and section key. Harmless for
+ * the same account today, but it means this type does not guarantee
+ * [accountToken] is in step with the other three the way they are with each
+ * other.
  */
 data class PlexSession(
     val accountToken: String,

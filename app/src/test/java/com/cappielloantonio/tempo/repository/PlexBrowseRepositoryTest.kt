@@ -289,6 +289,50 @@ class PlexBrowseRepositoryTest {
         assertTrue("cause was ${thrown.cause}", thrown.cause !is HttpException)
     }
 
+    // ── refreshClients: rebuilds when the session appears later ─────
+    //
+    // MediaService constructs PlexBrowseRepository when the car first browses,
+    // which on a fresh install is *before* any server is known -- see this
+    // class's KDoc. Every test above sets a real session in startServer(), so
+    // the repository under test is always constructed *after* signing in and
+    // refreshClients's rebuild-on-change branch is never entered. If the
+    // rebuild ever stopped happening, clients captured against the
+    // unreachable placeholder base URL would stay pinned to it for the
+    // repository's whole lifetime, and signing in would leave every browse tab
+    // permanently empty with no error the user could act on.
+
+    @Test
+    fun refreshClientsRebuildsClientsAfterASessionAppears() {
+        // No session yet: clears the serverUri/serverToken/musicSectionKey
+        // startServer() set, so PlexApi().session is null and the repository
+        // below is constructed against the unreachable placeholder base URL
+        // (see PlexRetrofitFactory), not the mock server.
+        PlexApi().session = null
+        val repository = PlexBrowseRepository()
+
+        // Placeholder base URL, so this must fail rather than reach the mock
+        // server -- same shape as anUnreachableServerCompletesTheFutureExceptionally.
+        val beforeSignIn = assertThrows(ExecutionException::class.java) {
+            await(repository.getAlbumTracks("5"))
+        }
+        assertTrue("cause was ${beforeSignIn.cause}", beforeSignIn.cause is IOException)
+        assertEquals("a placeholder-bound client must never reach the mock server", 0, server.requestCount)
+
+        // Sign in for real, against the same repository instance.
+        PlexApi().apply {
+            accountToken = "account-token"
+            serverUri = server.url("/").toString()
+            musicSectionKey = "1"
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11")))
+
+        val afterSignIn = await(repository.getAlbumTracks("5"))
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, afterSignIn.resultCode)
+        assertEquals(listOf("11"), afterSignIn.value!!.map { it.mediaId })
+        assertEquals("the rebuilt client must reach the mock server", 1, server.requestCount)
+    }
+
     /**
      * Answers by the `type` the request asked for rather than by arrival order,
      * so a merge that mismatched a tier's response would show up as the wrong

@@ -136,8 +136,28 @@ class PlexSignInViewModel @JvmOverloads constructor(
             _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
             return
         }
-        val key = section.key ?: return
-        val token = api.accountToken ?: return
+
+        // Normally unreachable, same as the candidate check above:
+        // LibraryClient.musicSections filters out blank keys before this
+        // screen ever sees a Directory, so `section` always has one. Routed
+        // through the same failure path anyway -- these three checks guard
+        // structurally identical "the state chooseLibrary needs is not there"
+        // situations, and a silent return here would be the one that leaves
+        // the screen stuck with no retry affordance while its siblings do not.
+        val key = section.key ?: run {
+            Log.d(TAG, "chooseLibrary called with a section that has no key")
+            _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
+            return
+        }
+
+        // Normally unreachable: accountToken is written in signIn() before
+        // ChoosingServer is ever published, so it is always present by the
+        // time the library picker can be shown. Same reasoning as above.
+        val token = api.accountToken ?: run {
+            Log.d(TAG, "chooseLibrary called with no account token on record")
+            _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
+            return
+        }
 
         // The one write. All four values land together or not at all.
         api.session = PlexSession(
