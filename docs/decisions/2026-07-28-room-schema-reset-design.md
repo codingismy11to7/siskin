@@ -141,7 +141,9 @@ differently: this one is proven by the queue surviving a restart, a KSP move by
 every processor still generating what it did before. Combined, a broken build
 would not say which change caused it.
 
-### Replacing Room It was raised and examined: nothing stored here is relational,
+### Replacing Room
+
+It was raised and examined: nothing stored here is relational,
 and SQLDelight or a serialised file would both work. But Room's compile-time SQL
 validation is what it is earning here — a column that does not exist is a build
 failure rather than a runtime crash, across nine queries including a non-trivial
