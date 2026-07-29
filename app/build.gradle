@@ -71,6 +71,10 @@ android {
     }
 }
 
+configurations.matching { it.name.toLowerCase().contains('annotationprocessor') }.configureEach {
+    resolutionStrategy.force "org.jetbrains.kotlin:kotlin-metadata-jvm:${libs.versions.kotlin.get()}"
+}
+
 dependencies {
     implementation files('../libs/lib-decoder-ffmpeg-release.aar')
 
