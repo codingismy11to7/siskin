@@ -29,6 +29,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -210,13 +211,14 @@ class PlexSignInViewModelTest {
             stateAfterSignIn is PlexSignInState.ChoosingServer
         )
 
-        // Snapshot immediately before the call under test -- both null here,
-        // since nothing has touched these three keys yet, but read back
+        // Snapshot immediately before the call under test -- all null here,
+        // since nothing has touched these four keys yet, but read back
         // explicitly rather than assumed so the assertion below is "unchanged"
         // and not just "still null".
         val serverUriBefore = PlexApi().serverUri
         val sectionKeyBefore = PlexApi().musicSectionKey
         val serverTokenBefore = PlexApi().serverToken
+        val machineIdentifierBefore = PlexApi().machineIdentifier
 
         viewModel.chooseServer(resource)
         awaitSettled(viewModel)
@@ -231,6 +233,12 @@ class PlexSignInViewModelTest {
         assertEquals(serverUriBefore, PlexApi().serverUri)
         assertEquals(sectionKeyBefore, PlexApi().musicSectionKey)
         assertEquals(serverTokenBefore, PlexApi().serverToken)
+        // aMediaServer() defaults clientIdentifier to a non-null value, so a
+        // regression that wrote api.machineIdentifier directly (bypassing the
+        // atomic session setter) would leave PlexApi().session reading null
+        // (the other required fields are still absent) while this individual
+        // key silently changed -- only checking it here catches that.
+        assertEquals(machineIdentifierBefore, PlexApi().machineIdentifier)
     }
 
     @Test
@@ -279,6 +287,47 @@ class PlexSignInViewModelTest {
             ),
             PlexApi().session
         )
+    }
+
+    @Test
+    fun chooseLibraryAcceptsAServerWithNoMachineIdentifier() = runTest(dispatcher) {
+        // aMediaServer() defaults clientIdentifier to a non-null value for
+        // every other test in this file, so none of them exercise a Resource
+        // whose clientIdentifier is null -- the "optional field" property the
+        // whole design rests on. This is that case: the session must still
+        // commit, just with machineIdentifier absent.
+        val accessToken = "resource-access-token"
+        val resource = aMediaServer(accessToken = accessToken, clientIdentifier = null)
+        val serverUri = server.url("/").toString()
+        val sectionKey = "5"
+        val authClient = setUpToChoosingServer(resource)
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+        viewModel.start()
+        advanceUntilIdle()
+        viewModel.chooseServer(resource)
+        awaitSettled(viewModel)
+
+        val stateAfterChoosingServer = viewModel.state.value
+        assertTrue(
+            "setup did not reach ChoosingLibrary, got $stateAfterChoosingServer",
+            stateAfterChoosingServer is PlexSignInState.ChoosingLibrary
+        )
+        val section = (stateAfterChoosingServer as PlexSignInState.ChoosingLibrary).sections.head
+
+        viewModel.chooseLibrary(section)
+
+        assertEquals(PlexSignInState.Done, viewModel.state.value)
+        val session = PlexApi().session
+        assertNotNull(
+            "a missing machineIdentifier must not block the rest of the session from persisting",
+            session
+        )
+        assertNull(session?.machineIdentifier)
     }
 
     // ── recovering from a bad server pick (#18) ────────────────────────

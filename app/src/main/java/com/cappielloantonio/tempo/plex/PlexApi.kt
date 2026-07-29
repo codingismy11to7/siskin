@@ -56,10 +56,11 @@ class PlexApi {
     /**
      * The signed-in connection, or null when there is not a complete one.
      *
-     * Written as a unit: one `edit()` carrying all four keys, or all four
-     * removed. That atomicity is the point -- a reader between two separate
-     * writes could otherwise see one server's address beside another's section
-     * key and treat it as a working sign-in.
+     * Written as a unit: one `edit()` carrying all five keys, or four removed
+     * (accountToken is deliberately left alone -- see below). That atomicity
+     * is the point -- a reader between two separate writes could otherwise see
+     * one server's address beside another's section key and treat it as a
+     * working sign-in.
      */
     var session: PlexSession?
         get() = PlexSession.from(
