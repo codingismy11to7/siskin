@@ -104,6 +104,10 @@ public class QueueRepository {
         return result[0];
     }
 
+    public void deleteAll() {
+        dbExecutor.execute(queueDao::deleteAll);
+    }
+
     public void deleteRange(int fromIndex, int toIndex) {
         dbExecutor.execute(() -> {
             List<Queue> media = queueDao.getAllSimple();

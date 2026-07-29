@@ -1,5 +1,7 @@
 package com.cappielloantonio.tempo.service
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -12,12 +14,15 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.MoreExecutors
 
 /**
- * Lets the car sign-in screen tell the media session that the browse tree is
- * worth asking for again.
+ * The process's handle on the live [MediaLibrarySession]: it lets components
+ * outside the media service tell the car the browse tree is worth asking for
+ * again, and -- because the player lives behind that session -- stop playback.
  *
- * Sign-in happens in an activity; the browse tree lives in the media service. They
- * are in the same process, so a nullable session handle owned by the service is
- * enough -- no binding, no broadcast.
+ * Sign-in happens in an activity and the library picker in a repository; the
+ * session lives in the media service. They are in the same process, so a
+ * nullable session handle owned by the service is enough -- no binding, no
+ * broadcast. New callers belong here rather than in a second singleton holding
+ * the same session.
  */
 @UnstableApi
 object BrowseTreeInvalidator {
@@ -88,5 +93,55 @@ object BrowseTreeInvalidator {
             },
             MoreExecutors.directExecutor()
         )
+    }
+
+    /**
+     * Tells the car that one node's children changed.
+     *
+     * Needed because the car caches a browse list and does not re-fetch it when
+     * the user navigates back into it -- without this, the tick marking the
+     * selected library is drawn from whatever was current when that screen was
+     * first loaded, and silently lies.
+     *
+     * Posts to the main thread rather than requiring callers to be on it: unlike
+     * [invalidateRoot], whose callers are Activity callbacks, this one is called
+     * from PlexBrowseRepository's IO scope.
+     */
+    fun invalidateNode(nodeId: String, childCount: Int) {
+        val current = session ?: run {
+            Log.d(TAG, "no live session; nothing to invalidate for $nodeId")
+            return
+        }
+        Handler(Looper.getMainLooper()).post {
+            Log.d(TAG, "notifyChildrenChanged($nodeId, $childCount)")
+            current.notifyChildrenChanged(nodeId, childCount, null)
+        }
+    }
+
+    /**
+     * Stops playback and empties the player's timeline.
+     *
+     * Called when the saved queue has just been discarded because the user
+     * switched Plex servers. Deleting the Room queue is only half of it: the
+     * timeline ExoPlayer is actually playing from is in memory and still holds
+     * the old server's stream URLs, so the current track would play on, the next
+     * one would 404, and [BaseMediaService]'s onPlayerError recovery would
+     * re-prepare that dead URL every five seconds.
+     *
+     * Posts to the main thread for the same reason [invalidateNode] does, with
+     * one extra: Player calls *must* be made on the thread the player was built
+     * on, and this is called from whatever thread the car's browse callback runs
+     * on.
+     */
+    fun stopPlayback() {
+        val current = session ?: run {
+            Log.d(TAG, "no live session; nothing to stop")
+            return
+        }
+        Handler(Looper.getMainLooper()).post {
+            Log.d(TAG, "stopping playback and clearing the player's items")
+            current.player.stop()
+            current.player.clearMediaItems()
+        }
     }
 }

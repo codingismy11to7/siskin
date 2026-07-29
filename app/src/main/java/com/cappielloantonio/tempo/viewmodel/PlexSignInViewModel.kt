@@ -204,12 +204,13 @@ class PlexSignInViewModel @JvmOverloads constructor(
             return
         }
 
-        // The one write. All four values land together or not at all.
+        // The one write. All five values land together or not at all.
         api.session = PlexSession(
             accountToken = token,
             serverUri = uri,
             musicSectionKey = SectionKey(key),
-            serverToken = resource.accessToken
+            serverToken = resource.accessToken,
+            machineIdentifier = resource.clientIdentifier
         )
         _state.value = PlexSignInState.Done
     }
