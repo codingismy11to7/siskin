@@ -15,6 +15,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.repository.LibraryPickerRepository
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
+import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.ResourceUris
 import com.google.common.collect.ImmutableList
@@ -50,7 +51,7 @@ object MediaBrowserTree {
 
     @OptIn(UnstableApi::class)
     private fun buildMediaItem(
-        gridView: Boolean,
+        browsableChildrenAsGrid: Boolean,
         title: String,
         mediaId: String,
         isPlayable: Boolean,
@@ -63,15 +64,15 @@ object MediaBrowserTree {
         sourceUri: Uri? = null,
         imageUri: Uri? = null
     ): MediaItem {
-        val style = if (gridView) {
-            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
-        } else {
-            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
-        }
-
         val extras = Bundle().apply {
-            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, style)
-            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, style)
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                BrowseContentStyle.browsableChildStyle(browsableChildrenAsGrid)
+            )
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                BrowseContentStyle.PLAYABLE_CHILD_STYLE
+            )
         }
 
         val metadata = MediaMetadata.Builder()
@@ -111,7 +112,8 @@ object MediaBrowserTree {
      * Grid-versus-list styling is frozen at what a default install showed before
      * the settings screen was removed: albums and artists as grids
      * (AA_ALBUM_VIEW defaulted true), playlists as a list (AA_PLAYLIST_VIEW
-     * defaulted false).
+     * defaulted false). It governs each tab's *browsable* children only -- see
+     * BrowseContentStyle for why tracks are never affected by it.
      */
     fun buildTree() {
         treeNodes.clear()
@@ -119,7 +121,7 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.ROOT_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    gridView = true,
+                    browsableChildrenAsGrid = true,
                     title = "Root Folder",
                     mediaId = ConstantsAA.ROOT_ID,
                     isPlayable = false,
@@ -131,7 +133,7 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.PLAYLIST_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    gridView = false,
+                    browsableChildrenAsGrid = false,
                     title = appContext.getString(R.string.aa_playlists),
                     mediaId = ConstantsAA.PLAYLIST_ID,
                     isPlayable = false,
@@ -144,7 +146,7 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.ARTISTS_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    gridView = true,
+                    browsableChildrenAsGrid = true,
                     title = appContext.getString(R.string.aa_artists),
                     mediaId = ConstantsAA.ARTISTS_ID,
                     isPlayable = false,
@@ -157,7 +159,7 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.ALBUMS_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    gridView = true,
+                    browsableChildrenAsGrid = true,
                     title = appContext.getString(R.string.aa_albums),
                     mediaId = ConstantsAA.ALBUMS_ID,
                     isPlayable = false,
@@ -170,12 +172,12 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.MORE_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    gridView = false,
+                    browsableChildrenAsGrid = false,
                     title = appContext.getString(R.string.aa_more),
                     mediaId = ConstantsAA.MORE_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_aa_playlist),
+                    imageUri = iconUri(R.drawable.ic_aa_more),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
                 )
             )
@@ -183,12 +185,12 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.SELECT_LIBRARY_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    gridView = false,
+                    browsableChildrenAsGrid = false,
                     title = appContext.getString(R.string.aa_select_library),
                     mediaId = ConstantsAA.SELECT_LIBRARY_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_aa_playlist),
+                    imageUri = iconUri(R.drawable.ic_aa_library),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
                 )
             )
@@ -250,11 +252,6 @@ object MediaBrowserTree {
             ConstantsAA.ALBUMS_ID -> browseRepository.getAlbums(
                 ConstantsAA.ALBUM_ID,
                 LibraryClient.SORT_TITLE
-            )
-
-            ConstantsAA.ARTISTS_BY_ALBUMS_ID -> browseRepository.getAlbums(
-                ConstantsAA.ALBUM_ID,
-                LibraryClient.SORT_ARTIST
             )
 
             ConstantsAA.MORE_ID -> treeNodes[ConstantsAA.MORE_ID]!!.getChildren()

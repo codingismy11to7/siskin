@@ -128,38 +128,79 @@ class PlexBrowseRepository {
             }
         }
 
-    /**
-     * The artist list, with the "view by albums" shortcut prepended.
-     *
-     * That first entry is the only route to [ConstantsAA.ARTISTS_BY_ALBUMS_ID]:
-     * the browse root holds three fixed tabs and this is not one of them, so
-     * dropping it silently removes the artist-sorted album view rather than
-     * breaking anything a test or the compiler would notice. The Subsonic
-     * AutomotiveRepository prepended it for the same reason.
-     */
     fun getArtists(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch(
             { libraryClient.getSectionContent(key, PlexItemType.ARTIST, 0, ConstantsAA.MAX_ITEMS) }
         ) { body ->
-            listOf(viewByAlbumsShortcut()) + itemsOf(body, TYPE_ARTIST).mapNotNull {
+            itemsOf(body, TYPE_ARTIST).mapNotNull {
                 PlexMediaMapper.artistToMediaItem(it, prefix)
             }
         }
     }
 
-    private fun viewByAlbumsShortcut(): MediaItem = PlexMediaMapper.shortcutToMediaItem(
-        ConstantsAA.ARTISTS_BY_ALBUMS_ID,
-        App.getContext().getString(R.string.aa_view_by_albums),
-        R.drawable.ic_aa_albums
-    )
-
-    fun getArtistAlbums(albumPrefix: String, artistRatingKey: String) =
-        fetch({ libraryClient.getChildren(RatingKey(artistRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { body ->
-            itemsOf(body, TYPE_ALBUM).mapNotNull {
+    /**
+     * Deliberately the section listing filtered by artist rather than the
+     * artist's own children endpoint, which drops albums -- see
+     * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getChildren]
+     * for the measurements. Being section-scoped, it needs the chosen music
+     * section the way getArtists and getAlbums do.
+     */
+    fun getArtistAlbums(
+        albumPrefix: String,
+        artistRatingKey: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return fetch({
+            libraryClient.getSectionContent(
+                key,
+                PlexItemType.ALBUM,
+                0,
+                ConstantsAA.MAX_ITEMS,
+                artistId = artistRatingKey
+            )
+        }) { body ->
+            listOf(shuffleArtistRow(artistRatingKey)) + itemsOf(body, TYPE_ALBUM).mapNotNull {
                 PlexMediaMapper.albumToMediaItem(it, albumPrefix)
             }
         }
+    }
+
+    private fun shuffleArtistRow(artistRatingKey: String): MediaItem =
+        PlexMediaMapper.shuffleArtistToMediaItem(
+            artistRatingKey,
+            App.getContext().getString(R.string.aa_shuffle_artist)
+        )
+
+    /**
+     * Every track by one artist, flat and in library order.
+     *
+     * Feeds the shuffle row, and left unshuffled on purpose: the player owns
+     * shuffling (the session already carries the command), so turning the car's
+     * shuffle toggle off mid-listen falls back to the artist's real running
+     * order rather than to an order this function invented.
+     *
+     * Uses the same `artist.id` filter as [getArtistAlbums] rather than the
+     * artist's allLeaves endpoint. Both returned identical counts on a live
+     * server (297, 16 and 14 tracks for the three artists sampled), so this
+     * picks the query already proven against the artist relation.
+     */
+    fun getArtistTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return fetch({
+            libraryClient.getSectionContent(
+                key,
+                PlexItemType.TRACK,
+                0,
+                ConstantsAA.MAX_ITEMS,
+                artistId = artistRatingKey
+            )
+        }) { body ->
+            tracksOf(body).mapNotNull {
+                PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
+            }
+        }
+    }
 
     fun getAlbums(prefix: String, sort: String?): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()

@@ -39,7 +39,14 @@ object ConstantsAA {
     // Android Auto System functions
     const val ALBUM_ID = "[albumID]"
     const val ARTIST_ID = "[artistID]"
-    const val ARTISTS_BY_ALBUMS_ID = "[artistsByAlbumsID]"
+
+    /**
+     * Prefix of the synthetic "shuffle this artist" row, carrying the artist's
+     * ratingKey after it. Nothing on the server answers to this id: it is a
+     * playable row with no stream, and MediaLibrarySessionCallback swaps it for
+     * the artist's tracks when it is tapped.
+     */
+    const val SHUFFLE_ARTIST_ID = "[shuffleArtistID]"
 
     // Android Auto Source tag
     const val QUEUE_CACHED_SOURCE = "[aaQueueCachedSource]"

@@ -13,7 +13,9 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
+import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.ResourceUris
 import com.google.common.collect.ImmutableList
 
@@ -250,7 +252,7 @@ object PlexMediaMapper {
             thumb = artworkThumb(metadata),
             mediaType = MediaMetadata.MEDIA_TYPE_ALBUM,
             fallbackIcon = R.drawable.ic_aa_albums,
-            gridView = true
+            browsableChildrenAsGrid = true
         )
     }
 
@@ -265,29 +267,38 @@ object PlexMediaMapper {
             thumb = artworkThumb(metadata),
             mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
             fallbackIcon = R.drawable.ic_aa_artists,
-            gridView = true
+            browsableChildrenAsGrid = true
         )
     }
 
     /**
-     * A browse entry that jumps to another node rather than naming a Plex item.
+     * The "shuffle this artist" row at the head of an artist's album list.
      *
-     * There is exactly one: "view by albums" at the head of the artist list.
-     * MediaBrowserTree's root is three fixed tabs and ARTISTS_BY_ALBUMS_ID is not
-     * one of them, so without this entry the artist-sorted album list is stranded
-     * behind an id no part of the UI can produce.
+     * Playable but streamless, and deliberately so: there is no single track to
+     * point at, and MediaLibrarySessionCallback recognises the id and swaps the
+     * row for the artist's whole track list. Like [browsableItem] it never calls
+     * setUri -- a non-null localConfiguration would make resolveQueueForItem
+     * treat the row as already resolved and "play" a track with no stream.
+     *
+     * The icon is media3's own Material shuffle glyph rather than a vendored
+     * copy. It is not declared in media3's public.xml, so a rename on upgrade
+     * would break this reference -- as a compile error, which is why relying on
+     * it is acceptable.
      */
     @JvmStatic
-    fun shortcutToMediaItem(mediaId: String, title: String?, iconRes: Int): MediaItem =
-        browsableItem(
-            mediaId = mediaId,
-            title = title,
-            subtitle = null,
-            thumb = null,
-            mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS,
-            fallbackIcon = iconRes,
-            gridView = true
-        )
+    fun shuffleArtistToMediaItem(artistRatingKey: String, title: String?): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(ConstantsAA.SHUFFLE_ARTIST_ID + artistRatingKey)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                    .setArtworkUri(ResourceUris.forResource(R.drawable.media3_icon_shuffle_on))
+                    .build()
+            )
+            .build()
 
     @JvmStatic
     fun playlistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
@@ -307,7 +318,7 @@ object PlexMediaMapper {
             thumb = thumb,
             mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
             fallbackIcon = R.drawable.ic_aa_playlist,
-            gridView = false
+            browsableChildrenAsGrid = false
         )
     }
 
@@ -327,20 +338,21 @@ object PlexMediaMapper {
         thumb: String?,
         mediaType: Int,
         fallbackIcon: Int,
-        gridView: Boolean
+        browsableChildrenAsGrid: Boolean
     ): MediaItem {
         val artworkUri = thumb?.takeIf { it.isNotBlank() }
             ?.let { AlbumArtContentProvider.contentUri(it) }
             ?: ResourceUris.forResource(fallbackIcon)
 
-        val style = if (gridView) {
-            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
-        } else {
-            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
-        }
         val extras = Bundle().apply {
-            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, style)
-            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, style)
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                BrowseContentStyle.browsableChildStyle(browsableChildrenAsGrid)
+            )
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                BrowseContentStyle.PLAYABLE_CHILD_STYLE
+            )
         }
 
         return MediaItem.Builder()
