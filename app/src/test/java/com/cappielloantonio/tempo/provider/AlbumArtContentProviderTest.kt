@@ -55,8 +55,14 @@ class AlbumArtContentProviderTest {
      * anything the Plex server can reach, with the user's token, and read the
      * bytes back out of the returned file descriptor.
      *
-     * Deleting the isServerRelativePath guard in openFile makes every case here
-     * fail: the provider would return a pipe rather than throw.
+     * This asserts the property at the exported boundary -- that this provider
+     * will not fetch a non-relative path -- rather than that any one layer
+     * rejects it. Deleting *only* the guard in openFile leaves these cases
+     * passing, because MediaUrlBuilder.artworkUrl then returns null and openFile
+     * throws anyway; that is the defence in depth working, not a gap. The
+     * builder's own guard is pinned separately by
+     * MediaUrlBuilderTest.artworkUrlRefusesAThumbPathThatIsNotServerRelative.
+     * Removing both is what makes these cases fail.
      */
     @Test
     fun refusesToFetchAThumbPathThatIsNotServerRelative() {
