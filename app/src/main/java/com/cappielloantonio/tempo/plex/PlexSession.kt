@@ -13,7 +13,7 @@ package com.cappielloantonio.tempo.plex
 data class PlexSession(
     val accountToken: String,
     val serverUri: String,
-    val musicSectionKey: String,
+    val musicSectionKey: SectionKey,
     /**
      * Null for a server the account owns -- those accept the account token. A
      * *shared* server does not, which is why this is a separate field rather
@@ -38,7 +38,7 @@ data class PlexSession(
             if (accountToken.isNullOrBlank()) return null
             if (serverUri.isNullOrBlank()) return null
             if (musicSectionKey.isNullOrBlank()) return null
-            return PlexSession(accountToken, serverUri, musicSectionKey, serverToken)
+            return PlexSession(accountToken, serverUri, SectionKey(musicSectionKey), serverToken)
         }
     }
 }

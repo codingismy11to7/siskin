@@ -69,7 +69,7 @@ class PlexApi {
                 } else {
                     putString(KEY_ACCOUNT_TOKEN, value.accountToken)
                     putString(KEY_SERVER_URI, value.serverUri)
-                    putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey)
+                    putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
                     putString(KEY_SERVER_TOKEN, value.serverToken)
                 }
             }.apply()

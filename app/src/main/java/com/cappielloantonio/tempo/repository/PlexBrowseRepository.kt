@@ -16,6 +16,8 @@ import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.RatingKey
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.plex.base.PlexResponse
@@ -91,7 +93,7 @@ class PlexBrowseRepository {
         }
     }
 
-    private val sectionKey: String? get() = api.session?.musicSectionKey
+    private val sectionKey: SectionKey? get() = api.session?.musicSectionKey
     private val serverUri: String? get() = api.session?.serverUri
     private val token: String?
         get() = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
@@ -120,7 +122,7 @@ class PlexBrowseRepository {
     }
 
     fun getPlaylistTracks(playlistId: String) =
-        fetch({ searchClient.getPlaylistItems(playlistId, 0, ConstantsAA.MAX_ITEMS) }) { body ->
+        fetch({ searchClient.getPlaylistItems(RatingKey(playlistId), 0, ConstantsAA.MAX_ITEMS) }) { body ->
             tracksOf(body).mapNotNull {
                 PlexMediaMapper.trackToMediaItem(it, ConstantsAA.QUEUE_CACHED_SOURCE, serverUri, token)
             }
@@ -153,7 +155,7 @@ class PlexBrowseRepository {
     )
 
     fun getArtistAlbums(albumPrefix: String, artistRatingKey: String) =
-        fetch({ libraryClient.getChildren(artistRatingKey, 0, ConstantsAA.MAX_ITEMS) }) { body ->
+        fetch({ libraryClient.getChildren(RatingKey(artistRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { body ->
             itemsOf(body, TYPE_ALBUM).mapNotNull {
                 PlexMediaMapper.albumToMediaItem(it, albumPrefix)
             }
@@ -171,7 +173,7 @@ class PlexBrowseRepository {
     }
 
     fun getAlbumTracks(albumRatingKey: String) =
-        fetch({ libraryClient.getChildren(albumRatingKey, 0, ConstantsAA.MAX_ITEMS) }) { body ->
+        fetch({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { body ->
             tracksOf(body).mapNotNull {
                 PlexMediaMapper.trackToMediaItem(it, ConstantsAA.QUEUE_CACHED_SOURCE, serverUri, token)
             }
@@ -227,7 +229,7 @@ class PlexBrowseRepository {
      * the same thing without one.
      */
     private suspend fun collect(
-        sectionKey: String,
+        sectionKey: SectionKey,
         query: String,
         type: Int,
         expectedType: String

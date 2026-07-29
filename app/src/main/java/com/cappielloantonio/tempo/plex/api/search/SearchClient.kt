@@ -6,6 +6,8 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
+import com.cappielloantonio.tempo.plex.RatingKey
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.plexCall
 
@@ -33,41 +35,41 @@ class SearchClient(api: PlexApi, serverUri: String?, serverToken: String?) {
      * searches and merge -- Plex accepts only one type per request.
      */
     suspend fun search(
-        sectionKey: String,
+        sectionKey: SectionKey,
         query: String,
         type: Int,
         limit: Int = DEFAULT_SEARCH_LIMIT
     ): Either<PlexFailure, PlexResponse> {
         Log.d(TAG, "search($sectionKey, type=$type, limit=$limit)")
-        return plexCall(PlexHost.Server) { service.search(sectionKey, query, type, limit) }
+        return plexCall(PlexHost.Server) { service.search(sectionKey.value, query, type, limit) }
     }
 
     /** [sectionKey] scopes the listing to one music library section -- see SearchService.getPlaylists. */
-    suspend fun getPlaylists(sectionKey: String): Either<PlexFailure, PlexResponse> =
-        plexCall(PlexHost.Server) { service.getPlaylists(sectionKey) }
+    suspend fun getPlaylists(sectionKey: SectionKey): Either<PlexFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getPlaylists(sectionKey.value) }
 
     suspend fun getPlaylistItems(
-        playlistId: String,
+        playlistId: RatingKey,
         start: Int,
         size: Int
     ): Either<PlexFailure, PlexResponse> =
-        plexCall(PlexHost.Server) { service.getPlaylistItems(playlistId, start, size) }
+        plexCall(PlexHost.Server) { service.getPlaylistItems(playlistId.value, start, size) }
 
     suspend fun reportProgress(
-        ratingKey: String,
+        ratingKey: RatingKey,
         key: String,
         state: String,
         timeMs: Long
     ): Either<PlexFailure, Unit> =
-        plexCall(PlexHost.Server) { service.reportProgress(ratingKey, key, state, timeMs) }
+        plexCall(PlexHost.Server) { service.reportProgress(ratingKey.value, key, state, timeMs) }
 
     /**
      * A `Right` is the success case: the service call returns Unit and any
      * non-2xx becomes [PlexFailure.Http], so there is no body to inspect.
      */
-    suspend fun rate(ratingKey: String, rating: Int): Either<PlexFailure, Unit> {
+    suspend fun rate(ratingKey: RatingKey, rating: Int): Either<PlexFailure, Unit> {
         Log.d(TAG, "rate($ratingKey, rating=$rating)")
-        return plexCall(PlexHost.Server) { service.rate(ratingKey, LIBRARY_IDENTIFIER, rating) }
+        return plexCall(PlexHost.Server) { service.rate(ratingKey.value, LIBRARY_IDENTIFIER, rating) }
     }
 
     companion object {

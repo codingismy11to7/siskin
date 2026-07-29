@@ -8,6 +8,7 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
@@ -267,7 +268,7 @@ class PlexSignInViewModelTest {
             PlexSession(
                 accountToken = "granted",
                 serverUri = serverUri,
-                musicSectionKey = sectionKey,
+                musicSectionKey = SectionKey(sectionKey),
                 serverToken = accessToken
             ),
             PlexApi().session

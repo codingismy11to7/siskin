@@ -16,6 +16,7 @@ import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexIdentity
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
@@ -142,7 +143,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
         api.session = PlexSession(
             accountToken = token,
             serverUri = uri,
-            musicSectionKey = key,
+            musicSectionKey = SectionKey(key),
             serverToken = resource.accessToken
         )
         _state.value = PlexSignInState.Done

@@ -9,7 +9,7 @@ class PlexSessionTest {
     private val complete = PlexSession(
         accountToken = "account",
         serverUri = "https://server.example/",
-        musicSectionKey = "3",
+        musicSectionKey = SectionKey("3"),
         serverToken = null
     )
 
@@ -24,7 +24,7 @@ class PlexSessionTest {
 
         assertEquals("account", stored!!.accountToken)
         assertEquals("https://server.example/", stored.serverUri)
-        assertEquals("3", stored.musicSectionKey)
+        assertEquals(SectionKey("3"), stored.musicSectionKey)
         assertEquals("shared", stored.serverToken)
     }
 

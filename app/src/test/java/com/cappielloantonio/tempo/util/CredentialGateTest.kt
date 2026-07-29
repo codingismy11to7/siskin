@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.util
 
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.SectionKey
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -19,7 +20,7 @@ class CredentialGateTest {
     private val completeSession = PlexSession(
         accountToken = "plex-account-token",
         serverUri = "https://192.168.1.10:32400",
-        musicSectionKey = "3",
+        musicSectionKey = SectionKey("3"),
         serverToken = null
     )
 

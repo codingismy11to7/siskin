@@ -21,6 +21,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
@@ -366,7 +367,7 @@ open class BaseSessionCallback(
                 // heart-named playlist, which is why the car shows a heart for a
                 // field Plex renders as stars everywhere else.
                 SearchClient(PlexApi()).rate(
-                    mediaId,
+                    RatingKey(mediaId),
                     if (isStarring) SearchClient.RATING_HEARTED else SearchClient.RATING_CLEARED
                 ).fold(
                     { failure -> sessionResultFor(failure) },

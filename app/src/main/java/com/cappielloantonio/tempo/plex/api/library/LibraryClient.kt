@@ -6,6 +6,8 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
+import com.cappielloantonio.tempo.plex.RatingKey
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.plexCall
@@ -34,7 +36,7 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
     }
 
     suspend fun getSectionContent(
-        sectionKey: String,
+        sectionKey: SectionKey,
         type: Int,
         start: Int,
         size: Int,
@@ -42,27 +44,27 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
     ): Either<PlexFailure, PlexResponse> {
         Log.d(TAG, "getSectionContent($sectionKey, type=$type, start=$start, size=$size, sort=$sort)")
         return plexCall(PlexHost.Server) {
-            service.getSectionContent(sectionKey, type, start, size, sort)
+            service.getSectionContent(sectionKey.value, type, start, size, sort)
         }
     }
 
     suspend fun getChildren(
-        ratingKey: String,
+        ratingKey: RatingKey,
         start: Int,
         size: Int
     ): Either<PlexFailure, PlexResponse> =
-        plexCall(PlexHost.Server) { service.getChildren(ratingKey, start, size) }
+        plexCall(PlexHost.Server) { service.getChildren(ratingKey.value, start, size) }
 
-    suspend fun getNearest(ratingKey: String, limit: Int): Either<PlexFailure, PlexResponse> {
+    suspend fun getNearest(ratingKey: RatingKey, limit: Int): Either<PlexFailure, PlexResponse> {
         Log.d(TAG, "getNearest($ratingKey, limit=$limit)")
-        return plexCall(PlexHost.Server) { service.getNearest(ratingKey, limit) }
+        return plexCall(PlexHost.Server) { service.getNearest(ratingKey.value, limit) }
     }
 
-    suspend fun getMetadata(ratingKey: String): Either<PlexFailure, PlexResponse> =
-        plexCall(PlexHost.Server) { service.getMetadata(ratingKey) }
+    suspend fun getMetadata(ratingKey: RatingKey): Either<PlexFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getMetadata(ratingKey.value) }
 
-    suspend fun getSectionHubs(sectionKey: String): Either<PlexFailure, PlexResponse> =
-        plexCall(PlexHost.Server) { service.getSectionHubs(sectionKey) }
+    suspend fun getSectionHubs(sectionKey: SectionKey): Either<PlexFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getSectionHubs(sectionKey.value) }
 
     companion object {
         /** Plex reports a music library section's type as "artist". */

@@ -9,6 +9,8 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexFailure
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.RatingKey
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import kotlinx.coroutines.CoroutineScope
@@ -57,11 +59,11 @@ class PlexMixRepository {
         get() = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
 
     fun similarTracks(ratingKey: String, count: Int, callback: TracksCallback) {
-        deliver(callback) { libraryClient.getNearest(ratingKey, count) }
+        deliver(callback) { libraryClient.getNearest(RatingKey(ratingKey), count) }
     }
 
     fun randomTracks(count: Int, callback: TracksCallback) {
-        val key = api.session?.musicSectionKey
+        val key: SectionKey? = api.session?.musicSectionKey
         if (key == null) {
             Log.w(TAG, "no music section selected")
             callback.onTracks(emptyList())
