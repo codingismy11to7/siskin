@@ -114,7 +114,34 @@ Confirm one `1.json` exists afterwards and that it names both tables.
 
 ## Not in scope
 
-Replacing Room. It was raised and examined: nothing stored here is relational,
+### Converting `AppDatabase` to Kotlin
+
+The collapse takes the file from 121 lines to about 42, which makes converting
+it look like a rename. It is not, and the reason is worth recording because it
+is invisible until the build breaks.
+
+This project processes annotations with `annotationProcessor`, which runs inside
+**javac** and therefore only sees `.java` sources. The current mix works because
+of an asymmetry:
+
+| Annotation | Language | Why it works |
+|---|---|---|
+| `@Database`, `@Dao` | Java | javac compiles them, so Room's processor runs over them |
+| `@Entity` | Kotlin | Room reads these as bytecode off the classpath |
+
+Room can read entity metadata from compiled classes, but the `@Database` root
+has to be among the sources javac actually compiles. Move it to Kotlin and the
+processor never sees it, so Room generates no implementation — the failure is a
+missing generated class, not a compile error in the file that was changed.
+
+Converting therefore requires adopting KSP (or kapt) for Room, with Glide
+remaining on `annotationProcessor`. That is a build-system change, and it is
+kept out of this spec because the two changes fail differently and are verified
+differently: this one is proven by the queue surviving a restart, a KSP move by
+every processor still generating what it did before. Combined, a broken build
+would not say which change caused it.
+
+### Replacing Room It was raised and examined: nothing stored here is relational,
 and SQLDelight or a serialised file would both work. But Room's compile-time SQL
 validation is what it is earning here — a column that does not exist is a build
 failure rather than a runtime crash, across nine queries including a non-trivial
