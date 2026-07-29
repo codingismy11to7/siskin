@@ -1,23 +1,33 @@
 package com.cappielloantonio.tempo.plex.api.search
 
 import android.util.Log
+import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
+import com.cappielloantonio.tempo.plex.RatingKey
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.base.PlexResponse
+import com.cappielloantonio.tempo.plex.plexCall
 
 private const val TAG = "SearchClient"
 
 /**
  * Search, playlists, and reporting playback position back to Plex.
  *
- * Captures `api.serverUri` at construction time, via [PlexRetrofitFactory.server].
- * It does not observe later changes -- discard and reconstruct this client
- * whenever the server changes.
+ * Pinned to the [serverUri] it was constructed with and never re-reads it --
+ * discard and reconstruct whenever the server changes. Taking the address as a
+ * parameter is what lets sign-in read a candidate server's sections before it
+ * has committed a [com.cappielloantonio.tempo.plex.PlexSession].
  */
-class SearchClient(api: PlexApi) {
+class SearchClient(api: PlexApi, serverUri: String?, serverToken: String?) {
+
+    /** Uses whatever server the persisted session names. */
+    constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken)
 
     private val service: SearchService =
-        PlexRetrofitFactory.server(api).create(SearchService::class.java)
+        PlexRetrofitFactory.server(api, serverUri, serverToken).create(SearchService::class.java)
 
     /**
      * [type] is a PlexItemType value and is not optional: Plex rejects a search
@@ -25,27 +35,41 @@ class SearchClient(api: PlexApi) {
      * searches and merge -- Plex accepts only one type per request.
      */
     suspend fun search(
-        sectionKey: String,
+        sectionKey: SectionKey,
         query: String,
         type: Int,
         limit: Int = DEFAULT_SEARCH_LIMIT
-    ): PlexResponse {
+    ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "search($sectionKey, type=$type, limit=$limit)")
-        return service.search(sectionKey, query, type, limit)
+        return plexCall(PlexHost.Server) { service.search(sectionKey.value, query, type, limit) }
     }
 
     /** [sectionKey] scopes the listing to one music library section -- see SearchService.getPlaylists. */
-    suspend fun getPlaylists(sectionKey: String): PlexResponse = service.getPlaylists(sectionKey)
+    suspend fun getPlaylists(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getPlaylists(sectionKey.value) }
 
-    suspend fun getPlaylistItems(playlistId: String, start: Int, size: Int): PlexResponse =
-        service.getPlaylistItems(playlistId, start, size)
+    suspend fun getPlaylistItems(
+        playlistId: RatingKey,
+        start: Int,
+        size: Int
+    ): Either<PlexTransportFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getPlaylistItems(playlistId.value, start, size) }
 
-    suspend fun reportProgress(ratingKey: String, key: String, state: String, timeMs: Long) =
-        service.reportProgress(ratingKey, key, state, timeMs)
+    suspend fun reportProgress(
+        ratingKey: RatingKey,
+        key: String,
+        state: String,
+        timeMs: Long
+    ): Either<PlexTransportFailure, Unit> =
+        plexCall(PlexHost.Server) { service.reportProgress(ratingKey.value, key, state, timeMs) }
 
-    suspend fun rate(ratingKey: String, rating: Int) {
+    /**
+     * A `Right` is the success case: the service call returns Unit and any
+     * non-2xx becomes [PlexTransportFailure.Http], so there is no body to inspect.
+     */
+    suspend fun rate(ratingKey: RatingKey, rating: Int): Either<PlexTransportFailure, Unit> {
         Log.d(TAG, "rate($ratingKey, rating=$rating)")
-        service.rate(ratingKey, LIBRARY_IDENTIFIER, rating)
+        return plexCall(PlexHost.Server) { service.rate(ratingKey.value, LIBRARY_IDENTIFIER, rating) }
     }
 
     companion object {

@@ -4,9 +4,13 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
+import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
+import com.cappielloantonio.tempo.plex.RatingKey
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import kotlinx.coroutines.CoroutineScope
@@ -50,15 +54,16 @@ class PlexMixRepository {
      */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val serverUri: String? get() = api.serverUri
-    private val token: String? get() = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken)
+    private val serverUri: String? get() = api.session?.serverUri
+    private val token: String?
+        get() = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
 
     fun similarTracks(ratingKey: String, count: Int, callback: TracksCallback) {
-        deliver(callback) { libraryClient.getNearest(ratingKey, count) }
+        deliver(callback) { libraryClient.getNearest(RatingKey(ratingKey), count) }
     }
 
     fun randomTracks(count: Int, callback: TracksCallback) {
-        val key = api.musicSectionKey
+        val key: SectionKey? = api.session?.musicSectionKey
         if (key == null) {
             Log.w(TAG, "no music section selected")
             callback.onTracks(emptyList())
@@ -81,15 +86,30 @@ class PlexMixRepository {
      * the rest of the process. Hence the mapping sitting inside the `try` and
      * the callback outside it -- a callback that throws must not be retried with
      * an empty list.
+     *
+     * The catch stays wide even though the request's failure is a value now: the
+     * mapping inside it is not, and this is outside any `either { }` so there is
+     * no `raise` for it to swallow.
      */
-    private fun deliver(callback: TracksCallback, request: suspend () -> PlexResponse) {
+    private fun deliver(
+        callback: TracksCallback,
+        request: suspend () -> Either<PlexTransportFailure, PlexResponse>
+    ) {
         scope.launch {
             val tracks = try {
-                PlexBrowseRepository.tracksOf(request()).mapNotNull {
-                    PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
-                }
+                request().fold(
+                    { failure ->
+                        Log.w(TAG, "mix request failed: $failure")
+                        emptyList()
+                    },
+                    { response ->
+                        PlexBrowseRepository.tracksOf(response).mapNotNull {
+                            PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
+                        }
+                    }
+                )
             } catch (failure: Throwable) {
-                Log.w(TAG, "mix request failed", failure)
+                Log.w(TAG, "mix mapping failed", failure)
                 emptyList()
             }
             callback.onTracks(tracks)

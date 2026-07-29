@@ -56,8 +56,9 @@ class PlexRetrofitFactoryTest {
      */
     @Test
     fun everyClientSharesOneConnectionPoolAndOneDispatcher() {
-        val first = clientOf(PlexRetrofitFactory.server(PlexApi()))
-        val second = clientOf(PlexRetrofitFactory.server(PlexApi()))
+        val api = PlexApi()
+        val first = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
+        val second = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
         val plexTv = clientOf(PlexRetrofitFactory.plexTv(PlexApi()))
 
         assertSame(first.connectionPool, second.connectionPool)
@@ -76,8 +77,9 @@ class PlexRetrofitFactoryTest {
      */
     @Test
     fun eachClientKeepsItsOwnIdentityInterceptor() {
-        val plexTvClient = clientOf(PlexRetrofitFactory.plexTv(PlexApi()))
-        val serverClient = clientOf(PlexRetrofitFactory.server(PlexApi()))
+        val api = PlexApi()
+        val plexTvClient = clientOf(PlexRetrofitFactory.plexTv(api))
+        val serverClient = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
 
         assertNotSame(plexTvClient, serverClient)
 
@@ -94,7 +96,8 @@ class PlexRetrofitFactoryTest {
     fun theSharedTimeoutsSurviveOnEachDerivedClient() {
         // newBuilder() copies them, but nothing else in the codebase would fail
         // if a future edit set them only on the derived builder for one caller.
-        val client = clientOf(PlexRetrofitFactory.server(PlexApi()))
+        val api = PlexApi()
+        val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
 
         assertEquals(TimeUnit.MINUTES.toMillis(1).toInt(), client.callTimeoutMillis)
         assertEquals(TimeUnit.SECONDS.toMillis(20).toInt(), client.connectTimeoutMillis)

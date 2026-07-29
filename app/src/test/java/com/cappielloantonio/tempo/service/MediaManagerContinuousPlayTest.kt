@@ -46,7 +46,11 @@ class MediaManagerContinuousPlayTest {
     fun setUp() {
         server = MockWebServer()
         server.start()
+        // accountToken has to be set alongside serverUri and musicSectionKey:
+        // PlexMixRepository now reads the section key through PlexApi.session,
+        // which only reports one once all three are present.
         PlexApi().apply {
+            accountToken = "account-token"
             serverUri = server.url("/").toString()
             musicSectionKey = "1"
         }

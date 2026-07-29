@@ -1,58 +1,63 @@
 package com.cappielloantonio.tempo.plex.auth
 
+import androidx.annotation.StringRes
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.plex.api.auth.AuthClient
-import com.cappielloantonio.tempo.plex.api.library.LibraryClient
-import com.cappielloantonio.tempo.plex.base.PlexResponse
-import com.cappielloantonio.tempo.plex.models.Pin
-import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.plex.PlexHost
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
+import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 
 /**
- * Every "what happens next" decision in the sign-in flow, as pure functions over
- * API results. PlexSignInViewModel does the I/O and the scheduling; it makes no
- * decisions of its own, which is what keeps the flow testable.
+ * What the user is told, and the one transition that still needs a function.
+ *
+ * Smaller than it was. The emptiness checks this object used to perform --
+ * afterResources, afterSections -- are now `ensureNotNull` preconditions at the
+ * call site, where they read as requirements rather than as state-returning
+ * helpers, and expiry is a `raise` rather than a mapped state. What survives is
+ * pure and testable without a network, which is why the object still exists.
  */
 object PlexSignInFlow {
 
-    fun afterPinCreated(pin: Pin?): PlexSignInState {
-        val code = pin?.code
-        if (pin?.id == null || code.isNullOrBlank()) {
-            return PlexSignInState.Failed(R.string.plex_sign_in_error_pin)
-        }
-
-        return PlexSignInState.AwaitingApproval(
-            code = code,
-            qrUrl = pin.qr?.takeIf { it.isNotBlank() },
-            expiresAtEpochSeconds = AuthClient.expiresAtEpochSeconds(pin)
+    /**
+     * Cannot fail: [CreatedPin] is validated at the client, so a code is
+     * guaranteed present. The check this used to perform, and the "only returns
+     * AwaitingApproval for a pin with an id" comment that explained it, are gone.
+     */
+    fun afterPinCreated(created: CreatedPin): PlexSignInState.AwaitingApproval =
+        PlexSignInState.AwaitingApproval(
+            code = created.code,
+            qrUrl = created.qrUrl,
+            expiresAtEpochSeconds = created.expiresAtEpochSeconds
         )
+
+    /**
+     * The single place a failure becomes a message.
+     *
+     * Exhaustive with no `else`, so a new [SignInError] or [PlexTransportFailure]
+     * case will not compile until it has a string. That is the point: these used
+     * to be six scattered `Failed(R.string...)` calls across two files.
+     */
+    @StringRes
+    fun messageFor(error: SignInError): Int = when (error) {
+        is SignInError.Api -> messageForApi(error.failure)
+        SignInError.NoPinCode -> R.string.plex_sign_in_error_pin
+        SignInError.PinExpired -> R.string.plex_sign_in_error_expired
+        SignInError.NoServers -> R.string.plex_sign_in_error_no_servers
+        SignInError.NoLibraries -> R.string.plex_sign_in_error_no_libraries
+        SignInError.NoCandidate -> R.string.plex_sign_in_error_lost_candidate
     }
 
     /**
-     * Returns [current] unchanged while the pin is pending, so a poll that
-     * changes nothing does not re-emit and make the screen reload its QR image.
+     * A transport failure reads as whichever side failed to answer.
+     *
+     * This preserves a deliberate behaviour: a dropped connection and a 401 from
+     * the server both read as "could not reach that Plex server". It falls out of
+     * the host now rather than being asserted at each call site. No case has to
+     * be matched here any more -- every [PlexTransportFailure] carries a host, so
+     * this reads it directly rather than switching on the failure's own shape.
      */
-    fun afterPinPoll(pinState: PlexPinState, current: PlexSignInState): PlexSignInState =
-        when (pinState) {
-            is PlexPinState.Authorized -> PlexSignInState.Working
-            PlexPinState.Expired -> PlexSignInState.Failed(R.string.plex_sign_in_error_expired)
-            PlexPinState.Pending -> current
-        }
-
-    fun afterResources(resources: List<Resource>?): PlexSignInState {
-        val servers = AuthClient.mediaServers(resources)
-        return if (servers.isEmpty()) {
-            PlexSignInState.Failed(R.string.plex_sign_in_error_no_servers)
-        } else {
-            PlexSignInState.ChoosingServer(servers)
-        }
-    }
-
-    fun afterSections(response: PlexResponse?): PlexSignInState {
-        val sections = LibraryClient.musicSections(response)
-        return if (sections.isEmpty()) {
-            PlexSignInState.Failed(R.string.plex_sign_in_error_no_libraries)
-        } else {
-            PlexSignInState.ChoosingLibrary(sections)
-        }
+    @StringRes
+    private fun messageForApi(failure: PlexTransportFailure): Int = when (failure.host) {
+        PlexHost.PlexTv -> R.string.plex_sign_in_error_network
+        PlexHost.Server -> R.string.plex_sign_in_error_server_unreachable
     }
 }

@@ -23,6 +23,7 @@
     <!-- Siskin plays music you already own; every other AAOS music app is a streaming front-end. -->
     <string name="plex_sign_in_tagline">Your car. Your music.</string>
     <string name="plex_sign_in_error_expired">The sign-in code expired.</string>
+    <string name="plex_sign_in_error_lost_candidate">Lost track of the selected server. Please try again.</string>
     <string name="plex_sign_in_error_network">Could not reach plex.tv.</string>
     <string name="plex_sign_in_error_no_libraries">That server has no music libraries.</string>
     <string name="plex_sign_in_error_no_servers">This Plex account has no reachable media servers.</string>

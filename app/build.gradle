@@ -71,6 +71,30 @@ android {
     }
 }
 
+// Room is what pins this, and upgrading Room does not release it. This
+// project is on room-compiler 2.7.0 (libs.versions.toml), but *every*
+// release up to and including 2.8.4 -- the newest published as of July 2026
+// -- bundles kotlin-metadata-jvm 2.2.0, which reads metadata format 2.2.0 at
+// most. This project compiles with a newer Kotlin (see libs.versions.toml),
+// so without this force compileDebugJavaWithJavac fails on every
+// annotation-processed file with:
+//
+//   Provided Metadata instance has version 2.4.0, while maximum supported
+//   version is 2.2.0. To support newer versions, update the kotlin-metadata-jvm
+//   library.
+//
+// Forcing a metadata *reader* forward like this is safe -- a newer reader
+// still understands older metadata formats -- which is the opposite of
+// forcing a stdlib *backward*, e.g. to satisfy some other dependency's
+// version floor: that pins a library beneath the version it was compiled
+// against and compiles fine, then fails at runtime with NoSuchMethodError.
+// This project cannot bump Kotlin by version number alone for as long as
+// Room's processor lags behind it; removing this force will silently
+// re-break the build on the next Kotlin bump.
+configurations.matching { it.name.toLowerCase().contains('annotationprocessor') }.configureEach {
+    resolutionStrategy.force "org.jetbrains.kotlin:kotlin-metadata-jvm:${libs.versions.kotlin.get()}"
+}
+
 dependencies {
     implementation files('../libs/lib-decoder-ffmpeg-release.aar')
 
@@ -106,6 +130,9 @@ dependencies {
     // Coroutines
     implementation libs.kotlinx.coroutines.android
     implementation libs.androidx.lifecycle.viewmodel.ktx
+
+    // Arrow
+    implementation libs.arrow.core
 
     // Misc
     implementation libs.kotlin.metadata

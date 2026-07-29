@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.service
 
 import android.util.Log
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,8 +42,11 @@ object PlexScrobbler {
     fun report(ratingKey: String, partKey: String, state: String, timeMs: Long) {
         scope.launch {
             try {
-                SearchClient(PlexApi()).reportProgress(ratingKey, partKey, state, timeMs)
+                SearchClient(PlexApi()).reportProgress(RatingKey(ratingKey), partKey, state, timeMs)
+                    .onLeft { Log.w(TAG, "scrobble failed: $it") }
             } catch (failure: Throwable) {
+                // Covers client construction and anything else still throwing.
+                // Outside any `either { }`, so there is no `raise` to swallow.
                 Log.w(TAG, "scrobble failed", failure)
             }
         }

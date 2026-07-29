@@ -1,52 +1,70 @@
 package com.cappielloantonio.tempo.plex.api.library
 
 import android.util.Log
+import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
+import com.cappielloantonio.tempo.plex.RatingKey
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.plexCall
 
 private const val TAG = "LibraryClient"
 
 /**
  * Browsing a Plex music library: sections, their contents, and hub rows.
  *
- * Captures `api.serverUri` at construction time, via [PlexRetrofitFactory.server].
- * It does not observe later changes -- discard and reconstruct this client
- * whenever the server changes.
+ * Pinned to the [serverUri] it was constructed with and never re-reads it --
+ * discard and reconstruct whenever the server changes. Taking the address as a
+ * parameter is what lets sign-in read a candidate server's sections before it
+ * has committed a [com.cappielloantonio.tempo.plex.PlexSession].
  */
-class LibraryClient(api: PlexApi) {
+class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
+
+    /** Uses whatever server the persisted session names. */
+    constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken)
 
     private val service: LibraryService =
-        PlexRetrofitFactory.server(api).create(LibraryService::class.java)
+        PlexRetrofitFactory.server(api, serverUri, serverToken).create(LibraryService::class.java)
 
-    suspend fun getSections(): PlexResponse {
+    suspend fun getSections(): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getSections()")
-        return service.getSections()
+        return plexCall(PlexHost.Server) { service.getSections() }
     }
 
     suspend fun getSectionContent(
-        sectionKey: String,
+        sectionKey: SectionKey,
         type: Int,
         start: Int,
         size: Int,
         sort: String? = null
-    ): PlexResponse {
+    ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getSectionContent($sectionKey, type=$type, start=$start, size=$size, sort=$sort)")
-        return service.getSectionContent(sectionKey, type, start, size, sort)
+        return plexCall(PlexHost.Server) {
+            service.getSectionContent(sectionKey.value, type, start, size, sort)
+        }
     }
 
-    suspend fun getChildren(ratingKey: String, start: Int, size: Int): PlexResponse =
-        service.getChildren(ratingKey, start, size)
+    suspend fun getChildren(
+        ratingKey: RatingKey,
+        start: Int,
+        size: Int
+    ): Either<PlexTransportFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getChildren(ratingKey.value, start, size) }
 
-    suspend fun getNearest(ratingKey: String, limit: Int): PlexResponse {
+    suspend fun getNearest(ratingKey: RatingKey, limit: Int): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getNearest($ratingKey, limit=$limit)")
-        return service.getNearest(ratingKey, limit)
+        return plexCall(PlexHost.Server) { service.getNearest(ratingKey.value, limit) }
     }
 
-    suspend fun getMetadata(ratingKey: String): PlexResponse = service.getMetadata(ratingKey)
+    suspend fun getMetadata(ratingKey: RatingKey): Either<PlexTransportFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getMetadata(ratingKey.value) }
 
-    suspend fun getSectionHubs(sectionKey: String): PlexResponse = service.getSectionHubs(sectionKey)
+    suspend fun getSectionHubs(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getSectionHubs(sectionKey.value) }
 
     companion object {
         /** Plex reports a music library section's type as "artist". */

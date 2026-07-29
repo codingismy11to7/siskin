@@ -8,32 +8,20 @@ import com.cappielloantonio.tempo.plex.PlexApi
  * The AAOS browse gate needs this answer the instant the car asks for a library,
  * and two copies of the rule would drift apart.
  *
- * Deliberately does *not* require a server token. Resource.accessToken is null
- * for a server the account owns -- those accept the account token -- so requiring
- * it would read as signed-out forever. PlexApi.serverHeaders() supplies the
- * fallback instead.
+ * A PlexSession exists only when every value it needs is present, and its
+ * three server-scoped fields -- serverUri, musicSectionKey, serverToken -- are
+ * persisted as a unit, so there is no partial set of *those* for this to guess
+ * about. The twenty lines of comment that used to explain that mixed-set
+ * hazard are gone with it.
  *
- * The three values it does read describe *one* connection, and this predicate is
- * only as honest as that. It cannot check the pairing itself -- a section key
- * carries no record of which server it came from -- so the invariant is kept at
- * the writing end, in PlexSignInViewModel.chooseServer(), which clears the
- * section key as it adopts a new server. A mixed set would be reported here as a
- * working sign-in, and browse would then query one server for another's section.
+ * The account token is a narrower exception, not a hole in this: see
+ * PlexSession's KDoc for the mid-flow re-sign-in window where it can briefly
+ * outrun the other three. It does not change the answer here, because a
+ * session with a stale account token beside a fine server is still a session
+ * -- isSignedIn is not the check that would ever need to tell the difference.
  */
 object CredentialGate {
 
     @JvmStatic
-    fun isSignedIn(
-        accountToken: String?,
-        serverUri: String?,
-        musicSectionKey: String?
-    ): Boolean =
-        !accountToken.isNullOrBlank() &&
-            !serverUri.isNullOrBlank() &&
-            !musicSectionKey.isNullOrBlank()
-
-    @JvmStatic
-    fun isSignedIn(): Boolean = PlexApi().let {
-        isSignedIn(it.accountToken, it.serverUri, it.musicSectionKey)
-    }
+    fun isSignedIn(): Boolean = PlexApi().session != null
 }

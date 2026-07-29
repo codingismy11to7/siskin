@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.plex.api.auth
 
+import arrow.core.Either
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
@@ -66,5 +67,71 @@ class AuthClientTest {
     fun handlesAnAbsentOrEmptyResourceList() {
         assertEquals(0, AuthClient.mediaServers(null).size)
         assertEquals(0, AuthClient.mediaServers(emptyList()).size)
+    }
+
+    // ── CreatedPin: the refinement createPin performs ──────────────────
+
+    @Test
+    fun createdPinRejectsAPinWithNoId() {
+        val pin = Pin().apply { code = "ABCD" }
+
+        assertEquals(
+            Either.Left(CreatePinError.NoPinCode),
+            AuthClient.validate(pin)
+        )
+    }
+
+    @Test
+    fun createdPinRejectsAPinWithNoCode() {
+        val pin = Pin().apply { id = 42L }
+
+        assertEquals(
+            Either.Left(CreatePinError.NoPinCode),
+            AuthClient.validate(pin)
+        )
+    }
+
+    @Test
+    fun createdPinRejectsAPinWhoseCodeIsBlank() {
+        val pin = Pin().apply { id = 42L; code = "   " }
+
+        assertEquals(
+            Either.Left(CreatePinError.NoPinCode),
+            AuthClient.validate(pin)
+        )
+    }
+
+    @Test
+    fun createdPinCarriesIdAndCodeAsNonNull() {
+        val pin = Pin().apply {
+            id = 42L
+            code = "ABCD"
+            qr = "https://plex.tv/qr/ABCD"
+            expiresAt = "2026-07-28T12:00:00Z"
+        }
+
+        val created = AuthClient.validate(pin).getOrNull()!!
+
+        assertEquals(42L, created.id)
+        assertEquals("ABCD", created.code)
+        assertEquals("https://plex.tv/qr/ABCD", created.qrUrl)
+        assertEquals(1785240000L, created.expiresAtEpochSeconds)
+    }
+
+    @Test
+    fun createdPinTreatsABlankQrAsAbsent() {
+        // The screen falls back to showing the short code alone; a blank string
+        // would make it try to load an image from nowhere.
+        val pin = Pin().apply { id = 42L; code = "ABCD"; qr = "  " }
+
+        assertNull(AuthClient.validate(pin).getOrNull()!!.qrUrl)
+    }
+
+    @Test
+    fun createdPinToleratesAnUnparseableExpiry() {
+        // PlexPinState.shouldKeepPolling bounds the loop when this is null.
+        val pin = Pin().apply { id = 42L; code = "ABCD"; expiresAt = "not-a-date" }
+
+        assertNull(AuthClient.validate(pin).getOrNull()!!.expiresAtEpochSeconds)
     }
 }
