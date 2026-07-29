@@ -116,63 +116,108 @@ public class MediaManager {
         // deciding whether the random fallback is needed -- Plex's similar endpoint
         // does not know what is in the queue.
         getMixRepository().similarTracks(trackId, 25, similar -> {
-            if (!similar.isEmpty()) {
-                List<MediaItem> filtered = dedupAgainstQueue(similar, existingBrowserFuture);
-                if (!filtered.isEmpty()) {
-                    Log.d(TAG, "Continuous Play: adding " + filtered.size() + " similar tracks");
-                    enqueue(existingBrowserFuture, filtered, true);
-                    continuousPlayIsRunning.set(false);
-                    if (onComplete != null) onComplete.run();
-                    return;
-                }
-            }
-
-            if (!Preferences.isFallbackToRandomTracksEnabled()) {
-                Log.w(TAG, "Continuous Play: no new similar tracks, random fallback disabled");
-                continuousPlayIsRunning.set(false);
-                if (onComplete != null) onComplete.run();
+            if (similar.isEmpty()) {
+                fallBackToRandom(existingBrowserFuture, onComplete);
                 return;
             }
 
-            Log.w(TAG, "Continuous Play: no new similar tracks, falling back to random songs");
-            getMixRepository().randomTracks(25, random -> {
-                if (!random.isEmpty()) {
-                    List<MediaItem> filtered = dedupAgainstQueue(random, existingBrowserFuture);
-                    if (!filtered.isEmpty()) {
-                        Log.d(TAG, "Continuous Play: adding " + filtered.size() + " random tracks");
-                        enqueue(existingBrowserFuture, filtered, true);
-                    } else {
-                        Log.w(TAG, "Continuous Play: random tracks already in queue");
-                    }
-                } else {
-                    Log.w(TAG, "Continuous Play: random fallback also empty");
+            dedupAgainstQueue(similar, existingBrowserFuture, filtered -> {
+                if (filtered.isEmpty()) {
+                    fallBackToRandom(existingBrowserFuture, onComplete);
+                    return;
                 }
-                continuousPlayIsRunning.set(false);
-                if (onComplete != null) onComplete.run();
+                Log.d(TAG, "Continuous Play: adding " + filtered.size() + " similar tracks");
+                enqueue(existingBrowserFuture, filtered, true);
+                finish(onComplete);
             });
         });
     }
 
     @OptIn(markerClass = UnstableApi.class)
-    private static List<MediaItem> dedupAgainstQueue(List<MediaItem> candidates,
-                                                     ListenableFuture<MediaBrowser> existingBrowserFuture) {
-        if (existingBrowserFuture == null) return new ArrayList<>(candidates);
-
-        final MediaBrowser browser;
-        try {
-            browser = existingBrowserFuture.get();
-        } catch (ExecutionException | InterruptedException e) {
-            return new ArrayList<>(candidates);
+    private static void fallBackToRandom(ListenableFuture<MediaBrowser> existingBrowserFuture,
+                                         @Nullable Runnable onComplete) {
+        if (!Preferences.isFallbackToRandomTracksEnabled()) {
+            Log.w(TAG, "Continuous Play: no new similar tracks, random fallback disabled");
+            finish(onComplete);
+            return;
         }
 
-        Set<String> currentIds = new HashSet<>();
-        for (int i = 0; i < Objects.requireNonNull(browser).getMediaItemCount(); i++) {
-            currentIds.add(browser.getMediaItemAt(i).mediaId);
+        Log.w(TAG, "Continuous Play: no new similar tracks, falling back to random songs");
+        getMixRepository().randomTracks(25, random -> {
+            if (random.isEmpty()) {
+                Log.w(TAG, "Continuous Play: random fallback also empty");
+                finish(onComplete);
+                return;
+            }
+
+            dedupAgainstQueue(random, existingBrowserFuture, filtered -> {
+                if (!filtered.isEmpty()) {
+                    Log.d(TAG, "Continuous Play: adding " + filtered.size() + " random tracks");
+                    enqueue(existingBrowserFuture, filtered, true);
+                } else {
+                    Log.w(TAG, "Continuous Play: random tracks already in queue");
+                }
+                finish(onComplete);
+            });
+        });
+    }
+
+    /**
+     * Every path through continuous play ends here. `continuousPlayIsRunning` is
+     * cleared nowhere else, so a path that returns without reaching this leaves
+     * the flag stuck true and Instant Mix dead for the rest of the process.
+     */
+    private static void finish(@Nullable Runnable onComplete) {
+        continuousPlayIsRunning.set(false);
+        if (onComplete != null) onComplete.run();
+    }
+
+    private interface FilteredTracks {
+        void onFiltered(List<MediaItem> filtered);
+    }
+
+    /**
+     * Drops candidates already in the queue, then hands the survivors to
+     * [callback].
+     *
+     * Asynchronous rather than returning a list, because of who calls it and
+     * with what: PlexMixRepository resumes on Dispatchers.Main, so this runs on
+     * the application thread, and the future being awaited is the one
+     * MediaBrowser.buildAsync() returns -- which that same thread completes.
+     * Blocking on get() therefore deadlocked outright whenever the mix response
+     * landed before the browser finished connecting: the only thread that could
+     * complete the future was parked waiting for it. addListener with a direct
+     * executor runs inline when the future is already done and otherwise defers
+     * to whoever completes it, which is the pattern enqueue() and removeRange()
+     * below already use.
+     */
+    @OptIn(markerClass = UnstableApi.class)
+    private static void dedupAgainstQueue(List<MediaItem> candidates,
+                                          ListenableFuture<MediaBrowser> existingBrowserFuture,
+                                          FilteredTracks callback) {
+        if (existingBrowserFuture == null) {
+            callback.onFiltered(new ArrayList<>(candidates));
+            return;
         }
 
-        return candidates.stream()
-                .filter(item -> !currentIds.contains(item.mediaId))
-                .collect(Collectors.toList());
+        existingBrowserFuture.addListener(() -> {
+            final MediaBrowser browser;
+            try {
+                browser = existingBrowserFuture.get();
+            } catch (ExecutionException | InterruptedException e) {
+                callback.onFiltered(new ArrayList<>(candidates));
+                return;
+            }
+
+            Set<String> currentIds = new HashSet<>();
+            for (int i = 0; i < Objects.requireNonNull(browser).getMediaItemCount(); i++) {
+                currentIds.add(browser.getMediaItemAt(i).mediaId);
+            }
+
+            callback.onFiltered(candidates.stream()
+                    .filter(item -> !currentIds.contains(item.mediaId))
+                    .collect(Collectors.toList()));
+        }, MoreExecutors.directExecutor());
     }
 
     // Only caller is continuousPlay, above; not part of the public MediaManager API.

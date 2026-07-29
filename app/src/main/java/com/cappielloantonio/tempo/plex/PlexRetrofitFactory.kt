@@ -37,21 +37,39 @@ object PlexRetrofitFactory {
      */
     fun server(api: PlexApi): Retrofit = build(normalize(api.serverUri), api::serverHeaders)
 
-    private fun build(baseUrl: String, headers: () -> Map<String, String>): Retrofit {
-        val gson = GsonBuilder().setLenient().create()
+    private val gson = GsonBuilder().setLenient().create()
 
-        return Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .client(okHttp(headers))
-            .build()
-    }
-
-    private fun okHttp(headers: () -> Map<String, String>): OkHttpClient = OkHttpClient.Builder()
+    /**
+     * One connection pool and one dispatcher thread pool for the whole app.
+     *
+     * Every client below is derived from this with [OkHttpClient.newBuilder],
+     * which shares both. Building a whole OkHttpClient per call instead is not
+     * merely wasteful allocation: each one owns a private connection pool, so
+     * nothing it opens is ever reused and every request pays a fresh TCP and
+     * TLS handshake. The callers that matter here are constructed per use --
+     * PlexScrobbler reports on every play *and* pause, BaseSessionCallback
+     * builds one per heart tap, PlexMixRepository one per mix -- so on a head
+     * unit that is several full handshakes per track.
+     *
+     * Deliberately carries no interceptors: the identity interceptor closes
+     * over one PlexApi's header supplier, so it must stay per-client or a
+     * server call would start sending plex.tv's token and vice versa.
+     */
+    private val sharedClient: OkHttpClient = OkHttpClient.Builder()
         .callTimeout(1, TimeUnit.MINUTES)
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    private fun build(baseUrl: String, headers: () -> Map<String, String>): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .client(okHttp(headers))
+            .build()
+
+    private fun okHttp(headers: () -> Map<String, String>): OkHttpClient = sharedClient.newBuilder()
         .addInterceptor(identityInterceptor(headers))
         .addInterceptor(logging())
         .build()
