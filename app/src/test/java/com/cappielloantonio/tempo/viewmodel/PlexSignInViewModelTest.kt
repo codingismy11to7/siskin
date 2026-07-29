@@ -418,4 +418,49 @@ class PlexSignInViewModelTest {
         verify(probe, times(1)).bestConnectionUri(good)
         verify(authClient, times(1)).createPin()
     }
+
+    // ── surviving activity recreation (#24) ───────────────────────────
+
+    @Test
+    fun startDoesNotBeginAgainOnceAPickerIsShowing() = runTest(dispatcher) {
+        // CarSignInActivity declares no android:configChanges, so a day/night
+        // uiMode flip -- routine in a car -- recreates it, and onCreateView
+        // calls start() again. The ViewModel survives, so the picker state
+        // survives; start() is what used to destroy it.
+        val authClient = setUpToChoosingServer(aMediaServer())
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+        viewModel.start()
+        advanceUntilIdle()
+        val picker = viewModel.state.value
+        assertTrue("setup did not reach ChoosingServer, got $picker", picker is PlexSignInState.ChoosingServer)
+
+        // The recreation.
+        viewModel.start()
+        advanceUntilIdle()
+
+        // Guarding on attempt?.isActive alone is not enough: signIn() has run to
+        // COMPLETION by now, so isActive is false and the old guard fell through
+        // to createPin() -- discarding an account token that is still good.
+        verify(authClient, times(1)).createPin()
+        assertEquals(picker, viewModel.state.value)
+    }
+
+    @Test
+    fun startStillBeginsWhenNothingHasBeenPublishedYet() = runTest(dispatcher) {
+        // The other half, and the reason the guard keys on Working rather than
+        // on "not null": Working is the initial value, so a first start() must
+        // still sign in. Reaching it with a dead attempt means the job died
+        // without publishing, which is also worth restarting.
+        val authClient = setUpToChoosingServer(aMediaServer())
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+        assertEquals(PlexSignInState.Working, viewModel.state.value)
+
+        viewModel.start()
+        advanceUntilIdle()
+
+        verify(authClient, times(1)).createPin()
+        assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+    }
 }

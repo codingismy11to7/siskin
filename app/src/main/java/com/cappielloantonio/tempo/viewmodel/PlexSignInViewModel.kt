@@ -73,9 +73,27 @@ class PlexSignInViewModel @JvmOverloads constructor(
     /** The server picked but not yet committed; chooseLibrary needs it to build a session. */
     private var candidate: Pair<String, Resource>? = null
 
-    /** Safe to call repeatedly; does nothing while an attempt is already running. */
+    /**
+     * Safe to call repeatedly; does nothing once there is anything worth keeping.
+     *
+     * The fragment calls this from every `onCreateView`, so it runs again on
+     * every activity recreation -- and `CarSignInActivity` declares no
+     * `android:configChanges`, so a day/night `uiMode` switch is enough.
+     *
+     * Being active is not the only thing that makes an attempt worth keeping,
+     * which is what the isActive check alone missed. It holds while the poll
+     * loop runs, because `viewModelScope` outlives the activity -- but once
+     * signIn() has published a picker it has run to *completion*, so isActive is
+     * false and a recreation used to fall through to createPin(), discarding an
+     * account token that was still good. See issue #24.
+     *
+     * [PlexSignInState.Working] is the one state with nothing to preserve: it is
+     * the initial value, and arriving here in it with no live attempt means the
+     * job died without publishing, which is worth restarting.
+     */
     fun start() {
         if (attempt?.isActive == true) return
+        if (_state.value !is PlexSignInState.Working) return
         signIn()
     }
 
