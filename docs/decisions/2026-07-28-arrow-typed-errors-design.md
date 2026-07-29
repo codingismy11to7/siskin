@@ -540,12 +540,60 @@ signature change cannot be confined to sign-in any more:
 Order matters between 1 and 2: the second changes client constructors, and doing
 it after the first means touching each signature once rather than twice.
 
-## To verify during implementation
+## Verified during implementation
 
-- **The release APK delta from `arrow-core` after R8**, and whether any keep rules
-  are needed. Only the unshrunk figure is known (495 KB for `arrow-core-jvm`
-  2.1.2), which is not the number that matters for a build using
-  `minifyEnabled` and ABI splits.
-- **`arrow-core` 2.2.3 against Kotlin 2.2.10 and AGP 9.2.1**, and that no
-  experimental compiler flag is pulled in by the stable `Either`/`either { }`
-  surface.
+Both open questions were settled while adding the dependency. One was a
+non-event; the other was not.
+
+### Toolchain: adopting Arrow required bumping Kotlin first
+
+`arrow-core-android` 2.2.3 constrains `kotlin-stdlib` to **2.4.0**. Under Gradle's
+highest-version-wins resolution that put a 2.4.0 stdlib on the classpath of a
+project compiling with Kotlin **2.2.10**, whose compiler reads metadata format
+2.3.0 at most — breaking compilation of every `.kt` file, not only Arrow call
+sites.
+
+Three ways out, and the choice matters more than it first appears:
+
+| Option | Verdict |
+|---|---|
+| Pin `arrow-core` back to **2.1.2** — the newest release whose stdlib floor (2.1.21) sits below 2.2.10 | Rejected: knowingly adopting a stale dependency to avoid a version bump |
+| Force `kotlin-stdlib` **down** to 2.2.10 | Rejected: pins a library beneath the version it was compiled against. Compiles, then fails at runtime with `NoSuchMethodError` — in a car |
+| Bump **Kotlin to 2.4.10** | Taken |
+
+Kotlin had sat at 2.2.10 since the fork's initial modernisation (`1.8.0 → 2.2.10`)
+and had never been revisited. Nothing pinned it: the flake supplies JDK 21 only.
+
+The bump exposed the *actual* constraint on this project's Kotlin version, which
+is not Arrow and not the language:
+
+**Room caps it.** Every `room-compiler` release — including the current 2.8.4 —
+bundles `kotlin-metadata-jvm` 2.2.0, which reads metadata format 2.2.0 at most.
+A 2.3 or 2.4 compiler therefore fails `compileDebugJavaWithJavac` with *"Provided
+Metadata instance has version 2.4.0, while maximum supported version is 2.2.0"*
+on every annotation-processed file.
+
+Resolved the way that error message itself recommends: force `kotlin-metadata-jvm`
+**up** to the project's own Kotlin version on the annotation-processor
+classpaths. Forcing a metadata *reader* forward is the safe direction — newer
+readers handle older formats — and is the opposite of forcing a stdlib backward.
+Room's DAO and entity round-trip tests pass against the regenerated
+implementations.
+
+Worth recording because it will recur: **this project cannot bump Kotlin past
+2.2.x by version numbers alone for as long as Room's processor lags.** The forced
+reader is what makes it possible, and removing it will silently re-break the
+build on the next Kotlin bump.
+
+No experimental compiler flag was needed; the stable `Either`/`either { }` surface
+requires none.
+
+### APK cost: not yet measurable
+
+Release APK with and without `arrow-core`, two clean builds: **7,248,149 bytes
+both times — a 0-byte delta.** R8 needed no keep rules.
+
+That zero is expected rather than reassuring: at the point of measurement no
+application code referenced Arrow, so R8 stripped it entirely. The number worth
+keeping is the **7,248,149-byte baseline**, to be compared once the layer actually
+uses `Either` and `Raise`.
