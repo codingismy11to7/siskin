@@ -145,9 +145,11 @@ Relatedly: never `raise` across a coroutine-builder boundary (`launch`,
 Four values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`)
 describe **one** connection and are persisted as a unit or not at all. A mixed
 set — a section key from one server beside another's address — would read as
-signed-in and make the app query the wrong server. `chooseLibrary` holds the
-only session write in `app/src/main`; sign-in talks to a *candidate* server
-without persisting anything.
+signed-in and make the app query the wrong server. There are two session writes
+in `app/src/main` — `PlexSignInViewModel.chooseLibrary` and
+`LibraryPickerRepository.selectLibrary` — and both construct the whole session
+in one assignment. Sign-in and the More tab both talk to a *candidate* server
+without persisting anything until a library is chosen.
 
 `serverToken` is legitimately null for a server the account owns (those accept
 the account token), so it is not required for a session to exist.
@@ -155,8 +157,10 @@ the account token), so it is not required for a session to exist.
 ### Media service — `service/`
 
 `MediaService` is a media3 `MediaLibraryService`; AAOS discovers it through the
-manifest intent filter. `MediaBrowserTree` defines the static browse root (three
-tabs: Playlists, Artists, Albums), `PlexBrowseRepository` serves their contents,
+manifest intent filter. `MediaBrowserTree` defines the static browse root (four
+tabs: Playlists, Artists, Albums, More) — four is the maximum the car renders,
+it silently drops a fifth, so nest anything new under More instead of adding a
+root tab. `PlexBrowseRepository` serves their contents,
 and `MediaLibraryServiceCallback` turns a 401/403 into the "sign in again"
 affordance via `CarSignInResolution`'s `PendingIntent`.
 
