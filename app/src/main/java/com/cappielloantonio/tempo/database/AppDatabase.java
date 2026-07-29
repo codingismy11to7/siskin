@@ -16,7 +16,7 @@ import com.cappielloantonio.tempo.model.SessionMediaItem;
 
 /**
  * Version 1 is the first schema number this app has ever had that means
- * anything. The twenty-five versions and fifteen auto-migrations that preceded
+ * anything. The twenty-five versions and fourteen auto-migrations that preceded
  * it were inherited from upstream tempo, whose applicationId differs from this
  * fork's -- Android treats that as a different app, so none of those migrations
  * could ever have run here. See
@@ -55,7 +55,7 @@ public abstract class AppDatabase extends RoomDatabase {
     // destructive fallback. Any old tempo_db is left orphaned on purpose:
     // cleaning it up would mean a deleteDatabase call living here forever to
     // tidy a file that exists on one emulator.
-    private final static String DB_NAME = "siskin_db";
+    private final static String DB_NAME = "siskin";
     private static AppDatabase instance;
 
     public static synchronized AppDatabase getInstance() {
