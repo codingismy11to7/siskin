@@ -128,7 +128,7 @@ class PlexBrowseRepository {
             { libraryClient.getSectionContent(key, PlexItemType.ARTIST, 0, ConstantsAA.MAX_ITEMS) }
         ) { body ->
             listOf(viewByAlbumsShortcut()) + itemsOf(body, TYPE_ARTIST).mapNotNull {
-                PlexMediaMapper.artistToMediaItem(it, prefix, serverUri, token)
+                PlexMediaMapper.artistToMediaItem(it, prefix)
             }
         }
     }
@@ -142,7 +142,7 @@ class PlexBrowseRepository {
     fun getArtistAlbums(albumPrefix: String, artistRatingKey: String) =
         fetch({ libraryClient.getChildren(artistRatingKey, 0, ConstantsAA.MAX_ITEMS) }) { body ->
             itemsOf(body, TYPE_ALBUM).mapNotNull {
-                PlexMediaMapper.albumToMediaItem(it, albumPrefix, serverUri, token)
+                PlexMediaMapper.albumToMediaItem(it, albumPrefix)
             }
         }
 
@@ -152,7 +152,7 @@ class PlexBrowseRepository {
             { libraryClient.getSectionContent(key, PlexItemType.ALBUM, 0, ConstantsAA.MAX_ITEMS, sort) }
         ) { body ->
             itemsOf(body, TYPE_ALBUM).mapNotNull {
-                PlexMediaMapper.albumToMediaItem(it, prefix, serverUri, token)
+                PlexMediaMapper.albumToMediaItem(it, prefix)
             }
         }
     }
@@ -178,18 +178,16 @@ class PlexBrowseRepository {
         val key = sectionKey ?: return errorFuture()
 
         return launchInto {
-            val artists = collect(key, query, PlexItemType.ARTIST)
-            val albums = collect(key, query, PlexItemType.ALBUM)
-            val tracks = collect(key, query, PlexItemType.TRACK)
+            val artists = collect(key, query, PlexItemType.ARTIST, TYPE_ARTIST)
+            val albums = collect(key, query, PlexItemType.ALBUM, TYPE_ALBUM)
+            val tracks = collect(key, query, PlexItemType.TRACK, TYPE_TRACK)
 
             val items = mutableListOf<MediaItem>()
             artists.forEach { m ->
-                PlexMediaMapper.artistToMediaItem(m, artistPrefix, serverUri, token)
-                    ?.let(items::add)
+                PlexMediaMapper.artistToMediaItem(m, artistPrefix)?.let(items::add)
             }
             albums.forEach { m ->
-                PlexMediaMapper.albumToMediaItem(m, albumPrefix, serverUri, token)
-                    ?.let(items::add)
+                PlexMediaMapper.albumToMediaItem(m, albumPrefix)?.let(items::add)
             }
             tracks.forEach { m ->
                 PlexMediaMapper.trackToMediaItem(m, null, serverUri, token)
@@ -199,10 +197,26 @@ class PlexBrowseRepository {
         }
     }
 
-    /** One failed tier must not lose the other two, so every failure is an empty tier. */
-    private suspend fun collect(sectionKey: String, query: String, type: Int): List<Metadata> =
+    /**
+     * One tier of the search.
+     *
+     * Narrowed with [itemsOf] and the tier's own [expectedType], the same way
+     * every browse node narrows its response, rather than with a filter that
+     * admits tracks, albums and artists alike: this is the only caller that
+     * builds items of a *specific* kind out of the result, so a type-scoped
+     * search that ever answered with a mixed set would have the artist tier
+     * building artist entries out of albums.
+     *
+     * A failure is an empty tier, so one failed tier does not lose the other two.
+     */
+    private suspend fun collect(
+        sectionKey: String,
+        query: String,
+        type: Int,
+        expectedType: String
+    ): List<Metadata> =
         try {
-            SearchClient.playableResults(searchClient.search(sectionKey, query, type))
+            itemsOf(searchClient.search(sectionKey, query, type), expectedType)
         } catch (failure: Throwable) {
             Log.w(TAG, "search tier type=$type failed", failure)
             emptyList()

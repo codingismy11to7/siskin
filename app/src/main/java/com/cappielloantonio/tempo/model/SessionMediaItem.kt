@@ -52,9 +52,6 @@ class SessionMediaItem {
     @ColumnInfo
     var year: Int? = null
 
-    @ColumnInfo(name = "parent_rating_key")
-    var parentRatingKey: String? = null
-
     @ColumnInfo(name = "grandparent_rating_key")
     var grandparentRatingKey: String? = null
 
@@ -76,7 +73,6 @@ class SessionMediaItem {
             durationMs = duration,
             trackIndex = trackIndex,
             year = year,
-            parentRatingKey = parentRatingKey,
             grandparentRatingKey = grandparentRatingKey,
             isHearted = hearted,
             parentId = null,
@@ -100,7 +96,6 @@ class SessionMediaItem {
                 duration = fields.durationMs
                 trackIndex = fields.trackIndex
                 year = fields.year
-                parentRatingKey = fields.parentRatingKey
                 grandparentRatingKey = fields.grandparentRatingKey
                 hearted = fields.isHearted
             }

@@ -263,9 +263,7 @@ class MediaLibrarySessionCallback(
                 Log.d(TAG, "Start index for clicked item ${firstItem.mediaId} = $startIndex")
                 if (startIndex <= 0) return@transform resolvedItems
 
-                if (resolvedItems.isNotEmpty()) {
-                    QueueRepository().insertAll(resolvedItems, true, 0)
-                }
+                QueueRepository().insertAll(resolvedItems, true, 0)
 
                 val firstResolved = resolvedItems[0]
                 val extras = (firstResolved.mediaMetadata.extras ?: Bundle()).apply {

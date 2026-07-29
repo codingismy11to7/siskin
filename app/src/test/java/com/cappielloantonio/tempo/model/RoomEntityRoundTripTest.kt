@@ -56,7 +56,6 @@ class RoomEntityRoundTripTest {
         durationMs = 250_000L,
         trackIndex = 3,
         year = 2021,
-        parentRatingKey = "55",
         grandparentRatingKey = "77",
         isHearted = hearted,
         parentId = ConstantsAA.QUEUE_CACHED_SOURCE,
@@ -81,7 +80,6 @@ class RoomEntityRoundTripTest {
         val extras = restored.mediaMetadata.extras!!
         assertEquals("1234", extras.getString(PlexMediaMapper.EXTRA_ID))
         assertEquals("77", extras.getString(PlexMediaMapper.EXTRA_ARTIST_ID))
-        assertEquals("55", extras.getString(PlexMediaMapper.EXTRA_PARENT_RATING_KEY))
         assertEquals("/library/parts/9/file.flac", extras.getString(PlexMediaMapper.EXTRA_PART_KEY))
         assertEquals(Constants.MEDIA_TYPE_MUSIC, extras.getString(PlexMediaMapper.EXTRA_TYPE))
 

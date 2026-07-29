@@ -93,36 +93,6 @@ class PlexMediaMapperTest {
         assertNull(PlexMediaMapper.artworkThumb(withComposite))
     }
 
-    // ── search merge ──────────────────────────────────────────
-
-    @Test
-    fun mergesSearchResultsAsArtistsThenAlbumsThenTracks() {
-        // Plex rejects a multi-type search with HTTP 400, so the browse layer
-        // issues three and merges. This ordering matches what the Subsonic
-        // implementation presented.
-        val merged = PlexMediaMapper.mergeSearchResults(
-            artists = listOf(Metadata().apply { ratingKey = "ar"; type = "artist" }),
-            albums = listOf(Metadata().apply { ratingKey = "al"; type = "album" }),
-            tracks = listOf(Metadata().apply { ratingKey = "tr"; type = "track" })
-        )
-        assertEquals(listOf("ar", "al", "tr"), merged.map { it.ratingKey })
-    }
-
-    @Test
-    fun mergeSkipsEntriesWithNoRatingKey() {
-        val merged = PlexMediaMapper.mergeSearchResults(
-            artists = listOf(Metadata().apply { type = "artist" }),
-            albums = listOf(Metadata().apply { ratingKey = ""; type = "album" }),
-            tracks = listOf(Metadata().apply { ratingKey = "tr"; type = "track" })
-        )
-        assertEquals(listOf("tr"), merged.map { it.ratingKey })
-    }
-
-    @Test
-    fun mergeToleratesEmptyTiers() {
-        assertEquals(emptyList<String>(), PlexMediaMapper.mergeSearchResults(emptyList(), emptyList(), emptyList()).map { it.ratingKey })
-    }
-
     // ── heart state ───────────────────────────────────────────
 
     @Test

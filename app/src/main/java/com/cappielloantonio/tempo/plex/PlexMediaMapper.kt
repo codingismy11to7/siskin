@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableList
  * reads a domain object. That is why there is no intermediate track type -- see
  * docs/decisions/2026-07-28-plex-browse-playback-design.md.
  *
- * The pure functions here (partKey, artworkThumb, mergeSearchResults) carry the
+ * The pure functions here (partKey, artworkThumb, isHearted) carry the
  * logic that can go wrong and are unit-tested with plain JUnit. The MediaItem
  * builders touch Uri, Bundle and MediaItem.Builder, all of which return
  * defaults under unitTests.returnDefaultValues -- a plain JUnit assertion on
@@ -44,16 +44,6 @@ object PlexMediaMapper {
     const val EXTRA_PARENT_ID = "parent_id"
     const val EXTRA_PART_KEY = "partKey"
     const val EXTRA_THUMB = "thumb"
-
-    /**
-     * The track's album. Its only current readers are Subsonic-era code
-     * being removed in a later task (Chronology.kt and MappingUtil.java both
-     * read extras.getString("albumId")); no Plex-side code reads it yet.
-     * The Room entities persist it per the spec regardless, and a field that
-     * cannot round-trip through the bundle would make buildTrackMediaItem's
-     * parentRatingKey parameter dead.
-     */
-    const val EXTRA_PARENT_RATING_KEY = "albumId"
 
     /**
      * Plex rates 0-10; this app writes this value for a hearted track, so
@@ -96,19 +86,6 @@ object PlexMediaMapper {
     @JvmStatic
     fun isHearted(metadata: Metadata): Boolean = (metadata.userRating ?: 0.0) >= HEARTED_RATING
 
-    /**
-     * Plex rejects a multi-type search with HTTP 400, so the browse layer issues
-     * three and merges here. Order matches what the Subsonic implementation
-     * presented: artists, then albums, then tracks.
-     */
-    @JvmStatic
-    fun mergeSearchResults(
-        artists: List<Metadata>,
-        albums: List<Metadata>,
-        tracks: List<Metadata>
-    ): List<Metadata> =
-        (artists + albums + tracks).filter { !it.ratingKey.isNullOrBlank() }
-
     // ── MediaItem builders ────────────────────────────────────
 
     /**
@@ -132,7 +109,6 @@ object PlexMediaMapper {
         durationMs: Long?,
         trackIndex: Int?,
         year: Int?,
-        parentRatingKey: String?,
         grandparentRatingKey: String?,
         isHearted: Boolean,
         parentId: String?,
@@ -147,7 +123,6 @@ object PlexMediaMapper {
         val bundle = Bundle().apply {
             putString(EXTRA_ID, ratingKey)
             putString(EXTRA_ARTIST_ID, grandparentRatingKey)
-            putString(EXTRA_PARENT_RATING_KEY, parentRatingKey)
             putString(EXTRA_TYPE, Constants.MEDIA_TYPE_MUSIC)
             putString(EXTRA_URI, uri.toString())
             putString(EXTRA_PART_KEY, partKey)
@@ -207,7 +182,6 @@ object PlexMediaMapper {
             durationMs = metadata.duration,
             trackIndex = metadata.index,
             year = metadata.year,
-            parentRatingKey = metadata.parentRatingKey,
             grandparentRatingKey = metadata.grandparentRatingKey,
             isHearted = isHearted(metadata),
             parentId = parentId,
@@ -234,7 +208,6 @@ object PlexMediaMapper {
         val durationMs: Long?,
         val trackIndex: Int?,
         val year: Int?,
-        val parentRatingKey: String?,
         val grandparentRatingKey: String?,
         val isHearted: Boolean
     )
@@ -256,19 +229,19 @@ object PlexMediaMapper {
             durationMs = item.mediaMetadata.durationMs,
             trackIndex = item.mediaMetadata.trackNumber,
             year = item.mediaMetadata.releaseYear,
-            parentRatingKey = extras?.getString(EXTRA_PARENT_RATING_KEY),
             grandparentRatingKey = extras?.getString(EXTRA_ARTIST_ID),
             isHearted = (item.mediaMetadata.userRating as? HeartRating)?.isHeart == true
         )
     }
 
+    /**
+     * No credentials parameter, unlike [trackToMediaItem]: a browsable item has
+     * no stream URL to build, and its artwork is a `content://` URI that
+     * AlbumArtContentProvider resolves against the current credentials when the
+     * car opens it.
+     */
     @JvmStatic
-    fun albumToMediaItem(
-        metadata: Metadata,
-        idPrefix: String,
-        serverUri: String?,
-        token: String?
-    ): MediaItem? {
+    fun albumToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
         return browsableItem(
             mediaId = idPrefix + ratingKey,
@@ -281,13 +254,9 @@ object PlexMediaMapper {
         )
     }
 
+    /** Credential-free for the same reason as [albumToMediaItem]. */
     @JvmStatic
-    fun artistToMediaItem(
-        metadata: Metadata,
-        idPrefix: String,
-        serverUri: String?,
-        token: String?
-    ): MediaItem? {
+    fun artistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
         return browsableItem(
             mediaId = idPrefix + ratingKey,

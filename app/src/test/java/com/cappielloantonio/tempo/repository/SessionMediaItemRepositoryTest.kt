@@ -47,7 +47,6 @@ class SessionMediaItemRepositoryTest {
         durationMs = null,
         trackIndex = null,
         year = null,
-        parentRatingKey = null,
         grandparentRatingKey = null,
         isHearted = false,
         parentId = ConstantsAA.QUEUE_CACHED_SOURCE,

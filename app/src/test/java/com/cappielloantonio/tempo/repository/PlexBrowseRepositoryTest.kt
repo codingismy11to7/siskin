@@ -343,6 +343,36 @@ class PlexBrowseRepositoryTest {
         assertEquals(listOf("artist-a1", "t1"), result.value!!.map { it.mediaId })
     }
 
+    @Test
+    fun eachSearchTierKeepsOnlyResultsOfItsOwnType() {
+        // Every browse node narrows its response with itemsOf(body, TYPE_X);
+        // search used to narrow with a filter that admitted tracks, albums and
+        // artists alike, and then built items of one specific kind out of
+        // whatever survived. A type-scoped Plex search that answered with a
+        // mixed set would therefore have had the ARTIST tier building artist
+        // entries out of albums -- browsable rows that navigate to an artist id
+        // Plex will not resolve.
+        //
+        // Here the artist tier answers with an album and the album tier with a
+        // track, so a tier that does not narrow by its own type produces
+        // "artist-a1"/"album-b1" rows for them.
+        PlexApi().musicSectionKey = "1"
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                val body = when (request.requestUrl?.queryParameter("type")?.toInt()) {
+                    PlexItemType.ARTIST -> typedBody("album", "a1")
+                    PlexItemType.ALBUM -> typedBody("track", "b1")
+                    else -> typedBody("track", "t1")
+                }
+                return MockResponse().setResponseCode(200).setBody(body)
+            }
+        }
+
+        val result = await(PlexBrowseRepository().search("q", "album-", "artist-"))
+
+        assertEquals(listOf("t1"), result.value!!.map { it.mediaId })
+    }
+
     private fun typedBody(type: String, ratingKey: String) =
         """{"MediaContainer":{"Metadata":[{"ratingKey":"$ratingKey","type":"$type","title":"$ratingKey"}]}}"""
 

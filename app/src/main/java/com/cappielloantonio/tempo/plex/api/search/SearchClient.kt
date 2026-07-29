@@ -4,7 +4,6 @@ import android.util.Log
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.base.PlexResponse
-import com.cappielloantonio.tempo.plex.models.Metadata
 
 private const val TAG = "SearchClient"
 
@@ -70,18 +69,5 @@ class SearchClient(api: PlexApi) {
          */
         const val RATING_HEARTED = 10
         const val RATING_CLEARED = -1
-
-        private val PLAYABLE_TYPES = setOf("track", "album", "artist")
-
-        /**
-         * Narrows a result set to what this app can present. Even a section-scoped
-         * search returns clips and other types, and a result without a ratingKey
-         * cannot be browsed or played.
-         */
-        @JvmStatic
-        fun playableResults(response: PlexResponse?): List<Metadata> =
-            response?.mediaContainer?.metadata
-                ?.filter { it.type in PLAYABLE_TYPES && !it.ratingKey.isNullOrBlank() }
-                ?: emptyList()
     }
 }

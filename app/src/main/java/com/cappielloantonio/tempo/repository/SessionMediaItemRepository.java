@@ -20,8 +20,18 @@ import java.util.concurrent.atomic.AtomicLong;
  * the whole list as the play queue.
  *
  * Split out of AutomotiveRepository, which mixed this Room cache with browsing
- * over HTTP. Reads block the caller because media3 calls onSetMediaItems and
- * onAddMediaItems synchronously and expects the queue back.
+ * over HTTP.
+ *
+ * Reads ({@link #get}, {@link #getSiblings}) block their caller on a scratch
+ * thread. That is a choice, not a constraint: both callers are inside
+ * MediaLibraryServiceCallback's onSetMediaItems/onAddMediaItems, which return a
+ * ListenableFuture and so are free to complete later. It is kept because the
+ * read is a single indexed lookup against a table bounded to five browse nodes,
+ * and because the alternative -- threading a future back out through
+ * resolveQueueForItem -- buys nothing while the read stays that small. Writes
+ * already run on {@code dbExecutor}; if these reads ever grow past a lookup,
+ * this is the comment that should stop being true rather than the reason not to
+ * change it.
  */
 @OptIn(markerClass = UnstableApi.class)
 public class SessionMediaItemRepository {

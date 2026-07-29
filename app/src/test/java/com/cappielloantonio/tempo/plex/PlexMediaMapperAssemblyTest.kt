@@ -33,7 +33,6 @@ class PlexMediaMapperAssemblyTest {
         title = "Song Title"
         parentTitle = "Album Title"
         grandparentTitle = "Artist Name"
-        parentRatingKey = "55"
         grandparentRatingKey = "77"
         thumb = "/library/metadata/1234/thumb/1699999999"
         duration = 250_000L
@@ -125,7 +124,7 @@ class PlexMediaMapperAssemblyTest {
     fun browsableItemsAreBrowsableAndNotPlayable() {
         val album = PlexMediaMapper.albumToMediaItem(
             Metadata().apply { ratingKey = "55"; type = "album"; title = "Album"; parentTitle = "Artist" },
-            "[albumID]", serverUri, token
+            "[albumID]"
         )!!
 
         assertEquals("[albumID]55", album.mediaId)
@@ -138,7 +137,7 @@ class PlexMediaMapperAssemblyTest {
         val hearted = PlexMediaMapper.buildTrackMediaItem(
             ratingKey = "1234", title = "T", albumTitle = "A", artist = "R",
             thumb = null, partKey = "/p", durationMs = 1L, trackIndex = 1, year = 2020,
-            parentRatingKey = "55", grandparentRatingKey = "77", isHearted = true,
+            grandparentRatingKey = "77", isHearted = true,
             parentId = null, serverUri = serverUri, token = token
         )
 
@@ -172,7 +171,6 @@ class PlexMediaMapperAssemblyTest {
         assertEquals(250_000L, fields.durationMs)
         assertEquals(3, fields.trackIndex)
         assertEquals(2021, fields.year)
-        assertEquals("55", fields.parentRatingKey)
         assertEquals("77", fields.grandparentRatingKey)
         assertTrue(fields.isHearted)
     }
@@ -247,7 +245,7 @@ class PlexMediaMapperAssemblyTest {
         val unhearted = PlexMediaMapper.buildTrackMediaItem(
             ratingKey = "1234", title = "T", albumTitle = "A", artist = "R",
             thumb = null, partKey = "/p", durationMs = 1L, trackIndex = 1, year = 2020,
-            parentRatingKey = "55", grandparentRatingKey = "77", isHearted = false,
+            grandparentRatingKey = "77", isHearted = false,
             parentId = null, serverUri = serverUri, token = token
         )
 
