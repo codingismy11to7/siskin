@@ -105,6 +105,10 @@
           androidComposition.androidsdk
           siskin-avd
           siskin-emulator
+          # Siskin is developed on GitHub — PRs, CI logs and issues are all read
+          # through gh, so it belongs in the shell rather than being reached for
+          # ad hoc via `nix run`.
+          pkgs.gh
         ];
 
         JAVA_HOME = "${jdk.home}";

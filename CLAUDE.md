@@ -42,8 +42,8 @@ Check the delta against that baseline rather than the absolute count.
 
 ## Toolchain
 
-`flake.nix` supplies JDK 21, the Android SDK, and the AAOS emulator image —
-`nix develop`, or direnv via `.envrc`. Two helper scripts come from the shell:
+`flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, and `gh`
+— `nix develop`, or direnv via `.envrc`. Two helper scripts come from the shell:
 
     siskin-avd        # create the AAOS AVD (idempotent)
     siskin-emulator   # boot it
@@ -51,7 +51,7 @@ Check the delta against that baseline rather than the absolute count.
 The emulator is pinned to **API 33** because that is the only API level for
 which nixpkgs carries an `android-automotive` system image.
 
-This is a NixOS machine. When a CLI tool is missing (`gh`, `jq`, `adb` outside
+This is a NixOS machine. When a CLI tool is missing (`jq`, or `adb`/`gh` outside
 the dev shell), reach for `nix run nixpkgs#<tool> -- <args>` rather than working
 around its absence.
 
