@@ -85,4 +85,28 @@ class PlexPinStateTest {
         // A server-supplied expiry an hour out must not extend the loop past the cap.
         assertFalse(PlexPinState.shouldKeepPolling(1000L, 1000L + 901L, 1000L + 3600L))
     }
+
+    @Test
+    fun thePollStartsFastWhileApprovalIsPlausible() {
+        // The window nearly every completed approval lands in. Unchanged from
+        // the flat 2s cadence this ladder replaces -- the whole point is that
+        // the responsive case cannot tell the difference.
+        assertEquals(2_000L, PlexPinState.pollDelayMillis(0L))
+        assertEquals(2_000L, PlexPinState.pollDelayMillis(59L))
+    }
+
+    @Test
+    fun theIntervalWidensAfterAMinute() {
+        // 60 is the boundary, and it belongs to the slower step.
+        assertEquals(5_000L, PlexPinState.pollDelayMillis(60L))
+        assertEquals(5_000L, PlexPinState.pollDelayMillis(179L))
+    }
+
+    @Test
+    fun theTailIsSlow() {
+        // Past three minutes nobody is coming. 15s from here to the hard cap is
+        // 47 polls where a flat 2s was 360, which is where the saving lives.
+        assertEquals(15_000L, PlexPinState.pollDelayMillis(180L))
+        assertEquals(15_000L, PlexPinState.pollDelayMillis(PlexPinState.HARD_CAP_SECONDS - 1))
+    }
 }

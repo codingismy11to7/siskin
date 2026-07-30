@@ -13,6 +13,7 @@ import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
+import com.cappielloantonio.tempo.plex.auth.PlexPinState
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Pin
@@ -21,7 +22,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -516,5 +519,60 @@ class PlexSignInViewModelTest {
 
         verify(authClient, times(1)).createPin()
         assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+    }
+
+    @Test
+    fun anUnapprovedPinGivesUpAtTheHardCap() = runTest(dispatcher) {
+        // `created` carries no expiry, so PlexPinState.evaluate returns Pending
+        // forever and HARD_CAP_SECONDS is the only thing that can end this loop.
+        // evaluate's KDoc says "the caller bounds the poll loop" -- this is the
+        // first test that watches the caller actually do it, which only became
+        // possible once the loop stopped reading the wall clock.
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { createPin() } doReturn created.right()
+            onBlocking { getPin(42L) } doReturn Pin().right()
+        }
+
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            authClient = authClient,
+            nowMillis = { currentTime }
+        )
+        viewModel.start()
+        advanceUntilIdle()
+
+        assertEquals(
+            PlexSignInState.Failed(R.string.plex_sign_in_error_expired),
+            viewModel.state.value
+        )
+
+        // At the cap, not before it and not after: a loop that gave up early
+        // would abandon a pin the user could still approve.
+        assertEquals(PlexPinState.HARD_CAP_SECONDS * 1_000L, currentTime)
+    }
+
+    @Test
+    fun thePollSlowsDownWhenNobodyApproves() = runTest(dispatcher) {
+        // The executable statement of the backoff: an abandoned sign-in is what
+        // this whole change exists to stop paying for. plex.tv is not rate
+        // limiting us -- 174 consecutive polls came back 200 -- so nothing but
+        // this test will notice if the ladder is ever reverted to a flat rate.
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { createPin() } doReturn created.right()
+            onBlocking { getPin(42L) } doReturn Pin().right()
+        }
+
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            authClient = authClient,
+            nowMillis = { currentTime }
+        )
+        viewModel.start()
+
+        // Three minutes and one second: 30 polls at 2s (t=2s..60s), then 24 at
+        // 5s (t=65s..180s). A flat 2s cadence would make this 90.
+        advanceTimeBy(181_000L)
+
+        verify(authClient, times(54)).getPin(42L)
     }
 }
