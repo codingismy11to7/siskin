@@ -1,0 +1,19 @@
+<!--
+    Material Symbols "more_horiz", on the same 960 viewport as the other
+    ic_aa_* browse icons so the four car tabs share one grid and weight.
+
+    Three r=80 dots centred at y=480 and x=240/480/720, drawn as exact arcs
+    rather than the four-quadratic circle approximation the Symbols exporter
+    emits. Same shape, and legible as geometry rather than as a path dump.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:viewportHeight="960"
+    android:viewportWidth="960"
+    android:width="24dp">
+
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M160,480a80,80 0 1,0 160,0a80,80 0 1,0 -160,0M400,480a80,80 0 1,0 160,0a80,80 0 1,0 -160,0M640,480a80,80 0 1,0 160,0a80,80 0 1,0 -160,0"/>
+
+</vector>

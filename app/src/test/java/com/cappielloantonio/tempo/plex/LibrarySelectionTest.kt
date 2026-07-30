@@ -45,6 +45,36 @@ class LibrarySelectionTest {
     }
 
     @Test
+    fun `the server holding the current library is the current server`() {
+        // Any section on it: the server row is ticked for the server, not for
+        // whichever library inside it happens to be selected.
+        assertTrue(LibrarySelection.isCurrentServer(session(section = "9"), "abc123"))
+    }
+
+    @Test
+    fun `another server is not the current server`() {
+        assertFalse(LibrarySelection.isCurrentServer(session(), "different"))
+    }
+
+    @Test
+    fun `no server is current when the session predates machine identifiers`() {
+        // Deliberately no serverUri fallback here: listing servers does not
+        // probe, so there is no resolved address to compare against.
+        assertFalse(LibrarySelection.isCurrentServer(session(machine = null), "abc123"))
+    }
+
+    @Test
+    fun `no server is current when signed out`() {
+        assertFalse(LibrarySelection.isCurrentServer(null, "abc123"))
+    }
+
+    @Test
+    fun `a blank row identifier never ticks`() {
+        assertFalse(LibrarySelection.isCurrentServer(session(), null))
+        assertFalse(LibrarySelection.isCurrentServer(session(), ""))
+    }
+
+    @Test
     fun `switching library on the same server keeps the queue`() {
         val old = session(section = "3")
         val new = session(section = "4")

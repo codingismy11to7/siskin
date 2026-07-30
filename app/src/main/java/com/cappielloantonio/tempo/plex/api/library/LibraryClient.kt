@@ -40,11 +40,15 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         type: Int,
         start: Int,
         size: Int,
-        sort: String? = null
+        sort: String? = null,
+        artistId: String? = null
     ): Either<PlexTransportFailure, PlexResponse> {
-        Log.d(TAG, "getSectionContent($sectionKey, type=$type, start=$start, size=$size, sort=$sort)")
+        Log.d(
+            TAG,
+            "getSectionContent($sectionKey, type=$type, start=$start, size=$size, sort=$sort, artistId=$artistId)"
+        )
         return plexCall(PlexHost.Server) {
-            service.getSectionContent(sectionKey.value, type, start, size, sort)
+            service.getSectionContent(sectionKey.value, type, start, size, sort, artistId)
         }
     }
 
@@ -71,20 +75,13 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         private const val MUSIC_SECTION_TYPE = "artist"
 
         /**
-         * Sorts an album listing by artist, for the "view by albums" tab.
-         *
-         * Verified against a live PMS 1.43.3 server: `artist.titleSort` returns
-         * albums ordered by artist, where plain `titleSort` (see [SORT_TITLE])
-         * orders by album title instead.
-         */
-        const val SORT_ARTIST = "artist.titleSort"
-
-        /**
          * Sorts an album listing by album title, for the Albums tab.
          *
          * Passed explicitly rather than left to the server default, which is
-         * already artist order -- without this the Albums tab and the "view by
-         * albums" entry render the same list and one of the two is pointless.
+         * artist order -- and artist order is illegible in the car, because the
+         * album tile's large text is the album title and the artist is only its
+         * subtitle, so the grid reads as unsorted. That mismatch is why the
+         * "view by albums" entry this used to be contrasted with was deleted.
          */
         const val SORT_TITLE = "titleSort"
 

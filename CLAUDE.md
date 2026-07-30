@@ -79,6 +79,22 @@ the car does:
     adb shell am start -n \
       io.github.codingismy11to7.siskin.debug/com.cappielloantonio.tempo.ui.activity.CarSignInActivity
 
+**Reinstalling kills this app but not the car's UI, and the car does not
+recover.** `adb install -r` stops our process while `com.android.car.media`
+stays bound to the session that died with it. Now Playing then renders
+completely empty -- no title, no artwork, no transport controls, no mini player
+-- while the freshly started service plays on: `dumpsys media_session` reports
+`state=3`, `error=null` and an advancing position the whole time. It reads
+exactly like "playback is broken", and it is an artifact of the install. Restart
+both, in this order:
+
+    adb shell am force-stop io.github.codingismy11to7.siskin.debug --user 10
+    adb shell am force-stop com.android.car.media --user 10
+    # then the MEDIA_TEMPLATE start above
+
+Restarting only the car app is enough to prove it: the UI comes back bound to
+the *same* track at the same position, because playback never stopped.
+
 **AAOS is multi-user, and the app does not run as user 0.** The driver profile
 is typically user 10, so app data lives under `/data/user/10/<pkg>/`, *not*
 `/data/data/<pkg>/` (which is user 0). Reading the latter shows an empty

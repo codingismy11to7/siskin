@@ -13,7 +13,9 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
+import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.ResourceUris
 import com.google.common.collect.ImmutableList
 
@@ -44,6 +46,15 @@ object PlexMediaMapper {
     const val EXTRA_PARENT_ID = "parent_id"
     const val EXTRA_PART_KEY = "partKey"
     const val EXTRA_THUMB = "thumb"
+
+    /**
+     * Whether Plex already had this track hearted when we mapped it.
+     *
+     * This is here rather than in `MediaMetadata.userRating` because publishing a
+     * rating makes com.android.car.media draw its own star in the transport row,
+     * and that star outranks our heart button -- see buildTrackMediaItem.
+     */
+    const val EXTRA_HEARTED = "hearted"
 
     /**
      * Plex rates 0-10; this app writes this value for a hearted track, so
@@ -86,6 +97,22 @@ object PlexMediaMapper {
     @JvmStatic
     fun isHearted(metadata: Metadata): Boolean = (metadata.userRating ?: 0.0) >= HEARTED_RATING
 
+    /**
+     * Who to credit for a track.
+     *
+     * `grandparentTitle` is the *album* artist, so on a compilation every track
+     * read "Various Artists" rather than whoever actually performed it. Plex puts
+     * the track's own artist in `originalTitle`, and populates it only when the
+     * two differ -- so the fallback is not a nicety, it is the normal case.
+     *
+     * This changes the displayed credit only. `originalTitle` is free text with no
+     * rating key, so the artist a track can *navigate* to stays
+     * `grandparentRatingKey` -- which is also what continuous play follows.
+     */
+    @JvmStatic
+    fun trackArtist(metadata: Metadata): String? =
+        metadata.originalTitle?.takeIf { it.isNotBlank() } ?: metadata.grandparentTitle
+
     // ── MediaItem builders ────────────────────────────────────
 
     /**
@@ -127,6 +154,7 @@ object PlexMediaMapper {
             putString(EXTRA_URI, uri.toString())
             putString(EXTRA_PART_KEY, partKey)
             putString(EXTRA_THUMB, thumb)
+            putBoolean(EXTRA_HEARTED, isHearted)
             if (parentId != null) putString(EXTRA_PARENT_ID, parentId)
         }
 
@@ -138,7 +166,11 @@ object PlexMediaMapper {
             .setReleaseYear(year ?: 0)
             .setDurationMs(durationMs)
             .setArtworkUri(artworkUri)
-            .setUserRating(HeartRating(isHearted))
+            // No setUserRating: publishing a rating makes com.android.car.media draw
+            // its own star in the transport row, and that star outranks our heart
+            // button -- which is why the heart was stuck in the overflow. Without it
+            // the row shows our heart instead.
+
             .setSupportedCommands(
                 ImmutableList.of(
                     Constants.CUSTOM_COMMAND_TOGGLE_HEART_ON,
@@ -176,7 +208,7 @@ object PlexMediaMapper {
             ratingKey = ratingKey,
             title = metadata.title,
             albumTitle = metadata.parentTitle,
-            artist = metadata.grandparentTitle,
+            artist = trackArtist(metadata),
             thumb = artworkThumb(metadata),
             partKey = partKey(metadata),
             durationMs = metadata.duration,
@@ -230,8 +262,28 @@ object PlexMediaMapper {
             trackIndex = item.mediaMetadata.trackNumber,
             year = item.mediaMetadata.releaseYear,
             grandparentRatingKey = extras?.getString(EXTRA_ARTIST_ID),
-            isHearted = (item.mediaMetadata.userRating as? HeartRating)?.isHeart == true
+            isHearted = readHearted(item.mediaMetadata)
         )
+    }
+
+    /**
+     * Whether this item is hearted right now, from whichever source knows.
+     *
+     * `userRating` wins when present because that is where a *tap* lands:
+     * BaseSessionCallback.applyRatingToQueue writes a HeartRating onto the queued
+     * item, so it holds the freshest answer. Absent that -- which is every item as
+     * mapped, since [buildTrackMediaItem] deliberately publishes no rating -- the
+     * answer is what Plex told us at map time, in [EXTRA_HEARTED].
+     *
+     * Both readers must agree: the button picks filled-vs-outline from this, and
+     * the toggle picks whether to send rating=10 or rating=-1 from it. If they
+     * disagree, the first tap on an already-hearted track re-hearts it instead of
+     * clearing it.
+     */
+    @JvmStatic
+    fun readHearted(metadata: MediaMetadata): Boolean {
+        (metadata.userRating as? HeartRating)?.let { return it.isHeart }
+        return metadata.extras?.getBoolean(EXTRA_HEARTED) == true
     }
 
     /**
@@ -250,7 +302,7 @@ object PlexMediaMapper {
             thumb = artworkThumb(metadata),
             mediaType = MediaMetadata.MEDIA_TYPE_ALBUM,
             fallbackIcon = R.drawable.ic_aa_albums,
-            gridView = true
+            browsableChildrenAsGrid = true
         )
     }
 
@@ -265,29 +317,43 @@ object PlexMediaMapper {
             thumb = artworkThumb(metadata),
             mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
             fallbackIcon = R.drawable.ic_aa_artists,
-            gridView = true
+            browsableChildrenAsGrid = true
         )
     }
 
     /**
-     * A browse entry that jumps to another node rather than naming a Plex item.
+     * A "shuffle this <thing>" row, at the head of the list of what it shuffles:
+     * an artist's albums, or a playlist's tracks.
      *
-     * There is exactly one: "view by albums" at the head of the artist list.
-     * MediaBrowserTree's root is three fixed tabs and ARTISTS_BY_ALBUMS_ID is not
-     * one of them, so without this entry the artist-sorted album list is stranded
-     * behind an id no part of the UI can produce.
+     * [mediaId] is one of ConstantsAA's shuffle prefixes plus the subject's
+     * ratingKey, and carrying it in the id is the whole mechanism --
+     * MediaLibrarySessionCallback dispatches on the prefix to decide which
+     * tracks to fetch.
+     *
+     * Playable but streamless, and deliberately so: there is no single track to
+     * point at. Like [browsableItem] it never calls setUri -- a non-null
+     * localConfiguration would make resolveQueueForItem treat the row as already
+     * resolved and "play" a track with no stream.
+     *
+     * The icon is media3's own Material shuffle glyph rather than a vendored
+     * copy. It is not declared in media3's public.xml, so a rename on upgrade
+     * would break this reference -- as a compile error, which is why relying on
+     * it is acceptable.
      */
     @JvmStatic
-    fun shortcutToMediaItem(mediaId: String, title: String?, iconRes: Int): MediaItem =
-        browsableItem(
-            mediaId = mediaId,
-            title = title,
-            subtitle = null,
-            thumb = null,
-            mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS,
-            fallbackIcon = iconRes,
-            gridView = true
-        )
+    fun shuffleRowToMediaItem(mediaId: String, title: String?): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                    .setArtworkUri(ResourceUris.forResource(R.drawable.media3_icon_shuffle_on))
+                    .build()
+            )
+            .build()
 
     @JvmStatic
     fun playlistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
@@ -307,7 +373,7 @@ object PlexMediaMapper {
             thumb = thumb,
             mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
             fallbackIcon = R.drawable.ic_aa_playlist,
-            gridView = false
+            browsableChildrenAsGrid = false
         )
     }
 
@@ -327,20 +393,21 @@ object PlexMediaMapper {
         thumb: String?,
         mediaType: Int,
         fallbackIcon: Int,
-        gridView: Boolean
+        browsableChildrenAsGrid: Boolean
     ): MediaItem {
         val artworkUri = thumb?.takeIf { it.isNotBlank() }
             ?.let { AlbumArtContentProvider.contentUri(it) }
             ?: ResourceUris.forResource(fallbackIcon)
 
-        val style = if (gridView) {
-            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
-        } else {
-            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
-        }
         val extras = Bundle().apply {
-            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, style)
-            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, style)
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                BrowseContentStyle.browsableChildStyle(browsableChildrenAsGrid)
+            )
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                BrowseContentStyle.PLAYABLE_CHILD_STYLE
+            )
         }
 
         return MediaItem.Builder()

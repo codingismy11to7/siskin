@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
@@ -22,6 +23,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.random.Random
 
 private const val TAG = "MediaLibrarySessionCallback"
 private val queueSourceCache = ConcurrentHashMap<String, List<MediaItem>>()
@@ -30,7 +32,7 @@ private val queueSourceCache = ConcurrentHashMap<String, List<MediaItem>>()
 class MediaLibrarySessionCallback(
     context: Context,
     service: BaseMediaService,
-    browseRepository: PlexBrowseRepository,
+    private val browseRepository: PlexBrowseRepository,
     private val sessionMediaItemRepository: SessionMediaItemRepository
 ) : BaseSessionCallback(context, service) {
     init {
@@ -130,8 +132,52 @@ class MediaLibrarySessionCallback(
      * toMediaItem() as an unplayable track if they ever were.
      */
     private fun rememberTracks(items: List<MediaItem>) {
-        val tracks = items.filter { it.mediaMetadata.isPlayable == true }
+        // The shuffle row is playable but is not a track: it has no ratingKey and
+        // no stream, so caching it would put a row in session_media_item that
+        // round-trips into an unplayable MediaItem -- the same reason browsable
+        // rows are excluded here.
+        val tracks = items.filter {
+            it.mediaMetadata.isPlayable == true && !isShuffleRow(it)
+        }
         if (tracks.isNotEmpty()) sessionMediaItemRepository.cache(tracks)
+    }
+
+    /**
+     * Pure prefix test, deliberately not "does [shuffleTracksFor] return
+     * something": that issues a request, and this runs against every row of
+     * every browse list from [rememberTracks].
+     */
+    private fun isShuffleRow(item: MediaItem) =
+        item.mediaId.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID) ||
+            item.mediaId.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID)
+
+    /**
+     * Fetches the tracks a tapped shuffle row stands for, or null if the item is
+     * not a shuffle row. **Issues a network request** -- call it once per tap.
+     *
+     * Dispatch is on the id prefix, which is the only thing the car sends back:
+     * it rebuilds the item from the media id alone, so the extras the row was
+     * built with are gone by the time it arrives here.
+     */
+    private fun shuffleTracksFor(
+        item: MediaItem
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
+        val id = item.mediaId
+        return when {
+            id.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID) -> {
+                val artist = id.removePrefix(ConstantsAA.SHUFFLE_ARTIST_ID)
+                Log.d(TAG, "Fetching every track by artist $artist to shuffle")
+                browseRepository.getArtistTracks(artist)
+            }
+
+            id.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID) -> {
+                val playlist = id.removePrefix(ConstantsAA.SHUFFLE_PLAYLIST_ID)
+                Log.d(TAG, "Fetching every track in playlist $playlist to shuffle")
+                browseRepository.getPlaylistTracksForShuffle(playlist)
+            }
+
+            else -> null
+        }
     }
 
     /**
@@ -180,6 +226,9 @@ class MediaLibrarySessionCallback(
 
         Log.d(TAG, "mediaId = ${firstItem.mediaId}, startIndex = $startIndex, startPositionMs = $startPositionMs")
 
+        enableShuffleIfShuffleRow(firstItem, mediaSession.player)
+        val shuffling = isShuffleRow(firstItem)
+
         val futureQueue = resolveQueueForItem(firstItem, mediaItems)
 
         return Futures.transform(
@@ -192,9 +241,19 @@ class MediaLibrarySessionCallback(
                     // A left-over parent tag on a queued item is inert.
                     QueueRepository().insertAll(resolvedItems, true, 0)
                 }
+                // Shuffle mode alone would still open on track 1 every time --
+                // it orders what comes *after* the current item -- so the first
+                // track is picked here. Without this, "shuffle this artist"
+                // always starts on the same song.
+                val resolvedStartIndex = if (shuffling && !resolvedItems.isNullOrEmpty()) {
+                    Random.nextInt(resolvedItems.size)
+                } else {
+                    startIndex
+                }
+
                 MediaSession.MediaItemsWithStartPosition(
                     resolvedItems ?: emptyList(),
-                    startIndex,
+                    resolvedStartIndex,
                     startPositionMs
                 )
             },
@@ -214,7 +273,26 @@ class MediaLibrarySessionCallback(
         val extras = firstItem.requestMetadata.extras ?: firstItem.mediaMetadata.extras
         Log.d(TAG, "extras: ${extras?.keySet()?.joinToString { key -> "$key=${extras.getString(key)}" } ?: "null"}")
 
+        // This path cannot choose a start index -- it returns a bare list -- so a
+        // car that adds rather than sets gets shuffled continuation from track
+        // one instead of a random opener.
+        enableShuffleIfShuffleRow(firstItem, mediaSession.player)
+
         return resolveQueueForItem(firstItem, mediaItems)
+    }
+
+    /**
+     * Turns the player's shuffle on when the tapped row is the shuffle row.
+     *
+     * Called from the two callback overrides rather than from
+     * [resolveQueueForItem], because those run on the session's application
+     * thread while the queue future completes on whichever thread the coroutine
+     * finished on -- and the player may only be touched from the former.
+     */
+    private fun enableShuffleIfShuffleRow(firstItem: MediaItem, player: Player) {
+        if (!isShuffleRow(firstItem)) return
+        Log.d(TAG, "shuffle row tapped: enabling player shuffle")
+        player.shuffleModeEnabled = true
     }
 
     private fun resolveQueueForItem(
@@ -226,7 +304,19 @@ class MediaLibrarySessionCallback(
         val extras = firstItem.requestMetadata.extras ?: firstItem.mediaMetadata.extras
         val parentId = extras?.getString(PlexMediaMapper.EXTRA_PARENT_ID)
 
+        // Resolved once: this issues the request.
+        val shuffleTracks = shuffleTracksFor(firstItem)
+
         val futureQueue: ListenableFuture<List<MediaItem>> = when {
+            // Before the parent-tag branches: a shuffle row carries no parent tag
+            // and is not in any cache, so it would otherwise fall through to the
+            // fallback below and "play" itself -- a row with no stream.
+            shuffleTracks != null -> Futures.transform(
+                shuffleTracks,
+                { result -> result?.value ?: emptyList() },
+                MoreExecutors.directExecutor()
+            )
+
             parentId?.startsWith(ConstantsAA.QUEUE_CACHED_SOURCE) == true -> {
                 Log.d(TAG, "Fetching AA list source tracks for $parentId")
                 val cachedItems = queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE] ?: emptyList()

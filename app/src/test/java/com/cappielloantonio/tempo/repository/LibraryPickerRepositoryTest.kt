@@ -35,8 +35,8 @@ class LibraryPickerRepositoryTest {
 
     @Test
     fun `the current library is ticked and others are not`() {
-        assertEquals("✓ Music", LibraryPickerRepository.libraryRowTitle("Music", true))
-        assertEquals("Audiobooks", LibraryPickerRepository.libraryRowTitle("Audiobooks", false))
+        assertEquals("✓ Music", LibraryPickerRepository.rowTitle("Music", true))
+        assertEquals("Audiobooks", LibraryPickerRepository.rowTitle("Audiobooks", false))
     }
 
     @Test

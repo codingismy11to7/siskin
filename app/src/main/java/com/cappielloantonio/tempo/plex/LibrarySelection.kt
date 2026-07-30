@@ -42,6 +42,28 @@ object LibrarySelection {
     }
 
     /**
+     * Whether a *server* row is the one the session points at, for the tick on
+     * the server list.
+     *
+     * Machine identifier only, with no serverUri fallback, unlike [isCurrent].
+     * Listing servers deliberately does not probe them, so a server row has no
+     * resolved address to compare against -- the addresses plex.tv advertises
+     * for a server are a list of candidates, and the session holds the single
+     * one that answered. Comparing against the wrong candidate would tick a
+     * server the user is only browsing past.
+     *
+     * So a session saved before machineIdentifier existed shows no tick on any
+     * server rather than a guess, which is the same fail-closed choice
+     * [isCurrent] makes when its own identifier is missing.
+     */
+    @JvmStatic
+    fun isCurrentServer(session: PlexSession?, machineIdentifier: String?): Boolean {
+        if (session == null || machineIdentifier.isNullOrBlank()) return false
+        val stored = session.machineIdentifier
+        return !stored.isNullOrBlank() && stored == machineIdentifier
+    }
+
+    /**
      * Whether committing [new] makes the saved queue meaningless.
      *
      * Only a change of *server* does. Plex rating keys are server-wide rather

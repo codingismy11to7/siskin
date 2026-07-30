@@ -126,25 +126,8 @@ open class BaseSessionCallback(
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
-    // Standard transport controls. Kept pinned in setMediaButtonPreferences so the custom
-    // overflow buttons can't take their place on the last track (see #663).
-    private val previousButton =
-        CommandButton.Builder(CommandButton.ICON_PREVIOUS)
-            .setPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-            .setDisplayName("Previous")
-            .build()
-
-    private val playPauseButton =
-        CommandButton.Builder(CommandButton.ICON_PLAY)
-            .setPlayerCommand(Player.COMMAND_PLAY_PAUSE)
-            .setDisplayName("Play/Pause")
-            .build()
-
-    private val nextButton =
-        CommandButton.Builder(CommandButton.ICON_NEXT)
-            .setPlayerCommand(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-            .setDisplayName("Next")
-            .build()
+    // Transport controls are deliberately *not* declared here -- see
+    // buildMediaButtonPreferences for why the car draws its own.
 
     private val customLayoutCommandButtons = listOf(
         customCommandToggleShuffleModeOn,
@@ -270,18 +253,49 @@ open class BaseSessionCallback(
         )
     }
 
-    // Pinned transport controls + the custom buttons (each in SLOT_OVERFLOW), built as one
-    // media-button-preferences list so the custom buttons actually render in the notification on
-    // Android 13 (#787); the deprecated setCustomLayout stopped applying them there once
-    // setMediaButtonPreferences was introduced for #663.
+    /**
+     * Only the custom buttons, all of them SLOT_OVERFLOW.
+     *
+     * Transport used to be pinned in front of them -- previous, play/pause, next --
+     * which upstream added for the Android 13 *notification* (#663, #787). This fork
+     * has no phone audience, and in the car that pinning broke the mini player.
+     *
+     * `com.android.car.media` is a legacy MediaControllerCompat client, and media3
+     * publishes these preferred buttons into the PlaybackState custom-action list
+     * (verified: `dumpsys media_session` listed custom actions literally named
+     * "Previous" and "Next"). The mini player then filled its two side slots from
+     * that list instead of drawing transport, so it showed the car's own rating
+     * widget on the left, "Previous" on the right, and no next button at all.
+     *
+     * Left out, the car draws its own transport -- the browse UI reports
+     * skip_prev / play_pause / skip_next view ids -- from the PlaybackState
+     * `actions` bitmask, which already advertises play/pause and both skips from
+     * the player's available commands. The custom buttons stay in the overflow.
+     *
+     * The risk #663 described -- a custom button taking a transport slot on the last
+     * track -- does not apply once transport is not competing for those slots.
+     *
+     * Nothing about that row is ours to arrange, and three experiments say so:
+     *
+     *  - Reordering the pinned buttons changed nothing. Sending them as
+     *    [next, playPause, previous] produced a row identical to
+     *    [previous, playPause, next]. The car's arrangement is fixed, not derived
+     *    from the order we send.
+     *  - Slots do not promote a custom button into the row. SLOT_FORWARD_SECONDARY
+     *    and declaring no slots at all were both tried on the heart; the row was
+     *    unchanged either way. The row takes *player-command* buttons, which reach a
+     *    legacy client as standard transport actions; a setSessionCommand button is
+     *    a custom action, and the car files those under the overflow.
+     *  - The star left of transport is not ours at all. It is the car's own rating
+     *    widget, drawn because the metadata carries a HeartRating, and tapping it
+     *    makes the same `/:/rate?rating=10` call our heart does. Removing it means
+     *    not publishing the rating, which in turn means carrying hearted state
+     *    somewhere other than userRating.
+     */
     private fun buildMediaButtonPreferences(
         player: Player,
         isRatingPending: Boolean = false
-    ): ImmutableList<CommandButton> {
-        val buttons = mutableListOf(previousButton, playPauseButton, nextButton)
-        buttons.addAll(buildCustomLayout(player, isRatingPending))
-        return ImmutableList.copyOf(buttons)
-    }
+    ): ImmutableList<CommandButton> = buildCustomLayout(player, isRatingPending)
 
     protected fun buildCustomLayout(
         player: Player,
@@ -316,7 +330,7 @@ open class BaseSessionCallback(
         return when (id) {
             "[heartID]" -> when {
                 player.currentMediaItem == null || isRatingPending -> null
-                (player.mediaMetadata.userRating as HeartRating?)?.isHeart == true -> customCommandToggleHeartOn
+                PlexMediaMapper.readHearted(player.mediaMetadata) -> customCommandToggleHeartOn
                 else -> customCommandToggleHeartOff
             }
 
@@ -496,8 +510,7 @@ open class BaseSessionCallback(
             }
             Constants.CUSTOM_COMMAND_TOGGLE_HEART_ON,
             Constants.CUSTOM_COMMAND_TOGGLE_HEART_OFF -> {
-                val currentRating = session.player.mediaMetadata.userRating as? HeartRating
-                val isCurrentlyLiked = currentRating?.isHeart ?: false
+                val isCurrentlyLiked = PlexMediaMapper.readHearted(session.player.mediaMetadata)
                 updateMediaNotificationCustomLayout(session, isRatingPending = true)
                 onSetRating(session, controller, HeartRating(!isCurrentlyLiked))
             }

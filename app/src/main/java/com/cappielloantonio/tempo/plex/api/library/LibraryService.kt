@@ -37,16 +37,32 @@ interface LibraryService {
     @GET("library/sections/")
     suspend fun getSections(): PlexResponse
 
+    /**
+     * `artistId` narrows an album listing to one artist, and is the only way this
+     * app asks for an artist's albums -- see [getChildren] for why the obvious
+     * endpoint is not used.
+     */
     @GET("library/sections/{sectionId}/all")
     suspend fun getSectionContent(
         @Path("sectionId") sectionId: String,
         @Query("type") type: Int,
         @Header("X-Plex-Container-Start") start: Int,
         @Header("X-Plex-Container-Size") size: Int,
-        @Query("sort") sort: String?
+        @Query("sort") sort: String?,
+        @Query("artist.id") artistId: String?
     ): PlexResponse
 
-    /** Album -> its tracks, artist -> its albums. */
+    /**
+     * Album -> its tracks.
+     *
+     * **Not artist -> its albums**, although the endpoint nominally serves that
+     * too. Measured against PMS 1.43.3, an artist's children listing silently
+     * omits albums: five of the first twelve artists in a real library reported
+     * zero children while each owning one album, and another returned 14 of its
+     * 17. Album -> tracks is sound on the same server -- every album's child
+     * count matched its own leafCount -- so only the artist direction moved to
+     * [getSectionContent] with an `artist.id` filter.
+     */
     @GET("library/metadata/{id}/children")
     suspend fun getChildren(
         @Path("id") ratingKey: String,

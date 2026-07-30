@@ -12,6 +12,7 @@ import androidx.media3.session.SessionError
 import arrow.core.getOrElse
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.util.ResourceUris
 import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexIdentity
@@ -116,10 +117,15 @@ class LibraryPickerRepository {
                         future.set(messageResult(R.string.aa_library_picker_offline))
                     },
                     { resources ->
+                        val session = api.session
                         val items = serverRows(resources).map { row ->
                             browsableRow(
                                 mediaId = ConstantsAA.PICK_SERVER_ID + row.machineIdentifier,
-                                title = row.name
+                                title = rowTitle(
+                                    row.name,
+                                    LibrarySelection.isCurrentServer(session, row.machineIdentifier)
+                                ),
+                                iconRes = R.drawable.ic_aa_server
                             )
                         }
                         future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), null))
@@ -197,10 +203,11 @@ class LibraryPickerRepository {
                     libraryNames[payload] = plainName
                     browsableRow(
                         mediaId = ConstantsAA.PICK_LIBRARY_ID + payload,
-                        title = libraryRowTitle(
+                        title = rowTitle(
                             plainName,
                             LibrarySelection.isCurrent(session, machineIdentifier, uri, key)
-                        )
+                        ),
+                        iconRes = R.drawable.ic_aa_library
                     )
                 }
                 future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), null))
@@ -329,7 +336,9 @@ class LibraryPickerRepository {
                 context.getString(R.string.aa_now_browsing_no_server, name)
             } else {
                 context.getString(R.string.aa_now_browsing, name, serverName)
-            }
+            },
+            // Info, not warning: this row reports a selection that succeeded.
+            iconRes = R.drawable.ic_aa_info
         )
     }
 
@@ -373,7 +382,8 @@ class LibraryPickerRepository {
         private const val TICK = "✓ "
 
         @JvmStatic
-        fun libraryRowTitle(name: String, current: Boolean): String =
+        /** Shared by the server rows and the library rows inside one. */
+        fun rowTitle(name: String, current: Boolean): String =
             if (current) TICK + name else name
 
         @JvmStatic
@@ -413,10 +423,31 @@ class LibraryPickerRepository {
          */
         @JvmStatic
         fun messageRow(message: String): MediaItem =
-            browsableRow(mediaId = ConstantsAA.PICK_MESSAGE_ID + message, title = message)
+            browsableRow(
+                mediaId = ConstantsAA.PICK_MESSAGE_ID + message,
+                title = message,
+                // Warning rather than info for all four of these: every one is a
+                // dead end -- plex.tv unreachable, server gone, server
+                // unreachable, no music libraries on it -- so none of them lets
+                // the user pick anything here.
+                //
+                // Baked in rather than passed per message, which keeps the id
+                // round trip above honest: MediaBrowserTree rebuilds this row
+                // from the id alone when it is tapped, so a per-message severity
+                // would have to be encoded into the id to survive that.
+                iconRes = R.drawable.ic_aa_warning
+            )
 
+        /**
+         * [iconRes] is worth passing wherever the row stands for a real thing.
+         * A row with no artwork gets the car's own placeholder, which is a music
+         * note on a colour picked per row -- fine for a music library, wrong for
+         * a Plex server, and noisy either way since the colour carries no
+         * meaning.
+         */
         @JvmStatic
-        fun browsableRow(mediaId: String, title: String): MediaItem =
+        @JvmOverloads
+        fun browsableRow(mediaId: String, title: String, iconRes: Int? = null): MediaItem =
             MediaItem.Builder()
                 .setMediaId(mediaId)
                 .setMediaMetadata(
@@ -427,6 +458,7 @@ class LibraryPickerRepository {
                         // and nothing the app returns can suppress that.
                         .setIsPlayable(false)
                         .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                        .setArtworkUri(iconRes?.let { ResourceUris.forResource(it) })
                         .build()
                 )
                 .build()

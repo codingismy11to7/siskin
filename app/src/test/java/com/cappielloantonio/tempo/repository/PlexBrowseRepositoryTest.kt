@@ -12,6 +12,7 @@ import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.base.MediaContainer
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Metadata
+import com.cappielloantonio.tempo.util.ConstantsAA
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.test.runTest
@@ -22,6 +23,7 @@ import okhttp3.mockwebserver.RecordedRequest
 import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -220,9 +222,100 @@ class PlexBrowseRepositoryTest {
     }]}}
     """.trimIndent()
 
+    private fun albumsBody(vararg ratingKeys: String) = """
+        {"MediaContainer":{"Metadata":[${
+        ratingKeys.joinToString(",") { """{"ratingKey":"$it","type":"album","title":"Album $it"}""" }
+    }]}}
+    """.trimIndent()
+
     /** Bounded so a bridge that never completes its future fails instead of hanging. */
     private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) =
         future.get(10, TimeUnit.SECONDS)
+
+    @Test
+    fun anArtistsAlbumsComeFromTheSectionFilteredByArtistNotFromItsChildren() {
+        // Measured against a live PMS 1.43.3 library: an artist's
+        // /library/metadata/{id}/children silently omits albums. Five of the
+        // first twelve artists returned 0 children while owning 1 album each,
+        // and one returned 14 of its 17 -- the omitted three being a
+        // compilation, a greatest-hits and a live album whose own metadata is
+        // field-for-field identical in shape to the ones that appeared, so
+        // nothing in the response distinguishes them. Adding ?type=9 changes
+        // nothing; that endpoint's index is simply incomplete.
+        //
+        // The section listing filtered by artist.id returned the right count for
+        // every artist sampled. It is also what the Albums tab already reads,
+        // which is how an album could be visible there and missing from its own
+        // artist -- the two screens were asking different indexes.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77")))
+
+        val result = await(PlexBrowseRepository().getArtistAlbums(ConstantsAA.ALBUM_ID, "15100"))
+
+        val request = server.takeRequest()
+        assertEquals("/library/sections/1/all", request.requestUrl?.encodedPath)
+        assertEquals("15100", request.requestUrl?.queryParameter("artist.id"))
+        assertEquals(PlexItemType.ALBUM, request.requestUrl?.queryParameter("type")?.toInt())
+        assertEquals(
+            listOf(ConstantsAA.SHUFFLE_ARTIST_ID + "15100", ConstantsAA.ALBUM_ID + "77"),
+            result.value!!.map { it.mediaId }
+        )
+    }
+
+    @Test
+    fun theShuffleRowLeadsAnArtistsAlbumsAndIsPlayableButNotBrowsable() {
+        // Playable is what makes the car start playback from the row instead of
+        // navigating into it; carrying the artist's ratingKey in the id is what
+        // lets the session callback fetch that artist's tracks on the tap.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77", "88")))
+
+        val result = await(PlexBrowseRepository().getArtistAlbums(ConstantsAA.ALBUM_ID, "15100"))
+
+        val row = result.value!!.first()
+        assertEquals(ConstantsAA.SHUFFLE_ARTIST_ID + "15100", row.mediaId)
+        assertEquals(true, row.mediaMetadata.isPlayable)
+        assertEquals(false, row.mediaMetadata.isBrowsable)
+        // A non-null localConfiguration would make resolveQueueForItem treat the
+        // row as an already-resolved track and play a stream that does not exist.
+        assertNull(row.localConfiguration)
+    }
+
+    @Test
+    fun theShuffleRowLeadsAPlaylistsTracks() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
+
+        val result = await(PlexBrowseRepository().getPlaylistTracks("169077"))
+
+        val row = result.value!!.first()
+        assertEquals(ConstantsAA.SHUFFLE_PLAYLIST_ID + "169077", row.mediaId)
+        assertEquals(true, row.mediaMetadata.isPlayable)
+        assertNull(row.localConfiguration)
+        assertEquals(listOf("11", "22"), result.value!!.drop(1).map { it.mediaId })
+    }
+
+    @Test
+    fun theQueueAShuffleRowBuildsDoesNotContainTheRowItself() {
+        // A queue holding the row would hold a playable item with no stream.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
+
+        val result = await(PlexBrowseRepository().getPlaylistTracksForShuffle("169077"))
+
+        assertEquals(listOf("11", "22"), result.value!!.map { it.mediaId })
+    }
+
+    @Test
+    fun anArtistsTracksAreFetchedFlatAndInLibraryOrderForTheShuffleRow() {
+        // Left unshuffled deliberately: the player owns shuffling, so turning the
+        // car's toggle off has to reveal the artist's real order.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("1", "2", "3")))
+
+        val result = await(PlexBrowseRepository().getArtistTracks("15100"))
+
+        val request = server.takeRequest()
+        assertEquals("/library/sections/1/all", request.requestUrl?.encodedPath)
+        assertEquals("15100", request.requestUrl?.queryParameter("artist.id"))
+        assertEquals(PlexItemType.TRACK, request.requestUrl?.queryParameter("type")?.toInt())
+        assertEquals(listOf("1", "2", "3"), result.value!!.map { it.mediaId })
+    }
 
     @Test
     fun a200ListingBecomesASuccessfulItemList() {

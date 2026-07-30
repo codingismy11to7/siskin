@@ -108,4 +108,32 @@ class PlexMediaMapperTest {
         assertFalse(PlexMediaMapper.isHearted(track().apply { userRating = 0.0 }))
         assertFalse(PlexMediaMapper.isHearted(track().apply { userRating = 8.0 }))
     }
+
+    @Test
+    fun creditsTheTrackArtistRatherThanTheAlbumArtist() {
+        // Measured on a live library: a compilation track carries the album artist
+        // in grandparentTitle and the real performer in originalTitle, so reading
+        // grandparentTitle credited every compilation to "Various Artists".
+        val compilationTrack = track().apply {
+            grandparentTitle = "Various Artists"
+            originalTitle = "The Hold Steady"
+        }
+
+        assertEquals("The Hold Steady", PlexMediaMapper.trackArtist(compilationTrack))
+    }
+
+    @Test
+    fun fallsBackToTheAlbumArtistWhenPlexSendsNoTrackArtist() {
+        // The common case: Plex populates originalTitle only when the two differ.
+        assertEquals(
+            "Fall Out Boy",
+            PlexMediaMapper.trackArtist(track().apply { grandparentTitle = "Fall Out Boy" })
+        )
+        assertEquals(
+            "Bob Dylan",
+            PlexMediaMapper.trackArtist(
+                track().apply { grandparentTitle = "Bob Dylan"; originalTitle = "  " }
+            )
+        )
+    }
 }
