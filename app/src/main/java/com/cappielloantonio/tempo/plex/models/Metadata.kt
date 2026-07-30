@@ -27,6 +27,18 @@ class Metadata {
     var grandparentTitle: String? = null
     var grandparentThumb: String? = null
 
+    /**
+     * The *track's* artist, present only when it differs from the album artist --
+     * which in practice means compilations. On "Girls Like Status" from an Aqua
+     * Teen Hunger Force soundtrack, [grandparentTitle] is "Various Artists" and
+     * this is "The Hold Steady".
+     *
+     * Free text with no rating key of its own, so it can name a track's artist
+     * but never navigate to one; [grandparentRatingKey] remains the only artist
+     * this app can browse to. See PlexMediaMapper.trackArtist.
+     */
+    var originalTitle: String? = null
+
     var thumb: String? = null
 
     /**

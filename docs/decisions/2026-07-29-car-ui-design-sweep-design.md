@@ -113,6 +113,36 @@ The same `artist.id` filter feeds the artist track list, rather than
 sampled), so this picks the query already proven against the artist relation
 instead of introducing a second one.
 
+## Decision: a track is credited to its own artist, not the album's
+
+Every track on a compilation read "Various Artists". `grandparentTitle` is the
+*album* artist; Plex puts the track's own artist in `originalTitle` and populates
+it **only when the two differ**. So the field this app was reading is correct for
+most of a library and wrong for precisely the albums where the distinction
+matters.
+
+Measured on a live library:
+
+| track | `grandparentTitle` | `originalTitle` |
+|---|---|---|
+| Girls Like Status | Various Artists | **The Hold Steady** |
+| Wilson (Expensive Mistakes) | Fall Out Boy | *absent* |
+| Like a Rolling Stone | Bob Dylan | *absent* |
+
+`originalTitle` was not declared on `Metadata` at all, so Gson had been
+discarding it — the same silent loss the browse/playback spec recorded for a
+playlist's `composite`. That is now twice that an undeclared field has cost a
+visible feature, which makes it a category rather than an incident: a Plex field
+absent from the model is indistinguishable from a Plex field absent from the
+response.
+
+The change is **display only**. `originalTitle` is free text with no rating key of
+its own, so it can name a track's artist but never navigate to one;
+`grandparentRatingKey` remains what `EXTRA_ARTIST_ID` carries, which is also what
+continuous play follows. A compilation track therefore shows "The Hold Steady"
+and still navigates and mixes as "Various Artists" — a real asymmetry, and the
+only one Plex's data model allows.
+
 ## Decision: shuffle rows, with the player doing the shuffling
 
 A "Shuffle this artist" row heads each artist's album list and a "Shuffle this

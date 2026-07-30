@@ -97,6 +97,22 @@ object PlexMediaMapper {
     @JvmStatic
     fun isHearted(metadata: Metadata): Boolean = (metadata.userRating ?: 0.0) >= HEARTED_RATING
 
+    /**
+     * Who to credit for a track.
+     *
+     * `grandparentTitle` is the *album* artist, so on a compilation every track
+     * read "Various Artists" rather than whoever actually performed it. Plex puts
+     * the track's own artist in `originalTitle`, and populates it only when the
+     * two differ -- so the fallback is not a nicety, it is the normal case.
+     *
+     * This changes the displayed credit only. `originalTitle` is free text with no
+     * rating key, so the artist a track can *navigate* to stays
+     * `grandparentRatingKey` -- which is also what continuous play follows.
+     */
+    @JvmStatic
+    fun trackArtist(metadata: Metadata): String? =
+        metadata.originalTitle?.takeIf { it.isNotBlank() } ?: metadata.grandparentTitle
+
     // ── MediaItem builders ────────────────────────────────────
 
     /**
@@ -192,7 +208,7 @@ object PlexMediaMapper {
             ratingKey = ratingKey,
             title = metadata.title,
             albumTitle = metadata.parentTitle,
-            artist = metadata.grandparentTitle,
+            artist = trackArtist(metadata),
             thumb = artworkThumb(metadata),
             partKey = partKey(metadata),
             durationMs = metadata.duration,
