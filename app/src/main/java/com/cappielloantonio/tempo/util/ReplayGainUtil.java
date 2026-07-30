@@ -84,7 +84,7 @@ public class ReplayGainUtil {
     private static void submitPrefetch(MediaItem item) {
         prefetchExecutor.execute(() -> {
             try (MetadataRetriever retriever =
-                         new MetadataRetriever.Builder(App.getInstance(), item).build()) {
+                         new MetadataRetriever.Builder(App.getContext(), item).build()) {
 
                 TrackGroupArray trackGroups =
                         retriever.retrieveTrackGroups().get(20,
