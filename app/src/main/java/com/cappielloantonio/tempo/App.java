@@ -24,14 +24,24 @@ public class App extends Application {
         String themePref = sharedPreferences.getString(Preferences.THEME, ThemeHelper.DEFAULT_MODE);
         ThemeHelper.applyTheme(themePref);
 
-        instance = new App();
+        instance = this;
         context = getApplicationContext();
         preferences = context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
     }
 
+    /**
+     * Both accessors below fail rather than fabricate. The fields are assigned in
+     * {@link #onCreate()}, so a null here means someone reached for the
+     * Application before the system built it -- and the only thing this class can
+     * hand back at that point is an object that is not the Application. That is
+     * what it used to do: {@code new App()} has no base context attached, so
+     * every Context method on it throws NPE on {@code mBase}. It stayed hidden
+     * because nearly every caller immediately reads {@code preferences}, a static
+     * field that answers correctly whichever instance returns it.
+     */
     public static App getInstance() {
         if (instance == null) {
-            instance = new App();
+            throw new IllegalStateException("App.getInstance() before Application.onCreate()");
         }
 
         return instance;
@@ -39,7 +49,7 @@ public class App extends Application {
 
     public static Context getContext() {
         if (context == null) {
-            context = getInstance();
+            throw new IllegalStateException("App.getContext() before Application.onCreate()");
         }
 
         return context;
