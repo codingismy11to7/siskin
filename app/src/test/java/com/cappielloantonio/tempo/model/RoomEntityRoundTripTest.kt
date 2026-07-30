@@ -8,6 +8,7 @@ import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -71,7 +72,7 @@ class RoomEntityRoundTripTest {
         assertEquals(3, restored.mediaMetadata.trackNumber)
         assertEquals(2021, restored.mediaMetadata.releaseYear)
         assertEquals(250_000L, restored.mediaMetadata.durationMs)
-        assertTrue((restored.mediaMetadata.userRating as HeartRating).isHeart)
+        assertTrue(PlexMediaMapper.readHearted(restored.mediaMetadata))
         assertEquals(
             "/library/metadata/1234/thumb/1699999999",
             restored.mediaMetadata.artworkUri!!.lastPathSegment
@@ -115,7 +116,7 @@ class RoomEntityRoundTripTest {
     fun anUnheartedTrackStaysUnhearted() {
         val restored = SessionMediaItem.fromMediaItem(track(hearted = false))!!.toMediaItem()
 
-        assertEquals(false, (restored.mediaMetadata.userRating as HeartRating).isHeart)
+        assertFalse(PlexMediaMapper.readHearted(restored.mediaMetadata))
     }
 
     @Test

@@ -330,7 +330,7 @@ open class BaseSessionCallback(
         return when (id) {
             "[heartID]" -> when {
                 player.currentMediaItem == null || isRatingPending -> null
-                (player.mediaMetadata.userRating as HeartRating?)?.isHeart == true -> customCommandToggleHeartOn
+                PlexMediaMapper.readHearted(player.mediaMetadata) -> customCommandToggleHeartOn
                 else -> customCommandToggleHeartOff
             }
 
@@ -510,8 +510,7 @@ open class BaseSessionCallback(
             }
             Constants.CUSTOM_COMMAND_TOGGLE_HEART_ON,
             Constants.CUSTOM_COMMAND_TOGGLE_HEART_OFF -> {
-                val currentRating = session.player.mediaMetadata.userRating as? HeartRating
-                val isCurrentlyLiked = currentRating?.isHeart ?: false
+                val isCurrentlyLiked = PlexMediaMapper.readHearted(session.player.mediaMetadata)
                 updateMediaNotificationCustomLayout(session, isRatingPending = true)
                 onSetRating(session, controller, HeartRating(!isCurrentlyLiked))
             }

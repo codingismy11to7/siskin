@@ -10,6 +10,7 @@ import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -133,7 +134,7 @@ class PlexMediaMapperAssemblyTest {
     }
 
     @Test
-    fun heartStateRidesOnUserRating() {
+    fun heartStateRidesInTheExtrasBundleAndNotInUserRating() {
         val hearted = PlexMediaMapper.buildTrackMediaItem(
             ratingKey = "1234", title = "T", albumTitle = "A", artist = "R",
             thumb = null, partKey = "/p", durationMs = 1L, trackIndex = 1, year = 2020,
@@ -141,7 +142,10 @@ class PlexMediaMapperAssemblyTest {
             parentId = null, serverUri = serverUri, token = token
         )
 
-        assertTrue((hearted.mediaMetadata.userRating as HeartRating).isHeart)
+        assertTrue(PlexMediaMapper.readHearted(hearted.mediaMetadata))
+        // Load-bearing: a published rating makes com.android.car.media draw its own
+        // star in the transport row, and that star displaces our heart button.
+        assertNull(hearted.mediaMetadata.userRating)
     }
 
     @Test
@@ -149,7 +153,19 @@ class PlexMediaMapperAssemblyTest {
         val rated = PlexMediaMapper.trackToMediaItem(
             track().apply { userRating = 10.0 }, null, serverUri, token
         )!!
-        assertTrue((rated.mediaMetadata.userRating as HeartRating).isHeart)
+        assertTrue(PlexMediaMapper.readHearted(rated.mediaMetadata))
+    }
+
+    @Test
+    fun aTapWinsOverWhatPlexSaidAtMapTime() {
+        // applyRatingToQueue writes a HeartRating onto the queued item when the
+        // heart is tapped; that has to outrank the mapped-in extra or the button
+        // would snap back to Plex's stale answer on the next rebuild.
+        val mapped = PlexMediaMapper.trackToMediaItem(track(), null, serverUri, token)!!
+        assertFalse(PlexMediaMapper.readHearted(mapped.mediaMetadata))
+
+        val tapped = mapped.mediaMetadata.buildUpon().setUserRating(HeartRating(true)).build()
+        assertTrue(PlexMediaMapper.readHearted(tapped))
     }
 
     @Test
@@ -241,7 +257,7 @@ class PlexMediaMapperAssemblyTest {
     }
 
     @Test
-    fun anUnheartedTrackCarriesAFalseHeartRating() {
+    fun anUnheartedTrackReadsAsUnhearted() {
         val unhearted = PlexMediaMapper.buildTrackMediaItem(
             ratingKey = "1234", title = "T", albumTitle = "A", artist = "R",
             thumb = null, partKey = "/p", durationMs = 1L, trackIndex = 1, year = 2020,
@@ -249,6 +265,6 @@ class PlexMediaMapperAssemblyTest {
             parentId = null, serverUri = serverUri, token = token
         )
 
-        assertFalse((unhearted.mediaMetadata.userRating as HeartRating).isHeart)
+        assertFalse(PlexMediaMapper.readHearted(unhearted.mediaMetadata))
     }
 }

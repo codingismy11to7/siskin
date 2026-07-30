@@ -48,6 +48,15 @@ object PlexMediaMapper {
     const val EXTRA_THUMB = "thumb"
 
     /**
+     * Whether Plex already had this track hearted when we mapped it.
+     *
+     * This is here rather than in `MediaMetadata.userRating` because publishing a
+     * rating makes com.android.car.media draw its own star in the transport row,
+     * and that star outranks our heart button -- see buildTrackMediaItem.
+     */
+    const val EXTRA_HEARTED = "hearted"
+
+    /**
      * Plex rates 0-10; this app writes this value for a hearted track, so
      * reading it back is what keeps the heart state in sync with every
      * other Plex client.
@@ -129,6 +138,7 @@ object PlexMediaMapper {
             putString(EXTRA_URI, uri.toString())
             putString(EXTRA_PART_KEY, partKey)
             putString(EXTRA_THUMB, thumb)
+            putBoolean(EXTRA_HEARTED, isHearted)
             if (parentId != null) putString(EXTRA_PARENT_ID, parentId)
         }
 
@@ -140,7 +150,11 @@ object PlexMediaMapper {
             .setReleaseYear(year ?: 0)
             .setDurationMs(durationMs)
             .setArtworkUri(artworkUri)
-            .setUserRating(HeartRating(isHearted))
+            // No setUserRating: publishing a rating makes com.android.car.media draw
+            // its own star in the transport row, and that star outranks our heart
+            // button -- which is why the heart was stuck in the overflow. Without it
+            // the row shows our heart instead.
+
             .setSupportedCommands(
                 ImmutableList.of(
                     Constants.CUSTOM_COMMAND_TOGGLE_HEART_ON,
@@ -232,8 +246,28 @@ object PlexMediaMapper {
             trackIndex = item.mediaMetadata.trackNumber,
             year = item.mediaMetadata.releaseYear,
             grandparentRatingKey = extras?.getString(EXTRA_ARTIST_ID),
-            isHearted = (item.mediaMetadata.userRating as? HeartRating)?.isHeart == true
+            isHearted = readHearted(item.mediaMetadata)
         )
+    }
+
+    /**
+     * Whether this item is hearted right now, from whichever source knows.
+     *
+     * `userRating` wins when present because that is where a *tap* lands:
+     * BaseSessionCallback.applyRatingToQueue writes a HeartRating onto the queued
+     * item, so it holds the freshest answer. Absent that -- which is every item as
+     * mapped, since [buildTrackMediaItem] deliberately publishes no rating -- the
+     * answer is what Plex told us at map time, in [EXTRA_HEARTED].
+     *
+     * Both readers must agree: the button picks filled-vs-outline from this, and
+     * the toggle picks whether to send rating=10 or rating=-1 from it. If they
+     * disagree, the first tap on an already-hearted track re-hearts it instead of
+     * clearing it.
+     */
+    @JvmStatic
+    fun readHearted(metadata: MediaMetadata): Boolean {
+        (metadata.userRating as? HeartRating)?.let { return it.isHeart }
+        return metadata.extras?.getBoolean(EXTRA_HEARTED) == true
     }
 
     /**
