@@ -48,7 +48,14 @@ class PlexSignInViewModel @JvmOverloads constructor(
     /** The probe is unauthenticated; the identity headers are courtesy, not access. */
     private val probe: ServerProbe = ServerProbe(
         headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null)
-    )
+    ),
+    /**
+     * Seam, not a feature. The poll loop's bounds are measured in wall-clock
+     * seconds, which a StandardTestDispatcher cannot advance -- so without this
+     * the hard cap and the backoff ladder are both untestable, and a test that
+     * tried would hang rather than fail. Deleting it silently un-tests them.
+     */
+    private val nowMillis: () -> Long = System::currentTimeMillis
 ) : AndroidViewModel(application) {
 
     private val _state = MutableLiveData<PlexSignInState>(PlexSignInState.Working)
@@ -297,5 +304,5 @@ class PlexSignInViewModel @JvmOverloads constructor(
         error("poll loop fell through")
     }
 
-    private fun nowEpochSeconds() = System.currentTimeMillis() / 1000L
+    private fun nowEpochSeconds() = nowMillis() / 1000L
 }
