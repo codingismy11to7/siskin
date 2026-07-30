@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.resetMain
@@ -548,5 +549,30 @@ class PlexSignInViewModelTest {
         // At the cap, not before it and not after: a loop that gave up early
         // would abandon a pin the user could still approve.
         assertEquals(PlexPinState.HARD_CAP_SECONDS * 1_000L, currentTime)
+    }
+
+    @Test
+    fun thePollSlowsDownWhenNobodyApproves() = runTest(dispatcher) {
+        // The executable statement of the backoff: an abandoned sign-in is what
+        // this whole change exists to stop paying for. plex.tv is not rate
+        // limiting us -- 174 consecutive polls came back 200 -- so nothing but
+        // this test will notice if the ladder is ever reverted to a flat rate.
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { createPin() } doReturn created.right()
+            onBlocking { getPin(42L) } doReturn Pin().right()
+        }
+
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            authClient = authClient,
+            nowMillis = { currentTime }
+        )
+        viewModel.start()
+
+        // Three minutes and one second: 30 polls at 2s (t=2s..60s), then 24 at
+        // 5s (t=65s..180s). A flat 2s cadence would make this 90.
+        advanceTimeBy(181_000L)
+
+        verify(authClient, times(54)).getPin(42L)
     }
 }

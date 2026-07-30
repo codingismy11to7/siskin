@@ -33,7 +33,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val TAG = "PlexSignInViewModel"
-private const val POLL_INTERVAL_MS = 2_000L
 
 /**
  * Drives the Plex PIN flow.
@@ -267,7 +266,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
         val startedAt = nowEpochSeconds()
 
         while (true) {
-            delay(POLL_INTERVAL_MS)
+            delay(PlexPinState.pollDelayMillis(nowEpochSeconds() - startedAt))
 
             ensure(
                 PlexPinState.shouldKeepPolling(
