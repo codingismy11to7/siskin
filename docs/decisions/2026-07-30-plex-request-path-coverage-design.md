@@ -86,8 +86,9 @@ tidy-up from dropping it.
 
 ### A reflection guard against new endpoints
 
-Each class carries one test that reads the interface's `@GET`/`@POST`
-annotations and asserts the set of covered method names:
+Each class carries one test that reads the interface's declared methods,
+filtered to exclude synthetic ones, and asserts the set of covered method
+names:
 
 ```kotlin
 @Test
@@ -95,10 +96,16 @@ fun everyEndpointIsCovered() {
     assertEquals(
         setOf("getSections", "getSectionContent", "getChildren",
               "getNearest", "getMetadata", "getSectionHubs"),
-        annotatedMethods(LibraryService::class.java)
+        annotatedEndpoints(LibraryService::class.java)
     )
 }
 ```
+
+Filtering on "not synthetic" rather than on a list of HTTP verbs (`@GET`,
+`@POST`, ...) is deliberate: a verb list is a blind spot, since a `@PUT` or
+`@DELETE` endpoint added later would carry none of the named annotations and
+so would be invisible to both the reflected set and the hand-written expected
+set. "Not synthetic" has no such list to fall out of date.
 
 Roughly ten lines each, and the reason the work is worth doing once rather than
 twice. Without it, a fifteenth endpoint arrives with no test and nothing notices

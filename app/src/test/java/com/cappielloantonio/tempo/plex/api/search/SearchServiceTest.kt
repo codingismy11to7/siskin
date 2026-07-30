@@ -58,7 +58,9 @@ class SearchServiceTest {
         // The other bug this file exists for. librarySectionID is accepted with
         // 200 and silently ignored; sectionID is the one that filters. The
         // wrong name returns every playlist on the server and looks like it
-        // worked -- which is why the assertion covers both names.
+        // worked. The assertNull below guards a different regression: a
+        // future change that sends both parameter names defensively, which
+        // the sectionID assertion alone would still pass.
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
 
         service().getPlaylists(sectionId = "1")
