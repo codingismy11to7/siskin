@@ -294,7 +294,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 PlexPinState.Expired -> raise(SignInError.PinExpired)
 
                 // Nothing changed, so nothing is published: re-emitting the same
-                // state would reload the QR image every two seconds.
+                // state would reload the QR image on every poll.
                 PlexPinState.Pending -> {}
             }
         }
