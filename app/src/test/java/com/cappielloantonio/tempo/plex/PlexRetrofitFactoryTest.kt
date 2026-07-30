@@ -103,4 +103,30 @@ class PlexRetrofitFactoryTest {
         assertEquals(TimeUnit.SECONDS.toMillis(20).toInt(), client.connectTimeoutMillis)
         assertEquals(TimeUnit.SECONDS.toMillis(30).toInt(), client.readTimeoutMillis)
     }
+
+    @Test
+    fun plexTvIsPinnedToTheV2Api() {
+        // A fixed string literal with the same failure mode as a path: wrong,
+        // and every signed-out call goes somewhere that is not Plex. Nothing
+        // else asserts it, and it cannot be reached through a mock server --
+        // this method hardcodes the URL, which is why the AuthService tests
+        // build their own Retrofit.
+        assertEquals(
+            "https://plex.tv/api/v2/",
+            PlexRetrofitFactory.plexTv(PlexApi()).baseUrl().toString()
+        )
+    }
+
+    @Test
+    fun aServerUriGainsTheTrailingSlashRetrofitDemands() {
+        // Retrofit throws at construction without it, and Plex advertises
+        // connection URIs with no trailing slash -- so this normalization is
+        // on the path of every server the probe picks.
+        assertEquals(
+            "https://10.0.0.5:32400/",
+            PlexRetrofitFactory.server(PlexApi(), "https://10.0.0.5:32400", null)
+                .baseUrl()
+                .toString()
+        )
+    }
 }
