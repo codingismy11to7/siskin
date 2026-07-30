@@ -1,7 +1,6 @@
 package com.cappielloantonio.tempo.service
 
 import android.content.Context
-import android.os.Bundle
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -15,7 +14,6 @@ import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
-import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.CredentialGate
 import com.google.common.collect.ImmutableList
@@ -234,28 +232,28 @@ class MediaLibrarySessionCallback(
         return Futures.transform(
             futureQueue,
             { resolvedItems ->
-                if (!resolvedItems.isNullOrEmpty()) {
+                val items = resolvedItems ?: emptyList()
+                val opening = openingPositionIn(items, firstItem, shuffling, startIndex)
+                Log.d(TAG, "Opening at $opening of ${items.size} for ${firstItem.mediaId}")
+
+                if (items.isNotEmpty()) {
+                    val queue = QueueRepository()
                     // No detagging needed here: Queue.fromMediaItem reads its fields
                     // through PlexMediaMapper.readTrackFields, which never reads
                     // EXTRA_PARENT_ID, and the `queue` table has no parent_id column.
                     // A left-over parent tag on a queued item is inert.
-                    QueueRepository().insertAll(resolvedItems, true, 0)
-                }
-                // Shuffle mode alone would still open on track 1 every time --
-                // it orders what comes *after* the current item -- so the first
-                // track is picked here. Without this, "shuffle this artist"
-                // always starts on the same song.
-                val resolvedStartIndex = if (shuffling && !resolvedItems.isNullOrEmpty()) {
-                    Random.nextInt(resolvedItems.size)
-                } else {
-                    startIndex
+                    queue.insertAll(items, true, 0)
+                    // Marks the opening track as the one to resume at. The player
+                    // will not do it: BaseMediaService records a last-played row on
+                    // a seek or an automatic transition, and opening a fresh queue
+                    // is neither, so without this a process death before the first
+                    // track change would restore the queue at track one. Same
+                    // executor as insertAll above, which is what orders it after
+                    // the rows it marks.
+                    items.getOrNull(opening)?.let { queue.setLastPlayedTimestamp(it.mediaId) }
                 }
 
-                MediaSession.MediaItemsWithStartPosition(
-                    resolvedItems ?: emptyList(),
-                    resolvedStartIndex,
-                    startPositionMs
-                )
+                MediaSession.MediaItemsWithStartPosition(items, opening, startPositionMs)
             },
             MoreExecutors.directExecutor()
         )
@@ -279,6 +277,43 @@ class MediaLibrarySessionCallback(
         enableShuffleIfShuffleRow(firstItem, mediaSession.player)
 
         return resolveQueueForItem(firstItem, mediaItems)
+    }
+
+    /**
+     * Where playback opens in [items] -- the part of a browse tap the car leaves
+     * entirely to us.
+     *
+     * It sends `C.INDEX_UNSET`, and media3 turns that into
+     * `setMediaItems(items, resetPosition = true)`: open at the player's own
+     * default position. With shuffle enabled that default is the head of the
+     * *shuffled* order, so echoing the car's index back plays a track the user
+     * did not press. Naming the tapped item's position is what makes the tap
+     * mean anything.
+     *
+     * Shuffle being off used to hide that, and no longer hides it by accident:
+     * the default position is item 0, and an inherited hack stashed the tapped
+     * index in item 0's metadata for BaseMediaService to seek to when it came
+     * round. That side channel is gone with this. It could only ever fire on the
+     * item the player happened to open on, and under shuffle that was some other
+     * track -- which it would then have yanked playback away from mid-listen.
+     *
+     * A shuffle row is the one tap whose opener is ours to choose: shuffle mode
+     * orders what comes *after* the current item, so a row that opened at item 0
+     * would shuffle the same artist from the same song every time.
+     */
+    private fun openingPositionIn(
+        items: List<MediaItem>,
+        tapped: MediaItem,
+        shuffling: Boolean,
+        carStartIndex: Int
+    ): Int = when {
+        items.isEmpty() -> carStartIndex
+        shuffling -> Random.nextInt(items.size)
+        // Absent means the queue this resolved to is not the list the row was
+        // tapped in -- a stale browse cache is how that happens. The player's
+        // default position is a better answer than a made-up one.
+        else -> items.indexOfFirst { it.mediaId == tapped.mediaId }
+            .takeIf { it >= 0 } ?: carStartIndex
     }
 
     /**
@@ -344,31 +379,7 @@ class MediaLibrarySessionCallback(
             }
         }
 
-        return Futures.transform(
-            futureQueue,
-            { resolvedItems ->
-                if (resolvedItems.isEmpty()) return@transform resolvedItems
-
-                val startIndex = resolvedItems.indexOfFirst { it.mediaId == firstItem.mediaId }
-                Log.d(TAG, "Start index for clicked item ${firstItem.mediaId} = $startIndex")
-                if (startIndex <= 0) return@transform resolvedItems
-
-                QueueRepository().insertAll(resolvedItems, true, 0)
-
-                val firstResolved = resolvedItems[0]
-                val extras = (firstResolved.mediaMetadata.extras ?: Bundle()).apply {
-                    putInt(Constants.AA_START_INDEX, startIndex)
-                }
-                val newFirstResolved = firstResolved.buildUpon()
-                    .setMediaMetadata(firstResolved.mediaMetadata.buildUpon().setExtras(extras).build())
-                    .build()
-
-                val updatedResolved = resolvedItems.toMutableList()
-                updatedResolved[0] = newFirstResolved
-                updatedResolved
-            },
-            MoreExecutors.directExecutor()
-        )
+        return futureQueue
     }
 
     // ─────────────────────────────────────────────────────────────

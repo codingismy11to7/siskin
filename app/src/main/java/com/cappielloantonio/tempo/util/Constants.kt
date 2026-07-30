@@ -17,7 +17,4 @@ object Constants {
     const val CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_ALL = "android.media3.session.demo.REPEAT_ALL"
     const val CUSTOM_COMMAND_INSTANT_MIX_ON = "android.media3.session.demo.INSTANT_MIX_ON"
     const val CUSTOM_COMMAND_INSTANT_MIX_OFF = "android.media3.session.demo.INSTANT_MIX_OFF"
-
-    // Android Auto start index extra
-    const val AA_START_INDEX = "aa_start_index"
 }
