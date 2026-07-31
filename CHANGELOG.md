@@ -1,9 +1,10 @@
 # Changelog
 
 > Siskin is a fork of [Tempus](https://github.com/eddyizm/tempus), itself a fork
-> of [Tempo](https://github.com/cappielloantonio/tempo). Entries at 4.22.2 and
-> below describe releases that shipped as Tempus and retain their original
-> naming.
+> of [Tempo](https://github.com/cappielloantonio/tempo). Siskin's own versioning
+> restarts at 1.0.0, so the entries below it are numerically higher: everything
+> at 4.22.2 and below describes a release that shipped as Tempus, and retains its
+> original naming.
 
 ## [Unreleased] — Siskin
 
