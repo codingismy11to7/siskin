@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.play.publisher)
 }
 
 // Release signing is driven entirely by the environment so that one code path
@@ -102,6 +103,22 @@ android {
         viewBinding = true
         buildConfig = true
     }
+}
+
+// Uploads go to the internal track as a DRAFT, which needs a manual
+// confirmation in the Play Console before testers see it.
+//
+// The draft is deliberately temporary. The point of the first several releases
+// is to watch what the pipeline actually does at each step, and a draft leaves
+// a checkpoint where that is visible. Once this is boring it should publish
+// straight to internal -- a draft that always gets confirmed is just a manual
+// step wearing a costume.
+//
+// Credentials come from ANDROID_PUBLISHER_CREDENTIALS in the environment
+// rather than a JSON file on disk, for the same reason as the signing config.
+play {
+    track.set('internal')
+    releaseStatus.set(com.github.triplet.gradle.androidpublisher.ReleaseStatus.DRAFT)
 }
 
 // Room is what pins this, and upgrading Room does not release it. This
