@@ -21,12 +21,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Every clone carries ~100 inherited tempo/tempus tags (v3.x, v4.x) that
-      # were never pushed to origin. A stray `git push --tags` would otherwise
-      # fire this workflow once per tag, in parallel, each trying to publish
-      # the same versionCode. Requiring the tag to match versionName makes that
-      # impossible -- and is a correctness check worth having anyway, since a
-      # tag that disagrees with the artifact it builds should never ship.
+      # A tag must name the version the build actually claims -- a tag that
+      # disagrees with its own artifact should never ship.
+      #
+      # It also makes a bulk tag push harmless. The ~100 inherited tempo/tempus
+      # tags (v3.x, v4.x) that came with the fork's history have been deleted
+      # and were never on origin, but re-fetching from upstream would bring
+      # them back, and each would otherwise fire a parallel publish of the same
+      # versionCode.
       - name: Check the tag matches versionName
         if: github.event_name == 'push'
         run: |
