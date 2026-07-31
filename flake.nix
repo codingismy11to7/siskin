@@ -97,6 +97,39 @@
         ${avdHomeExport}
         exec "${androidComposition.androidsdk}/bin/emulator" -avd "${avdName}" "$@"
       '';
+
+      # Renders the documents under docs/ that are published to
+      # codingismy11to7.us into standalone HTML. Markdown stays the source of
+      # truth; nothing hand-edited lives on the web server, so a page can
+      # always be regenerated from this repository rather than being lost with
+      # whatever shell session produced it.
+      #
+      # Output goes to build/web/, which is already gitignored. Copy up with:
+      #
+      #   scp build/web/privacy.html \
+      #     steven@192.168.0.2:/mnt/teeb/docker/appdata/swag/www/siskin/
+      #
+      # That copy is deliberately not automated here: it writes to a public
+      # web root, which should stay a decision rather than a side effect of
+      # running a render.
+      siskin-render-web = pkgs.writeShellScriptBin "siskin-render-web" ''
+        set -euo pipefail
+        root="$(${pkgs.git}/bin/git rev-parse --show-toplevel)"
+        out="$root/build/web"
+        mkdir -p "$out"
+
+        render() {
+          "${pkgs.pandoc}/bin/pandoc" "$root/docs/$1.md" \
+            --from markdown --to html5 --standalone \
+            --metadata title="$2" \
+            --include-in-header "$root/docs/web/style.html" \
+            --output "$out/$3"
+          echo "  $out/$3  ($(stat -c %s "$out/$3") bytes)"
+        }
+
+        echo "rendering:"
+        render privacy-policy "Siskin Privacy Policy" privacy.html
+      '';
     in
     {
       devShells.${system}.default = pkgs.mkShell {
@@ -105,6 +138,7 @@
           androidComposition.androidsdk
           siskin-avd
           siskin-emulator
+          siskin-render-web
           # Siskin is developed on GitHub — PRs, CI logs and issues are all read
           # through gh, so it belongs in the shell rather than being reached for
           # ad hoc via `nix run`.
