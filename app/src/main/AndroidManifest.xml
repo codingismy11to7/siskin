@@ -26,14 +26,29 @@
         android:theme="@style/AppTheme.SplashScreen"
         android:usesCleartextTraffic="true">
 
-        <!-- Declare that this session demo supports Android Auto. -->
-        <meta-data
-            android:name="com.google.android.gms.car.application"
-            android:resource="@xml/auto_app_desc" />
+        <!-- No `com.google.android.gms.car.application` meta-data here, and there
+             must never be one again. Play rejects outright any app declaring it
+             alongside the `android.hardware.type.automotive` feature above,
+             because the two describe mutually exclusive distribution models: a
+             native AAOS app running on the head unit, versus a phone app
+             projecting into Android Auto. Siskin is the former by definition,
+             so the projection meta-data inherited from tempo is gone, along
+             with the @xml/auto_app_desc resource it pointed at.
 
-        <meta-data
-            android:name="androidx.car.app.TintableAttributionIcon"
-            android:resource="@drawable/ic_graphic_eq" />
+             The androidx.car.app.TintableAttributionIcon meta-data went with
+             it. That library is not a dependency of this project, so the
+             declaration referenced a class absent from the classpath.
+
+             Apps that genuinely ship both, such as Pocket Casts, are not
+             breaking this rule: the restriction is per *artifact*, not per
+             app. Pocket Casts keeps two Gradle modules, `app/` for the phone
+             build with the projection meta-data and `automotive/` for the
+             AAOS build with the uses-feature, sharing one applicationId and
+             one Play listing because Play gives the Automotive OS form factor
+             its own release track. Note that a product flavor would NOT work
+             for this: flavors merge into a single manifest and would hit the
+             same rejection. If Siskin ever wants a phone build, which the
+             whole point of the fork argues against, it needs a second module. -->
 
         <!-- Android Automotive OS sign-in. Reached only through the resolution
              PendingIntent on the browse error, so it is not exported and has no
@@ -66,11 +81,16 @@
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
 
-            <!-- Android Automotive OS opt-in. This is separate from the Android
-                 Auto opt-in declared on <application> above: AAOS looks for this
-                 meta-data on the MediaBrowserService itself, and without it logs
-                 "Skipping MBS for {...} belonging to non media template app" and
-                 never lists the app as a media source. -->
+            <!-- Android Automotive OS opt-in. AAOS looks for this meta-data on
+                 the MediaBrowserService itself, and without it logs "Skipping
+                 MBS for {...} belonging to non media template app" and never
+                 lists the app as a media source.
+
+                 Despite the prefix, this does not require androidx.car.app.
+                 The name is just a string AAOS reads, and that library is not
+                 a dependency of this project. Do not confuse it with the
+                 projection meta-data removed from the application element
+                 above, which Play rejects outright. -->
             <meta-data
                 android:name="androidx.car.app.launchable"
                 android:value="true" />
