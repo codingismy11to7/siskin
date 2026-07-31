@@ -129,4 +129,39 @@ class PlexRetrofitFactoryTest {
                 .toString()
         )
     }
+
+    /**
+     * The fallback is what keeps a fresh install from crashing on its first
+     * browse.
+     *
+     * `Retrofit.Builder().baseUrl()` throws on an address it cannot parse, and it
+     * throws at *construction* -- so it lands outside `plexCall`, which catches
+     * IOException and HttpException around the *call* and would never see it.
+     *
+     * That is not an edge case. `PlexBrowseRepository.refreshClients` builds its
+     * clients from `session?.serverUri`, which is null until a server is chosen,
+     * and MediaService creates that repository the first time the car browses.
+     * Handing back an unreachable-but-parseable address turns "no server yet"
+     * into an ordinary connection failure, which becomes
+     * `PlexTransportFailure.Unreachable(Server)` and reaches the user as the
+     * sign-in affordance instead of a stack trace.
+     */
+    @Test
+    fun anUnusableServerUriFallsBackInsteadOfThrowing() {
+        val cases = listOf(
+            null,           // signed out -- session?.serverUri on a fresh install
+            "",
+            "   ",
+            "not a url",
+            "https://"      // parses far enough to have no host
+        )
+
+        cases.forEach { uri ->
+            assertEquals(
+                "expected the placeholder for ${uri?.let { "\"$it\"" }}",
+                "https://localhost/",
+                PlexRetrofitFactory.server(PlexApi(), uri, null).baseUrl().toString()
+            )
+        }
+    }
 }
