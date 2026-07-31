@@ -11,7 +11,7 @@ android {
     buildToolsVersion = '36.0.0'
 
     defaultConfig {
-        applicationId = 'io.github.codingismy11to7.siskin'
+        applicationId = 'us.codingismy11to7.siskin'
         minSdkVersion 28
         //noinspection OldTargetApi
         targetSdk = 36

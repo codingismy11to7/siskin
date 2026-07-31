@@ -73,11 +73,11 @@ the car does:
     # Browse tree, through the AAOS media app
     adb shell am start -a android.car.intent.action.MEDIA_TEMPLATE \
       -e android.car.intent.extra.MEDIA_COMPONENT \
-      "io.github.codingismy11to7.siskin.debug/com.cappielloantonio.tempo.service.MediaService"
+      "us.codingismy11to7.siskin.debug/com.cappielloantonio.tempo.service.MediaService"
 
     # Sign-in screen directly (normally reached via a PendingIntent on a browse error)
     adb shell am start -n \
-      io.github.codingismy11to7.siskin.debug/com.cappielloantonio.tempo.ui.activity.CarSignInActivity
+      us.codingismy11to7.siskin.debug/com.cappielloantonio.tempo.ui.activity.CarSignInActivity
 
 **Reinstalling kills this app but not the car's UI, and the car does not
 recover.** `adb install -r` stops our process while `com.android.car.media`
@@ -88,7 +88,7 @@ completely empty -- no title, no artwork, no transport controls, no mini player
 exactly like "playback is broken", and it is an artifact of the install. Restart
 both, in this order:
 
-    adb shell am force-stop io.github.codingismy11to7.siskin.debug --user 10
+    adb shell am force-stop us.codingismy11to7.siskin.debug --user 10
     adb shell am force-stop com.android.car.media --user 10
     # then the MEDIA_TEMPLATE start above
 
@@ -109,7 +109,7 @@ log means nothing.
 
 ### Package naming
 
-`applicationId` is `io.github.codingismy11to7.siskin` (`.debug` suffix on debug
+`applicationId` is `us.codingismy11to7.siskin` (`.debug` suffix on debug
 builds) but the source package is still `com.cappielloantonio.tempo` from the
 upstream fork. Both are correct; do not "fix" one to match the other.
 
