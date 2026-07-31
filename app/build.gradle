@@ -2,7 +2,27 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.parcelize)
+    alias(libs.plugins.play.publisher)
 }
+
+// Release signing is driven entirely by the environment so that one code path
+// serves both call sites: CI injects these from repository secrets, and locally
+// `sops exec-env` supplies them for the life of a single command without ever
+// writing plaintext to disk.
+//
+// Their absence is deliberately not an error. A fresh clone, CI's test job, and
+// `assembleDebug` all have to keep working with none of this set -- so the
+// signingConfig is only created, and only referenced, when all four are present.
+//
+// SISKIN_KEYSTORE_PATH is a path rather than the key material because Gradle
+// needs the keystore as a real file and an environment variable cannot be one.
+def siskinSigningEnv = [
+        'SISKIN_KEYSTORE_PATH',
+        'SISKIN_KEYSTORE_PASSWORD',
+        'SISKIN_KEY_ALIAS',
+        'SISKIN_KEY_PASSWORD',
+].collectEntries { [(it): System.getenv(it)] }
+def siskinSigningConfigured = siskinSigningEnv.values().every { it }
 
 android {
     namespace = 'com.cappielloantonio.tempo'
@@ -51,12 +71,26 @@ android {
         includeInBundle = false
     }
 
+    signingConfigs {
+        if (siskinSigningConfigured) {
+            release {
+                storeFile = file(siskinSigningEnv.SISKIN_KEYSTORE_PATH)
+                storePassword = siskinSigningEnv.SISKIN_KEYSTORE_PASSWORD
+                keyAlias = siskinSigningEnv.SISKIN_KEY_ALIAS
+                keyPassword = siskinSigningEnv.SISKIN_KEY_PASSWORD
+            }
+        }
+    }
+
     buildTypes {
         release {
             shrinkResources = true
             minifyEnabled = true
             debuggable = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (siskinSigningConfigured) {
+                signingConfig = signingConfigs.release
+            }
         }
 
         debug {
@@ -69,6 +103,22 @@ android {
         viewBinding = true
         buildConfig = true
     }
+}
+
+// Uploads go to the internal track as a DRAFT, which needs a manual
+// confirmation in the Play Console before testers see it.
+//
+// The draft is deliberately temporary. The point of the first several releases
+// is to watch what the pipeline actually does at each step, and a draft leaves
+// a checkpoint where that is visible. Once this is boring it should publish
+// straight to internal -- a draft that always gets confirmed is just a manual
+// step wearing a costume.
+//
+// Credentials come from ANDROID_PUBLISHER_CREDENTIALS in the environment
+// rather than a JSON file on disk, for the same reason as the signing config.
+play {
+    track.set('internal')
+    releaseStatus.set(com.github.triplet.gradle.androidpublisher.ReleaseStatus.DRAFT)
 }
 
 // Room is what pins this, and upgrading Room does not release it. This
