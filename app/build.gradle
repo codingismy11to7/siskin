@@ -4,6 +4,25 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
 }
 
+// Release signing is driven entirely by the environment so that one code path
+// serves both call sites: CI injects these from repository secrets, and locally
+// `sops exec-env` supplies them for the life of a single command without ever
+// writing plaintext to disk.
+//
+// Their absence is deliberately not an error. A fresh clone, CI's test job, and
+// `assembleDebug` all have to keep working with none of this set -- so the
+// signingConfig is only created, and only referenced, when all four are present.
+//
+// SISKIN_KEYSTORE_PATH is a path rather than the key material because Gradle
+// needs the keystore as a real file and an environment variable cannot be one.
+def siskinSigningEnv = [
+        'SISKIN_KEYSTORE_PATH',
+        'SISKIN_KEYSTORE_PASSWORD',
+        'SISKIN_KEY_ALIAS',
+        'SISKIN_KEY_PASSWORD',
+].collectEntries { [(it): System.getenv(it)] }
+def siskinSigningConfigured = siskinSigningEnv.values().every { it }
+
 android {
     namespace = 'com.cappielloantonio.tempo'
     //noinspection GradleDependency
@@ -51,12 +70,26 @@ android {
         includeInBundle = false
     }
 
+    signingConfigs {
+        if (siskinSigningConfigured) {
+            release {
+                storeFile = file(siskinSigningEnv.SISKIN_KEYSTORE_PATH)
+                storePassword = siskinSigningEnv.SISKIN_KEYSTORE_PASSWORD
+                keyAlias = siskinSigningEnv.SISKIN_KEY_ALIAS
+                keyPassword = siskinSigningEnv.SISKIN_KEY_PASSWORD
+            }
+        }
+    }
+
     buildTypes {
         release {
             shrinkResources = true
             minifyEnabled = true
             debuggable = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (siskinSigningConfigured) {
+                signingConfig = signingConfigs.release
+            }
         }
 
         debug {
