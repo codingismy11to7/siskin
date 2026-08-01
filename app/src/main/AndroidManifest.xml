@@ -50,9 +50,29 @@
              same rejection. If Siskin ever wants a phone build, which the
              whole point of the fork argues against, it needs a second module. -->
 
-        <!-- Android Automotive OS sign-in. Reached only through the resolution
-             PendingIntent on the browse error, so it is not exported and has no
-             launcher intent-filter.
+        <!-- The AAOS counterpart to auto_app_desc above, and a different file
+             for a different platform: that one opts into Android Auto, this one
+             into Android Automotive OS. Both names are one letter apart and
+             neither is a typo.
+
+             Without this, the settings gear the car draws in its top bar stays
+             inert and the APPLICATION_PREFERENCES activity below is
+             unreachable. -->
+        <meta-data
+            android:name="com.android.automotive"
+            android:resource="@xml/automotive_app_desc" />
+
+        <!-- Android Automotive OS sign-in. Reached two ways: the resolution
+             PendingIntent on a browse error, and the settings gear the car
+             draws in its top bar.
+
+             The gear is why this is exported. The platform starts the activity
+             on our behalf, which it cannot do otherwise. Nothing is read from
+             the incoming intent, so an outside caller can make a sign-in screen
+             appear and nothing more. This is still not a launcher activity.
+             There is no MAIN/LAUNCHER filter and there must not be one; the
+             tile AAOS shows in the app grid comes from MediaService's
+             androidx.car.app.launchable meta-data, not from here.
 
              There is deliberately no distractionOptimized meta-data: AAOS
              restricts keyboard input while driving, so a sign-in form cannot be
@@ -70,11 +90,23 @@
              true. -->
         <activity
             android:name=".ui.activity.CarSignInActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTop"
             android:taskAffinity=":car_sign_in"
-            android:theme="@style/AppTheme" />
+            android:theme="@style/AppTheme">
+
+            <!-- What the car's settings gear launches. Verified on the
+                 emulator: without this filter the gear renders as an inert
+                 outline, with it the gear becomes a live button.
+
+                 AAOS does not launch this activity on its own when there is no
+                 session. The browse result is still what the car shows
+                 first. -->
+            <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+            </intent-filter>
+        </activity>
 
         <service
             android:name=".service.MediaService"
