@@ -66,9 +66,16 @@ do not delete the force when bumping Kotlin.
 
 ## Running the app
 
-There is **no launcher icon**; `am start` on the package will report "No
-activities found to run". That is correct, not a broken build. Reach it the way
-the car does:
+There is **no launcher activity**; `am start` on the package will report "No
+activities found to run". That is correct, not a broken build.
+
+There *is* a tile in the car's app grid, which is not a contradiction. AAOS
+synthesizes the launcher entry from `MediaService`'s
+`androidx.car.app.launchable` meta-data, and tapping it opens the car's media
+UI on Siskin rather than starting an activity of ours. Do not go looking for a
+`MAIN`/`LAUNCHER` intent-filter to explain the icon, and do not add one.
+
+Reach it the way the car does:
 
     # Browse tree, through the AAOS media app
     adb shell am start -a android.car.intent.action.MEDIA_TEMPLATE \
