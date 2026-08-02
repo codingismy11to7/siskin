@@ -403,6 +403,30 @@ class MediaLibrarySessionCallback(
                 Futures.immediateFuture(cachedItems)
             }
 
+            // Two unrelated callers land here, and the `localConfiguration` test
+            // below is what separates them.
+            //
+            // A **browse tap** arrives from com.android.car.media, a different
+            // process, so media3 has Bundle-serialized it and dropped the stream:
+            // one item with no localConfiguration, which the session cache expands
+            // into the list it was tapped in. That is the case the branch was
+            // written for.
+            //
+            // **Continuous play** appends instant-mix tracks through
+            // `browser.addMediaItems` (MediaManager.enqueue) and reaches the very
+            // same code, but those MediaItems never leave this process and arrive
+            // with their streams intact, so each one matches the first clause and
+            // passes through untouched. Measured on an API 33 AAOS emulator: an
+            // append of 25 mix tracks arrived as 25, all 25 carrying a URI, and
+            // returned 25. See issue #70, which was filed on the assumption that
+            // it collapsed to one and closed once this was measured.
+            //
+            // So the correct behaviour of continuous play rests on
+            // localConfiguration surviving an in-process addMediaItems. If that
+            // ever stopped holding, every mix track would miss both clauses,
+            // resolvedItems would come out empty, and the `isEmpty` guard below
+            // would append `firstItem` alone -- a mix that silently adds one song,
+            // diagnosed three layers from here.
             else -> {
                 Log.d(TAG, "Fallback queue for item ${firstItem.mediaId}")
                 val resolvedItems = ArrayList<MediaItem>()

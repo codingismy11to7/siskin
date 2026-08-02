@@ -190,9 +190,18 @@ class MediaLibrarySessionCallbackStartIndexTest {
 
     /**
      * A tapped row that kept the extras it was built with, minus its stream:
-     * media3 drops localConfiguration when a MediaItem crosses the controller
-     * boundary, and that absence is what stops resolveQueueForItem treating the
-     * row as already resolved.
+     * media3 drops localConfiguration when a MediaItem is Bundle-serialized
+     * across a **process** boundary, which is what a tap from
+     * com.android.car.media does, and that absence is what stops
+     * resolveQueueForItem treating the row as already resolved.
+     *
+     * The process qualifier is load-bearing and was missing here until issue #70.
+     * An in-process controller -- MediaManager's MediaBrowser, which continuous
+     * play appends through -- keeps its localConfiguration, measured at 25 of 25
+     * on an API 33 AAOS emulator. Reading this as "the controller boundary always
+     * strips it" is what produced #70, a bug report for a defect that did not
+     * exist. This fixture is simulating the car specifically, not controllers in
+     * general.
      */
     private fun withParentTag(item: MediaItem) = MediaItem.Builder()
         .setMediaId(item.mediaId)
