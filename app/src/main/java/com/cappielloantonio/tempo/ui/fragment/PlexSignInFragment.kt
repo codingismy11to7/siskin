@@ -289,20 +289,6 @@ class PlexSignInFragment : Fragment() {
             if (isOpenEndedList) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
         (bind.root as LinearLayout).gravity = gravity
         bind.scrollContent.gravity = gravity
-
-        // Clears the back button only where the heading is pinned under it;
-        // zero everywhere else so the genuinely-centred states stay on true
-        // centre instead of nudging right for a button nowhere near them.
-        val headingOffset =
-            if (isOpenEndedList) resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
-            else 0
-        setMarginStart(bind.tagline, headingOffset)
-        setMarginStart(bind.stepHeading, headingOffset)
-    }
-
-    private fun setMarginStart(view: View, marginStart: Int) {
-        (view.layoutParams as LinearLayout.LayoutParams).marginStart = marginStart
-        view.requestLayout()
     }
 
     /**
