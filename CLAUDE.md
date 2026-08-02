@@ -162,6 +162,18 @@ is typically user 10, so app data lives under `/data/user/10/<pkg>/`, *not*
 directory and invites the false conclusion that nothing was written. Confirm
 with `adb shell am get-current-user` first.
 
+Reading that data is `run-as`, and **`run-as` needs the user too**. Plain
+`run-as <pkg>` resolves to user 0's data dir, so it answers "No such file or
+directory" for files that exist — the same false "the app wrote nothing"
+conclusion as above, one step further on:
+
+    adb shell run-as us.codingismy11to7.siskin.debug --user 10 cat shared_prefs/<pkg>_preferences.xml
+
+**Do not reach for `adb root` when something like this fails.** `adb root` and
+`adb unroot` restart adbd on the device, which drops every existing adb
+connection — including a `scrcpy` mirror that may have been running for days.
+`run-as` needs no root. If root is genuinely unavoidable, ask first.
+
 `ServerProbe` builds its own bare `OkHttpClient` with no logging interceptor, so
 **its requests never appear in logcat**. An absence of `/identity` calls in the
 log means nothing.
