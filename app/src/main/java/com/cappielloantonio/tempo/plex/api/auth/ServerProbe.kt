@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.plex.api.auth
 
 import android.util.Log
+import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelChildren
@@ -125,9 +126,28 @@ class ServerProbe(
             .build()
 
         /**
+         * The app permits no cleartext traffic, so an `http://` address cannot be
+         * opened at all: the platform rejects it locally, before any socket, and
+         * OkHttp surfaces that as an `UnknownServiceException`.
+         *
+         * This costs less than it sounds. Plex issues real certificates for
+         * `*.plex.direct`, so a LAN server still advertises an https address for
+         * its private IP. What it excludes is a server with secure connections
+         * disabled, or one reached through a custom http access URL.
+         */
+        private fun Connection.isSecure(): Boolean =
+            uri?.startsWith("https://", ignoreCase = true) == true
+
+        /**
          * Plex's ordering is preserved within a tier. It carries no reachability
          * information, but the race does not need it to -- it only decides which
          * request is issued a few microseconds sooner.
+         *
+         * Cleartext is deliberately *not* filtered here, unlike in
+         * [hasUsableConnection]. A rejected address fails instantly and without
+         * touching the network, so dropping it early would buy nothing, and having
+         * the probe re-state a policy the platform already enforces gives two places
+         * to change when only one of them is load-bearing.
          */
         @JvmStatic
         fun candidates(resource: Resource): Candidates {
@@ -144,9 +164,13 @@ class ServerProbe(
          * Whether a server is worth offering in the picker at all. Deliberately not
          * a reachability test: answering that for every server in the account means
          * probing all of them before the list can be drawn.
+         *
+         * It *is* a scheme test, because that much is knowable from the payload
+         * alone: a server advertising nothing but cleartext can never be reached,
+         * so listing it would only defer the failure until after the user picked it.
          */
         @JvmStatic
         fun hasUsableConnection(resource: Resource): Boolean =
-            resource.connections?.any { !it.uri.isNullOrBlank() } == true
+            resource.connections?.any { it.isSecure() } == true
     }
 }
