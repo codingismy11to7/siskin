@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Siskin</string>
-    <string name="exo_controls_heart_off_description">Comutați inima în stare inactivă</string>
-    <string name="exo_controls_heart_on_description">Comutați inima în stare activă</string>
-    <string name="exo_controls_heart_loading_description">Se încarcă…</string>
 
 </resources>

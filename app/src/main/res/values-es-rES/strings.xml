@@ -1,9 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Siskin</string>
-    <string name="exo_controls_heart_on_description">Añadir a favoritos</string>
-    <string name="exo_controls_heart_loading_description">Cargando…</string>
-    <string name="exo_controls_heart_off_description">Eliminar de favoritos</string>
     <string name="aa_albums">Álbumes</string>
     <string name="aa_artists">Artistas</string>
     <string name="aa_playlists">Listas de reproducción</string>

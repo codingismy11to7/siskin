@@ -81,32 +81,9 @@ open class BaseSessionCallback(
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
-    @Suppress("DEPRECATION")
-    private val customCommandToggleHeartOn =
-        CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-            .setDisplayName(context.getString(R.string.exo_controls_heart_on_description))
-            .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_HEART_ON, Bundle.EMPTY))
-            .setIconResId(R.drawable.ic_favorite)
-            .setSlots(CommandButton.SLOT_OVERFLOW)
-            .build()
-
-    @Suppress("DEPRECATION")
-    private val customCommandToggleHeartOff =
-        CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-            .setDisplayName(context.getString(R.string.exo_controls_heart_off_description))
-            .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_HEART_OFF, Bundle.EMPTY))
-            .setIconResId(R.drawable.ic_favorites_outlined)
-            .setSlots(CommandButton.SLOT_OVERFLOW)
-            .build()
-
-    @Suppress("DEPRECATION")
-    private val customCommandToggleHeartLoading =
-        CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-            .setDisplayName(context.getString(R.string.exo_controls_heart_loading_description))
-            .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_HEART_LOADING, Bundle.EMPTY))
-            .setIconResId(R.drawable.ic_bookmark_sync)
-            .setSlots(CommandButton.SLOT_OVERFLOW)
-            .build()
+    // No rating button. The car draws its own control left of transport, because
+    // PlexMediaMapper publishes a HeartRating -- see the 2026-08-02 car star
+    // rating design. It arrives here through onSetRating, not onCustomCommand.
 
     @Suppress("DEPRECATION")
     private val customCommandInstantMixOn =
@@ -135,9 +112,6 @@ open class BaseSessionCallback(
         customCommandToggleRepeatModeOff,
         customCommandToggleRepeatModeOne,
         customCommandToggleRepeatModeAll,
-        customCommandToggleHeartOn,
-        customCommandToggleHeartOff,
-        customCommandToggleHeartLoading,
         customCommandInstantMixOn,
         customCommandInstantMixOff
     )
@@ -242,14 +216,11 @@ open class BaseSessionCallback(
     // ─────────────────────────────────────────────────────────────
 
     @OptIn(UnstableApi::class)
-    protected fun updateMediaNotificationCustomLayout(
-        session: MediaSession,
-        isRatingPending: Boolean = false
-    ) {
+    protected fun updateMediaNotificationCustomLayout(session: MediaSession) {
         val controller = session.mediaNotificationControllerInfo ?: return
         session.setMediaButtonPreferences(
             controller,
-            buildMediaButtonPreferences(session.player, isRatingPending)
+            buildMediaButtonPreferences(session.player)
         )
     }
 
@@ -282,72 +253,32 @@ open class BaseSessionCallback(
      *    [previous, playPause, next]. The car's arrangement is fixed, not derived
      *    from the order we send.
      *  - Slots do not promote a custom button into the row. SLOT_FORWARD_SECONDARY
-     *    and declaring no slots at all were both tried on the heart; the row was
-     *    unchanged either way. The row takes *player-command* buttons, which reach a
-     *    legacy client as standard transport actions; a setSessionCommand button is
-     *    a custom action, and the car files those under the overflow.
-     *  - The star left of transport is not ours at all. It is the car's own rating
-     *    widget, drawn because the metadata carries a HeartRating, and tapping it
-     *    makes the same `/:/rate?rating=10` call our heart does. Removing it means
-     *    not publishing the rating, which in turn means carrying hearted state
-     *    somewhere other than userRating.
+     *    and declaring no slots at all were both tried; the row was unchanged
+     *    either way. The row takes *player-command* buttons, which reach a legacy
+     *    client as standard transport actions; a setSessionCommand button is a
+     *    custom action, and the car files those under the overflow.
+     *  - The star left of transport is not ours, and that is the point. It is the
+     *    car's own rating widget, drawn because PlexMediaMapper publishes a
+     *    HeartRating, and it reaches onSetRating directly. Nothing here can put a
+     *    button in that slot while it is displayed, and nothing needs to.
+     *
+     * The order used to come from two preferences inherited from tempo, which had a
+     * settings screen to write them. This fork deleted that screen, so both always
+     * returned their defaults and the order was fixed anyway -- just spelled through
+     * a preference read and a string-id dispatch rather than stated here.
      */
-    private fun buildMediaButtonPreferences(
-        player: Player,
-        isRatingPending: Boolean = false
-    ): ImmutableList<CommandButton> = buildCustomLayout(player, isRatingPending)
-
-    protected fun buildCustomLayout(
-        player: Player,
-        isRatingPending: Boolean = false
-    ): ImmutableList<CommandButton> {
-        val customLayout = mutableListOf<CommandButton>()
-
-        val allButtons = listOf(
-            "[heartID]",
-            "[repeatID]",
-            "[shuffleID]",
-            "[instantMixID]")
-        val tabButton = listOfNotNull(
-            Preferences.getCustomCommandFirstButton(),
-            Preferences.getCustomCommandSecondButton()
-        ).distinct()
-
-        val remainingButtons = allButtons.filter { it !in tabButton }
-
-        tabButton.forEach { id ->
-            getCommandButton(id, player, isRatingPending)?.let { customLayout.add(it) }
-        }
-
-        remainingButtons.forEach { id ->
-            getCommandButton(id, player, isRatingPending)?.let { customLayout.add(it) }
-        }
-
-        return ImmutableList.copyOf(customLayout)
-    }
-
-    private fun getCommandButton(id: String, player: Player, isRatingPending: Boolean): CommandButton? {
-        return when (id) {
-            "[heartID]" -> when {
-                player.currentMediaItem == null || isRatingPending -> null
-                PlexMediaMapper.readHearted(player.mediaMetadata) -> customCommandToggleHeartOn
-                else -> customCommandToggleHeartOff
-            }
-
-            "[shuffleID]" -> if (player.shuffleModeEnabled) customCommandToggleShuffleModeOff
-            else customCommandToggleShuffleModeOn
-
-            "[repeatID]" -> when (player.repeatMode) {
+    protected fun buildMediaButtonPreferences(player: Player): ImmutableList<CommandButton> =
+        ImmutableList.of(
+            when (player.repeatMode) {
                 Player.REPEAT_MODE_ONE -> customCommandToggleRepeatModeOne
                 Player.REPEAT_MODE_ALL -> customCommandToggleRepeatModeAll
                 else -> customCommandToggleRepeatModeOff
-            }
-
-            "[instantMixID]" -> if (!MediaManager.continuousPlayIsRunning.get()) customCommandInstantMixOn
+            },
+            if (player.shuffleModeEnabled) customCommandToggleShuffleModeOff
+            else customCommandToggleShuffleModeOn,
+            if (!MediaManager.continuousPlayIsRunning.get()) customCommandInstantMixOn
             else customCommandInstantMixOff
-            else -> null
-        }
-    }
+        )
 
     // ─────────────────────────────────────────────────────────────
     // Rating (heart)
@@ -358,12 +289,15 @@ open class BaseSessionCallback(
         controller: MediaSession.ControllerInfo,
         rating: Rating
     ): ListenableFuture<SessionResult> {
-        return onSetRating(
-            session,
-            controller,
-            session.player.currentMediaItem!!.mediaId,
-            rating
-        )
+        // The car rates the current track and nothing else, but it is the only
+        // caller now that the heart button is gone, so an empty queue reaches this
+        // as a plain null rather than as anything we control.
+        val mediaId = session.player.currentMediaItem?.mediaId
+            ?: return Futures.immediateFuture(
+                SessionResult(SessionError(SessionError.ERROR_INVALID_STATE, "No current track to rate"))
+            )
+
+        return onSetRating(session, controller, mediaId, rating)
     }
 
     override fun onSetRating(
@@ -372,7 +306,20 @@ open class BaseSessionCallback(
         mediaId: String,
         rating: Rating
     ): ListenableFuture<SessionResult> {
-        val isStarring = (rating as HeartRating).isHeart
+        // A checked cast, because the car is the only source of these now. It sends
+        // back the type we publish -- a HeartRating, since that is the one the car
+        // draws a control for -- but an unchecked cast turns any other into a
+        // ClassCastException on a car-driven path, which fails as a crash rather
+        // than as a session error.
+        if (rating !is HeartRating) {
+            return Futures.immediateFuture(
+                SessionResult(
+                    SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unsupported rating: ${rating.javaClass.simpleName}")
+                )
+            )
+        }
+
+        val isStarring = rating.isHeart
         val future = SettableFuture.create<SessionResult>()
 
         scope.launch {
@@ -399,10 +346,10 @@ open class BaseSessionCallback(
                 )
             }
 
-            // On every path, success included: the heart button was switched to
-            // its loading icon before the request went out, so skipping this
-            // leaves it spinning forever.
-            updateMediaNotificationCustomLayout(session)
+            // No layout rebuild here. It used to be unconditional because the heart
+            // button was rebuilt from the rating; the overflow no longer varies with
+            // it, and the car's control redraws from the metadata applyRatingToQueue
+            // writes, which is a different channel from button preferences.
             future.set(result)
         }
 
@@ -416,8 +363,8 @@ open class BaseSessionCallback(
      * (SessionError.java:209, media3 1.9.2), so passing a raw HTTP status
      * straight through -- 401, 404, 500 -- fails that precondition and throws
      * IllegalArgumentException. That used to escape the coroutine instead of
-     * completing the future: the heart button stayed on its loading icon forever
-     * and the uncaught exception reached the main thread's default handler. See
+     * completing the future, leaving the rating's future to hang and the uncaught
+     * exception to reach the main thread's default handler. See
      * BaseSessionCallbackRatingTest for the pinned mechanism and its regression
      * test.
      *
@@ -443,9 +390,13 @@ open class BaseSessionCallback(
     }
 
     /**
-     * Carries the new rating into the queue so the heart survives a track
-     * change: the button is rebuilt from `player.mediaMetadata.userRating`, and
-     * without this the item the player holds still says what Plex used to think.
+     * Carries the new rating into the queue so the car's control survives a track
+     * change: it is drawn from `player.mediaMetadata.userRating`, and without this
+     * the item the player holds still says what Plex used to think.
+     *
+     * Load-bearing rather than housekeeping. It is the only thing that updates the
+     * control after a tap, now that nothing about the button preferences depends on
+     * the rating.
      */
     private fun applyRatingToQueue(session: MediaSession, mediaId: String, isStarring: Boolean) {
         for (i in 0 until session.player.mediaItemCount) {
@@ -507,12 +458,6 @@ open class BaseSessionCallback(
                 session.player.repeatMode = nextMode
                 updateMediaNotificationCustomLayout(session)
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-            }
-            Constants.CUSTOM_COMMAND_TOGGLE_HEART_ON,
-            Constants.CUSTOM_COMMAND_TOGGLE_HEART_OFF -> {
-                val isCurrentlyLiked = PlexMediaMapper.readHearted(session.player.mediaMetadata)
-                updateMediaNotificationCustomLayout(session, isRatingPending = true)
-                onSetRating(session, controller, HeartRating(!isCurrentlyLiked))
             }
             else -> Futures.immediateFuture(
                 SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, customCommand.customAction))

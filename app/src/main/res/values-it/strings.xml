@@ -1,7 +1,4 @@
 <resources>
     <string name="app_name">Siskin</string>
-    <string name="exo_controls_heart_off_description">Aggiungi ai preferiti</string>
-    <string name="exo_controls_heart_on_description">Rimuovi dai preferiti</string>
-    <string name="exo_controls_heart_loading_description">Caricamento…</string>
 
 </resources>
