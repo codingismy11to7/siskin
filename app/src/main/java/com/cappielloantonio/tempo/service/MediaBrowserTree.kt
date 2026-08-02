@@ -328,6 +328,26 @@ object MediaBrowserTree {
                         )
                     )
                 }
+                if (id == SIGNED_OUT_ROW_ID) {
+                    // Reachable while signed in, not just while signed out:
+                    // [MediaLibrarySessionCallback.onGetChildren]'s
+                    // no-credentials guard is what normally answers a request
+                    // for this id, but that guard only fires while
+                    // CredentialGate.isSignedIn() is false. Drill into this
+                    // row signed out, then sign in via the gear --
+                    // onLoginSuccess() finishes the activity, and the car
+                    // returns to the drilled-in screen underneath and
+                    // re-requests the same node, now signed in, so the
+                    // request reaches this `when` directly instead of the
+                    // guard. Same rule as the confirmation row and the
+                    // message row above: a row that explains a state must not
+                    // become a blank screen -- here, ERROR_BAD_VALUE -- when
+                    // the state it described has already changed underneath
+                    // it.
+                    return Futures.immediateFuture(
+                        LibraryResult.ofItemList(signedOutRow(appContext), null)
+                    )
+                }
                 return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
             }
         }
@@ -381,16 +401,31 @@ object MediaBrowserTree {
      * is what the two-line split above was solving for in the first place,
      * so it collapses back into one row using both lines the browse list
      * already gives every item: `car_sign_in_required` as the title,
-     * `car_sign_in_hint` as the subtitle. Zero new strings: both already
-     * existed.
+     * `car_sign_in_hint` as the subtitle. That costs nothing *further*: both
+     * lines were already in place by the two-row split, which is what first
+     * introduced `car_sign_in_hint` as a second row's title. But
+     * `car_sign_in_hint` is not a pre-existing string overall -- it is new to
+     * this branch, one of the three the design doc's string budget accounts
+     * for (alongside the Settings heading and the Sign out button);
+     * `car_sign_in_required` is the one that predates this work.
      *
      * [MediaLibrarySessionCallback.onGetChildren]'s no-credentials guard
      * exempts `ROOT_ID` for exactly this reason and falls through to the
      * normal tab construction for it; every other `parentId` still answers
      * with this row, so a request for the row's own id lands back here
-     * again. [getItem] does need a branch for the row's id, because the
-     * default `onSubscribe` validates a target through `onGetItem` before a
-     * tap into a browsable row is allowed to stick.
+     * again -- while signed out. Signed in, the guard no longer intercepts
+     * (`CredentialGate.isSignedIn()` is true), so the same id can still
+     * reach [getChildren] directly: drill into this row while signed out,
+     * sign in through the gear, and the car returns to the screen it was
+     * already showing underneath and re-requests that same node, now signed
+     * in. [getChildren]'s own `SIGNED_OUT_ROW_ID` branch is what answers
+     * that with this row again rather than `ERROR_BAD_VALUE`, the same rule
+     * the confirmation row and the message row above follow: a row that
+     * explains a state must not become a blank screen when the state it
+     * described has already changed underneath it. [getItem] does need a
+     * branch for the row's id, because the default `onSubscribe` validates
+     * a target through `onGetItem` before a tap into a browsable row is
+     * allowed to stick.
      *
      * Still not playable: background activity-launch restrictions mean we
      * cannot start the sign-in screen ourselves, only the car can, which is
