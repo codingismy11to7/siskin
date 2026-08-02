@@ -46,16 +46,26 @@ open class BaseSessionCallback(
     // CommandButtons
     // ─────────────────────────────────────────────────────────────
 
+    // The two crossings below are deliberate. ExoPlayer's string names describe the
+    // *state* shuffle is in -- ..._shuffle_off_description is what you read while
+    // shuffle is off, and it reads "Enable shuffle mode" -- while these property names
+    // describe the *action* the button performs. buildMediaButtonPreferences publishes
+    // ...ModeOn while shuffle is off, so ...ModeOn is the one that takes the
+    // ..._off_description string; the icon follows the state for the same reason, which
+    // is why ...ModeOn draws ICON_SHUFFLE_OFF. Pairing them by matching name instead
+    // labels both buttons with the opposite of what they do -- that was the bug. The
+    // repeat buttons under these are named for the state, so theirs do line up.
+
     private val customCommandToggleShuffleModeOn =
         CommandButton.Builder(CommandButton.ICON_SHUFFLE_OFF)
-            .setDisplayName(context.getString(R.string.exo_controls_shuffle_on_description))
+            .setDisplayName(context.getString(R.string.exo_controls_shuffle_off_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
     private val customCommandToggleShuffleModeOff =
         CommandButton.Builder(CommandButton.ICON_SHUFFLE_ON)
-            .setDisplayName(context.getString(R.string.exo_controls_shuffle_off_description))
+            .setDisplayName(context.getString(R.string.exo_controls_shuffle_on_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
