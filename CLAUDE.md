@@ -59,8 +59,48 @@ claim 88 languages.
 `flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, and `gh`
 — `nix develop`, or direnv via `.envrc`. Two helper scripts come from the shell:
 
-    siskin-avd        # create the AAOS AVD (idempotent)
-    siskin-emulator   # boot it
+    siskin-avd                    # create the AAOS AVD (idempotent)
+    siskin-emulator               # boot it
+
+    siskin-avd portrait           # the same, for a portrait head unit
+    siskin-emulator portrait
+
+Both take an optional **variant**, defaulting to `landscape`:
+
+| Variant | Device profile | Screen |
+|---|---|---|
+| `landscape` | `automotive_1024p_landscape` | 1024×768, mdpi |
+| `portrait` | `automotive_portrait` | 800×1280, ldpi |
+
+**Those two sizes are Play's, not a preference.** An Android Automotive OS
+listing must carry at least two portrait screenshots at 800×1280 and two
+landscape at 1024×768, and these are the stock profiles that render at exactly
+those sizes — so a capture needs no resizing, which would otherwise misrepresent
+what the car draws. Higher-resolution profiles exist
+(`automotive_1408p_landscape_with_google_apis` at 1408×792,
+`automotive_large_portrait` at 1280×1606) and are fine for looking at the app,
+but their captures cannot be uploaded as-is.
+
+Each variant is its own AVD (`siskin-aaos-api33-<variant>`) because an AAOS
+screen does not rotate — the car's system UI is built per hardware profile, so
+orientation is a property of the AVD and not something to toggle at runtime.
+`wm size` / `wm density` will override both on a running device, but that only
+stretches the existing profile's UI; it fakes a screenshot size rather than
+showing what the car renders. Portrait head units are real hardware — Volvo and
+Polestar ship them.
+
+`siskin-emulator` still forwards emulator flags, and a leading `-` is treated as
+a flag rather than a variant, so `siskin-emulator -no-snapshot` works unchanged.
+
+Adding a variant is one line in `avdVariants` in `flake.nix`. Only profiles
+tagged `android-automotive` are usable: `automotive_1024p_landscape` and the
+`automotive_distant_display` pair need `-playstore` and `-distantdisplay` images
+that nixpkgs does not package at API 33. `automotive_ultrawide` is excluded
+deliberately — at 3904px it is wider than Play's 3840px cap for a screenshot.
+
+**`automotive_1080p_landscape` is 1080 pixels wide and 600 tall, not 1080p.**
+It was the original profile here and the name is why the store screenshots and
+the emulator disagreed about their size for a while.
 
 The emulator is pinned to **API 33** because that is the only API level for
 which nixpkgs carries an `android-automotive` system image.
