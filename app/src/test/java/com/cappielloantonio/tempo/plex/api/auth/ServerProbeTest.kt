@@ -159,4 +159,28 @@ class ServerProbeTest {
         assertTrue(!ServerProbe.hasUsableConnection(resource(connection(""))))
         assertTrue(!ServerProbe.hasUsableConnection(Resource()))
     }
+
+    @Test
+    fun hidesAServerReachableOnlyOverCleartext() {
+        // Secure connections disabled on the server, or a custom http access URL.
+        // The app permits no cleartext traffic, so this could never be opened --
+        // offering it would only defer the failure until after it was picked.
+        assertTrue(
+            !ServerProbe.hasUsableConnection(resource(connection("http://192.168.1.5:32400")))
+        )
+    }
+
+    @Test
+    fun keepsAServerThatOffersTlsAlongsideCleartext() {
+        // The ordinary case for a LAN server: Plex issues a real certificate for
+        // the plex.direct name covering the same private address.
+        assertTrue(
+            ServerProbe.hasUsableConnection(
+                resource(
+                    connection("http://192.168.1.5:32400"),
+                    connection("https://192-168-1-5.abc.plex.direct:32400")
+                )
+            )
+        )
+    }
 }

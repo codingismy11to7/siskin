@@ -19,9 +19,12 @@ class LibraryPickerRepositoryTest {
     fun `keeps only media servers with a usable connection`() {
         val rows = LibraryPickerRepository.serverRows(
             listOf(
-                resource("Basement", "a", "server", "http://pms:32400"),
-                resource("Phone", "b", "player", "http://phone:32400"),
-                resource("Unreachable", "c", "server", null)
+                resource("Basement", "a", "server", "https://pms:32400"),
+                resource("Phone", "b", "player", "https://phone:32400"),
+                resource("Unreachable", "c", "server", null),
+                // The app permits no cleartext traffic, so this one could never be
+                // opened -- listing it would only defer the failure to the tap.
+                resource("Cleartext", "d", "server", "http://pms:32400")
             )
         )
         assertEquals(listOf("Basement"), rows.map { it.name })
