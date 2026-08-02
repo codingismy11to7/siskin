@@ -92,13 +92,14 @@ class MediaLibrarySessionCallback(
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         if (!CredentialGate.isSignedIn()) {
             Log.d(TAG, "onGetChildren blocked for $parentId: no usable credentials")
-            // A row, not an error. Signed out is a state, not a failure, and an
-            // error's Connect button lands under the mini player on head units
-            // that always show one. classifyFailure still returns an error for
-            // credentials that were rejected mid-use -- that one is a failure.
+            // Two rows, not an error. Signed out is a state, not a failure, and
+            // an error's Connect button lands under the mini player on head
+            // units that always show one. classifyFailure still returns an
+            // error for credentials that were rejected mid-use -- that one is
+            // a failure.
             return Futures.immediateFuture(
                 LibraryResult.ofItemList(
-                    MediaBrowserTree.signedOutRow(context),
+                    MediaBrowserTree.signedOutRows(context),
                     null
                 )
             )

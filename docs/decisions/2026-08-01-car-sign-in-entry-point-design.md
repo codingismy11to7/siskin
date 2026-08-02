@@ -74,23 +74,33 @@ and they are not the same problem.
 `MediaLibraryServiceCallback`, using `car_sign_in_required`. It fires for every
 request including the root, which is why a signed-out car shows no tabs at all.
 Nothing has failed here; the user simply has not connected yet. This stops
-returning an error and returns a single **info row** instead: one `MediaItem`,
-browsable but not playable. A list row cannot be covered by a mini player, and
-a first-run user sees words rather than an empty screen -- once the row is
-visible at all, which took a second pass; see "Verified on the emulator"
+returning an error and returns **two info rows** instead: browsable but not
+playable. A list row cannot be covered by a mini player, and a first-run user
+sees words rather than an empty screen -- once the rows were visible and
+readable at all, which took two more passes; see "Verified on the emulator"
 below.
 
-The row uses both lines the browse list already gives every item, the same way
-an album shows its artist underneath its title:
-
-| Line | Content |
+| Row | Content |
 |---|---|
-| Title | `car_sign_in_required`, reused verbatim |
-| Subtitle | a new string naming the settings icon |
+| 1 | `car_sign_in_required`, reused verbatim -- the situation |
+| 2 | `car_sign_in_hint` -- the action |
 
-Splitting it this way keeps the primary line in the app's existing voice and
-puts the instruction where a second line belongs, rather than making one
-sentence carry both the explanation and the direction.
+This was one row at first, using both lines the browse list already gives
+every item, the same way an album shows its artist underneath its title:
+`car_sign_in_required` as the title, `car_sign_in_hint` as the subtitle.
+Splitting the message across a title and a subtitle kept the primary line in
+the app's existing voice and put the instruction where a second line belongs,
+rather than making one sentence carry both the explanation and the direction
+-- and it was wrong for a reason that has nothing to do with wording.
+`com.android.car.media` auto-drills into a browse node whose only child is
+itself browsable: with one row present, the message rendered twice -- once
+correctly, as the toolbar title where "Siskin" belongs, and again as the sole
+row underneath it -- and tapping that row recursed into the same single-child
+node forever. Two rows removes the condition rather than working around it:
+with more than one child there is nothing for the car to auto-drill into. The
+same two strings do the same job, now one per row instead of one per line,
+and the `car_sign_in_hint` string that used to be a subtitle costs nothing to
+reuse as the second row's title -- zero new strings for this fix.
 
 **Credentials rejected mid-use** — `classifyFailure` in the same file and the
 equivalent in `LibraryPickerRepository`, using `car_sign_in_again`, reached when
@@ -147,7 +157,7 @@ Sign out is existing machinery plus a state change:
 2. `BrowseTreeInvalidator.stopPlayback()` — the credentials that were streaming
    the current track are gone, so playback cannot honestly continue
 3. `BrowseTreeInvalidator.invalidateRoot()` — the car re-requests the root and
-   gets the info row
+   gets the two info rows
 4. the screen returns to `Disconnected` rather than calling `finish()`
 
 That last step is the opposite of the successful-sign-in case on purpose.
@@ -202,22 +212,26 @@ different platforms** — Android Auto and AAOS respectively. PR #56 removes the
 Android Auto opt-in and orphans the former. Both changes touch adjacent manifest
 lines, so whichever lands second needs a rebase.
 
-**The info row's shape was the one untested assumption, and the emulator
-proved it wrong.** A `MediaItem` that is neither browsable nor playable is not
-merely inert on an AAOS API 33 emulator -- it is not rendered at all; see
-"Verified on the emulator." The fallback anticipated for exactly this case --
-make the row browsable with itself as its only child -- is what shipped
-instead.
+**The info row's shape was not one untested assumption but two, and the
+emulator proved both wrong in turn.** A `MediaItem` that is neither browsable
+nor playable is not merely inert on an AAOS API 33 emulator -- it is not
+rendered at all; see "Verified on the emulator." The fallback anticipated for
+exactly this case -- make the row browsable with itself as its only child --
+is what shipped next, and was itself measured wrong: a single row browsable
+into itself is precisely the shape `com.android.car.media` auto-drills into,
+doubling the message and recursing forever on tap. Two rows, described above,
+is what actually shipped.
 
 **New strings cost lint.** Every user-facing string added raises
 `MissingTranslation` by one per locale against the baseline in `CLAUDE.md`.
 
-The `Disconnected` heading and the info row's **title** both reuse
-`car_sign_in_required` and cost nothing. Three strings are new: the info row's
-**subtitle**, the **Settings** heading and the **Sign out** button. Neither of
-the latter two exists in `strings.xml` today.
+The `Disconnected` heading and the first info row's **title** both reuse
+`car_sign_in_required` and cost nothing. Three strings are new: `car_sign_in_hint`
+(now the second info row's title, originally the single row's subtitle), the
+**Settings** heading and the **Sign out** button. Neither of the latter two
+exists in `strings.xml` today.
 
-The subtitle is the one worth defending, since it duplicates a message we
+`car_sign_in_hint` is the one worth defending, since it duplicates a message we
 already have. Pointing at the settings icon means naming it, and
 `car_sign_in_required` ("Your music is on Plex. Connect to start listening.")
 does not. A row that says only "Your music is on Plex" leaves the user exactly
@@ -271,12 +285,29 @@ flagged above as untested.
   named above), fixed it: the title and subtitle render, and drilling in
   shows the same message again rather than an empty screen or a crash.
 
+A third pass on the same AAOS API 33 emulator found the single browsable row
+itself was the wrong shape.
+
+- With one row present, the message appeared twice: once as
+  `car_ui_toolbar_title`, where "Siskin" belongs, and once more as the row
+  itself underneath it.
+- Tapping the row did not open a sign-in flow or repeat the message once --
+  it recursed, re-entering the same single-child node on every tap.
+- A view-hierarchy dump showed two stacked `browse_list` levels for what was
+  meant to be one screen, confirming `com.android.car.media` auto-drills into
+  any node whose only child is itself browsable.
+- Replacing the single row with two -- `car_sign_in_required` and
+  `car_sign_in_hint`, split across two `MediaItem`s instead of one item's
+  title and subtitle -- removed the condition: with more than one child,
+  there is nothing for the car to auto-drill into, and the toolbar keeps
+  reading "Siskin".
+
 ## Not done here
 
 Only the manifest doorway has been built and verified. Still to implement: the
 `Disconnected` state, the minimal settings screen and its sign-out, the
 entry-point extra that keeps the rejected-credentials path reaching sign-in, and
-the info row.
+the info rows.
 
 Two things on that list are already done and were nearly rebuilt: `finish()` on
 `Done` (see above), and the Connect button's label — `car_sign_in_action` is
