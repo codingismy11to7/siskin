@@ -73,14 +73,27 @@ class PlexSignInFragment : Fragment() {
         bind.errorText.visibility = View.GONE
         bind.retryButton.visibility = View.GONE
 
-        // The tagline above this is constant; this line names the step.
+        // Two lines of heading, and Connected is the one state that wants only
+        // one. Everywhere else this screen is signing you in, so the tagline
+        // introduces the app and the line beneath it names the step within
+        // that. Settings is not a step of signing in -- it is where you land
+        // when you are already signed in -- and "Your car. Your music." over
+        // "Settings" reads like a splash screen someone forgot to dismiss.
+        // So Settings takes the tagline's slot and the step line goes away.
+        //
         // Disconnected, Working and Failed all keep the connect wording:
         // Disconnected is before connecting has started, and Working and
         // Failed are moments inside it -- none of the three is a step of its
         // own the way choosing a server or a library is.
+        val isSettings = state is PlexSignInState.Connected
+
+        bind.tagline.setText(
+            if (isSettings) R.string.car_settings_title
+            else R.string.plex_sign_in_tagline
+        )
+        bind.stepHeading.visibility = if (isSettings) View.GONE else View.VISIBLE
         bind.stepHeading.setText(
             when (state) {
-                is PlexSignInState.Connected -> R.string.car_settings_title
                 is PlexSignInState.ChoosingServer -> R.string.plex_sign_in_choose_server
                 is PlexSignInState.ChoosingLibrary -> R.string.plex_sign_in_choose_library
                 else -> R.string.plex_sign_in_connect
