@@ -1,0 +1,44 @@
+<resources>
+    <string name="aa_albums">Álbumes</string>
+    <string name="aa_artists">Artistas</string>
+    <string name="aa_shuffle_artist">Reproducir este artista al azar</string>
+    <string name="aa_shuffle_playlist">Reproducir esta lista al azar</string>
+    <string name="aa_library_picker_no_music">No hay bibliotecas de música en este servidor</string>
+    <string name="aa_library_picker_offline">No se puede conectar con plex.tv para listar tus servidores</string>
+    <string name="aa_library_picker_server_gone">Ese servidor ya no está en tu cuenta de Plex</string>
+    <string name="aa_library_picker_server_unreachable">No se puede conectar con ese servidor Plex</string>
+    <string name="aa_more">Más</string>
+    <string name="aa_now_browsing">Explorando: %1$s (%2$s)</string>
+    <string name="aa_now_browsing_no_server">Explorando: %1$s</string>
+    <string name="aa_playlists">Listas de reproducción</string>
+    <string name="aa_select_library">Seleccionar biblioteca</string>
+
+    <string name="car_settings_sign_out">Cerrar sesión</string>
+    <string name="car_settings_title">Ajustes</string>
+    <string name="car_sign_in_action">Conectar</string>
+    <string name="car_sign_in_again">Plex rechazó la conexión guardada</string>
+    <string name="car_sign_in_back_description">Atrás</string>
+    <string name="car_sign_in_hint">Toca el icono de ajustes para conectarte</string>
+    <string name="car_sign_in_required">Tu música está en Plex. Conéctate para empezar a escuchar.</string>
+    <string name="exo_controls_repeat_all_description">Modo actual: repetir todo. Cambiar modo de repetición.</string>
+    <string name="exo_controls_repeat_off_description">Modo actual: sin repetición. Cambiar modo de repetición.</string>
+    <string name="exo_controls_repeat_one_description">Modo actual: repetir una. Cambiar modo de repetición.</string>
+    <string name="exo_controls_shuffle_off_description">Activar reproducción aleatoria</string>
+    <string name="exo_controls_shuffle_on_description">Desactivar reproducción aleatoria</string>
+
+    <string name="plex_sign_in_choose_library">Elige una biblioteca de música</string>
+    <string name="plex_sign_in_choose_server">Elige un servidor Plex</string>
+    <string name="plex_sign_in_connect">Conectar con Plex</string>
+    <string name="plex_sign_in_tagline">Tu coche. Tu música.</string>
+    <string name="plex_sign_in_error_expired">El código de acceso ha caducado.</string>
+    <string name="plex_sign_in_error_lost_candidate">Se perdió el servidor seleccionado. Inténtalo de nuevo.</string>
+    <string name="plex_sign_in_error_network">No se pudo conectar con plex.tv.</string>
+    <string name="plex_sign_in_error_no_libraries">Ese servidor no tiene bibliotecas de música.</string>
+    <string name="plex_sign_in_error_no_servers">Esta cuenta de Plex no tiene servidores multimedia accesibles.</string>
+    <string name="plex_sign_in_error_pin">Plex no devolvió un código de acceso.</string>
+    <string name="plex_sign_in_error_server_unreachable">No se pudo conectar con ese servidor Plex.</string>
+    <string name="plex_sign_in_instructions">Escanea el código QR — o ve a plex.tv/link e introduce:</string>
+    <string name="plex_sign_in_instructions_no_qr">Ve a plex.tv/link e introduce:</string>
+    <string name="plex_sign_in_qr_description">Código QR para iniciar sesión en Plex</string>
+    <string name="plex_sign_in_retry">Reintentar</string>
+</resources>
