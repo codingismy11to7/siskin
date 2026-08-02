@@ -4,18 +4,23 @@ import android.content.Context
 import android.net.Uri
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
 @UnstableApi
+@RunWith(RobolectricTestRunner::class)
 class MediaBrowserTreeTest {
 
     @Before
@@ -113,5 +118,19 @@ class MediaBrowserTreeTest {
             MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS,
             artistsItem.mediaMetadata.mediaType
         )
+    }
+
+    @Test
+    fun `the signed-out row is neither browsable nor playable and carries both lines`() {
+        val context = RuntimeEnvironment.getApplication()
+
+        val rows = MediaBrowserTree.signedOutRow(context)
+
+        assertEquals(1, rows.size)
+        val metadata = rows[0].mediaMetadata
+        assertEquals(false, metadata.isBrowsable)
+        assertEquals(false, metadata.isPlayable)
+        assertEquals(context.getString(R.string.car_sign_in_required), metadata.title)
+        assertEquals(context.getString(R.string.car_sign_in_hint), metadata.artist)
     }
 }

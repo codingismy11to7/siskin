@@ -33,6 +33,8 @@ object MediaBrowserTree {
 
     private var isInitialized = false
 
+    private const val SIGNED_OUT_ROW_ID = "siskin://signed-out"
+
     private fun iconUri(resId: Int): Uri = ResourceUris.forResource(resId)
 
     private class MediaItemNode(val item: MediaItem) {
@@ -319,6 +321,34 @@ object MediaBrowserTree {
             }
         }
     }
+
+    /**
+     * What the browse tree shows when there are no credentials.
+     *
+     * A row rather than a LibraryResult.ofError: the car places an error's
+     * message and button wherever it likes, and a Cadillac puts that button
+     * under a mini player it never hides. A list row cannot be covered.
+     *
+     * Neither browsable nor playable, because it is neither -- tapping it can do
+     * nothing useful. Background activity-launch restrictions mean we cannot
+     * start the sign-in screen ourselves; only the car can, which is what the
+     * subtitle points at.
+     */
+    fun signedOutRow(context: Context): ImmutableList<MediaItem> = ImmutableList.of(
+        MediaItem.Builder()
+            .setMediaId(SIGNED_OUT_ROW_ID)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(context.getString(R.string.car_sign_in_required))
+                    // The browse list's second line, the same one an album uses
+                    // for its artist.
+                    .setArtist(context.getString(R.string.car_sign_in_hint))
+                    .setIsBrowsable(false)
+                    .setIsPlayable(false)
+                    .build()
+            )
+            .build()
+    )
 
     fun search(query: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return browseRepository.search(
