@@ -16,6 +16,7 @@ import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
+import com.cappielloantonio.tempo.BuildConfig
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentPlexSignInBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
@@ -92,6 +93,7 @@ class PlexSignInFragment : Fragment() {
         bind.choiceContainer.removeAllViews()
         bind.errorText.visibility = View.GONE
         bind.retryButton.visibility = View.GONE
+        bind.versionText.visibility = View.GONE
 
         // Two lines of heading, and Connected is the one state that wants only
         // one. Everywhere else this screen is signing you in, so the tagline
@@ -138,9 +140,16 @@ class PlexSignInFragment : Fragment() {
             // exists -- the gear's entry point. addChoice is reused rather than
             // a new button: it already applies the oversized head-unit tap
             // target and the colorOnPrimary fix.
-            is PlexSignInState.Connected -> addChoice(getString(R.string.car_settings_sign_out)) {
-                viewModel.signOut()
-                (requireActivity() as LoginHost).onSignedOut()
+            is PlexSignInState.Connected -> {
+                addChoice(getString(R.string.car_settings_sign_out)) {
+                    viewModel.signOut()
+                    (requireActivity() as LoginHost).onSignedOut()
+                }
+                // Settings only. Every other state here is a step of signing in,
+                // where the build number answers no question the user is asking.
+                bind.versionText.text =
+                    "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+                bind.versionText.visibility = View.VISIBLE
             }
 
             is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE

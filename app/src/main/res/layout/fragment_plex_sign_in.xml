@@ -187,6 +187,36 @@
                 android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:textColor="?attr/colorOnPrimary"
                 android:visibility="gone" />
+
+            <!--
+                Inside the scroll area rather than pinned to the bottom of the
+                screen, where a version string conventionally goes: the Settings
+                state is an open-ended list, so contentScroll takes all the
+                remaining height and a pinned row would have nowhere left to sit.
+                Last child, so it lands under the Sign out button that render()
+                adds to choice_container. retry_button is GONE in that state and
+                collapses between them.
+
+                No string resource: the text is a version and a build number, so
+                there is no prose to translate and nothing for the other four
+                locales to carry.
+
+                tools:text is a deliberately impossible version. It exists only
+                to give the layout preview something the right shape; the tools
+                namespace is stripped at build time and never reaches the APK,
+                and render() overwrites the value from BuildConfig anyway. A real
+                version here would go stale at the next bump and read as though
+                it meant something.
+            -->
+            <TextView
+                android:id="@+id/version_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone"
+                tools:text="0.0.0 (0)" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
