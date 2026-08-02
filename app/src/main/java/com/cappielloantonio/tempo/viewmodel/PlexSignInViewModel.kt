@@ -127,6 +127,21 @@ class PlexSignInViewModel @JvmOverloads constructor(
         signIn()
     }
 
+    /**
+     * Drops the session and returns to [PlexSignInState.Disconnected] rather
+     * than closing the screen. Someone who just signed out is plausibly here to
+     * sign in as someone else; closing would make them find the gear again.
+     *
+     * Stopping playback and invalidating the browse tree belong to the host --
+     * see LoginHost.onSignedOut -- because this class has no business knowing
+     * about the media session.
+     */
+    fun signOut() {
+        attempt?.cancel()
+        api.session = null
+        _state.value = PlexSignInState.Disconnected
+    }
+
     fun chooseServer(resource: Resource) {
         // Read before the overwrite below, because the state is the only place
         // this list lives -- a parallel field would give it two owners. If this

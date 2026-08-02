@@ -75,4 +75,13 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         BrowseTreeInvalidator.INSTANCE.invalidateRoot();
         finish();
     }
+
+    @Override
+    public void onSignedOut() {
+        // Order matters: stop the audio first. invalidateRoot makes the car
+        // re-request the tree, and it should not do that while a player is still
+        // running on dead credentials.
+        BrowseTreeInvalidator.INSTANCE.stopPlayback();
+        BrowseTreeInvalidator.INSTANCE.invalidateRoot();
+    }
 }

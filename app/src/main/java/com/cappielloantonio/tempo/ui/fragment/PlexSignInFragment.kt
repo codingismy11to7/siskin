@@ -78,6 +78,7 @@ class PlexSignInFragment : Fragment() {
         // own the way choosing a server or a library is.
         bind.stepHeading.setText(
             when (state) {
+                is PlexSignInState.Connected -> R.string.car_settings_title
                 is PlexSignInState.ChoosingServer -> R.string.plex_sign_in_choose_server
                 is PlexSignInState.ChoosingLibrary -> R.string.plex_sign_in_choose_library
                 else -> R.string.plex_sign_in_connect
@@ -98,10 +99,13 @@ class PlexSignInFragment : Fragment() {
             }
 
             // Reachable via open(forceSignIn = false) when a session already
-            // exists -- the gear's entry point. Left unrendered on purpose:
-            // Task 3 builds the settings screen this belongs to. Only present
-            // so this when stays exhaustive.
-            is PlexSignInState.Connected -> {}
+            // exists -- the gear's entry point. addChoice is reused rather than
+            // a new button: it already applies the oversized head-unit tap
+            // target and the colorOnPrimary fix.
+            is PlexSignInState.Connected -> addChoice(getString(R.string.car_settings_sign_out)) {
+                viewModel.signOut()
+                (requireActivity() as LoginHost).onSignedOut()
+            }
 
             is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE
 

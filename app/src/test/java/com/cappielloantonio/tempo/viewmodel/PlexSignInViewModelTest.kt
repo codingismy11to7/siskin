@@ -676,4 +676,38 @@ class PlexSignInViewModelTest {
 
         assertEquals(PlexSignInState.Connected, viewModel.state.value)
     }
+
+    // ── signOut() ────────────────────────────────────────────────────────
+    //
+    // The settings screen's only action. Drops the session and returns to
+    // Disconnected rather than finishing the activity -- see
+    // docs/decisions/2026-08-01-car-sign-in-entry-point-design.md. Stopping
+    // playback and invalidating the browse tree are LoginHost's job, not
+    // this class's, so they are out of scope for this test.
+
+    @Test
+    fun `signing out clears the session and returns to disconnected`() = runTest {
+        val api = PlexApi()
+        api.session = PlexSession(
+            accountToken = "t",
+            serverUri = "https://example.invalid",
+            musicSectionKey = SectionKey("1"),
+            serverToken = null
+        )
+
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = api,
+            authClient = mock(),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+        viewModel.open(forceSignIn = false)
+        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+
+        viewModel.signOut()
+
+        assertNull(api.session)
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+    }
 }
