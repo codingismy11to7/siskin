@@ -12,6 +12,30 @@
 
 ## [Unreleased] — Siskin
 
+## [0.99.1] (2026-08-02)
+
+- The car draws the star rating again, replacing Siskin's own heart button.
+  Publishing the rating to the session is what asks `com.android.car.media` for
+  its native control, so the rating now matches the rest of the car's UI instead
+  of being our drawable among AOSP's.
+- Sign-in moved behind the settings gear in the browse toolbar, rather than
+  being reachable only through an error.
+- Five fully translated locales — English, German, Spanish, French, Italian.
+  The fork had inherited around eighty-five locales from its dependencies, most
+  of them near-empty, which is what made the Play listing claim 88 languages.
+- Cleartext HTTP is no longer permitted. Plex issues real certificates for
+  `*.plex.direct`, so an ordinary LAN server is unaffected; a server with secure
+  connections disabled, or reached only through a custom `http://` address, is
+  no longer offered in the picker because it could not be opened.
+- Dropped the inherited Android Auto projection metadata. Play rejects any app
+  declaring it alongside `android.hardware.type.automotive`, and Siskin is a
+  media source *in* the car rather than a phone app projecting into one.
+
+## [0.99.0] (2026-07-31)
+
+The first build to reach a head unit, uploaded by hand to internal testing.
+Never tagged — the pipeline landed alongside it rather than producing it.
+
 - Rebranded from Tempus to Siskin
 - Dropped the `degoogled` product flavor and collapsed the flavor dimension
 - Forked to retarget at Android Automotive OS (enablement pending)
