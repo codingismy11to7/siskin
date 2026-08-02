@@ -56,6 +56,21 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_car_sign_in);
 
+        // Load-bearing for config changes: a day/night uiMode flip re-creates
+        // this Activity with savedInstanceState != null, and the guard is what
+        // stops that recreation from re-running open() over a ViewModel that
+        // survived the recreation with real progress in it (e.g. ChoosingServer
+        // would otherwise be clobbered back to Working or Disconnected).
+        //
+        // It is not, however, the right guard for process death: when the
+        // process itself was killed, savedInstanceState is also non-null on the
+        // way back, but the ViewModel is gone -- a fresh one is constructed and
+        // there is nothing left to protect. This branch still skips open() in
+        // that case, so a restore that arrived via EXTRA_FORCE_SIGN_IN silently
+        // loses the force and the fresh ViewModel's default open(false) runs
+        // instead, landing on Disconnected (Connect) rather than driving
+        // straight into Working. Not a correctness bug -- the user just taps
+        // Connect once more -- so left as a comment rather than a restructure.
         if (savedInstanceState == null) {
             boolean forceSignIn = getIntent() != null
                     && getIntent().getBooleanExtra(EXTRA_FORCE_SIGN_IN, false);
@@ -78,9 +93,21 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
 
     @Override
     public void onSignedOut() {
-        // Order matters: stop the audio first. invalidateRoot makes the car
-        // re-request the tree, and it should not do that while a player is still
-        // running on dead credentials.
+        // The order these two calls are written in does not decide the order
+        // they run in, and safety here does not depend on it. stopPlayback()
+        // posts its work to the main looper (Handler.post), so it only queues
+        // behind whatever is currently running; invalidateRoot() runs its
+        // buildTree()/notifyChildrenChanged() synchronously on the calling
+        // thread (see BrowseTreeInvalidator's KDoc on directExecutor). Since
+        // this callback itself runs on the main thread -- it is dispatched
+        // from a button tap, see PlexSignInFragment's Connected case --
+        // invalidateRoot()'s synchronous work is what actually finishes first,
+        // and stopPlayback()'s posted Runnable runs after: the reverse of what
+        // the two lines below suggest. It is still safe: both land on the same
+        // looper, and notifyChildrenChanged only triggers the car to
+        // re-request the tree over IPC -- a round trip slow enough that the
+        // already-queued stopPlayback() is guaranteed to run before any
+        // re-fetch could reach onGetChildren while credentials are dead.
         BrowseTreeInvalidator.INSTANCE.stopPlayback();
         BrowseTreeInvalidator.INSTANCE.invalidateRoot();
     }
