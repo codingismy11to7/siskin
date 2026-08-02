@@ -88,9 +88,27 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * session that still exists and is no longer accepted. Without this flag
      * the one entry point that exists to recover a dead session is the one that
      * cannot: it would land on the settings screen.
+     *
+     * Forcing is unconditional by construction, not by relying on connect()'s
+     * own guard: it cancels whatever attempt is outstanding and resets to
+     * Disconnected first, *then* calls connect(). connect()'s guard exists to
+     * stop a caller starting a second sign-in over one already in flight --
+     * see its own KDoc -- which is a different situation from this one:
+     * forceSignIn means the credentials this ViewModel currently believes in
+     * are wrong, whatever state that belief happens to be published as
+     * (typically Connected, reached via a plain `open(false)` moments
+     * earlier). Delegating straight to connect() would let its Disconnected
+     * check silently swallow exactly the call this flag exists to guarantee.
+     * Today the only caller is CarSignInActivity.onCreate on a freshly
+     * constructed ViewModel, where connect()'s guard would have been a no-op
+     * anyway -- but nothing enforces that this stays the only caller, and a
+     * future re-entry point (e.g. onNewIntent) must reach Working here even
+     * when the ViewModel is already Connected.
      */
     fun open(forceSignIn: Boolean) {
         if (forceSignIn) {
+            attempt?.cancel()
+            _state.value = PlexSignInState.Disconnected
             connect()
             return
         }
@@ -132,6 +150,17 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * than closing the screen. Someone who just signed out is plausibly here to
      * sign in as someone else; closing would make them find the gear again.
      *
+     * Clears both `api.session` and `api.accountToken` -- deliberately more
+     * than the session setter does on its own. `PlexApi.session`'s setter
+     * leaves the account token alone when clearing, and that is correct for
+     * its other caller, the library-switch case in `chooseLibrary`: the
+     * account is not changing, so the PIN grant backing that token is still
+     * good and plex.tv calls still need it. Sign out means the opposite --
+     * the account itself is being disowned -- so leaving the token behind
+     * would mean the next createPin()/getPin() silently carries the previous
+     * account's X-Plex-Token, and CredentialGate.isSignedIn() would read
+     * false while a real credential still sat in shared_prefs.
+     *
      * Stopping playback and invalidating the browse tree belong to the host --
      * see LoginHost.onSignedOut -- because this class has no business knowing
      * about the media session.
@@ -139,6 +168,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
     fun signOut() {
         attempt?.cancel()
         api.session = null
+        api.accountToken = null
         _state.value = PlexSignInState.Disconnected
     }
 

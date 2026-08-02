@@ -655,6 +655,38 @@ class PlexSignInViewModelTest {
     }
 
     @Test
+    fun `open forces work even when the viewmodel already reports Connected`() = runTest {
+        // The failure this guards against does not need a fresh ViewModel to
+        // reproduce: open(false) first, landing on Connected because a
+        // session exists (exactly what a hypothetical onNewIntent forwarding
+        // to an existing ViewModel would see), and only then force sign-in.
+        // Before the fix, connect()'s own Disconnected guard silently ate
+        // this call.
+        val api = PlexApi()
+        api.session = PlexSession(
+            accountToken = "t",
+            serverUri = "https://example.invalid",
+            musicSectionKey = SectionKey("1"),
+            serverToken = null
+        )
+
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = api,
+            authClient = setUpToChoosingServer(aMediaServer()),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+
+        viewModel.open(forceSignIn = false)
+        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+
+        viewModel.open(forceSignIn = true)
+
+        assertTrue(viewModel.state.value is PlexSignInState.Working)
+    }
+
+    @Test
     fun `open without forcing lands on Connected when a session exists`() = runTest {
         val api = PlexApi()
         api.session = PlexSession(
@@ -709,5 +741,38 @@ class PlexSignInViewModelTest {
 
         assertNull(api.session)
         assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+    }
+
+    @Test
+    fun `signing out also clears the account token, unlike a library switch`() = runTest {
+        // PlexApi's session setter deliberately leaves accountToken alone when
+        // clearing a session -- correct for chooseLibrary's library-switch
+        // case, where the account is not changing. Sign out means the account
+        // itself is being disowned, so signOut() must go further than the
+        // setter it calls: a token left behind would make the next
+        // createPin()/getPin() carry the previous account's X-Plex-Token
+        // while CredentialGate.isSignedIn() already reads false.
+        val api = PlexApi()
+        api.accountToken = "granted"
+        api.session = PlexSession(
+            accountToken = "granted",
+            serverUri = "https://example.invalid",
+            musicSectionKey = SectionKey("1"),
+            serverToken = null
+        )
+
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = api,
+            authClient = mock(),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+        viewModel.open(forceSignIn = false)
+        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+
+        viewModel.signOut()
+
+        assertNull("sign out must not leave the previous account's token behind", api.accountToken)
     }
 }

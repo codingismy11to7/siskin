@@ -173,7 +173,15 @@ more is a later change made with the car in front of us, not guessed at now.
 
 Sign out is existing machinery plus a state change:
 
-1. `PlexApi().session = null`
+1. `PlexApi().session = null`, **and** `PlexApi().accountToken = null`. The
+   session setter leaves the account token alone when clearing on its own —
+   correct for the library-switch caller, `chooseLibrary`, where the account
+   is not changing and the token's PIN grant is still good. Sign out means
+   the account itself is being disowned, so it clears the token explicitly
+   rather than relying on the setter it calls; otherwise the previous
+   account's `X-Plex-Token` would silently ride along on the next
+   `createPin()`/`getPin()` while `CredentialGate.isSignedIn()` already read
+   false.
 2. `BrowseTreeInvalidator.stopPlayback()` — the credentials that were streaming
    the current track are gone, so playback cannot honestly continue
 3. `BrowseTreeInvalidator.invalidateRoot()` — the car re-requests the root and
