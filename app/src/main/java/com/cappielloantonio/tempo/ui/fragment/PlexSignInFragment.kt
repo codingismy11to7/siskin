@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
@@ -54,7 +55,26 @@ class PlexSignInFragment : Fragment() {
             }
         }
 
-        viewModel.state.observe(viewLifecycleOwner) { render(it) }
+        // Starts disabled -- matching the ViewModel's own initial state,
+        // Disconnected, which viewModel.handlesBackPress reports false for --
+        // and is re-armed per state below rather than left always-enabled.
+        // An always-enabled callback would intercept Disconnected/Connected's
+        // presses and swallow them, since backPressed() does nothing for
+        // those; disabling it there instead lets the dispatcher fall through
+        // to its default (finish the activity), which is the whole point of
+        // gating the two the way CarSignInActivity's back button already
+        // does.
+        val backCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                viewModel.backPressed()
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback)
+
+        viewModel.state.observe(viewLifecycleOwner) {
+            backCallback.isEnabled = viewModel.handlesBackPress(it)
+            render(it)
+        }
 
         return bind!!.root
     }

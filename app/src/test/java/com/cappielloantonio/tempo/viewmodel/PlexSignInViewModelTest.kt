@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.viewmodel
 import android.app.Application
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import arrow.core.left
+import arrow.core.nonEmptyListOf
 import arrow.core.right
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
@@ -16,6 +17,7 @@ import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
 import com.cappielloantonio.tempo.plex.auth.PlexPinState
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.models.Connection
+import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
 import kotlinx.coroutines.Dispatchers
@@ -26,12 +28,14 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -475,6 +479,317 @@ class PlexSignInViewModelTest {
         verify(probe, times(1)).bestConnectionUri(good)
         verify(authClient, times(1)).createPin()
     }
+
+    // ── in-flow back navigation ─────────────────────────────────────────
+    //
+    // One row of the table per test, plus handlesBackPress (the enabled/
+    // disabled decision the fragment's OnBackPressedCallback reads) checked
+    // directly against a sample of each state. The misclick round trip is
+    // the scenario this whole feature exists for: chooseServer now carries
+    // its server list into ChoosingLibrary (see the comment on that read) so
+    // backPressed() has a list to return to instead of an empty screen.
+
+    @Test
+    fun backPressedDoesNothingFromDisconnected() = runTest {
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = PlexApi(),
+            authClient = mock(),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+        assertFalse(viewModel.handlesBackPress(PlexSignInState.Disconnected))
+
+        val consumed = viewModel.backPressed()
+
+        assertFalse("Disconnected has nowhere to go back to", consumed)
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+    }
+
+    @Test
+    fun backPressedDoesNothingFromConnected() = runTest {
+        val api = PlexApi()
+        api.session = PlexSession(
+            accountToken = "t",
+            serverUri = "https://example.invalid",
+            musicSectionKey = SectionKey("1"),
+            serverToken = null
+        )
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = api,
+            authClient = mock(),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+        viewModel.open(forceSignIn = false)
+        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+        assertFalse(viewModel.handlesBackPress(PlexSignInState.Connected))
+
+        val consumed = viewModel.backPressed()
+
+        // Settings (Connected) is a leaf, not a step of the flow -- back
+        // leaves the activity, the same as Disconnected.
+        assertFalse(consumed)
+        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+    }
+
+    @Test
+    fun handlesBackPressMatchesEveryOtherState() = runTest {
+        // The three "leaves the activity" states are pinned directly above by
+        // their own dedicated tests; this covers the five states that do
+        // consume the press, including Done, which the transition table in
+        // the task brief omits because it is a one-tick pass-through to
+        // onLoginSuccess() rather than a state a user is ever looking at --
+        // see the KDoc on handlesBackPress for why "leave" is still the right
+        // answer there.
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = PlexApi(),
+            authClient = mock(),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+        val servers = nonEmptyListOf(aMediaServer())
+        val sections = nonEmptyListOf(Directory().apply { key = "5"; title = "Music" })
+
+        assertTrue(viewModel.handlesBackPress(PlexSignInState.Working))
+        assertTrue(
+            viewModel.handlesBackPress(
+                PlexSignInState.AwaitingApproval(code = "ABCD", qrUrl = null, expiresAtEpochSeconds = null)
+            )
+        )
+        assertTrue(viewModel.handlesBackPress(PlexSignInState.ChoosingServer(servers)))
+        assertTrue(viewModel.handlesBackPress(PlexSignInState.ChoosingLibrary(sections, servers)))
+        assertTrue(viewModel.handlesBackPress(PlexSignInState.Failed(R.string.plex_sign_in_error_expired)))
+        assertFalse(viewModel.handlesBackPress(PlexSignInState.Done))
+    }
+
+    @Test
+    fun backPressedFromWorkingCancelsTheAttemptAndReturnsToDisconnected() = runTest(dispatcher) {
+        val resource = aMediaServer()
+        val serverUri = server.url("/").toString()
+        val authClient = setUpToChoosingServer(resource)
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+        viewModel.connect()
+        advanceUntilIdle()
+        viewModel.chooseServer(resource)
+
+        // chooseServer sets Working synchronously, before the coroutine that
+        // would probe and fetch sections has had a chance to run on
+        // `dispatcher` -- so this is genuinely mid-attempt, not a settled
+        // state that merely happens to be named Working.
+        assertEquals(PlexSignInState.Working, viewModel.state.value)
+
+        val consumed = viewModel.backPressed()
+
+        assertTrue(consumed)
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+        // Proves the probe/getSections attempt was actually cancelled rather
+        // than merely papered over: left running, it would complete once
+        // given the chance below and overwrite Disconnected with
+        // ChoosingLibrary.
+        advanceUntilIdle()
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+    }
+
+    @Test
+    fun backPressedFromAwaitingApprovalAbandonsThePinAndReturnsToDisconnected() = runTest(dispatcher) {
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { createPin() } doReturn created.right()
+            // Always pending: nothing here should matter, since the whole
+            // point is that backPressed() stops the loop before it ever
+            // calls this.
+            onBlocking { getPin(42L) } doReturn Pin().right()
+        }
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            authClient = authClient,
+            nowMillis = { currentTime }
+        )
+        viewModel.connect()
+        // runCurrent(), not advanceUntilIdle(): the poll loop's while(true)
+        // always has another delay() queued, so advanceUntilIdle() would fast
+        // -forward straight through every iteration to the hard cap and
+        // Failed (exactly what anUnapprovedPinGivesUpAtTheHardCap exercises)
+        // instead of stopping at the first one. runCurrent() drains only
+        // what is due at the current virtual time, which is enough to reach
+        // AwaitingApproval and then suspend on that first delay().
+        runCurrent()
+        assertTrue(viewModel.state.value is PlexSignInState.AwaitingApproval)
+
+        val consumed = viewModel.backPressed()
+
+        assertTrue(consumed)
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+        // Abandons the pin: the poll loop's first delay() -- not yet elapsed
+        // when backPressed() ran, so getPin() had not been called even
+        // once -- must never resume and start polling. Advancing well past
+        // the hard cap and letting the scheduler drain proves the loop is
+        // truly gone rather than merely not yet due.
+        advanceTimeBy(PlexPinState.HARD_CAP_SECONDS * 2_000L)
+        advanceUntilIdle()
+        verify(authClient, times(0)).getPin(42L)
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+    }
+
+    @Test
+    fun backPressedFromFailedReturnsToDisconnected() = runTest(dispatcher) {
+        // Same setup as anUnapprovedPinGivesUpAtTheHardCap: no expiry on the
+        // created pin, so the hard cap is the only way this reaches Failed.
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { createPin() } doReturn created.right()
+            onBlocking { getPin(42L) } doReturn Pin().right()
+        }
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            authClient = authClient,
+            nowMillis = { currentTime }
+        )
+        viewModel.connect()
+        advanceUntilIdle()
+        assertEquals(PlexSignInState.Failed(R.string.plex_sign_in_error_expired), viewModel.state.value)
+
+        val consumed = viewModel.backPressed()
+
+        // signIn()'s coroutine has already run to completion by the time
+        // Failed is published, so there is nothing left for attempt?.cancel()
+        // to actually stop -- this is exercising that the call is still safe
+        // (a no-op on a finished Job) and that Failed still goes to
+        // Disconnected regardless.
+        assertTrue(consumed)
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+    }
+
+    @Test
+    fun backPressedFromChoosingServerReturnsToDisconnectedAndAllowsReconnecting() = runTest(dispatcher) {
+        val authClient = setUpToChoosingServer(aMediaServer())
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+        viewModel.connect()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+
+        val consumed = viewModel.backPressed()
+
+        assertTrue(consumed)
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+        // The point of the misclick recovery: connect()'s own two guards
+        // (attempt?.isActive, state != Disconnected) must not silently eat
+        // the next Connect tap. Without cancelling attempt above, isActive
+        // would still read true here (signIn() had already run to
+        // completion, so this is really the state guard being proven, but
+        // both are checked by simply confirming the flow restarts).
+        viewModel.connect()
+        advanceUntilIdle()
+
+        verify(authClient, times(2)).createPin()
+        assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+    }
+
+    @Test
+    fun backPressedFromChoosingLibraryReturnsToChoosingServerWithTheSameServersAndNoMessage() =
+        runTest(dispatcher) {
+            val resource = aMediaServer()
+            val serverUri = server.url("/").toString()
+            val authClient = setUpToChoosingServer(resource)
+            val probe = mock<ServerProbe>().stub {
+                onBlocking { bestConnectionUri(resource) } doReturn serverUri
+            }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+            viewModel.chooseServer(resource)
+            awaitSettled(viewModel)
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingLibrary)
+
+            val consumed = viewModel.backPressed()
+
+            assertTrue(consumed)
+            val state = viewModel.state.value
+            assertTrue(
+                "expected back to return to the server picker, got $state",
+                state is PlexSignInState.ChoosingServer
+            )
+            state as PlexSignInState.ChoosingServer
+            assertEquals(listOf(resource), state.servers)
+            // Deliberately null: arriving here by pressing back is the user
+            // correcting their own pick, not a rejection -- unlike
+            // aServerWithNoMusicReturnsToThePickerInsteadOfFailing, which
+            // asserts a message IS set for the rejection case this is not.
+            assertNull(state.messageRes)
+        }
+
+    @Test
+    fun theMisclickRoundTripPicksADifferentServerAfterBackingOutOfTheWrongLibraryPicker() =
+        runTest(dispatcher) {
+            // The scenario the whole feature exists for: land in the library
+            // picker for the wrong server, back out, and pick the right one --
+            // without redoing the PIN flow.
+            val wrong = aMediaServer()
+            val right = aMediaServer(accessToken = "right-token")
+            val serverUri = server.url("/").toString()
+            val authClient = mock<AuthClient>().stub {
+                onBlocking { createPin() } doReturn created.right()
+                onBlocking { getPin(42L) } doReturn approvedPin().right()
+                onBlocking { getResources() } doReturn listOf(wrong, right).right()
+            }
+            val probe = mock<ServerProbe>().stub {
+                onBlocking { bestConnectionUri(wrong) } doReturn serverUri
+                onBlocking { bestConnectionUri(right) } doReturn serverUri
+            }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("1")))
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+
+            viewModel.chooseServer(wrong)
+            awaitSettled(viewModel)
+            val misclick = viewModel.state.value
+            assertTrue(
+                "setup did not reach ChoosingLibrary, got $misclick",
+                misclick is PlexSignInState.ChoosingLibrary
+            )
+
+            val consumed = viewModel.backPressed()
+            assertTrue(consumed)
+            val corrected = viewModel.state.value
+            assertTrue(
+                "expected back to return to the server picker, got $corrected",
+                corrected is PlexSignInState.ChoosingServer
+            )
+            corrected as PlexSignInState.ChoosingServer
+            assertEquals(listOf(wrong, right), corrected.servers)
+
+            viewModel.chooseServer(corrected.servers[1])
+            awaitSettled(viewModel)
+
+            val state = viewModel.state.value
+            assertTrue(
+                "expected the corrected pick to reach the library picker, got $state",
+                state is PlexSignInState.ChoosingLibrary
+            )
+
+            // Confirms `right`, not `wrong` again, was actually probed the
+            // second time -- both enqueued MockWebServer responses would
+            // otherwise make either pick look identical -- and that no fresh
+            // PIN was minted along the way.
+            verify(probe, times(1)).bestConnectionUri(wrong)
+            verify(probe, times(1)).bestConnectionUri(right)
+            verify(authClient, times(1)).createPin()
+        }
 
     // ── connect()'s guards (descended from #24) ───────────────────────
     //

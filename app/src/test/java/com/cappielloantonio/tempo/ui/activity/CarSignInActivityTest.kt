@@ -101,12 +101,18 @@ class CarSignInActivityTest {
      * this button is the only way out of any state it hosts -- settings and
      * every step of the sign-in flow alike. It is wired through
      * getOnBackPressedDispatcher().onBackPressed() rather than a direct
-     * finish() call (see CarSignInActivity.onCreate's comment on why), and
-     * with no OnBackPressedCallback registered anywhere in this activity, the
-     * dispatcher's default behaviour is to finish it -- the same observable
-     * result finish() would have produced, reached through the dispatcher so
-     * that future back handling composes with this button instead of having
-     * to duplicate it.
+     * finish() call (see CarSignInActivity.onCreate's comment on why).
+     *
+     * PlexSignInFragment does now register an OnBackPressedCallback -- the
+     * back handling this button's KDoc anticipated -- but it stays disabled
+     * here for the same reason `render()` never runs (see this class's own
+     * KDoc): the callback is armed from the same `state.observe(...)` block,
+     * which needs viewLifecycleOwner at STARTED to deliver anything, and
+     * `.create()` never gets there. So the dispatcher still falls through to
+     * its default (finish) in this test, matching what it did before the
+     * callback existed -- but that is this test's own stopping point, not a
+     * guarantee that no callback is registered; PlexSignInViewModelTest
+     * covers what the callback actually does once armed.
      */
     @Test
     fun `back button routes through the back dispatcher and finishes the activity`() {

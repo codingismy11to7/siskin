@@ -270,6 +270,138 @@ branch otherwise budgeted (see "New strings cost lint" below). Accepted: a
 else, and none of the existing strings fit — this activity has never had
 something on screen that needs describing rather than reading.
 
+## Decision: back goes back a step, not straight out
+
+This is the change the previous decision's own KDoc predicted: "any back
+handling added later (e.g. popping one step of the sign-in flow instead of
+leaving outright) applies to both the button and hardware/gesture back
+automatically." That handling now exists.
+
+The motivating case is a misclick: the server picker lists every media
+server on the account, some of them shared and easy to tell apart only by
+name, and picking the wrong one lands on *that* server's library picker with
+no way back except abandoning the whole sign-in and re-approving a fresh PIN.
+Back should undo the one step that was wrong, not the several that were not.
+
+| From | Back goes to |
+|---|---|
+| `ChoosingLibrary` | `ChoosingServer`, the same server list, no message |
+| `ChoosingServer` | `Disconnected` |
+| `AwaitingApproval` | `Disconnected` (abandons the pin) |
+| `Failed` | `Disconnected` |
+| `Working` | `Disconnected` |
+| `Disconnected` | leaves the activity — nothing to undo |
+| `Connected` (settings) | leaves the activity — a leaf, not a step |
+
+### `ChoosingLibrary` needed somewhere to go back to
+
+`PlexSignInViewModel.chooseServer` already reads the server list out of the
+current `ChoosingServer` state, once, immediately before overwriting it —
+the ordering [#18](https://github.com/codingismy11to7/siskin/issues/18) (see
+`docs/decisions/2026-07-29-sign-in-server-recovery-design.md`) depends on,
+and the load-bearing comment above that read says explicitly that the state
+is the list's *only* home and a parallel field would give it two owners.
+Back into the library picker needs that same list, and the constraint rules
+out the obvious fix of caching it in a second ViewModel field alongside the
+one read.
+
+So `ChoosingLibrary` now carries it: `ChoosingLibrary(sections, servers)`.
+The single read inside `chooseServer` is unchanged — still one read, still
+before the overwrite — and its result now does two jobs instead of one:
+restoring the picker on rejection (unchanged, and still what the three #18
+regression tests pin), and being threaded through into a successful
+`ChoosingLibrary` so back has a list to hand back rather than an empty
+screen. Nothing new owns the list; the state still does, in one more place.
+
+### `messageRes` stays null coming back
+
+`ChoosingServer.messageRes` already distinguished two ways of arriving:
+`null` on the way in from a fresh sign-in, set when `chooseServer` bounces a
+rejected pick back to the same screen. Arriving by pressing back is a third
+path, and it reads like the first, not the second — the account token is
+untouched, and nothing about either server said no to anything. The user
+simply changed their mind. So the back transition constructs
+`ChoosingServer(current.servers)` and lets `messageRes` default to `null`,
+the same as the happy-path construction in `signIn()`. Making this
+deliberate rather than incidental is also what keeps
+`aServerWithNoMusicReturnsToThePickerInsteadOfFailing` and its two #18
+siblings — which assert a message *is* set for an actual rejection — honest:
+a future reader now has to notice both cases are handled, not assume they
+collapsed into one.
+
+### Every consumed transition into `Disconnected` cancels `attempt`
+
+The PIN poll and the server probe/`getSections` call are both suspended
+inside `attempt`, per the class KDoc on that field, and backing out of
+`AwaitingApproval`, `ChoosingServer`, `Failed` or `Working` describes the
+user abandoning whichever of those the current state represents. Leaving it
+running risks it publishing a state over the `Disconnected` this call just
+asked for — the same hazard `chooseLibrary`, `signOut` and
+`open(forceSignIn = true)` already guard against by cancelling `attempt`
+before changing state, and back reuses exactly that mechanism rather than
+inventing a second one.
+
+It also matters for `connect()`'s own two guards
+(`attempt?.isActive == true` and `_state.value !is Disconnected`, see that
+method's KDoc). Without cancelling first, a poll still technically `isActive`
+could make the Connect button silently do nothing after backing out —
+precisely the failure #24 already taught this file to guard against, just
+reached from a new direction. Cancelling `attempt` and only then publishing
+`Disconnected` is what leaves both guards open for the next Connect tap;
+`backPressedFromChoosingServerReturnsToDisconnectedAndAllowsReconnecting` in
+`PlexSignInViewModelTest` calls `connect()` a second time and asserts a
+fresh `createPin()` to prove it.
+
+### Where the decision lives
+
+`PlexSignInViewModel` gets two new members, both `when`s over the sealed
+`PlexSignInState` with no `else` branch, so a future case added to that
+state fails to compile in both until it is given an explicit answer here:
+
+- `handlesBackPress(state)` — true for the five states in the table above
+  that consume the press, false for `Disconnected`, `Connected` and `Done`.
+  `Done` is not in the table because it is not a state anyone is looking
+  at — `PlexSignInFragment.render`'s `Done` branch calls
+  `LoginHost.onLoginSuccess()` on the same tick it is published — so "leave"
+  is as good an answer as any and "resume signing in" would be actively
+  wrong.
+- `backPressed()` — performs the transition and returns whether it consumed
+  the press, so tests can assert the boolean directly instead of only the
+  state that resulted.
+
+`PlexSignInFragment` registers one `OnBackPressedCallback` in
+`onCreateView`, constructed disabled — matching `Disconnected`, the
+ViewModel's own initial state — and re-arms it from inside the same
+`state.observe(viewLifecycleOwner) { ... }` block that already drives
+`render()`, rather than a second observer: one state change, one place that
+reacts to it. `handleOnBackPressed()` itself just calls
+`viewModel.backPressed()`; the enabled flag is what stops it being invoked
+at all for `Disconnected`/`Connected`/`Done`, letting the platform default
+(finish) run instead of an enabled-but-inert callback swallowing the press.
+This is the fragment-level version of the same split `connect()`'s own KDoc
+already describes for the retry button: the primary defence is which states
+even reach the handler, checked again inside the handler itself for anyone
+who calls it directly.
+
+`CarSignInActivityTest`'s existing back-button test
+(`` `back button routes through the back dispatcher and finishes the
+activity` ``) still passes unchanged: it only calls
+`Robolectric.buildActivity(...).create()`, never `.start()`, so
+`viewLifecycleOwner` never reaches `STARTED` and the observer that would
+arm the callback never fires — the callback stays at its constructed
+`false`, and the dispatcher's default still runs. That test's KDoc is
+updated to say so explicitly rather than continue claiming no callback is
+registered anywhere in the activity, which stopped being true the moment
+the fragment added one.
+
+Zero new strings, against the fourth this branch already spent on
+`car_sign_in_back_description` above. `chooseServer`'s success path gained
+one more "reached from a state that is not the picker" guard — needed only
+because `ChoosingLibrary.servers` is now non-nullable — and it reuses
+`SignInError.NoCandidate`'s existing message rather than adding a fifth
+error case, the same way `chooseLibrary`'s three structurally identical
+guards already do.
+
 ## Consequences
 
 **`CarSignInActivity` becomes exported.** The platform cannot start it

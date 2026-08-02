@@ -146,6 +146,88 @@ class PlexSignInViewModel @JvmOverloads constructor(
     }
 
     /**
+     * Whether [backPressed] would act on this state rather than doing
+     * nothing. The fragment's `OnBackPressedCallback` stays enabled exactly
+     * when this is true, so [PlexSignInState.Disconnected] and
+     * [PlexSignInState.Connected] -- the states with nowhere in the flow to
+     * go back to -- fall through to the platform default (finishing the
+     * activity) instead of an enabled-but-inert callback swallowing the press
+     * and going nowhere. [PlexSignInState.Done] is included in that group
+     * too: it is a one-tick pass-through to [com.cappielloantonio.tempo.interfaces.LoginHost.onLoginSuccess]
+     * (see [com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment.render]'s
+     * `Done` branch), never a state a user is looking at, so "leave" is as
+     * good an answer as any and "go back into signing in" would be actively
+     * wrong.
+     *
+     * A `when` over the sealed state rather than deriving this from
+     * [backPressed]'s own branches: keeping both exhaustive means the
+     * compiler forces a decision here whenever [PlexSignInState] grows a new
+     * case, instead of a new state silently defaulting to whichever side is
+     * convenient.
+     */
+    fun handlesBackPress(state: PlexSignInState): Boolean = when (state) {
+        is PlexSignInState.Working,
+        is PlexSignInState.AwaitingApproval,
+        is PlexSignInState.ChoosingServer,
+        is PlexSignInState.ChoosingLibrary,
+        is PlexSignInState.Failed -> true
+
+        PlexSignInState.Disconnected,
+        PlexSignInState.Connected,
+        PlexSignInState.Done -> false
+    }
+
+    /**
+     * Back within the sign-in flow: undoes one step instead of leaving the
+     * screen outright. The motivating case is a misclick -- landing in the
+     * library picker for the wrong server and wanting to correct it without
+     * redoing the whole PIN flow.
+     *
+     * | From | Goes to |
+     * |---|---|
+     * | [PlexSignInState.ChoosingLibrary] | [PlexSignInState.ChoosingServer], the same server list, no message |
+     * | [PlexSignInState.ChoosingServer], [PlexSignInState.AwaitingApproval], [PlexSignInState.Failed], [PlexSignInState.Working] | [PlexSignInState.Disconnected] |
+     * | anything [handlesBackPress] reports false for | nothing |
+     *
+     * The library-picker case reuses the server list [PlexSignInState.ChoosingLibrary]
+     * now carries rather than re-deriving it, and deliberately omits
+     * `messageRes`: arriving here by pressing back is the user correcting
+     * their own pick, not Plex rejecting anything, so there is nothing to
+     * report -- see the KDoc on [PlexSignInState.ChoosingServer.messageRes].
+     *
+     * Every other consumed case lands on Disconnected and cancels [attempt]
+     * first: that job describes the PIN poll or the server probe/getSections
+     * call the user is abandoning by backing out, and letting it run to
+     * completion could publish a state over the Disconnected this call just
+     * asked for. Cancelling also drops `attempt?.isActive` to false, which
+     * together with the state now reading Disconnected is what lets
+     * [connect] be pressed again immediately instead of its own guards
+     * silently eating the retry.
+     */
+    fun backPressed(): Boolean {
+        val current = _state.value ?: return false
+        return when (current) {
+            is PlexSignInState.ChoosingLibrary -> {
+                _state.value = PlexSignInState.ChoosingServer(current.servers)
+                true
+            }
+
+            is PlexSignInState.ChoosingServer,
+            is PlexSignInState.AwaitingApproval,
+            is PlexSignInState.Failed,
+            is PlexSignInState.Working -> {
+                attempt?.cancel()
+                _state.value = PlexSignInState.Disconnected
+                true
+            }
+
+            PlexSignInState.Disconnected,
+            PlexSignInState.Connected,
+            PlexSignInState.Done -> false
+        }
+    }
+
+    /**
      * Drops the session and returns to [PlexSignInState.Disconnected] rather
      * than closing the screen. Someone who just signed out is plausibly here to
      * sign in as someone else; closing would make them find the gear again.
@@ -177,7 +259,10 @@ class PlexSignInViewModel @JvmOverloads constructor(
         // this list lives -- a parallel field would give it two owners. If this
         // line ever moves under the assignment it becomes permanently null and
         // #18 is silently back; PlexSignInViewModelTest's three recovery tests
-        // are what hold it here.
+        // are what hold it here. Serves two purposes below: restoring the
+        // picker on rejection (unchanged), and now also carried forward into a
+        // successful ChoosingLibrary so backPressed() has a list to return to
+        // -- still the state's one read, not a second copy of it.
         val servers = (_state.value as? PlexSignInState.ChoosingServer)?.servers
 
         // Picking a server supersedes the poll loop and any earlier pick: an
@@ -212,7 +297,18 @@ class PlexSignInViewModel @JvmOverloads constructor(
                     LibraryClient.musicSections(response).toNonEmptyListOrNull()
                 ) { SignInError.NoLibraries }
 
-                _state.value = PlexSignInState.ChoosingLibrary(sections)
+                // servers can only be null here in the same "reached from a
+                // state that is not the picker" situation the onLeft branch
+                // below already falls back to Failed for -- see the comment on
+                // the read above. Mirrored here with the same fallback rather
+                // than raised through this either block, matching how
+                // chooseLibrary's own three "normally unreachable" guards
+                // build Failed directly instead of going through Arrow.
+                _state.value = servers?.let { PlexSignInState.ChoosingLibrary(sections, it) }
+                    ?: run {
+                        Log.d(TAG, "chooseServer succeeded with no server list on record")
+                        PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
+                    }
             }.onLeft { error ->
                 // Unconditional, and that is the whole decision: every failure
                 // raised in the block above is about the server just picked --
