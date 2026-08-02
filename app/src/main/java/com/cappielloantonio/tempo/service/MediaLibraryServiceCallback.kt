@@ -354,10 +354,20 @@ class MediaLibrarySessionCallback(
     /**
      * Turns the player's shuffle on when the tapped row is the shuffle row.
      *
-     * Called from the two callback overrides rather than from
-     * [resolveQueueForItem], because those run on the session's application
-     * thread while the queue future completes on whichever thread the coroutine
-     * finished on -- and the player may only be touched from the former.
+     * Deliberately enable-only, and deliberately **not** replaced by
+     * [setShuffleForTap] the way the [onSetMediaItems] call site was.
+     * [onAddMediaItems] is not only a browse-tap path: MediaManager's
+     * continuous play appends instant-mix tracks through
+     * `browser.addMediaItems`, which arrives here too. A total setter would
+     * clear shuffle *mid-listen* every time the queue topped itself up -- and
+     * that top-up fires precisely when a queue is running low, which is the
+     * long shuffle-this-artist session it would ruin. Enable-only cannot: it
+     * fires only on a shuffle row, and continuous play never sends one.
+     *
+     * Called from [onAddMediaItems] rather than from [resolveQueueForItem],
+     * because that override runs on the session's application thread while the
+     * queue future completes on whichever thread the coroutine finished on --
+     * and the player may only be touched from the former.
      */
     private fun enableShuffleIfShuffleRow(firstItem: MediaItem, player: Player) {
         if (!isShuffleRow(firstItem)) return

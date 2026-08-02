@@ -20,6 +20,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mockConstruction
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -114,6 +115,26 @@ class MediaLibrarySessionCallbackShuffleTest {
         setMediaItems(row)
 
         verify(player).shuffleModeEnabled = true
+    }
+
+    /**
+     * The add path must not be made total the way the set path was.
+     *
+     * `onAddMediaItems` is also how MediaManager.continuousPlay appends
+     * instant-mix tracks to a running queue -- see MediaManager's
+     * `browser.addMediaItems` calls -- so clearing shuffle here would turn it
+     * off mid-listen every time the queue topped itself up, which is precisely
+     * during the long shuffle-this-artist session it would ruin. Enable-only is
+     * safe by construction: a mix track is never a shuffle row.
+     */
+    @Test
+    fun addingTracksToARunningQueueLeavesShuffleAlone() {
+        val mixTrack = albumTracks("9").single()
+
+        callback.onAddMediaItems(session, controller, listOf(mixTrack)).get()
+
+        verify(player, never()).shuffleModeEnabled = false
+        verify(player, never()).shuffleModeEnabled = true
     }
 
     // ─────────────────────────────────────────────────────────────
