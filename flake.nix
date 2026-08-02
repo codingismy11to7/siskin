@@ -41,8 +41,37 @@
       emulatorSdkVersion = "33";
       systemImageType = "android-automotive";
       abiVersion = "x86_64";
-      avdDevice = "automotive_1080p_landscape";
-      avdName = "siskin-aaos-api${emulatorSdkVersion}";
+
+      # An AAOS screen does not rotate and the car's system UI is built per
+      # hardware profile, so a second orientation or resolution is a second AVD
+      # rather than a setting flipped at runtime. `wm size` / `wm density` will
+      # override both on a running device, but that only stretches the existing
+      # profile's UI -- it is a way to fake a screenshot size, not a way to see
+      # what the car actually renders.
+      #
+      # These two profiles are not chosen for how they look. Play requires an
+      # Android Automotive OS listing to carry at least two portrait
+      # screenshots at 800x1280 and two landscape at 1024x768, and these are
+      # the stock profiles that render at exactly those sizes. Anything else
+      # would have to be resized before upload, and a resized screenshot
+      # misrepresents what the car actually draws.
+      #
+      # `automotive_1024p_landscape` is tagged `android-automotive-playstore`
+      # rather than the `android-automotive` image nixpkgs carries. That turns
+      # out not to matter: avdmanager pairs the two without complaint and a
+      # device profile only supplies hardware parameters. Verified created and
+      # booted at 1024x768.
+      #
+      # `automotive_ultrawide` is unusable regardless of taste -- at 3904px it
+      # is wider than Play's 3840px maximum for a screenshot side.
+      avdVariants = {
+        landscape = "automotive_1024p_landscape";
+        portrait = "automotive_portrait";
+      };
+
+      defaultVariant = "landscape";
+
+      avdNameFor = variant: "siskin-aaos-api${emulatorSdkVersion}-${variant}";
 
       androidComposition = pkgs.androidenv.composeAndroidPackages {
         platformVersions = [ emulatorSdkVersion compileSdkVersion ];
@@ -69,33 +98,71 @@
       # still work when invoked outside the dev shell).
       avdHomeExport = ''export ANDROID_AVD_HOME="$HOME/.android/avd"'';
 
+      # Resolves $variant to $device, or exits 2 naming the ones that exist.
+      # Shared verbatim by both scripts so they can never disagree about which
+      # variants are real.
+      resolveVariant = ''
+        case "$variant" in
+        ${pkgs.lib.concatStringsSep "\n" (
+          pkgs.lib.mapAttrsToList (name: device: ''  ${name}) device="${device}" ;;'') avdVariants
+        )}
+          *)
+            echo "siskin: unknown AVD variant '$variant'" >&2
+            echo "known variants: ${pkgs.lib.concatStringsSep " " (pkgs.lib.attrNames avdVariants)}" >&2
+            exit 2
+            ;;
+        esac
+      '';
+
       siskin-avd = pkgs.writeShellScriptBin "siskin-avd" ''
         set -euo pipefail
         export ANDROID_HOME="${androidSdk}"
         export ANDROID_SDK_ROOT="${androidSdk}"
         export JAVA_HOME="${jdk.home}"
         ${avdHomeExport}
+
+        variant="${defaultVariant}"
+        if [ $# -gt 0 ]; then variant="$1"; fi
+        ${resolveVariant}
+        name="siskin-aaos-api${emulatorSdkVersion}-$variant"
+
         # avdmanager only respects ANDROID_AVD_HOME if the directory already
         # exists, silently falling back to the XDG path otherwise, so create
         # it first.
         mkdir -p "$ANDROID_AVD_HOME"
-        if "${avdmanager}" list avd -c | grep -qx "${avdName}"; then
-          echo "AVD '${avdName}' already exists."
+        if "${avdmanager}" list avd -c | grep -qx "$name"; then
+          echo "AVD '$name' already exists."
           exit 0
         fi
         echo "no" | "${avdmanager}" create avd \
-          --name "${avdName}" \
-          --device "${avdDevice}" \
+          --name "$name" \
+          --device "$device" \
           --package "system-images;android-${emulatorSdkVersion};${systemImageType};${abiVersion}"
-        echo "Created AVD '${avdName}'."
+        echo "Created AVD '$name' ($device)."
       '';
 
+      # siskin-emulator [variant] [emulator flags...]
+      #
+      # A leading argument starting with `-` is an emulator flag rather than a
+      # variant, so `siskin-emulator -no-snapshot` keeps working unchanged
+      # against the default variant.
       siskin-emulator = pkgs.writeShellScriptBin "siskin-emulator" ''
         set -euo pipefail
         export ANDROID_HOME="${androidSdk}"
         export ANDROID_SDK_ROOT="${androidSdk}"
         ${avdHomeExport}
-        exec "${androidComposition.androidsdk}/bin/emulator" -avd "${avdName}" "$@"
+
+        variant="${defaultVariant}"
+        if [ $# -gt 0 ]; then
+          case "$1" in
+            -*) : ;;
+            *) variant="$1"; shift ;;
+          esac
+        fi
+        ${resolveVariant}
+        name="siskin-aaos-api${emulatorSdkVersion}-$variant"
+
+        exec "${androidComposition.androidsdk}/bin/emulator" -avd "$name" "$@"
       '';
 
       # Renders the documents under docs/ that are published to
