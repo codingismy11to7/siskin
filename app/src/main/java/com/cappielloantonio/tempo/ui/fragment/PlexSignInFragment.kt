@@ -45,10 +45,14 @@ class PlexSignInFragment : Fragment() {
         viewModel = ViewModelProvider(requireActivity())[PlexSignInViewModel::class.java]
         bind = FragmentPlexSignInBinding.inflate(inflater, container, false)
 
-        bind?.retryButton?.setOnClickListener { viewModel.retry() }
+        bind?.retryButton?.setOnClickListener {
+            when (viewModel.state.value) {
+                is PlexSignInState.Disconnected -> viewModel.connect()
+                else -> viewModel.retry()
+            }
+        }
 
         viewModel.state.observe(viewLifecycleOwner) { render(it) }
-        viewModel.start()
 
         return bind!!.root
     }
@@ -67,9 +71,11 @@ class PlexSignInFragment : Fragment() {
         bind.errorText.visibility = View.GONE
         bind.retryButton.visibility = View.GONE
 
-        // The tagline above this is constant; this line names the step. Failed
-        // and Working keep the connect wording because both are moments inside
-        // connecting, not steps of their own.
+        // The tagline above this is constant; this line names the step.
+        // Disconnected, Working and Failed all keep the connect wording:
+        // Disconnected is before connecting has started, and Working and
+        // Failed are moments inside it -- none of the three is a step of its
+        // own the way choosing a server or a library is.
         bind.stepHeading.setText(
             when (state) {
                 is PlexSignInState.ChoosingServer -> R.string.plex_sign_in_choose_server
@@ -84,6 +90,13 @@ class PlexSignInFragment : Fragment() {
         )
 
         when (state) {
+            is PlexSignInState.Disconnected -> {
+                bind.errorText.visibility = View.VISIBLE
+                bind.errorText.setText(R.string.car_sign_in_required)
+                bind.retryButton.visibility = View.VISIBLE
+                bind.retryButton.setText(R.string.car_sign_in_action)
+            }
+
             is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE
 
             is PlexSignInState.AwaitingApproval -> {
@@ -153,6 +166,7 @@ class PlexSignInFragment : Fragment() {
                 bind.errorText.visibility = View.VISIBLE
                 bind.errorText.setText(state.messageRes)
                 bind.retryButton.visibility = View.VISIBLE
+                bind.retryButton.setText(R.string.plex_sign_in_retry)
             }
 
             is PlexSignInState.Done -> (requireActivity() as LoginHost).onLoginSuccess()

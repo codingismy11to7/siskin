@@ -17,6 +17,16 @@ import com.cappielloantonio.tempo.plex.models.Resource
 sealed interface PlexSignInState {
 
     /**
+     * Nothing has been attempted yet. The screen shows the invitation and a
+     * Connect button, and no network call has been made.
+     *
+     * This is the initial state rather than [Working] because the settings gear
+     * can open this screen. Someone who opened settings to look should not have
+     * silently started an authentication attempt by arriving.
+     */
+    data object Disconnected : PlexSignInState
+
+    /**
      * Creating the pin, or discovering servers or libraries. One state rather
      * than three because all three render the same spinner.
      */

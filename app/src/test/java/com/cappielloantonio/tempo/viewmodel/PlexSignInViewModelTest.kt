@@ -153,7 +153,7 @@ class PlexSignInViewModelTest {
         }
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
 
         // Two dropped polls did not end the sign-in: it reached the real
@@ -205,7 +205,7 @@ class PlexSignInViewModelTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
 
         val stateAfterSignIn = viewModel.state.value
@@ -263,7 +263,7 @@ class PlexSignInViewModelTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
         viewModel.chooseServer(resource)
         awaitSettled(viewModel)
@@ -310,7 +310,7 @@ class PlexSignInViewModelTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
         viewModel.chooseServer(resource)
         awaitSettled(viewModel)
@@ -357,7 +357,7 @@ class PlexSignInViewModelTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
 
         // Snapshot immediately before the call under test, same as
@@ -402,7 +402,7 @@ class PlexSignInViewModelTest {
         }
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
         viewModel.chooseServer(resource)
         awaitSettled(viewModel)
@@ -444,7 +444,7 @@ class PlexSignInViewModelTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
 
         viewModel.chooseServer(bad)
@@ -476,45 +476,51 @@ class PlexSignInViewModelTest {
         verify(authClient, times(1)).createPin()
     }
 
-    // ── surviving activity recreation (#24) ───────────────────────────
+    // ── connect()'s guards (descended from #24) ───────────────────────
+    //
+    // #24 was activity recreation calling start() a second time through
+    // onCreateView. That trigger is gone now that the fragment only ever
+    // calls connect() from a Disconnected state -- but connect() is still a
+    // public method a test (or a future caller) can call directly, so the
+    // ViewModel keeps enforcing the invariant itself rather than trusting the
+    // fragment's dispatch to be the only path in.
 
     @Test
-    fun startDoesNotBeginAgainOnceAPickerIsShowing() = runTest(dispatcher) {
-        // CarSignInActivity declares no android:configChanges, so a day/night
-        // uiMode flip -- routine in a car -- recreates it, and onCreateView
-        // calls start() again. The ViewModel survives, so the picker state
-        // survives; start() is what used to destroy it.
+    fun connectDoesNotBeginAgainOnceAPickerIsShowing() = runTest(dispatcher) {
+        // A direct second call, standing in for whatever future caller might
+        // make one -- the fragment itself no longer produces this, since its
+        // dispatch only reaches connect() from Disconnected.
         val authClient = setUpToChoosingServer(aMediaServer())
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
         val picker = viewModel.state.value
         assertTrue("setup did not reach ChoosingServer, got $picker", picker is PlexSignInState.ChoosingServer)
 
-        // The recreation.
-        viewModel.start()
+        // The second call.
+        viewModel.connect()
         advanceUntilIdle()
 
         // Guarding on attempt?.isActive alone is not enough: signIn() has run to
-        // COMPLETION by now, so isActive is false and the old guard fell through
-        // to createPin() -- discarding an account token that is still good.
+        // COMPLETION by now, so isActive is false, and without the state check
+        // this would fall through to createPin() -- discarding an account
+        // token that is still good.
         verify(authClient, times(1)).createPin()
         assertEquals(picker, viewModel.state.value)
     }
 
     @Test
-    fun startStillBeginsWhenNothingHasBeenPublishedYet() = runTest(dispatcher) {
-        // The other half, and the reason the guard keys on Working rather than
-        // on "not null": Working is the initial value, so a first start() must
-        // still sign in. Reaching it with a dead attempt means the job died
-        // without publishing, which is also worth restarting.
+    fun connectStillBeginsWhenNothingHasBeenPublishedYet() = runTest(dispatcher) {
+        // The other half, and the reason the guard keys on Disconnected rather
+        // than on "not null": Disconnected is the initial value, so a first
+        // connect() must still sign in.
         val authClient = setUpToChoosingServer(aMediaServer())
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-        assertEquals(PlexSignInState.Working, viewModel.state.value)
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
 
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
 
         verify(authClient, times(1)).createPin()
@@ -538,7 +544,7 @@ class PlexSignInViewModelTest {
             authClient = authClient,
             nowMillis = { currentTime }
         )
-        viewModel.start()
+        viewModel.connect()
         advanceUntilIdle()
 
         assertEquals(
@@ -567,12 +573,30 @@ class PlexSignInViewModelTest {
             authClient = authClient,
             nowMillis = { currentTime }
         )
-        viewModel.start()
+        viewModel.connect()
 
         // Three minutes and one second: 30 polls at 2s (t=2s..60s), then 24 at
         // 5s (t=65s..180s). A flat 2s cadence would make this 90.
         advanceTimeBy(181_000L)
 
         verify(authClient, times(54)).getPin(42L)
+    }
+
+    @Test
+    fun `starts disconnected and stays there until connect is called`() = runTest {
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = PlexApi(),
+            authClient = mock(),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+        // If construction had dialled out, the state would have moved off
+        // Disconnected by the time the scheduler drains.
+        advanceUntilIdle()
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
     }
 }
