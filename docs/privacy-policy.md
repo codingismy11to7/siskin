@@ -1,17 +1,23 @@
 # Siskin Privacy Policy
 
-**Last updated:** 31 July 2026
+**Last updated:** 2 August 2026
 
 Siskin is a music player for Android Automotive OS that plays a Plex music
 library on a car's head unit.
 
-## What Siskin collects
+## What the developer receives
 
 Nothing.
 
-The developer receives no data from this app. There is no analytics, no crash
-reporting, no telemetry, and no usage measurement of any kind. The app contains
-no third-party analytics or advertising libraries.
+There is no analytics, no crash reporting, no telemetry, and no usage
+measurement of any kind. The app contains no third-party analytics or
+advertising libraries, and there is no Siskin server for anything to be sent
+to.
+
+That is a narrower claim than "Siskin collects nothing", and the difference
+matters. Siskin cannot play your music without talking to Plex, so some data
+does leave the head unit — it just never comes to the developer. What leaves,
+and where it goes, is set out below.
 
 ## What Siskin stores on your device
 
@@ -22,24 +28,57 @@ the following in its own private storage on the head unit:
 - the address of the Plex server you chose
 - a server access token, where the server issues one
 - the identifier of the music library you selected
+- an install identifier: a random value generated the first time the app runs
+
+The install identifier is Siskin's own, created on the head unit and not read
+from the vehicle or the operating system. It is not your advertising ID, and it
+identifies this installation rather than you or the car. Plex requires one on
+every request and ties your sign-in to it, which is why it exists and why it
+has to stay the same — it is what makes the app show up as a single device in
+your Plex account rather than a new one after every drive.
 
 These never leave the device except to reach Plex, as described below. Signing
-in again replaces them; clearing the app's data removes them.
+in again replaces the tokens; clearing the app's data removes everything here,
+including the install identifier.
 
 ## What Siskin transmits, and to whom
 
 Siskin contacts two kinds of destination, and no others:
 
 - **plex.tv** — to sign in using Plex's PIN linking flow, and to find out which
-  servers your account can reach.
-- **your Plex server** — to browse your library, stream audio, and report
-  playback progress so that your listening history and resume positions stay
-  correct.
+  servers your account can reach. Every request carries the install identifier
+  described above, and your account token once you are signed in.
+- **your Plex server** — to browse your library, stream audio, report playback
+  progress so that your listening history and resume positions stay correct,
+  and send a star rating when you set one. Search terms you enter go here too.
+  This is the machine you or someone you know runs; it is not the developer's
+  and it is not Plex's.
 
-Both are Plex's own service or a machine you control. What Plex does with data
-you send to Plex is governed by Plex's privacy policy, not this one.
+**Plex Inc. is a third party, and it is the only one.** Signing in means
+sending your Plex account credentials to Plex, which is the point of signing
+in, but it should be stated plainly rather than left implied. What Plex does
+with what reaches plex.tv is governed by Plex's privacy policy, not this one.
 
-Siskin transmits nothing to the developer, and nothing to any third party.
+Siskin talks to no other company. There is no advertising network, no analytics
+vendor, no crash reporter, and no data broker in this app, and nothing is ever
+sent to the developer.
+
+## How this maps to the Play Store's Data safety label
+
+Google Play defines "collected" as *transmitted off the device*, whoever
+receives it, and "shared" as *transferred to another company*. Those are not
+the everyday meanings of the words, so the label is easy to misread in both
+directions. Siskin's declaration says:
+
+| Data type | Collected | Shared | Why |
+|---|---|---|---|
+| Device or other IDs | Yes | Yes | The install identifier reaches plex.tv on every request. Plex is another company, so it counts as both. |
+
+It is declared for app functionality and account management, and for nothing
+else. It is not used for advertising, marketing, personalisation, fraud
+scoring, or analytics, and it is not sold.
+
+Nothing is listed against the developer, because nothing reaches the developer.
 
 ## Permissions
 
@@ -57,7 +96,9 @@ your files, and cannot read them.
 
 ## Children
 
-Siskin is not directed at children. It collects no data from anyone, of any age.
+Siskin is not directed at children, and nothing described above is gathered,
+profiled, or treated differently by age. Using the app at all requires a Plex
+account and a Plex server.
 
 ## Changes to this policy
 
