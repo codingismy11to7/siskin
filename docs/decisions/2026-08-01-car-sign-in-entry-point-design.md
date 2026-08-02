@@ -71,36 +71,56 @@ investigation and is now measured:
 and they are not the same problem.
 
 **No usable credentials** — the `onGetChildren` guard in
-`MediaLibraryServiceCallback`, using `car_sign_in_required`. It fires for every
-request including the root, which is why a signed-out car shows no tabs at all.
-Nothing has failed here; the user simply has not connected yet. This stops
-returning an error and returns **two info rows** instead: browsable but not
-playable. A list row cannot be covered by a mini player, and a first-run user
-sees words rather than an empty screen -- once the rows were visible and
-readable at all, which took two more passes; see "Verified on the emulator"
-below.
+`MediaLibraryServiceCallback`, using `car_sign_in_required`. Nothing has
+failed here; the user simply has not connected yet. This stops returning an
+error, but what it returns instead took four rounds of emulator measurement
+to land on, because the guard used to fire for *every* `parentId` including
+the root, and the root turns out not to behave like an ordinary browse node
+at all.
 
-| Row | Content |
+Four shapes were tried for the signed-out content at the browse root on an
+AAOS API 33 emulator:
+
+| Root child shape | Result |
 |---|---|
-| 1 | `car_sign_in_required`, reused verbatim -- the situation |
-| 2 | `car_sign_in_hint` -- the action |
+| not browsable, not playable | dropped entirely -- no list child in the view hierarchy at all |
+| playable only | dropped entirely |
+| one browsable | becomes a single tab which the car auto-opens; message appears in `car_ui_toolbar_title` *and* as the row, and tapping recurses |
+| two browsable | becomes two truncated tabs |
 
-This was one row at first, using both lines the browse list already gives
-every item, the same way an album shows its artist underneath its title:
-`car_sign_in_required` as the title, `car_sign_in_hint` as the subtitle.
-Splitting the message across a title and a subtitle kept the primary line in
-the app's existing voice and put the instruction where a second line belongs,
-rather than making one sentence carry both the explanation and the direction
--- and it was wrong for a reason that has nothing to do with wording.
-`com.android.car.media` auto-drills into a browse node whose only child is
-itself browsable: with one row present, the message rendered twice -- once
-correctly, as the toolbar title where "Siskin" belongs, and again as the sole
-row underneath it -- and tapping that row recursed into the same single-child
-node forever. Two rows removes the condition rather than working around it:
-with more than one child there is nothing for the car to auto-drill into. The
-same two strings do the same job, now one per row instead of one per line,
-and the `car_sign_in_hint` string that used to be a subtitle costs nothing to
-reuse as the second row's title -- zero new strings for this fix.
+**The browse root is a tab bar, not a list.** Root children are rendered only
+as tabs, and only when browsable -- there is no shape of root child that
+renders as list content, so no amount of tuning the row itself was ever going
+to fix this. Below the root, an ordinary list renders correctly: browsable
+rows show title, subtitle and artwork as expected, which is not true at the
+root at any child count.
+
+The fix is a different node, not a different row: **signed out, the root
+returns its normal four tabs** — Playlists, Artists, Albums, More, built by
+`MediaBrowserTree.buildTree` exactly as when signed in, since that tree is
+static and needs no credentials — and **every non-root `parentId` returns a
+single info row** instead. The car auto-opens the first tab, so the user
+lands on the row immediately, the toolbar reads "Siskin", and the app looks
+like itself rather than broken.
+
+| Line | Content |
+|---|---|
+| Title | `car_sign_in_required` — the situation |
+| Subtitle (artist) | `car_sign_in_hint` — the action |
+
+This collapses back into the single row the row started as, using both lines
+the browse list already gives every item, the same way an album shows its
+artist underneath its title. Two intermediate shapes were tried and rejected
+along the way, both while this row was still being returned as a root child:
+a single row split across a title and a subtitle (rejected because
+`com.android.car.media` auto-drills into a root node whose only child is
+itself browsable, rendering the message twice and recursing forever on tap),
+and two separate rows to remove that auto-drill condition (rejected because,
+per the table above, root children are tabs regardless of count, so two rows
+became two truncated tabs instead of two list rows). Neither shape was wrong
+in itself -- both are exactly how this row renders correctly today, one
+level down. It was the location that was wrong. Zero new strings either way:
+both already existed.
 
 **Credentials rejected mid-use** — `classifyFailure` in the same file and the
 equivalent in `LibraryPickerRepository`, using `car_sign_in_again`, reached when
@@ -157,7 +177,7 @@ Sign out is existing machinery plus a state change:
 2. `BrowseTreeInvalidator.stopPlayback()` — the credentials that were streaming
    the current track are gone, so playback cannot honestly continue
 3. `BrowseTreeInvalidator.invalidateRoot()` — the car re-requests the root and
-   gets the two info rows
+   gets the same four tabs, each of which now answers with the info row
 4. the screen returns to `Disconnected` rather than calling `finish()`
 
 That last step is the opposite of the successful-sign-in case on purpose.
@@ -212,24 +232,32 @@ different platforms** — Android Auto and AAOS respectively. PR #56 removes the
 Android Auto opt-in and orphans the former. Both changes touch adjacent manifest
 lines, so whichever lands second needs a rebase.
 
-**The info row's shape was not one untested assumption but two, and the
-emulator proved both wrong in turn.** A `MediaItem` that is neither browsable
-nor playable is not merely inert on an AAOS API 33 emulator -- it is not
-rendered at all; see "Verified on the emulator." The fallback anticipated for
-exactly this case -- make the row browsable with itself as its only child --
-is what shipped next, and was itself measured wrong: a single row browsable
-into itself is precisely the shape `com.android.car.media` auto-drills into,
-doubling the message and recursing forever on tap. Two rows, described above,
-is what actually shipped.
+**The info row's shape was not one untested assumption but three, and the
+emulator proved all three wrong in turn -- the third at a different level
+than the first two.** A `MediaItem` that is neither browsable nor playable is
+not merely inert on an AAOS API 33 emulator -- it is not rendered at all; see
+"Verified on the emulator." The fallback anticipated for exactly that case --
+make the row browsable with itself as its only child -- is what shipped
+next, and was itself measured wrong: a single row browsable into itself is
+precisely the shape `com.android.car.media` auto-drills into, doubling the
+message and recursing forever on tap. Two rows was tried next to remove that
+condition, and was *also* wrong, for a reason that had nothing to do with row
+count: every one of these shapes was being tried as a **root** child, and the
+root renders its children only as tabs, never as list content, regardless of
+how many there are or how they're built. The fix that actually shipped is
+not a fourth row shape but a different node -- stop returning this content at
+the root at all. Signed out, the root now returns its normal four tabs, and
+the single-row shape (the very first one tried, browsable rather than
+inert) is what renders correctly for every *other* `parentId`, where an
+ordinary list -- not a tab bar -- is what the car draws.
 
 **New strings cost lint.** Every user-facing string added raises
 `MissingTranslation` by one per locale against the baseline in `CLAUDE.md`.
 
-The `Disconnected` heading and the first info row's **title** both reuse
+The `Disconnected` heading and the info row's **title** both reuse
 `car_sign_in_required` and cost nothing. Three strings are new: `car_sign_in_hint`
-(now the second info row's title, originally the single row's subtitle), the
-**Settings** heading and the **Sign out** button. Neither of the latter two
-exists in `strings.xml` today.
+(the info row's subtitle), the **Settings** heading and the **Sign out**
+button. Neither of the latter two exists in `strings.xml` today.
 
 `car_sign_in_hint` is the one worth defending, since it duplicates a message we
 already have. Pointing at the settings icon means naming it, and
@@ -301,6 +329,30 @@ itself was the wrong shape.
   title and subtitle -- removed the condition: with more than one child,
   there is nothing for the car to auto-drill into, and the toolbar keeps
   reading "Siskin".
+
+A fourth pass, checking whether the two-row fix actually held up, found the
+premise underneath all three previous passes was itself wrong: the root
+does not render list content at all, at any child count.
+
+| Root child shape | Result |
+|---|---|
+| not browsable, not playable | dropped entirely -- no list child in the view hierarchy at all |
+| playable only | dropped entirely |
+| one browsable | becomes a single tab which the car auto-opens; message appears in `car_ui_toolbar_title` *and* as the row, and tapping recurses |
+| two browsable | becomes two truncated tabs |
+
+- The two-row shape from the third pass, still being returned as a root
+  child, rendered as two truncated tabs rather than two list rows --
+  confirming the root does not draw a list at any child count, not just at
+  one.
+- Below the root, an ordinary list rendered correctly: a browsable row
+  showed its title, subtitle and artwork exactly as designed, on the very
+  first node one level down from the root.
+- The fix: signed out, the root returns its normal four tabs -- Playlists,
+  Artists, Albums, More -- built by the same static `buildTree` a signed-in
+  car uses, and every non-root `parentId` returns the single-row shape from
+  the second pass. The car auto-opens the first tab, landing the user on
+  the row immediately with the toolbar correctly reading "Siskin".
 
 ## Not done here
 

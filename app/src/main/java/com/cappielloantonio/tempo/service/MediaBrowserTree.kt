@@ -34,7 +34,6 @@ object MediaBrowserTree {
     private var isInitialized = false
 
     private const val SIGNED_OUT_ROW_ID = "siskin://signed-out"
-    private const val SIGNED_OUT_HINT_ROW_ID = "siskin://signed-out-hint"
 
     private fun iconUri(resId: Int): Uri = ResourceUris.forResource(resId)
 
@@ -244,15 +243,15 @@ object MediaBrowserTree {
             )
         }
 
-        // Same requirement as the picker rows above, for the same reason: both
-        // signed-out rows are browsable (see signedOutRows' KDoc), so a tap on
-        // either one drives onSubscribe through onGetItem before onGetChildren
-        // ever runs. Neither is registered in treeNodes -- both are built fresh
-        // per request by onGetChildren's no-credentials guard, not by
-        // buildTree -- so without this branch the lookup above misses them and
+        // Same requirement as the picker rows above, for the same reason: the
+        // signed-out row is browsable (see signedOutRow's KDoc), so a tap on
+        // it drives onSubscribe through onGetItem before onGetChildren ever
+        // runs. It is not registered in treeNodes -- it is built fresh per
+        // request by onGetChildren's no-credentials guard, not by
+        // buildTree -- so without this branch the lookup above misses it and
         // the subscription is refused.
-        if (mediaId == SIGNED_OUT_ROW_ID || mediaId == SIGNED_OUT_HINT_ROW_ID) {
-            return signedOutRows(appContext).first { it.mediaId == mediaId }
+        if (mediaId == SIGNED_OUT_ROW_ID) {
+            return signedOutRow(appContext).single()
         }
         return null
     }
@@ -335,70 +334,79 @@ object MediaBrowserTree {
     }
 
     /**
-     * What the browse tree shows when there are no credentials.
+     * What a non-root browse node shows when there are no credentials.
      *
      * A row rather than a LibraryResult.ofError: the car places an error's
      * message and button wherever it likes, and a Cadillac puts that button
      * under a mini player it never hides. A list row cannot be covered.
      *
-     * Both rows are browsable, but not playable. The content was first built
-     * as a single row, neither browsable nor playable -- tapping it can do
-     * nothing useful, so that read as the honest shape. Measured wrong: on an
-     * AAOS API 33 emulator, signed out, the browse screen rendered with no
-     * row at all. `uiautomator` showed `browse_content_area` with no list
-     * child whatsoever; the only thing onscreen was the car's own empty
-     * mini-player bar, easy to mistake for content at a glance. A `MediaItem`
-     * that is neither browsable nor playable is not merely inert to this car
-     * -- it is invisible, which is worse than the error result it replaced.
+     * Browsable, but not playable. The content was first built as a single
+     * row, neither browsable nor playable -- tapping it can do nothing
+     * useful, so that read as the honest shape. Measured wrong: on an AAOS
+     * API 33 emulator, signed out, the browse screen rendered with no row at
+     * all. `uiautomator` showed `browse_content_area` with no list child
+     * whatsoever; the only thing onscreen was the car's own empty
+     * mini-player bar, easy to mistake for content at a glance. A
+     * `MediaItem` that is neither browsable nor playable is not merely inert
+     * to this car -- it is invisible, which is worse than the error result
+     * it replaced.
      *
-     * The next attempt was a single row, browsable, with itself as its only
-     * child -- the fallback the design doc named for that risk. That was
-     * measured wrong too, one layer deeper: `com.android.car.media`
-     * auto-drills into a node whose only child is itself browsable. With one
-     * row the message rendered twice -- once correctly, as the
-     * `car_ui_toolbar_title` where "Siskin" belongs, and again as the sole
-     * row underneath it -- and tapping the row re-entered the same
+     * The next attempt was this same shape -- one row, browsable, with
+     * itself as its only child, the fallback the design doc named for that
+     * risk. That was measured wrong too, one layer deeper: this row was, at
+     * the time, being returned as a **root** child, and
+     * `com.android.car.media` auto-drills into a root node whose only child
+     * is itself browsable. The message rendered twice -- once correctly, as
+     * the `car_ui_toolbar_title` where "Siskin" belongs, and again as the
+     * sole row underneath it -- and tapping the row re-entered the same
      * single-child node forever. The view hierarchy showed two stacked
      * `browse_list` levels for what was meant to be one screen.
      *
-     * Two rows is what fixes it: with more than one child there is nothing
-     * for the car to auto-drill into, so the toolbar keeps saying "Siskin".
-     * This splits what used to be one row's title and subtitle into two rows
-     * with one job each -- the first names the situation
-     * (`car_sign_in_required`), the second names the action
-     * (`car_sign_in_hint`, formerly this row's subtitle/artist line). Zero
-     * new strings: both already existed.
+     * The fix attempted next was splitting the message across two rows
+     * instead of one -- more than one child leaves nothing for the car to
+     * auto-drill into. That does hold *below* the root: two rows on an
+     * ordinary node render as two ordinary rows. Measured wrong anyway, for
+     * a reason one layer up from either row shape: **the browse root itself
+     * is a tab bar, not a list.** A fourth pass tried one root child, then
+     * two, and found the same auto-drill/truncation problems regardless of
+     * row count or content, because root children are rendered only as tabs
+     * -- there is no way to place list content at the root at all. The fix
+     * is not a different row shape but a different node: stop returning
+     * this row (or rows) as a root child. Signed out, the root now returns
+     * its normal four tabs -- Playlists, Artists, Albums, More, built by
+     * [buildTree] exactly as when signed in, since that tree is static and
+     * needs no credentials -- and the car auto-opens the first tab, landing
+     * the user on this row immediately with the toolbar correctly reading
+     * "Siskin". Every *non-root* `parentId` returns this single row, which
+     * is what the two-line split above was solving for in the first place,
+     * so it collapses back into one row using both lines the browse list
+     * already gives every item: `car_sign_in_required` as the title,
+     * `car_sign_in_hint` as the subtitle. Zero new strings: both already
+     * existed.
      *
      * [MediaLibrarySessionCallback.onGetChildren]'s no-credentials guard
-     * needs no extra branch for tapping either row -- it already answers
-     * every `parentId` the same way while signed out, so a request for
-     * either row's own id lands back here with both rows again. [getItem]
-     * does need a branch per id, because the default `onSubscribe` validates
-     * a target through `onGetItem` before a tap into a browsable row is
-     * allowed to stick.
+     * exempts `ROOT_ID` for exactly this reason and falls through to the
+     * normal tab construction for it; every other `parentId` still answers
+     * with this row, so a request for the row's own id lands back here
+     * again. [getItem] does need a branch for the row's id, because the
+     * default `onSubscribe` validates a target through `onGetItem` before a
+     * tap into a browsable row is allowed to stick.
      *
      * Still not playable: background activity-launch restrictions mean we
      * cannot start the sign-in screen ourselves, only the car can, which is
-     * what the second row's title points at. Making the rows browsable does
-     * not change that -- drilling into either only shows the same two rows
-     * again, never a stream.
+     * what the subtitle points at. Making the row browsable does not change
+     * that -- drilling into it only shows the same row again, never a
+     * stream.
      */
-    fun signedOutRows(context: Context): ImmutableList<MediaItem> = ImmutableList.of(
+    fun signedOutRow(context: Context): ImmutableList<MediaItem> = ImmutableList.of(
         MediaItem.Builder()
             .setMediaId(SIGNED_OUT_ROW_ID)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(context.getString(R.string.car_sign_in_required))
-                    .setIsBrowsable(true)
-                    .setIsPlayable(false)
-                    .build()
-            )
-            .build(),
-        MediaItem.Builder()
-            .setMediaId(SIGNED_OUT_HINT_ROW_ID)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(context.getString(R.string.car_sign_in_hint))
+                    // The browse list's second line, the same one an album
+                    // uses for its artist.
+                    .setArtist(context.getString(R.string.car_sign_in_hint))
                     .setIsBrowsable(true)
                     .setIsPlayable(false)
                     .build()

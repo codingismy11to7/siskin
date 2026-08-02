@@ -121,58 +121,56 @@ class MediaBrowserTreeTest {
     }
 
     /**
-     * Two rows, not one: a single browsable row whose only child is itself
-     * makes `com.android.car.media` auto-drill into it, doubling the message
-     * (once as the toolbar title, once as the row) and recursing forever on
-     * tap -- see [MediaBrowserTree.signedOutRows]'s KDoc for the emulator
-     * finding. With two children the car has nothing to auto-drill into.
+     * One row, not two: this row is only ever returned for a *non-root*
+     * `parentId` now (the root instead falls through to the normal four
+     * tabs -- see [MediaBrowserTree.signedOutRow]'s KDoc for the full
+     * measurement history), so there is no longer a root-level auto-drill
+     * risk for it to guard against with a second row.
      */
     @Test
-    fun `the signed-out rows are two, browsable but not playable, one line each`() {
+    fun `the signed-out row is browsable but not playable and carries both lines`() {
         val context = RuntimeEnvironment.getApplication()
 
-        val rows = MediaBrowserTree.signedOutRows(context)
+        val rows = MediaBrowserTree.signedOutRow(context)
 
-        assertEquals(2, rows.size)
-        rows.forEach { row ->
-            // Browsable: a row that is neither browsable nor playable is not
-            // rendered at all on an AAOS API 33 emulator (measured, not
-            // assumed -- see signedOutRows' KDoc), so every row must be
-            // browsable to be seen.
-            assertEquals(true, row.mediaMetadata.isBrowsable)
-            // Still not playable: tapping a row must never attempt a stream.
-            assertEquals(false, row.mediaMetadata.isPlayable)
-        }
+        assertEquals(1, rows.size)
+        val row = rows.single()
+        // Browsable: a row that is neither browsable nor playable is not
+        // rendered at all on an AAOS API 33 emulator (measured, not
+        // assumed -- see signedOutRow's KDoc), so it must be browsable to
+        // be seen.
+        assertEquals(true, row.mediaMetadata.isBrowsable)
+        // Still not playable: tapping it must never attempt a stream.
+        assertEquals(false, row.mediaMetadata.isPlayable)
         assertEquals(
             context.getString(R.string.car_sign_in_required),
-            rows[0].mediaMetadata.title
+            row.mediaMetadata.title
         )
         assertEquals(
             context.getString(R.string.car_sign_in_hint),
-            rows[1].mediaMetadata.title
+            row.mediaMetadata.artist
         )
     }
 
     /**
-     * Both rows are browsable, which means the default `onSubscribe` will run
-     * each through `onGetItem` (see [MediaBrowserTree.getItem]'s KDoc) before
+     * The row is browsable, which means the default `onSubscribe` will run
+     * it through `onGetItem` (see [MediaBrowserTree.getItem]'s KDoc) before
      * a tap into it is allowed to stick -- same requirement the picker rows
      * already have, checked above in
      * [pickerNodesResolveSoTheirSubscriptionsCanStick].
      */
     @Test
-    fun eachSignedOutRowResolvesByItsOwnIdSoItsSubscriptionCanStick() {
+    fun signedOutRowResolvesByItsOwnIdSoItsSubscriptionCanStick() {
         val context = RuntimeEnvironment.getApplication()
 
-        MediaBrowserTree.signedOutRows(context).forEach { row ->
-            val item = MediaBrowserTree.getItem(row.mediaId)
-                ?: throw AssertionError(
-                    "${row.mediaId} must resolve or its subscription is dropped"
-                )
+        val row = MediaBrowserTree.signedOutRow(context).single()
+        val item = MediaBrowserTree.getItem(row.mediaId)
+            ?: throw AssertionError(
+                "${row.mediaId} must resolve or its subscription is dropped"
+            )
 
-            assertEquals(row.mediaId, item.mediaId)
-            assertEquals(true, item.mediaMetadata.isBrowsable)
-            assertEquals(false, item.mediaMetadata.isPlayable)
-        }
+        assertEquals(row.mediaId, item.mediaId)
+        assertEquals(true, item.mediaMetadata.isBrowsable)
+        assertEquals(false, item.mediaMetadata.isPlayable)
     }
 }
