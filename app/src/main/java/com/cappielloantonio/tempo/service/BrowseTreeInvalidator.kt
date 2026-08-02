@@ -119,6 +119,43 @@ object BrowseTreeInvalidator {
     }
 
     /**
+     * Invalidates the root plus each of the four static tabs hanging off it
+     * -- Playlists, Artists, Albums, More.
+     *
+     * [invalidateRoot] alone stopped being enough for sign-in and sign-out
+     * once [MediaBrowserTree.buildTree] made the root return the same four
+     * tabs signed in or out: `notifyChildrenChanged(ROOT_ID, ...)` then sees
+     * byte-identical children on both transitions and gives the car nothing
+     * to act on. The info row that used to live at the root now lives one
+     * level down, inside each tab, so both transitions have to reach that
+     * level to get the car to redraw it -- the same hole [invalidateNode] was
+     * written to close for the library-switch case (see its KDoc), needed
+     * here for the identical reason at four ids instead of one. Sign-in and
+     * sign-out both need this same sequence, which is why it lives here once
+     * instead of as four [invalidateNode] calls duplicated at each call site.
+     *
+     * childCount is 0 for every tab: the same placeholder [invalidateRoot]
+     * itself falls back to when it cannot count the root's children, and the
+     * same value `com.cappielloantonio.tempo.repository.LibraryPickerRepository.selectLibrary`
+     * already passes for a node whose real count isn't in hand. The car
+     * re-queries `onGetChildren` for the actual list regardless of what this
+     * reports, so a precise count buys nothing worth a network round trip per
+     * tab.
+     *
+     * Same threading contract as its parts, because it is only those parts:
+     * must be called on the main thread -- [invalidateRoot] requires it and
+     * runs synchronously -- and each [invalidateNode] call posts its own work
+     * to the main thread rather than requiring it.
+     */
+    fun invalidateTree() {
+        invalidateRoot()
+        invalidateNode(ConstantsAA.PLAYLIST_ID, 0)
+        invalidateNode(ConstantsAA.ARTISTS_ID, 0)
+        invalidateNode(ConstantsAA.ALBUMS_ID, 0)
+        invalidateNode(ConstantsAA.MORE_ID, 0)
+    }
+
+    /**
      * Stops playback and empties the player's timeline.
      *
      * Called when the saved queue has just been discarded because the user

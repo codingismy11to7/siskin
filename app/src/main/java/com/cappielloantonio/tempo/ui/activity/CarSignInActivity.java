@@ -87,28 +87,43 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
 
     @Override
     public void onLoginSuccess() {
-        BrowseTreeInvalidator.INSTANCE.invalidateRoot();
+        // invalidateTree(), not invalidateRoot(): the root's own children are
+        // the same four tabs whether signed in or out (see
+        // MediaBrowserTree.buildTree's KDoc), so invalidateRoot() alone sees
+        // byte-identical children here and gives the car nothing to redraw.
+        // The signed-out info row lives one level down, inside each tab, and
+        // invalidateTree() is what reaches it -- see its KDoc on
+        // BrowseTreeInvalidator.
+        BrowseTreeInvalidator.INSTANCE.invalidateTree();
         finish();
     }
 
     @Override
     public void onSignedOut() {
         // The order these two calls are written in does not decide the order
-        // they run in, and safety here does not depend on it. stopPlayback()
-        // posts its work to the main looper (Handler.post), so it only queues
-        // behind whatever is currently running; invalidateRoot() runs its
-        // buildTree()/notifyChildrenChanged() synchronously on the calling
-        // thread (see BrowseTreeInvalidator's KDoc on directExecutor). Since
-        // this callback itself runs on the main thread -- it is dispatched
-        // from a button tap, see PlexSignInFragment's Connected case --
-        // invalidateRoot()'s synchronous work is what actually finishes first,
-        // and stopPlayback()'s posted Runnable runs after: the reverse of what
-        // the two lines below suggest. It is still safe: both land on the same
-        // looper, and notifyChildrenChanged only triggers the car to
-        // re-request the tree over IPC -- a round trip slow enough that the
-        // already-queued stopPlayback() is guaranteed to run before any
-        // re-fetch could reach onGetChildren while credentials are dead.
+        // their side effects run in, and safety here does not depend on it.
+        // stopPlayback() posts its Runnable to the main looper
+        // (Handler.post), so it only queues behind whatever is currently
+        // running. invalidateTree() runs invalidateRoot()'s
+        // buildTree()/notifyChildrenChanged(ROOT_ID) synchronously on the
+        // calling thread (see BrowseTreeInvalidator's KDoc on
+        // directExecutor) and only then posts one invalidateNode() call per
+        // tab. Since this callback itself runs on the main thread -- it is
+        // dispatched from a button tap, see PlexSignInFragment's Connected
+        // case -- the root's notifyChildrenChanged fires immediately, ahead
+        // of stopPlayback()'s already-queued Runnable: the reverse of what
+        // the two lines below suggest. The four tab invalidations are the
+        // opposite case: they are posted after stopPlayback() was already
+        // queued, so stopPlayback()'s Runnable is guaranteed to run before
+        // any of them even fire -- matching what the two lines below
+        // suggest.
+        //
+        // Either way it is safe: everything lands on the same looper, and
+        // notifyChildrenChanged only triggers the car to re-request a node
+        // over IPC -- a round trip slow enough that stopPlayback() has
+        // already run, for the root and for every tab, before any re-fetch
+        // could reach onGetChildren while credentials are dead.
         BrowseTreeInvalidator.INSTANCE.stopPlayback();
-        BrowseTreeInvalidator.INSTANCE.invalidateRoot();
+        BrowseTreeInvalidator.INSTANCE.invalidateTree();
     }
 }

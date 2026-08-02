@@ -184,8 +184,10 @@ Sign out is existing machinery plus a state change:
    false.
 2. `BrowseTreeInvalidator.stopPlayback()` — the credentials that were streaming
    the current track are gone, so playback cannot honestly continue
-3. `BrowseTreeInvalidator.invalidateRoot()` — the car re-requests the root and
-   gets the same four tabs, each of which now answers with the info row
+3. `BrowseTreeInvalidator.invalidateTree()` — invalidates the root *and* each
+   of the four tabs (see Consequences below for why the root alone stopped
+   being enough), so the car re-requests all five and every tab answers with
+   the info row
 4. the screen returns to `Disconnected` rather than calling `finish()`
 
 That last step is the opposite of the successful-sign-in case on purpose.
@@ -208,7 +210,7 @@ specifically to recover a dead session is the one path that cannot.
 
 ## Decision: the activity finishes itself on success — already true
 
-`CarSignInActivity.onLoginSuccess()` already calls `invalidateRoot()` then
+`CarSignInActivity.onLoginSuccess()` already calls `invalidateTree()` then
 `finish()`, and `PlexSignInFragment` already calls it on `Done`. Nothing to
 build.
 
@@ -258,6 +260,25 @@ the root at all. Signed out, the root now returns its normal four tabs, and
 the single-row shape (the very first one tried, browsable rather than
 inert) is what renders correctly for every *other* `parentId`, where an
 ordinary list -- not a tab bar -- is what the car draws.
+
+**Keeping four static tabs at the root means invalidation has to reach one
+level deeper.** Before this decision, sign-in and sign-out changed the
+*root's own* children -- the info row versus the four tabs -- so
+`BrowseTreeInvalidator.invalidateRoot()`'s `notifyChildrenChanged(ROOT_ID,
+...)` was, by itself, telling the car about a real difference. Once the root
+always returns the same four tabs regardless of credentials, that call sees
+byte-identical children on both transitions and gives the car nothing to act
+on: the info row that moved one level down, inside each tab, is not the
+root's problem to announce, and nothing else announced it either. Measured on
+the emulator after sign-in: the browse tree kept showing the signed-out info
+row inside the tab until the user backed out and re-entered it by hand.
+`BrowseTreeInvalidator.invalidateTree()` is the fix -- `invalidateRoot()` plus
+`invalidateNode()` for each of the four tab ids, called from both
+`CarSignInActivity.onLoginSuccess()` and `onSignedOut()`. This is the
+recurring cost of the tab-bar decision above, not a one-off oversight: any
+future change to what a tab shows based on sign-in state will need the same
+one-level-deeper invalidation, because the root's four children are now fixed
+and can never carry that signal on their own.
 
 **New strings cost lint.** Every user-facing string added raises
 `MissingTranslation` by one per locale against the baseline in `CLAUDE.md`.
