@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  The languages Siskin actually ships, and the list the system's per-app language
+  picker offers. Must stay in step with localeFilters in app/build.gradle: a locale
+  listed here but dropped by the filter advertises a language whose resources are
+  not in the bundle.
+
+  Bare language tags rather than de-DE / es-ES: the app carries one strings.xml per
+  language with no regional variants, so es matches Latin America as readily as
+  Spain.
+-->
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="en"/>            <!-- English -->
-    <locale android:name="de-DE"/>         <!-- German -->
-    <locale android:name="fr-FR"/>         <!-- French -->
-    <locale android:name="zh-CN"/>         <!-- Simplified Chinese-->
-    <locale android:name="zh-TW"/>         <!-- Traditional Chinese-->
-    <locale android:name="ko-KR"/>         <!-- Korean-->
-    <locale android:name="pt-BR"/>         <!-- Brazilian Portuguese -->
-    <locale android:name="it-IT"/>         <!-- Italian -->
-    <locale android:name="ru-RU"/>         <!-- Russian -->
-    <locale android:name="es-ES"/>         <!-- Spanish (Spain) -->
-    <locale android:name="es-419"/>        <!-- Spanish (Latinoamerica) -->
-    <locale android:name="pl-PL"/>         <!-- Polish -->
-    <locale android:name="tr-TR"/>         <!-- Turkish -->
-    <locale android:name="ca"/>            <!-- Catalan -->
-    <locale android:name="ro"/>            <!-- Romanian -->
+    <locale android:name="de"/>            <!-- German -->
+    <locale android:name="es"/>            <!-- Spanish -->
+    <locale android:name="fr"/>            <!-- French -->
+    <locale android:name="it"/>            <!-- Italian -->
 </locale-config>

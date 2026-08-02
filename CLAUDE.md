@@ -26,19 +26,33 @@ Single test class or method:
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest*'
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
-**`lintDebug` fails on `main` with 39 pre-existing errors.** CI does not run it
+**`lintDebug` fails on `main` with 9 pre-existing errors.** CI does not run it
 — only `testDebugUnitTest` and `assembleDebug` — so a red lint is not
 necessarily yours. The baseline breaks down as:
 
-- **30 × `MissingTranslation`** in `res/values/strings.xml`. The fork inherited
-  translations for many locales and new strings are only added in English, so
-  **every user-facing string you add raises this count by one per locale.**
-  Expected, not a regression.
 - **8 × `UnsafeOptInUsageError`** across `database/dao/QueueDao.java` and
   `SessionMediaItemDao.java`
 - **1 × `UseAppTint`** in `res/layout/fragment_plex_sign_in.xml`
 
 Check the delta against that baseline rather than the absolute count.
+
+**`MissingTranslation` is not in that baseline, and a new one is a real defect.**
+Siskin ships five locales — English, German, Spanish, French, Italian — and all
+five are complete, so the count is zero. **Every user-facing string you add needs
+four translations added with it**, in `res/values-{de,es,fr,it}/strings.xml`;
+lint is what tells you when one is missing. This inverts what the section above
+used to say: the fork once carried fifteen near-empty locales and 30 expected
+`MissingTranslation` errors, which trained everyone to ignore the check. See
+`docs/decisions/2026-08-02-five-locales-design.md`.
+
+A string that should not be translated — a proper noun, a URL — takes
+`translatable="false"` rather than four copies of itself.
+
+The locale set lives in two places that must agree: `localeFilters` in
+`app/build.gradle` and `res/xml/locale_config.xml`. The filter is load-bearing
+for more than tidiness — without it the bundle inherits every locale AndroidX,
+Material, Glide and media3 ship, which is ~85 and is what made the Play listing
+claim 88 languages.
 
 ## Toolchain
 

@@ -50,6 +50,15 @@ android {
         }
     }
 
+    // Without this the bundle inherits every locale its dependencies ship --
+    // AndroidX, Material, Glide and media3 carry ~85 between them, which is what
+    // made the Play listing claim 88 languages for an app with 41 strings. The
+    // app's own res/ already holds exactly these five; the filter is what reaches
+    // dependency resources. See the 2026-08-02 five locales design.
+    androidResources {
+        localeFilters += ["en", "de", "es", "fr", "it"]
+    }
+
     testOptions {
         unitTests.returnDefaultValues = true
         unitTests.includeAndroidResources = true

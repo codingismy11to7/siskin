@@ -1,8 +1,44 @@
 <resources>
     <string name="aa_albums">Alben</string>
     <string name="aa_artists">Interpreten</string>
+    <string name="aa_shuffle_artist">Diesen Interpreten zufällig wiedergeben</string>
+    <string name="aa_shuffle_playlist">Diese Wiedergabeliste zufällig wiedergeben</string>
+    <string name="aa_library_picker_no_music">Keine Musikbibliotheken auf diesem Server</string>
+    <string name="aa_library_picker_offline">plex.tv nicht erreichbar, um deine Server aufzulisten</string>
+    <string name="aa_library_picker_server_gone">Dieser Server gehört nicht mehr zu deinem Plex-Konto</string>
+    <string name="aa_library_picker_server_unreachable">Dieser Plex-Server ist nicht erreichbar</string>
+    <string name="aa_more">Mehr</string>
+    <string name="aa_now_browsing">Aktuell geöffnet: %1$s (%2$s)</string>
+    <string name="aa_now_browsing_no_server">Aktuell geöffnet: %1$s</string>
     <string name="aa_playlists">Wiedergabelisten</string>
+    <string name="aa_select_library">Bibliothek auswählen</string>
 
-    <string name="app_name">Siskin</string>
+    <string name="car_settings_sign_out">Abmelden</string>
+    <string name="car_settings_title">Einstellungen</string>
+    <string name="car_sign_in_action">Verbinden</string>
+    <string name="car_sign_in_again">Plex hat die gespeicherte Verbindung abgelehnt</string>
+    <string name="car_sign_in_back_description">Zurück</string>
+    <string name="car_sign_in_hint">Tippe auf das Einstellungssymbol, um dich zu verbinden</string>
+    <string name="car_sign_in_required">Deine Musik liegt auf Plex. Verbinde dich, um loszuhören.</string>
+    <string name="exo_controls_repeat_all_description">Aktueller Modus: Alle wiederholen. Wiederholmodus wechseln.</string>
+    <string name="exo_controls_repeat_off_description">Aktueller Modus: Keine Wiederholung. Wiederholmodus wechseln.</string>
+    <string name="exo_controls_repeat_one_description">Aktueller Modus: Titel wiederholen. Wiederholmodus wechseln.</string>
+    <string name="exo_controls_shuffle_off_description">Zufallswiedergabe aktivieren</string>
+    <string name="exo_controls_shuffle_on_description">Zufallswiedergabe deaktivieren</string>
 
+    <string name="plex_sign_in_choose_library">Musikbibliothek auswählen</string>
+    <string name="plex_sign_in_choose_server">Plex-Server auswählen</string>
+    <string name="plex_sign_in_connect">Mit Plex verbinden</string>
+    <string name="plex_sign_in_tagline">Dein Auto. Deine Musik.</string>
+    <string name="plex_sign_in_error_expired">Der Anmeldecode ist abgelaufen.</string>
+    <string name="plex_sign_in_error_lost_candidate">Der ausgewählte Server ging verloren. Bitte versuche es erneut.</string>
+    <string name="plex_sign_in_error_network">plex.tv war nicht erreichbar.</string>
+    <string name="plex_sign_in_error_no_libraries">Dieser Server hat keine Musikbibliotheken.</string>
+    <string name="plex_sign_in_error_no_servers">Dieses Plex-Konto hat keine erreichbaren Medienserver.</string>
+    <string name="plex_sign_in_error_pin">Plex hat keinen Anmeldecode zurückgegeben.</string>
+    <string name="plex_sign_in_error_server_unreachable">Dieser Plex-Server war nicht erreichbar.</string>
+    <string name="plex_sign_in_instructions">Scanne den QR-Code — oder gehe zu plex.tv/link und gib ein:</string>
+    <string name="plex_sign_in_instructions_no_qr">Gehe zu plex.tv/link und gib ein:</string>
+    <string name="plex_sign_in_qr_description">QR-Code für die Anmeldung bei Plex</string>
+    <string name="plex_sign_in_retry">Erneut versuchen</string>
 </resources>
