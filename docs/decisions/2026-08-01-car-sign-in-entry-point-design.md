@@ -418,10 +418,16 @@ The platform now starts it as well. `singleTop` plus the separate affinity
 should hold, but tapping the gear while sign-in is already open is an explicit
 case to check rather than assume.
 
-**`auto_app_desc.xml` and `automotive_app_desc.xml` are different files for
-different platforms** — Android Auto and AAOS respectively. PR #56 removes the
-Android Auto opt-in and orphans the former. Both changes touch adjacent manifest
-lines, so whichever lands second needs a rebase.
+**`auto_app_desc.xml` and `automotive_app_desc.xml` were different files for
+different platforms** — Android Auto and AAOS respectively. PR #56 removed the
+Android Auto opt-in and deleted the former, and this branch was rebased on top
+of it; the manifest hunks turned out not to conflict, since #56 removed lines
+above where this adds them.
+
+Only `automotive_app_desc.xml` now exists. The near-identical names are worth
+remembering anyway: the manifest comment recording the projection removal still
+names `auto_app_desc`, and a reader who skims both could easily conclude the
+deleted resource came back under a slightly different name. It did not.
 
 **The info row's shape was not one untested assumption but three, and the
 emulator proved all three wrong in turn -- the third at a different level

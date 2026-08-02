@@ -50,10 +50,12 @@
              same rejection. If Siskin ever wants a phone build, which the
              whole point of the fork argues against, it needs a second module. -->
 
-        <!-- The AAOS counterpart to auto_app_desc above, and a different file
-             for a different platform: that one opts into Android Auto, this one
-             into Android Automotive OS. Both names are one letter apart and
-             neither is a typo.
+        <!-- automotive_app_desc, not auto_app_desc. The deleted resource named
+             in the comment above is a different file for a different platform:
+             that one opted into Android Auto projection, this one opts into
+             Android Automotive OS. The names are one letter apart, and anyone
+             reading the removal above should not conclude this is the same
+             resource resurrected.
 
              Without this, the settings gear the car draws in its top bar stays
              inert and the APPLICATION_PREFERENCES activity below is
