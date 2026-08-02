@@ -4,8 +4,5 @@
     <string name="aa_playlists">Playlists</string>
 
     <string name="app_name">Siskin</string>
-    <string name="exo_controls_heart_off_description">Désactiver les boutons Cœur</string>
-    <string name="exo_controls_heart_on_description">Activer les boutons Cœur</string>
-    <string name="exo_controls_heart_loading_description">Chargement…</string>
 
 </resources>

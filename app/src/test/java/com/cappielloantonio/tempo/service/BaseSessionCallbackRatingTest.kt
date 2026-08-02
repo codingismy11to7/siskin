@@ -5,6 +5,7 @@ import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.StarRating
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
@@ -121,10 +122,11 @@ class BaseSessionCallbackRatingTest {
     @Test
     fun a200WritesTheRatingBackIntoTheMatchingQueueItemOnly() {
         // `rate` returns Unit now, so "success" is only ever "did not throw".
-        // The queue write is what makes the heart survive a track change: the
-        // button is rebuilt from player.mediaMetadata.userRating, so an
-        // implementation that reports success without replacing the item shows
-        // the heart flipping back on the next metadata event.
+        // The queue write is what makes the rating survive a track change, and it
+        // is the only thing that updates the car's control after a tap: that
+        // control is drawn from player.mediaMetadata.userRating, so an
+        // implementation reporting success without replacing the item leaves the
+        // star showing Plex's old answer.
         server.enqueue(MockResponse().setResponseCode(200))
 
         val result = rate(hearted = true)
@@ -166,8 +168,8 @@ class BaseSessionCallbackRatingTest {
      * on a bad ratingKey, 500) fails that precondition and throws
      * IllegalArgumentException. Before the fix, onSetRating's HttpException
      * branch did exactly this with `SessionError(http.code(), http.message())`,
-     * which escaped the coroutine instead of completing the future -- the heart
-     * button stayed on its loading icon forever. onSetRating now maps the status
+     * which escaped the coroutine instead of completing the future, leaving the
+     * caller waiting on a future that never lands. onSetRating now maps the status
      * onto a legal constant instead of forwarding it; this test stays as a pin
      * so that if media3 ever relaxes the precondition, it fails and sends
      * someone back to check whether the mapping is still needed.
@@ -220,5 +222,36 @@ class BaseSessionCallbackRatingTest {
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
         verify(player, never()).replaceMediaItem(any(), any())
+    }
+
+    /**
+     * The car is the only source of ratings now that the heart button is gone, and
+     * it sends back the type we publish -- so this is unreachable in the car and
+     * pinned anyway. An unchecked `rating as HeartRating` throws
+     * ClassCastException on a car-driven path, which fails as a crash rather than
+     * as a session error the caller can read.
+     */
+    @Test
+    fun aRatingThatIsNotAHeartIsRejectedRatherThanCastBlindly() {
+        val future = callback.onSetRating(session, mock(), "42", StarRating(5, 4.0f))
+
+        assertEquals(SessionError.ERROR_NOT_SUPPORTED, future.get(1, TimeUnit.SECONDS).resultCode)
+        assertEquals(0, server.requestCount)
+        verify(player, never()).replaceMediaItem(any(), any())
+    }
+
+    /**
+     * The overload the car actually calls -- a legacy setRating carries no media
+     * id, so it means "the current track". With an empty queue there is no current
+     * track, and the media id it used to dereference was a `!!`.
+     */
+    @Test
+    fun ratingWithNothingPlayingIsRejectedRatherThanThrowing() {
+        whenever(player.currentMediaItem).thenReturn(null)
+
+        val future = callback.onSetRating(session, mock(), HeartRating(true))
+
+        assertEquals(SessionError.ERROR_INVALID_STATE, future.get(1, TimeUnit.SECONDS).resultCode)
+        assertEquals(0, server.requestCount)
     }
 }

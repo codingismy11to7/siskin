@@ -5,8 +5,5 @@
     <string name="aa_playlists">Llistes de reproducció</string>
 
     <string name="app_name">Siskin</string>
-    <string name="exo_controls_heart_off_description">Treu el cor</string>
-    <string name="exo_controls_heart_on_description">Posa un cor</string>
-    <string name="exo_controls_heart_loading_description">S\'està carregant...</string>
 
 </resources>

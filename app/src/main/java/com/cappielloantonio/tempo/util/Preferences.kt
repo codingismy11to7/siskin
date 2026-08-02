@@ -30,8 +30,6 @@ object Preferences {
     private const val SELECTED_EQUALIZER = "selected_equalizer"
     private const val EQUALIZER_ENABLED = "equalizer_enabled"
     private const val EQUALIZER_BAND_LEVELS = "equalizer_band_levels"
-    private const val CUSTOM_COMMAND_FIRST_BUTTON = "custom_command_first_button"
-    private const val CUSTOM_COMMAND_SECOND_BUTTON = "custom_command_second_button"
 
     private const val DARK_THEME_STYLE = "dark_theme_style"
 
@@ -89,15 +87,7 @@ object Preferences {
     fun isDataSavingMode(): Boolean {
         return App.getInstance().preferences.getBoolean(DATA_SAVING_MODE, false)
     }
-    @JvmStatic
-    fun getCustomCommandFirstButton(): String? {
-        return App.getInstance().preferences.getString(CUSTOM_COMMAND_FIRST_BUTTON, "[heartID]")
-    }
 
-    @JvmStatic
-    fun getCustomCommandSecondButton(): String? {
-        return App.getInstance().preferences.getString(CUSTOM_COMMAND_SECOND_BUTTON, "[repeatID]")
-    }
     @JvmStatic
     fun getReplayGainMode(): String? {
         return App.getInstance().preferences.getString(REPLAY_GAIN_MODE, "disabled")

@@ -72,7 +72,7 @@ class RoomEntityRoundTripTest {
         assertEquals(3, restored.mediaMetadata.trackNumber)
         assertEquals(2021, restored.mediaMetadata.releaseYear)
         assertEquals(250_000L, restored.mediaMetadata.durationMs)
-        assertTrue(PlexMediaMapper.readHearted(restored.mediaMetadata))
+        assertEquals(HeartRating(true), restored.mediaMetadata.userRating)
         assertEquals(
             "/library/metadata/1234/thumb/1699999999",
             restored.mediaMetadata.artworkUri!!.lastPathSegment
@@ -116,7 +116,7 @@ class RoomEntityRoundTripTest {
     fun anUnheartedTrackStaysUnhearted() {
         val restored = SessionMediaItem.fromMediaItem(track(hearted = false))!!.toMediaItem()
 
-        assertFalse(PlexMediaMapper.readHearted(restored.mediaMetadata))
+        assertEquals(HeartRating(false), restored.mediaMetadata.userRating)
     }
 
     @Test

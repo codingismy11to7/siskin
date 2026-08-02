@@ -4,8 +4,5 @@
     <string name="aa_playlists">Плейлисты</string>
 
     <string name="app_name">Siskin</string>
-    <string name="exo_controls_heart_off_description">Убрать лайк</string>
-    <string name="exo_controls_heart_on_description">Поставить лайк</string>
-    <string name="exo_controls_heart_loading_description">Загрузка…</string>
 
 </resources>

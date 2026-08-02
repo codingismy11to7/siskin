@@ -134,7 +134,7 @@ class PlexMediaMapperAssemblyTest {
     }
 
     @Test
-    fun heartStateRidesInTheExtrasBundleAndNotInUserRating() {
+    fun heartStateIsPublishedAsAHeartRating() {
         val hearted = PlexMediaMapper.buildTrackMediaItem(
             ratingKey = "1234", title = "T", albumTitle = "A", artist = "R",
             thumb = null, partKey = "/p", durationMs = 1L, trackIndex = 1, year = 2020,
@@ -142,10 +142,11 @@ class PlexMediaMapperAssemblyTest {
             parentId = null, serverUri = serverUri, token = token
         )
 
-        assertTrue(PlexMediaMapper.readHearted(hearted.mediaMetadata))
-        // Load-bearing: a published rating makes com.android.car.media draw its own
-        // star in the transport row, and that star displaces our heart button.
-        assertNull(hearted.mediaMetadata.userRating)
+        // Load-bearing, and specifically as a HeartRating: com.android.car.media
+        // reads the rating type off this subtype and draws its own control left of
+        // transport for a heart. Publish nothing and there is no control; publish a
+        // StarRating and the car ignores it. Measured -- see the 2026-08-02 design.
+        assertEquals(HeartRating(true), hearted.mediaMetadata.userRating)
     }
 
     @Test
@@ -153,19 +154,16 @@ class PlexMediaMapperAssemblyTest {
         val rated = PlexMediaMapper.trackToMediaItem(
             track().apply { userRating = 10.0 }, null, serverUri, token
         )!!
-        assertTrue(PlexMediaMapper.readHearted(rated.mediaMetadata))
+        assertEquals(HeartRating(true), rated.mediaMetadata.userRating)
     }
 
     @Test
-    fun aTapWinsOverWhatPlexSaidAtMapTime() {
-        // applyRatingToQueue writes a HeartRating onto the queued item when the
-        // heart is tapped; that has to outrank the mapped-in extra or the button
-        // would snap back to Plex's stale answer on the next rebuild.
+    fun anUnratedPlexTrackArrivesAsAnUnfilledHeart() {
+        // Not an absent rating: the control is only drawn when the field is
+        // published, so an unhearted track has to publish HeartRating(false)
+        // rather than nothing at all.
         val mapped = PlexMediaMapper.trackToMediaItem(track(), null, serverUri, token)!!
-        assertFalse(PlexMediaMapper.readHearted(mapped.mediaMetadata))
-
-        val tapped = mapped.mediaMetadata.buildUpon().setUserRating(HeartRating(true)).build()
-        assertTrue(PlexMediaMapper.readHearted(tapped))
+        assertEquals(HeartRating(false), mapped.mediaMetadata.userRating)
     }
 
     @Test
@@ -265,6 +263,7 @@ class PlexMediaMapperAssemblyTest {
             parentId = null, serverUri = serverUri, token = token
         )
 
-        assertFalse(PlexMediaMapper.readHearted(unhearted.mediaMetadata))
+        assertEquals(HeartRating(false), unhearted.mediaMetadata.userRating)
+        assertFalse(PlexMediaMapper.readTrackFields(unhearted)!!.isHearted)
     }
 }
