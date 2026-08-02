@@ -101,8 +101,9 @@ class PlexSignInFragment : Fragment() {
         )
 
         applyArrangement(
-            isPicker = state is PlexSignInState.ChoosingServer ||
-                state is PlexSignInState.ChoosingLibrary
+            isOpenEndedList = state is PlexSignInState.ChoosingServer ||
+                state is PlexSignInState.ChoosingLibrary ||
+                state is PlexSignInState.Connected
         )
 
         when (state) {
@@ -229,21 +230,29 @@ class PlexSignInFragment : Fragment() {
      * The screen has two arrangements, and they are structural rather than a
      * matter of gravity.
      *
-     * A picker is an open-ended list, so the headings pin to the top and only
-     * the list scrolls beneath them: the question stays on screen while you
-     * answer it, and the first tap target sits in the same place whether the
-     * account has one server or eight.
+     * An open-ended list pins the headings to the top and scrolls only the list
+     * beneath them: the heading stays on screen while you work under it, and
+     * the first tap target sits in the same place whether the list holds one
+     * item or eight. The server and library pickers qualify because an account
+     * can have any number of either.
+     *
+     * Settings qualifies too, and deliberately, even though it holds a single
+     * Sign out button today. It is the one screen here that is *expected* to
+     * grow -- transcoding and ReplayGain are coming -- and a screen that
+     * changes arrangement when its second row lands is a screen whose layout
+     * has to be rediscovered later. Committing to the list arrangement now
+     * means adding a row is only adding a row.
      *
      * Every other state is a single short block, and those read best as one
      * centred composition -- headings included. So the scroll view shrinks to
      * its content and the whole column centres, which is only safe because
      * these states are known to be short enough never to need scrolling.
      */
-    private fun applyArrangement(isPicker: Boolean) {
+    private fun applyArrangement(isOpenEndedList: Boolean) {
         val bind = this.bind ?: return
         val params = bind.contentScroll.layoutParams as LinearLayout.LayoutParams
 
-        if (isPicker) {
+        if (isOpenEndedList) {
             params.height = 0
             params.weight = 1f
         } else {
@@ -253,7 +262,7 @@ class PlexSignInFragment : Fragment() {
         bind.contentScroll.layoutParams = params
 
         val gravity =
-            if (isPicker) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
+            if (isOpenEndedList) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
         (bind.root as LinearLayout).gravity = gravity
         bind.scrollContent.gravity = gravity
     }
