@@ -28,6 +28,7 @@ import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.util.CredentialGate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -78,6 +79,25 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
     /** The server picked but not yet committed; chooseLibrary needs it to build a session. */
     private var candidate: Pair<String, Resource>? = null
+
+    /**
+     * Chooses the screen for how it was opened.
+     *
+     * [forceSignIn] exists because CredentialGate.isSignedIn() is only
+     * `session != null`, and the credentials-rejected path arrives with a
+     * session that still exists and is no longer accepted. Without this flag
+     * the one entry point that exists to recover a dead session is the one that
+     * cannot: it would land on the settings screen.
+     */
+    fun open(forceSignIn: Boolean) {
+        if (forceSignIn) {
+            connect()
+            return
+        }
+        _state.value =
+            if (CredentialGate.isSignedIn()) PlexSignInState.Connected
+            else PlexSignInState.Disconnected
+    }
 
     /**
      * The Connect button.

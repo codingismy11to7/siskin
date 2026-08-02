@@ -599,4 +599,81 @@ class PlexSignInViewModelTest {
         advanceUntilIdle()
         assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
     }
+
+    // ── open()'s two entry points ──────────────────────────────────────
+    //
+    // CredentialGate.isSignedIn() is only `session != null`, and the
+    // credentials-rejected path arrives with a session that still exists but
+    // is no longer accepted by the server. forceSignIn is what keeps that
+    // path landing on sign-in rather than on a settings screen it cannot use
+    // to fix itself -- see docs/decisions/2026-08-01-car-sign-in-entry-point-design.md.
+
+    @Test
+    fun `open goes straight to work when sign-in is forced even with a session present`() = runTest {
+        val api = PlexApi()
+        api.session = PlexSession(
+            accountToken = "t",
+            serverUri = "https://example.invalid",
+            musicSectionKey = SectionKey("1"),
+            serverToken = null
+        )
+
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = api,
+            // A bare mock() (as the brief's snippet used) leaves createPin()
+            // returning null, and runTest drains the coroutine connect()
+            // launches before this test finishes -- so an unstubbed
+            // authClient turns into a NoWhenBranchMatchedException here even
+            // though the assertion below is checked synchronously, before
+            // that coroutine gets to run at all. Stubbed the same way
+            // connectStillBeginsWhenNothingHasBeenPublishedYet does so the
+            // background attempt has somewhere harmless to land.
+            authClient = setUpToChoosingServer(aMediaServer()),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+
+        viewModel.open(forceSignIn = true)
+
+        assertTrue(viewModel.state.value is PlexSignInState.Working)
+    }
+
+    @Test
+    fun `open without forcing lands on Disconnected when no session exists`() = runTest {
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = PlexApi(),
+            authClient = mock(),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+
+        viewModel.open(forceSignIn = false)
+
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+    }
+
+    @Test
+    fun `open without forcing lands on Connected when a session exists`() = runTest {
+        val api = PlexApi()
+        api.session = PlexSession(
+            accountToken = "t",
+            serverUri = "https://example.invalid",
+            musicSectionKey = SectionKey("1"),
+            serverToken = null
+        )
+
+        val viewModel = PlexSignInViewModel(
+            mock<Application>(),
+            api = api,
+            authClient = mock(),
+            probe = mock(),
+            nowMillis = { 0L }
+        )
+
+        viewModel.open(forceSignIn = false)
+
+        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+    }
 }

@@ -97,6 +97,12 @@ class PlexSignInFragment : Fragment() {
                 bind.retryButton.setText(R.string.car_sign_in_action)
             }
 
+            // Reachable via open(forceSignIn = false) when a session already
+            // exists -- the gear's entry point. Left unrendered on purpose:
+            // Task 3 builds the settings screen this belongs to. Only present
+            // so this when stays exhaustive.
+            is PlexSignInState.Connected -> {}
+
             is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE
 
             is PlexSignInState.AwaitingApproval -> {

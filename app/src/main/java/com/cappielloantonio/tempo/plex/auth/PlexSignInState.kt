@@ -60,4 +60,7 @@ sealed interface PlexSignInState {
     data class Failed(@param:StringRes val messageRes: Int) : PlexSignInState
 
     data object Done : PlexSignInState
+
+    /** Signed in. The settings screen. */
+    data object Connected : PlexSignInState
 }
