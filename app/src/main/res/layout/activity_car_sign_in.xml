@@ -1,28 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    A header row above the content, not a button overlaying it.
+    The back button overlays the start of the fragment's first row rather than
+    taking a row of its own.
 
-    The back button has to exist in every state the fragment renders
-    (Disconnected, Working, AwaitingApproval, the pickers, Connected), and the
-    activity is what hosts all of them, so it belongs here rather than inside
-    the fragment.
+    It has to exist in every state the fragment renders (Disconnected, Working,
+    AwaitingApproval, the pickers, Connected), and the activity hosts all of
+    them, so it belongs here rather than inside the fragment.
 
-    It was first written as a sibling overlay on a FrameLayout, which forced
-    the fragment to offset its heading by the button's width to avoid being
-    sat on. That offset moved the heading and not the content beneath it, so a
-    centred Sign out button ended up under a heading nudged right of centre and
-    the two visibly disagreed. Giving the button its own row costs one row of
-    height and removes the whole class of problem: nothing overlaps, so nothing
-    has to dodge, and every state stays on true centre.
+    Two earlier shapes were wrong in opposite directions. Overlaying *and*
+    offsetting the fragment's heading by the button's width moved the heading
+    and nothing beneath it, so a centred Sign out button sat under a heading
+    nudged right of centre. Giving the button its own row fixed the alignment
+    but spent a whole row of a 600dp-tall screen on one icon.
 
-    This is also the shape Pocket Casts uses for the equivalent screen, whose
-    APPLICATION_PREFERENCES pattern this activity follows.
+    Overlaying without the offset is what actually works: the fragment centres
+    its heading, this button sits at the start, and the two do not meet because
+    the headings here are short and centred. If a heading ever grows long
+    enough to reach the start edge, offsetting is still the wrong answer: the
+    heading and the content under it have to move together or not at all.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/car_sign_in_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <!--
         This activity draws no toolbar, and the AAOS emulator's system bar has
@@ -38,16 +43,11 @@
         android:id="@+id/back_button"
         android:layout_width="@dimen/plex_sign_in_choice_min_height"
         android:layout_height="@dimen/plex_sign_in_choice_min_height"
+        android:layout_gravity="start|top"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/car_sign_in_back_description"
         android:padding="18dp"
         android:scaleType="fitCenter"
         android:src="@drawable/ic_back_arrow"
         app:tint="?attr/colorOnSurface" />
-
-    <FrameLayout
-        android:id="@+id/car_sign_in_container"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
-</LinearLayout>
+</FrameLayout>
