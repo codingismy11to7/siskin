@@ -121,16 +121,40 @@ class MediaBrowserTreeTest {
     }
 
     @Test
-    fun `the signed-out row is neither browsable nor playable and carries both lines`() {
+    fun `the signed-out row is browsable but not playable and carries both lines`() {
         val context = RuntimeEnvironment.getApplication()
 
         val rows = MediaBrowserTree.signedOutRow(context)
 
         assertEquals(1, rows.size)
         val metadata = rows[0].mediaMetadata
-        assertEquals(false, metadata.isBrowsable)
+        // Browsable: a row that is neither browsable nor playable is not
+        // rendered at all on an AAOS API 33 emulator (measured, not assumed --
+        // see signedOutRow's KDoc), so it must be browsable to be seen.
+        assertEquals(true, metadata.isBrowsable)
+        // Still not playable: tapping it must never attempt a stream.
         assertEquals(false, metadata.isPlayable)
         assertEquals(context.getString(R.string.car_sign_in_required), metadata.title)
         assertEquals(context.getString(R.string.car_sign_in_hint), metadata.artist)
+    }
+
+    /**
+     * The row is browsable now, which means the default `onSubscribe` will
+     * run it through `onGetItem` (see [MediaBrowserTree.getItem]'s KDoc)
+     * before a tap into it is allowed to stick -- same requirement the picker
+     * rows already have, checked above in
+     * [pickerNodesResolveSoTheirSubscriptionsCanStick].
+     */
+    @Test
+    fun signedOutRowResolvesByItsOwnIdSoItsSubscriptionCanStick() {
+        val context = RuntimeEnvironment.getApplication()
+        val rowId = MediaBrowserTree.signedOutRow(context)[0].mediaId
+
+        val item = MediaBrowserTree.getItem(rowId)
+            ?: throw AssertionError("$rowId must resolve or its subscription is dropped")
+
+        assertEquals(rowId, item.mediaId)
+        assertEquals(true, item.mediaMetadata.isBrowsable)
+        assertEquals(false, item.mediaMetadata.isPlayable)
     }
 }

@@ -242,6 +242,17 @@ object MediaBrowserTree {
                 title = appContext.getString(R.string.aa_select_library)
             )
         }
+
+        // Same requirement as the picker rows above, for the same reason: the
+        // signed-out row is now browsable (see signedOutRow's KDoc), so a tap
+        // on it drives onSubscribe through onGetItem before onGetChildren ever
+        // runs. It is not registered in treeNodes -- it is built fresh per
+        // request by onGetChildren's no-credentials guard, not by buildTree --
+        // so without this branch the lookup above misses it and the
+        // subscription is refused.
+        if (mediaId == SIGNED_OUT_ROW_ID) {
+            return signedOutRow(appContext).first()
+        }
         return null
     }
 
@@ -329,10 +340,28 @@ object MediaBrowserTree {
      * message and button wherever it likes, and a Cadillac puts that button
      * under a mini player it never hides. A list row cannot be covered.
      *
-     * Neither browsable nor playable, because it is neither -- tapping it can do
-     * nothing useful. Background activity-launch restrictions mean we cannot
-     * start the sign-in screen ourselves; only the car can, which is what the
-     * subtitle points at.
+     * Browsable, but not playable. It was first built neither browsable nor
+     * playable -- tapping it can do nothing useful, so that read as the
+     * honest shape. Measured wrong: on an AAOS API 33 emulator, signed out,
+     * the browse screen rendered with no row at all. `uiautomator` showed
+     * `browse_content_area` with no list child whatsoever; the only thing
+     * onscreen was the car's own empty mini-player bar, easy to mistake for
+     * content at a glance. A `MediaItem` that is neither browsable nor
+     * playable is not merely inert to this car -- it is invisible, which is
+     * worse than the error result it replaced. This is the fallback the
+     * design doc named for exactly that risk: make the row browsable with
+     * itself as its only child. [MediaLibrarySessionCallback.onGetChildren]'s
+     * no-credentials guard needs no extra branch for that self-reference --
+     * it already answers every `parentId` the same way while signed out, so a
+     * request for this row's own id lands back here. [getItem] does need a
+     * matching branch, because the default `onSubscribe` validates a target
+     * through `onGetItem` before a tap into a browsable row is allowed to
+     * stick.
+     *
+     * Still not playable: background activity-launch restrictions mean we
+     * cannot start the sign-in screen ourselves, only the car can, which is
+     * what the subtitle points at. Making the row browsable does not change
+     * that -- drilling in only shows the same message again, never a stream.
      */
     fun signedOutRow(context: Context): ImmutableList<MediaItem> = ImmutableList.of(
         MediaItem.Builder()
@@ -343,7 +372,7 @@ object MediaBrowserTree {
                     // The browse list's second line, the same one an album uses
                     // for its artist.
                     .setArtist(context.getString(R.string.car_sign_in_hint))
-                    .setIsBrowsable(false)
+                    .setIsBrowsable(true)
                     .setIsPlayable(false)
                     .build()
             )

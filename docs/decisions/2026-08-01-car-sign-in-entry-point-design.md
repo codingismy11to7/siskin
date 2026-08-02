@@ -75,8 +75,10 @@ and they are not the same problem.
 request including the root, which is why a signed-out car shows no tabs at all.
 Nothing has failed here; the user simply has not connected yet. This stops
 returning an error and returns a single **info row** instead: one `MediaItem`,
-neither browsable nor playable. A list row cannot be covered by a mini player,
-and a first-run user sees words rather than an empty screen.
+browsable but not playable. A list row cannot be covered by a mini player, and
+a first-run user sees words rather than an empty screen -- once the row is
+visible at all, which took a second pass; see "Verified on the emulator"
+below.
 
 The row uses both lines the browse list already gives every item, the same way
 an album shows its artist underneath its title:
@@ -200,9 +202,12 @@ different platforms** — Android Auto and AAOS respectively. PR #56 removes the
 Android Auto opt-in and orphans the former. Both changes touch adjacent manifest
 lines, so whichever lands second needs a rebase.
 
-**The info row is the one untested assumption.** If a car drops items that are
-neither browsable nor playable, the fallback is to make it browsable with itself
-as its only child.
+**The info row's shape was the one untested assumption, and the emulator
+proved it wrong.** A `MediaItem` that is neither browsable nor playable is not
+merely inert on an AAOS API 33 emulator -- it is not rendered at all; see
+"Verified on the emulator." The fallback anticipated for exactly this case --
+make the row browsable with itself as its only child -- is what shipped
+instead.
 
 **New strings cost lint.** Every user-facing string added raises
 `MissingTranslation` by one per locale against the baseline in `CLAUDE.md`.
@@ -249,6 +254,22 @@ contradict the app's whole shape for the sake of one screen.
 - Tapping it puts `CarSignInActivity` in `topResumedActivity` and shows the QR
   and PIN full-screen.
 - AAOS does **not** auto-launch it; the browse error appears first.
+
+A second pass, once the info row itself existed, measured the assumption
+flagged above as untested.
+
+- Signed out, with the row built neither browsable nor playable, the browse
+  screen rendered with no row at all -- no tabs (correct; the root returns a
+  single item) and no visible list item either.
+- A `uiautomator` dump of `com.android.car.media` showed
+  `browse_content_area` with no list child whatsoever. The only thing in that
+  region was `browse_mini_item_bar` / `browse_mini_control_bar`, the car's
+  own empty mini player -- easy to mistake for the row at a glance, which is
+  how this was first misread as present.
+- No `MediaItem` text appeared anywhere in the hierarchy.
+- Making the row browsable, with itself as its only child (the fallback
+  named above), fixed it: the title and subtitle render, and drilling in
+  shows the same message again rather than an empty screen or a crash.
 
 ## Not done here
 
