@@ -29,8 +29,10 @@ private const val TAG = "PlexSignInFragment"
  * The Plex PIN sign-in screen: a QR code and a short code, then a server picker
  * and a music-library picker.
  *
- * Both pickers render even for a single candidate. There is no settings surface,
- * so a wrong auto-pick would be unfixable short of reinstalling.
+ * Both pickers render even for a single candidate. The settings screen this
+ * fragment also renders (see the Connected branch of [render]) only offers
+ * sign-out, not a way to switch server or library afterwards, so a wrong
+ * auto-pick here would mean redoing the whole PIN flow to fix.
  */
 class PlexSignInFragment : Fragment() {
 
