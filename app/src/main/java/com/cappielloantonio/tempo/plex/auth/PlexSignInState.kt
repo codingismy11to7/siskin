@@ -17,6 +17,16 @@ import com.cappielloantonio.tempo.plex.models.Resource
 sealed interface PlexSignInState {
 
     /**
+     * Nothing has been attempted yet. The screen shows the invitation and a
+     * Connect button, and no network call has been made.
+     *
+     * This is the initial state rather than [Working] because the settings gear
+     * can open this screen. Someone who opened settings to look should not have
+     * silently started an authentication attempt by arriving.
+     */
+    data object Disconnected : PlexSignInState
+
+    /**
      * Creating the pin, or discovering servers or libraries. One state rather
      * than three because all three render the same spinner.
      */
@@ -37,17 +47,36 @@ sealed interface PlexSignInState {
      * by progress -- the server they picked had no music library, or did not
      * answer. That is a statement about that server, not about the account, so
      * the account token is still good and this list is still the right next
-     * step. Null on the way *in* to the picker.
+     * step. Null on the way *in* to the picker, and also null when the user
+     * backs into it from [ChoosingLibrary]: that is the user correcting their
+     * own pick, not Plex saying no to anything, so there is nothing to report.
      */
     data class ChoosingServer(
         val servers: NonEmptyList<Resource>,
         @param:StringRes val messageRes: Int? = null
     ) : PlexSignInState
 
-    /** Non-empty by construction: an empty picker is [SignInError.NoLibraries]. */
-    data class ChoosingLibrary(val sections: NonEmptyList<Directory>) : PlexSignInState
+    /**
+     * Non-empty by construction: an empty picker is [SignInError.NoLibraries].
+     *
+     * Carries [servers] -- the same list [ChoosingServer] showed on the way in
+     * -- so that pressing back can return to the server picker with it intact
+     * instead of an empty screen. This is *not* a second owner of the list:
+     * [PlexSignInViewModel.chooseServer] still reads it out of the
+     * [ChoosingServer] state exactly once, before overwriting that state, and
+     * simply carries the same value forward into this one rather than caching
+     * it anywhere else. See the comment on that read for why a parallel field
+     * is the thing being avoided (issue #18).
+     */
+    data class ChoosingLibrary(
+        val sections: NonEmptyList<Directory>,
+        val servers: NonEmptyList<Resource>
+    ) : PlexSignInState
 
     data class Failed(@param:StringRes val messageRes: Int) : PlexSignInState
 
     data object Done : PlexSignInState
+
+    /** Signed in. The settings screen. */
+    data object Connected : PlexSignInState
 }

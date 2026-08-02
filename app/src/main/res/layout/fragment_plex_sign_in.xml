@@ -19,6 +19,15 @@
         The constant line is the product promise, not the app name: Siskin
         has no accounts, and every other AAOS music app is a streaming
         front-end. Naming the app here would only restate the launcher.
+
+        No marginStart here: activity_car_sign_in's back button overlays this
+        fragment at top|start, sized to plex_sign_in_choice_min_height, and
+        would sit under this heading in the three states that pin it to that
+        same corner (Connected, ChoosingServer, ChoosingLibrary). applyArrangement()
+        below sets marginStart programmatically for exactly those three states,
+        rather than statically here, because a static margin would also nudge
+        the other, genuinely-centred states off true centre for no reason —
+        their heading sits well clear of the button already.
     -->
     <TextView
         android:id="@+id/tagline"
@@ -27,7 +36,7 @@
         android:text="@string/plex_sign_in_tagline"
         android:textAppearance="?attr/textAppearanceDisplaySmall" />
 
-    <!-- Names the step; render() sets it. -->
+    <!-- Names the step; render() sets it. marginStart: see tagline above. -->
     <TextView
         android:id="@+id/step_heading"
         android:layout_width="wrap_content"

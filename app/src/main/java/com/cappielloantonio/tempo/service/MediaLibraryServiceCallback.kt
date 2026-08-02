@@ -90,10 +90,25 @@ class MediaLibrarySessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        if (!CredentialGate.isSignedIn()) {
+        if (!CredentialGate.isSignedIn() && parentId != ConstantsAA.ROOT_ID) {
             Log.d(TAG, "onGetChildren blocked for $parentId: no usable credentials")
+            // A row, not an error, for every parentId except the root.
+            // Signed out is a state, not a failure, and an error's Connect
+            // button lands under the mini player on head units that always
+            // show one. The root is exempted because the browse root is a
+            // tab bar, not a list -- measured on an AAOS API 33 emulator, see
+            // MediaBrowserTree.signedOutRow's KDoc -- so it falls through
+            // below to the same four static tabs a signed-in car gets;
+            // MediaBrowserTree.buildTree is static and needs no credentials.
+            // The car auto-opens the first tab, landing the user on this row
+            // immediately. classifyFailure still returns an error for
+            // credentials that were rejected mid-use -- that one is a
+            // failure.
             return Futures.immediateFuture(
-                CarSignInResolution.errorResult(context, R.string.car_sign_in_required)
+                LibraryResult.ofItemList(
+                    MediaBrowserTree.signedOutRow(context),
+                    null
+                )
             )
         }
 

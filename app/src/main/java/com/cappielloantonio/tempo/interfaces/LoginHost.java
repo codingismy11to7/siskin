@@ -8,4 +8,11 @@ package com.cappielloantonio.tempo.interfaces;
  */
 public interface LoginHost {
     void onLoginSuccess();
+
+    /**
+     * Signing out invalidates more than this screen: playback is streaming on
+     * credentials that no longer exist, and the browse tree is showing a library
+     * the app can no longer reach.
+     */
+    void onSignedOut();
 }

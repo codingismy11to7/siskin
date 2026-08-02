@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
@@ -29,8 +30,10 @@ private const val TAG = "PlexSignInFragment"
  * The Plex PIN sign-in screen: a QR code and a short code, then a server picker
  * and a music-library picker.
  *
- * Both pickers render even for a single candidate. There is no settings surface,
- * so a wrong auto-pick would be unfixable short of reinstalling.
+ * Both pickers render even for a single candidate. The settings screen this
+ * fragment also renders (see the Connected branch of [render]) only offers
+ * sign-out, not a way to switch server or library afterwards, so a wrong
+ * auto-pick here would mean redoing the whole PIN flow to fix.
  */
 class PlexSignInFragment : Fragment() {
 
@@ -45,10 +48,33 @@ class PlexSignInFragment : Fragment() {
         viewModel = ViewModelProvider(requireActivity())[PlexSignInViewModel::class.java]
         bind = FragmentPlexSignInBinding.inflate(inflater, container, false)
 
-        bind?.retryButton?.setOnClickListener { viewModel.retry() }
+        bind?.retryButton?.setOnClickListener {
+            when (viewModel.state.value) {
+                is PlexSignInState.Disconnected -> viewModel.connect()
+                else -> viewModel.retry()
+            }
+        }
 
-        viewModel.state.observe(viewLifecycleOwner) { render(it) }
-        viewModel.start()
+        // Starts disabled -- matching the ViewModel's own initial state,
+        // Disconnected, which viewModel.handlesBackPress reports false for --
+        // and is re-armed per state below rather than left always-enabled.
+        // An always-enabled callback would intercept Disconnected/Connected's
+        // presses and swallow them, since backPressed() does nothing for
+        // those; disabling it there instead lets the dispatcher fall through
+        // to its default (finish the activity), which is the whole point of
+        // gating the two the way CarSignInActivity's back button already
+        // does.
+        val backCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                viewModel.backPressed()
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback)
+
+        viewModel.state.observe(viewLifecycleOwner) {
+            backCallback.isEnabled = viewModel.handlesBackPress(it)
+            render(it)
+        }
 
         return bind!!.root
     }
@@ -67,9 +93,25 @@ class PlexSignInFragment : Fragment() {
         bind.errorText.visibility = View.GONE
         bind.retryButton.visibility = View.GONE
 
-        // The tagline above this is constant; this line names the step. Failed
-        // and Working keep the connect wording because both are moments inside
-        // connecting, not steps of their own.
+        // Two lines of heading, and Connected is the one state that wants only
+        // one. Everywhere else this screen is signing you in, so the tagline
+        // introduces the app and the line beneath it names the step within
+        // that. Settings is not a step of signing in -- it is where you land
+        // when you are already signed in -- and "Your car. Your music." over
+        // "Settings" reads like a splash screen someone forgot to dismiss.
+        // So Settings takes the tagline's slot and the step line goes away.
+        //
+        // Disconnected, Working and Failed all keep the connect wording:
+        // Disconnected is before connecting has started, and Working and
+        // Failed are moments inside it -- none of the three is a step of its
+        // own the way choosing a server or a library is.
+        val isSettings = state is PlexSignInState.Connected
+
+        bind.tagline.setText(
+            if (isSettings) R.string.car_settings_title
+            else R.string.plex_sign_in_tagline
+        )
+        bind.stepHeading.visibility = if (isSettings) View.GONE else View.VISIBLE
         bind.stepHeading.setText(
             when (state) {
                 is PlexSignInState.ChoosingServer -> R.string.plex_sign_in_choose_server
@@ -79,11 +121,28 @@ class PlexSignInFragment : Fragment() {
         )
 
         applyArrangement(
-            isPicker = state is PlexSignInState.ChoosingServer ||
-                state is PlexSignInState.ChoosingLibrary
+            isOpenEndedList = state is PlexSignInState.ChoosingServer ||
+                state is PlexSignInState.ChoosingLibrary ||
+                state is PlexSignInState.Connected
         )
 
         when (state) {
+            is PlexSignInState.Disconnected -> {
+                bind.errorText.visibility = View.VISIBLE
+                bind.errorText.setText(R.string.car_sign_in_required)
+                bind.retryButton.visibility = View.VISIBLE
+                bind.retryButton.setText(R.string.car_sign_in_action)
+            }
+
+            // Reachable via open(forceSignIn = false) when a session already
+            // exists -- the gear's entry point. addChoice is reused rather than
+            // a new button: it already applies the oversized head-unit tap
+            // target and the colorOnPrimary fix.
+            is PlexSignInState.Connected -> addChoice(getString(R.string.car_settings_sign_out)) {
+                viewModel.signOut()
+                (requireActivity() as LoginHost).onSignedOut()
+            }
+
             is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE
 
             is PlexSignInState.AwaitingApproval -> {
@@ -153,6 +212,7 @@ class PlexSignInFragment : Fragment() {
                 bind.errorText.visibility = View.VISIBLE
                 bind.errorText.setText(state.messageRes)
                 bind.retryButton.visibility = View.VISIBLE
+                bind.retryButton.setText(R.string.plex_sign_in_retry)
             }
 
             is PlexSignInState.Done -> (requireActivity() as LoginHost).onLoginSuccess()
@@ -190,21 +250,33 @@ class PlexSignInFragment : Fragment() {
      * The screen has two arrangements, and they are structural rather than a
      * matter of gravity.
      *
-     * A picker is an open-ended list, so the headings pin to the top and only
-     * the list scrolls beneath them: the question stays on screen while you
-     * answer it, and the first tap target sits in the same place whether the
-     * account has one server or eight.
+     * An open-ended list pins the headings to the top and scrolls only the list
+     * beneath them: the heading stays on screen while you work under it, and
+     * the first tap target sits in the same place whether the list holds one
+     * item or eight. The server and library pickers qualify because an account
+     * can have any number of either.
+     *
+     * Settings qualifies too, and deliberately, even though it holds a single
+     * Sign out button today. It is the one screen here that is *expected* to
+     * grow -- transcoding and ReplayGain are coming -- and a screen that
+     * changes arrangement when its second row lands is a screen whose layout
+     * has to be rediscovered later. Committing to the list arrangement now
+     * means adding a row is only adding a row.
      *
      * Every other state is a single short block, and those read best as one
      * centred composition -- headings included. So the scroll view shrinks to
      * its content and the whole column centres, which is only safe because
      * these states are known to be short enough never to need scrolling.
+     *
+     * Pinning the headings to the top is also what puts them under
+     * activity_car_sign_in's back button, which overlays this fragment at
+     * top|start: only the pinned arrangement needs the offset that clears it.
      */
-    private fun applyArrangement(isPicker: Boolean) {
+    private fun applyArrangement(isOpenEndedList: Boolean) {
         val bind = this.bind ?: return
         val params = bind.contentScroll.layoutParams as LinearLayout.LayoutParams
 
-        if (isPicker) {
+        if (isOpenEndedList) {
             params.height = 0
             params.weight = 1f
         } else {
@@ -214,7 +286,7 @@ class PlexSignInFragment : Fragment() {
         bind.contentScroll.layoutParams = params
 
         val gravity =
-            if (isPicker) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
+            if (isOpenEndedList) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
         (bind.root as LinearLayout).gravity = gravity
         bind.scrollContent.gravity = gravity
     }

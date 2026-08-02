@@ -1,5 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The back button overlays the start of the fragment's first row rather than
+    taking a row of its own.
+
+    It has to exist in every state the fragment renders (Disconnected, Working,
+    AwaitingApproval, the pickers, Connected), and the activity hosts all of
+    them, so it belongs here rather than inside the fragment.
+
+    Two earlier shapes were wrong in opposite directions. Overlaying *and*
+    offsetting the fragment's heading by the button's width moved the heading
+    and nothing beneath it, so a centred Sign out button sat under a heading
+    nudged right of centre. Giving the button its own row fixed the alignment
+    but spent a whole row of a 600dp-tall screen on one icon.
+
+    Overlaying without the offset is what actually works: the fragment centres
+    its heading, this button sits at the start, and the two do not meet because
+    the headings here are short and centred. If a heading ever grows long
+    enough to reach the start edge, offsetting is still the wrong answer: the
+    heading and the content under it have to move together or not at all.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/car_sign_in_container"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent" />
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/car_sign_in_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!--
+        This activity draws no toolbar, and the AAOS emulator's system bar has
+        no Back button, so without this the screen is a dead end: the only exit
+        would be completing sign-in, which reaches Done and calls finish(). A
+        head unit's hardware back affordance is not something to rely on
+        either, since it varies by OEM.
+
+        Sized to plex_sign_in_choice_min_height, the head-unit tap target the
+        choice buttons already use, rather than a phone-sized icon button.
+    -->
+    <ImageButton
+        android:id="@+id/back_button"
+        android:layout_width="@dimen/plex_sign_in_choice_min_height"
+        android:layout_height="@dimen/plex_sign_in_choice_min_height"
+        android:layout_gravity="start|top"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/car_sign_in_back_description"
+        android:padding="18dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_back_arrow"
+        app:tint="?attr/colorOnSurface" />
+</FrameLayout>
