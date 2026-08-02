@@ -1,5 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Bare FrameLayout: the fragment fills it in one piece for every state
+    (Disconnected, Working, AwaitingApproval, the pickers, Connected). The
+    back button below is a sibling overlay rather than something drawn inside
+    the fragment, because the exit has to exist in all of those states and
+    the activity is what hosts every one of them, not the fragment.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/car_sign_in_container"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent" />
+    android:layout_height="match_parent">
+
+    <FrameLayout
+        android:id="@+id/car_sign_in_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!--
+        This activity draws no toolbar and the AAOS emulator's system bar has
+        no Back button, so without this the screen is a dead end: the only
+        exit today is completing sign-in, which reaches Done and calls
+        finish(). A head unit's hardware back affordance is not something to
+        rely on either — it varies by OEM.
+
+        Sized to plex_sign_in_choice_min_height, the existing head-unit tap
+        target, rather than a phone-sized icon button. fragment_plex_sign_in's
+        heading is offset by the same amount so the two never overlap — see
+        the comment on tagline/step_heading there.
+    -->
+    <ImageButton
+        android:id="@+id/back_button"
+        android:layout_width="@dimen/plex_sign_in_choice_min_height"
+        android:layout_height="@dimen/plex_sign_in_choice_min_height"
+        android:layout_gravity="start|top"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/car_sign_in_back_description"
+        android:padding="20dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_back_arrow"
+        app:tint="?attr/colorOnSurface" />
+</FrameLayout>

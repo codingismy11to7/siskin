@@ -18,6 +18,8 @@
     <string name="car_settings_title">Settings</string>
     <string name="car_sign_in_action">Connect</string>
     <string name="car_sign_in_again">Plex rejected the saved connection</string>
+    <!-- The activity draws no toolbar, so this is the screen's only affordance for leaving it. -->
+    <string name="car_sign_in_back_description">Back</string>
     <string name="car_sign_in_hint">Tap the settings icon to connect</string>
     <string name="car_sign_in_required">Your music is on Plex. Connect to start listening.</string>
     <string name="exo_controls_heart_off_description">Toggle Heart off</string>

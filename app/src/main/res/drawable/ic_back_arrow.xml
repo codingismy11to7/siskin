@@ -1,0 +1,20 @@
+<!--
+    Material Symbols "arrow_back", for the sign-in activity's back button.
+
+    Upstream path verbatim on the "0 -960 960 960" viewBox Material Symbols
+    exports; the group supplies the offset VectorDrawable has no viewBox for.
+    See ic_aa_library for the longer write-up.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:viewportHeight="960"
+    android:viewportWidth="960"
+    android:width="24dp">
+
+    <group android:translateY="960">
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M313-440l224 224-57 56-320-320 320-320 57 56-224 224h487v80H313Z"/>
+    </group>
+
+</vector>

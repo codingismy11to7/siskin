@@ -56,6 +56,18 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_car_sign_in);
 
+        // Routed through the back dispatcher rather than calling finish()
+        // directly: this button *is* the back button, not something that
+        // imitates it, so any back handling added later (e.g. popping one
+        // step of the sign-in flow instead of leaving outright) applies to
+        // both the button and hardware/gesture back automatically instead of
+        // the two silently drifting apart. Wired unconditionally -- outside
+        // the savedInstanceState guard below -- because setContentView() just
+        // above reinflates this view on every onCreate, including a
+        // recreation, and the button needs its listener every time.
+        findViewById(R.id.back_button).setOnClickListener(
+                v -> getOnBackPressedDispatcher().onBackPressed());
+
         // Load-bearing for config changes: a day/night uiMode flip re-creates
         // this Activity with savedInstanceState != null, and the guard is what
         // stops that recreation from re-running open() over a ViewModel that

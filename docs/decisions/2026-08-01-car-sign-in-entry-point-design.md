@@ -221,6 +221,55 @@ convenience is what stops someone later deciding the screen should stay open to
 show a confirmation. It is also right for both entry points: an activity reached
 from a settings gear should not linger once its job is done.
 
+## Decision: a back button, since finishing is the only way out today
+
+Found on a live emulator: everything above assumes the user reaches `Done` or
+taps Sign out. Neither is guaranteed. `CarSignInActivity` is full-screen over
+the car's media template, draws no toolbar, and — unlike the template it
+covers — has no back affordance of its own. Opening Settings to look, or
+tapping Connect and changing your mind partway through a PIN, leaves the
+screen with nothing on it to press. Platform back
+(`adb shell input keyevent 4`) still works, but a car's hardware back button
+is an OEM feature the AAOS system bar makes no promise of, so nothing here can
+depend on it existing. Pocket Casts — the app whose `APPLICATION_PREFERENCES`
+pattern this whole design follows — draws its own button in a header above its
+content for the same reason; that is the convention being followed here, not
+a workaround invented for it.
+
+The button lives in `activity_car_sign_in.xml`, not in `PlexSignInFragment`'s
+layout: the fragment only ever renders one state at a time, but the missing
+exit is a property of every state the activity hosts — the pickers and the PIN
+screen included, not just Disconnected and Connected. An `ImageButton`
+sibling of `car_sign_in_container`, pinned `start|top` over it, sized to
+`plex_sign_in_choice_min_height` — the same head-unit tap target the pickers
+already use — rather than a phone-sized icon button.
+
+It calls `getOnBackPressedDispatcher().onBackPressed()`, not `finish()`
+directly. With no `OnBackPressedCallback` registered anywhere in the activity
+today, the dispatcher's default behaviour is to finish it, so the two read as
+identical right now — but only one of them stays correct if a later change
+adds a callback to pop one step of the sign-in flow instead of leaving
+outright (back to the server list from a rejected choice, say). Routing
+through the dispatcher means this button *is* the back button rather than
+something that imitates it: hardware back, a gesture, and this tap all reach
+the same place, so handling added for one automatically covers the other two
+instead of the three slowly drifting apart.
+
+Leaving mid-flow does not leak the PIN poll. `PlexSignInViewModel`'s `attempt`
+job runs in `viewModelScope`, and the ViewModel is activity-scoped
+(`ViewModelProvider(this)` in `onCreate`), so finishing the activity — by this
+button or otherwise — clears its `ViewModelStore`, which cancels
+`viewModelScope` and everything suspended inside `attempt`: the poll loop's
+`delay`, and any `createPin()`/`getPin()` call in flight. This is the same
+mechanism `chooseLibrary` and `signOut` already lean on to cancel a stale
+attempt; leaving mid-flow was simply never a case that needed its own code.
+
+Costs a fourth string, `car_sign_in_back_description`, against the three this
+branch otherwise budgeted (see "New strings cost lint" below). Accepted: a
+`contentDescription` is not optional on a button that is an icon and nothing
+else, and none of the existing strings fit — this activity has never had
+something on screen that needs describing rather than reading.
+
 ## Consequences
 
 **`CarSignInActivity` becomes exported.** The platform cannot start it

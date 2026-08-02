@@ -247,6 +247,10 @@ class PlexSignInFragment : Fragment() {
      * centred composition -- headings included. So the scroll view shrinks to
      * its content and the whole column centres, which is only safe because
      * these states are known to be short enough never to need scrolling.
+     *
+     * Pinning the headings to the top is also what puts them under
+     * activity_car_sign_in's back button, which overlays this fragment at
+     * top|start: only the pinned arrangement needs the offset that clears it.
      */
     private fun applyArrangement(isOpenEndedList: Boolean) {
         val bind = this.bind ?: return
@@ -265,6 +269,20 @@ class PlexSignInFragment : Fragment() {
             if (isOpenEndedList) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
         (bind.root as LinearLayout).gravity = gravity
         bind.scrollContent.gravity = gravity
+
+        // Clears the back button only where the heading is pinned under it;
+        // zero everywhere else so the genuinely-centred states stay on true
+        // centre instead of nudging right for a button nowhere near them.
+        val headingOffset =
+            if (isOpenEndedList) resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+            else 0
+        setMarginStart(bind.tagline, headingOffset)
+        setMarginStart(bind.stepHeading, headingOffset)
+    }
+
+    private fun setMarginStart(view: View, marginStart: Int) {
+        (view.layoutParams as LinearLayout.LayoutParams).marginStart = marginStart
+        view.requestLayout()
     }
 
     /**
