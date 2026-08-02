@@ -239,8 +239,8 @@ class MediaLibrarySessionCallback(
 
         Log.d(TAG, "mediaId = ${firstItem.mediaId}, startIndex = $startIndex, startPositionMs = $startPositionMs")
 
-        enableShuffleIfShuffleRow(firstItem, mediaSession.player)
         val shuffling = isShuffleRow(firstItem)
+        setShuffleForTap(shuffling, mediaSession.player)
 
         val futureQueue = resolveQueueForItem(firstItem, mediaItems)
 
@@ -329,6 +329,26 @@ class MediaLibrarySessionCallback(
         // default position is a better answer than a made-up one.
         else -> items.indexOfFirst { it.mediaId == tapped.mediaId }
             .takeIf { it >= 0 } ?: carStartIndex
+    }
+
+    /**
+     * Sets the player's shuffle from the row that was tapped: on for a shuffle
+     * row, off for anything else.
+     *
+     * Total rather than enable-only, and that is the whole point -- shuffle used
+     * to stick, because the only thing that ever wrote it turned it on. There is
+     * no third case to handle: tracks and the two shuffle rows are the only
+     * items in the browse tree with `isPlayable` set, so every other row
+     * navigates and never reaches here.
+     *
+     * Called from [onSetMediaItems] rather than from [resolveQueueForItem],
+     * because that override runs on the session's application thread while the
+     * queue future completes on whichever thread the coroutine finished on --
+     * and the player may only be touched from the former.
+     */
+    private fun setShuffleForTap(shuffling: Boolean, player: Player) {
+        Log.d(TAG, "tap resolved: shuffle -> $shuffling")
+        player.shuffleModeEnabled = shuffling
     }
 
     /**
