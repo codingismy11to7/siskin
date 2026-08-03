@@ -13,6 +13,7 @@
     <string name="aa_playlists">Wiedergabelisten</string>
     <string name="aa_select_library">Bibliothek auswählen</string>
 
+    <string name="car_settings_continuous_play">Musik weiterlaufen lassen</string>
     <string name="car_settings_sign_out">Abmelden</string>
     <string name="car_settings_title">Einstellungen</string>
     <string name="car_sign_in_action">Verbinden</string>

@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -21,9 +22,11 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentPlexSignInBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
+import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.materialswitch.MaterialSwitch
 
 private const val TAG = "PlexSignInFragment"
 
@@ -141,6 +144,14 @@ class PlexSignInFragment : Fragment() {
             // a new button: it already applies the oversized head-unit tap
             // target and the colorOnPrimary fix.
             is PlexSignInState.Connected -> {
+                // Before Sign out, because a destructive terminal action belongs
+                // last. render() rebuilds choice_container every pass, so the row
+                // reads the preference here rather than holding any state.
+                addToggle(
+                    getString(R.string.car_settings_continuous_play),
+                    Preferences.isContinuousPlayEnabled()
+                ) { Preferences.setContinuousPlayEnabled(it) }
+
                 addChoice(getString(R.string.car_settings_sign_out)) {
                     viewModel.signOut()
                     (requireActivity() as LoginHost).onSignedOut()
@@ -325,6 +336,66 @@ class PlexSignInFragment : Fragment() {
         }
         bind.choiceContainer.addView(
             button,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
+            }
+        )
+    }
+
+    /**
+     * A settings row: label at the start, switch at the end, and **the row is the
+     * tap target, not the thumb**. Same arm's-length reasoning that zeroes
+     * MaterialButton's insets in [addChoice] -- a MaterialSwitch's thumb is a
+     * phone-sized target and this is a head unit.
+     *
+     * The switch is therefore not clickable itself. Leaving both live makes a tap
+     * that lands on the thumb toggle twice and appear to do nothing.
+     *
+     * This is the first row of its kind here, and [applyArrangement] chose the
+     * open-ended list arrangement in anticipation of it. Transcoding and
+     * ReplayGain are meant to follow this shape.
+     */
+    private fun addToggle(label: String, initial: Boolean, onChange: (Boolean) -> Unit) {
+        val bind = this.bind ?: return
+        val context = requireContext()
+
+        val toggle = MaterialSwitch(context).apply {
+            isChecked = initial
+            isClickable = false
+            isFocusable = false
+        }
+
+        val text = TextView(context).apply {
+            this.text = label
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+        }
+
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+            addView(
+                text,
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            )
+            addView(
+                toggle,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+            setOnClickListener {
+                toggle.isChecked = !toggle.isChecked
+                onChange(toggle.isChecked)
+            }
+        }
+
+        bind.choiceContainer.addView(
+            row,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT

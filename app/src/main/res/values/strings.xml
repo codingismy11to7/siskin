@@ -17,6 +17,7 @@
          carry an identical copy of it, which is what a translator does when handed
          a string that should never have been offered. -->
     <string name="app_name" translatable="false">Siskin</string>
+    <string name="car_settings_continuous_play">Keep the music playing</string>
     <string name="car_settings_sign_out">Sign out</string>
     <string name="car_settings_title">Settings</string>
     <string name="car_sign_in_action">Connect</string>
