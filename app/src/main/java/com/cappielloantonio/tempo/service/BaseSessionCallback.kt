@@ -24,7 +24,6 @@ import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -85,24 +84,6 @@ open class BaseSessionCallback(
     // PlexMediaMapper publishes a HeartRating -- see the 2026-08-02 car star
     // rating design. It arrives here through onSetRating, not onCustomCommand.
 
-    @Suppress("DEPRECATION")
-    private val customCommandInstantMixOn =
-        CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-            .setDisplayName("instantmix on")
-            .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_INSTANT_MIX_ON, Bundle.EMPTY))
-            .setIconResId(R.drawable.ic_instantmix_on)
-            .setSlots(CommandButton.SLOT_OVERFLOW)
-            .build()
-
-    @Suppress("DEPRECATION")
-    private val customCommandInstantMixOff =
-        CommandButton.Builder(CommandButton.ICON_UNDEFINED)
-            .setDisplayName("instantmix off")
-            .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_INSTANT_MIX_OFF, Bundle.EMPTY))
-            .setIconResId(R.drawable.media3_icon_minus_circle_unfilled)
-            .setSlots(CommandButton.SLOT_OVERFLOW)
-            .build()
-
     // Transport controls are deliberately *not* declared here -- see
     // buildMediaButtonPreferences for why the car draws its own.
 
@@ -111,9 +92,7 @@ open class BaseSessionCallback(
         customCommandToggleShuffleModeOff,
         customCommandToggleRepeatModeOff,
         customCommandToggleRepeatModeOne,
-        customCommandToggleRepeatModeAll,
-        customCommandInstantMixOn,
-        customCommandInstantMixOff
+        customCommandToggleRepeatModeAll
     )
 
     private val playerListener = object : Player.Listener {
@@ -275,9 +254,7 @@ open class BaseSessionCallback(
                 else -> customCommandToggleRepeatModeOff
             },
             if (player.shuffleModeEnabled) customCommandToggleShuffleModeOff
-            else customCommandToggleShuffleModeOn,
-            if (!MediaManager.continuousPlayIsRunning.get()) customCommandInstantMixOn
-            else customCommandInstantMixOff
+            else customCommandToggleShuffleModeOn
         )
 
     // ─────────────────────────────────────────────────────────────
@@ -426,17 +403,6 @@ open class BaseSessionCallback(
         Log.d(TAG, "onCustomCommand: ${customCommand.customAction}")
 
         return when (customCommand.customAction) {
-            Constants.CUSTOM_COMMAND_INSTANT_MIX_ON -> {
-                if (!MediaManager.continuousPlayIsRunning.get() && Preferences.isInstantMixUsable()) {
-                    Log.d(TAG, "onCustomCommand: start onInstantMix")
-                    service.onInstantMix(session) { updateMediaNotificationCustomLayout(session) }
-                }
-                else
-                    Log.d(TAG, "onCustomCommand: onInstantMix not usable")
-
-                updateMediaNotificationCustomLayout(session)
-                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
-            }
             Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON -> {
                 session.player.shuffleModeEnabled = true
                 updateMediaNotificationCustomLayout(session)
