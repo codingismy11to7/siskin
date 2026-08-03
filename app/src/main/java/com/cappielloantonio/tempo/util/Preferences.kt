@@ -136,9 +136,24 @@ object Preferences {
         return App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, true)
     }
 
+    /**
+     * Off unless asked for, and #72 is why. There was no writer and no settings
+     * surface, so `true` was not a default but the value: reaching the end of a
+     * queue is not a request for more music, and an eight-track album quietly
+     * became a ~56-track queue. There is a writer now -- the Settings toggle
+     * behind the car's gear -- so this is a default again rather than a verdict.
+     *
+     * [isFallbackToRandomTracksEnabled] below carries the opposite note about a
+     * neighbouring key and still means it: that one has no writer.
+     */
     @JvmStatic
     fun isContinuousPlayEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(CONTINUOUS_PLAY, true)
+        return App.getInstance().preferences.getBoolean(CONTINUOUS_PLAY, false)
+    }
+
+    @JvmStatic
+    fun setContinuousPlayEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit().putBoolean(CONTINUOUS_PLAY, enabled).apply()
     }
 
     @JvmStatic
