@@ -162,12 +162,12 @@ object Preferences {
     }
 
     /**
-     * Defaults to true. There is no settings screen to turn this on -- the
-     * three-tab sweep removed the settings surface -- so leaving the old
-     * `false` default meant continuous play could never fall back to random
-     * tracks on a library without sonic analysis, silently doing nothing once
-     * the similar-tracks tier ran dry. The preference itself is kept for a
-     * future settings surface; only the default flips.
+     * Defaults to true. Nothing writes this key -- the Settings screen behind
+     * the car's gear offers no row for it -- so the default is the effective
+     * value, and leaving the old `false` meant continuous play could never fall
+     * back to random tracks on a library without sonic analysis, silently doing
+     * nothing once the similar-tracks tier ran dry. The preference itself is
+     * kept for a row that may yet be added; only the default flips.
      */
     @JvmStatic
     fun isFallbackToRandomTracksEnabled(): Boolean {

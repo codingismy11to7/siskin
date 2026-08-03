@@ -78,8 +78,17 @@ class PlexSignInSettingsTest {
         val toggle = switchesIn(settingsScreen()).single()
 
         // The row owns the click, not the thumb -- a thumb is a phone-sized
-        // target and this is a head unit. Tapping the switch itself must do
-        // nothing, which the second assertion below is what pins.
+        // target and this is a head unit. performClick() runs the row's listener
+        // directly and never goes through touch dispatch, so what the two
+        // assertions pin is that the one listener both writes the preference and
+        // moves the switch to match: the switch can never show one thing while
+        // the preference says another.
+        //
+        // Deliberately not toggle.performClick(): CompoundButton.performClick()
+        // calls toggle() whatever isClickable says, so it would flip the switch
+        // without writing anything and pin the opposite of the truth. That a tap
+        // on the thumb reaches the row is a touch-dispatch property of a
+        // non-clickable switch, and performClick() is not dispatch.
         (toggle.parent as View).performClick()
 
         assertTrue(Preferences.isContinuousPlayEnabled())

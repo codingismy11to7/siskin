@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.ui.fragment
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -35,9 +36,9 @@ private const val TAG = "PlexSignInFragment"
  * and a music-library picker.
  *
  * Both pickers render even for a single candidate. The settings screen this
- * fragment also renders (see the Connected branch of [render]) only offers
- * sign-out, not a way to switch server or library afterwards, so a wrong
- * auto-pick here would mean redoing the whole PIN flow to fix.
+ * fragment also renders (see the Connected branch of [render]) offers no way to
+ * switch server or library afterwards, so a wrong auto-pick here would mean
+ * redoing the whole PIN flow to fix.
  */
 class PlexSignInFragment : Fragment() {
 
@@ -276,12 +277,13 @@ class PlexSignInFragment : Fragment() {
      * item or eight. The server and library pickers qualify because an account
      * can have any number of either.
      *
-     * Settings qualifies too, and deliberately, even though it holds a single
-     * Sign out button today. It is the one screen here that is *expected* to
-     * grow -- transcoding and ReplayGain are coming -- and a screen that
-     * changes arrangement when its second row lands is a screen whose layout
-     * has to be rediscovered later. Committing to the list arrangement now
-     * means adding a row is only adding a row.
+     * Settings qualifies too, and deliberately. It is the one screen here that
+     * is *expected* to grow, so it was given the list arrangement back when it
+     * held nothing but a Sign out button -- ahead of the second row, precisely
+     * so that the row's arrival would cost nothing. The row has since arrived:
+     * the continuous-play toggle sits above Sign out, and adding it was only
+     * adding a row. Transcoding and ReplayGain are still to come and are meant
+     * to be the same.
      *
      * Every other state is a single short block, and those read best as one
      * centred composition -- headings included. So the scroll view shrinks to
@@ -351,8 +353,16 @@ class PlexSignInFragment : Fragment() {
      * MaterialButton's insets in [addChoice] -- a MaterialSwitch's thumb is a
      * phone-sized target and this is a head unit.
      *
-     * The switch is therefore not clickable itself. Leaving both live makes a tap
-     * that lands on the thumb toggle twice and appear to do nothing.
+     * The switch is therefore not clickable itself, and that is what makes the
+     * row the target rather than merely the larger of two.
+     * `SwitchCompat.onTouchEvent` delegates to `View.onTouchEvent`, which
+     * returns false for a view that is neither clickable nor long-clickable --
+     * so a non-clickable switch never consumes the touch, ViewGroup dispatch
+     * falls through to the row, and the row's listener runs exactly once
+     * wherever the tap landed, thumb included. A switch left clickable would
+     * instead consume ACTION_DOWN and flip itself, the row's listener would
+     * never run, and the switch would show one thing while the preference said
+     * another.
      *
      * This is the first row of its kind here, and [applyArrangement] chose the
      * open-ended list arrangement in anticipation of it. Transcoding and
@@ -377,6 +387,30 @@ class PlexSignInFragment : Fragment() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+
+            // A bare LinearLayout draws nothing when pressed. At arm's length a
+            // 72dp target that does not acknowledge the press reads as a dead
+            // control -- and addChoice's filled button ripples right beneath
+            // this one, so the row has to as well.
+            val ripple = TypedValue()
+            context.theme.resolveAttribute(
+                com.google.android.material.R.attr.selectableItemBackground, ripple, true
+            )
+            setBackgroundResource(ripple.resourceId)
+
+            // setOnClickListener makes a view clickable but not focusable, and a
+            // rotary controller stops only on focusable views -- without this it
+            // skips the toggle entirely on its way to the Sign out button below.
+            isFocusable = true
+
+            // choice_container is a bare 480dp column with no padding of its
+            // own, so unpadded the label would start flush at x=0 while Sign
+            // out's text is centred inside its button -- two rows that do not
+            // read as one list. Symmetric, so the switch is inset from the far
+            // edge by the same amount.
+            val pad = resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
+            setPaddingRelative(pad, 0, pad, 0)
+
             addView(
                 text,
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
