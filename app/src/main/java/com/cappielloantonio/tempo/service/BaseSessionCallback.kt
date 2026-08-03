@@ -38,6 +38,12 @@ private const val TAG = "BaseSessionCallback"
 @UnstableApi
 open class BaseSessionCallback(
     protected val context: Context,
+    // No reader in app/src any more -- the instant-mix branch of
+    // onCustomCommand held the only `service.` call in this class, and it is
+    // gone from the overflow. Kept rather than deleted: it is `protected` and
+    // every construction site already supplies it, so removing it means
+    // touching BaseMediaService's factory, MediaLibraryServiceCallback, and
+    // four test files -- a wider refactor than this change asked for.
     protected val service: BaseMediaService) :
     MediaLibraryService.MediaLibrarySession.Callback {
 

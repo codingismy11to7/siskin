@@ -93,6 +93,14 @@ class PlexSignInSettingsTest {
 
         assertTrue(Preferences.isContinuousPlayEnabled())
         assertTrue(toggle.isChecked)
+
+        // Guards the desync a clickable switch would let through: a tap
+        // landing on the thumb is consumed by CompoundButton.performClick,
+        // which flips the switch without running the row's listener, so the
+        // preference is never written and the switch snaps back at the next
+        // render(). If addToggle ever drops isClickable = false, this fails
+        // while the tap still "looks" like it worked.
+        assertFalse(toggle.isClickable)
     }
 
     @Test
