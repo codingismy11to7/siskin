@@ -136,9 +136,24 @@ object Preferences {
         return App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, true)
     }
 
+    /**
+     * Off unless asked for, and #72 is why. There was no writer and no settings
+     * surface, so `true` was not a default but the value: reaching the end of a
+     * queue is not a request for more music, and an eight-track album quietly
+     * became a ~56-track queue. There is a writer now -- the Settings toggle
+     * behind the car's gear -- so this is a default again rather than a verdict.
+     *
+     * [isFallbackToRandomTracksEnabled] below carries the opposite note about a
+     * neighbouring key and still means it: that one has no writer.
+     */
     @JvmStatic
     fun isContinuousPlayEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(CONTINUOUS_PLAY, true)
+        return App.getInstance().preferences.getBoolean(CONTINUOUS_PLAY, false)
+    }
+
+    @JvmStatic
+    fun setContinuousPlayEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit().putBoolean(CONTINUOUS_PLAY, enabled).apply()
     }
 
     @JvmStatic
@@ -147,12 +162,12 @@ object Preferences {
     }
 
     /**
-     * Defaults to true. There is no settings screen to turn this on -- the
-     * three-tab sweep removed the settings surface -- so leaving the old
-     * `false` default meant continuous play could never fall back to random
-     * tracks on a library without sonic analysis, silently doing nothing once
-     * the similar-tracks tier ran dry. The preference itself is kept for a
-     * future settings surface; only the default flips.
+     * Defaults to true. Nothing writes this key -- the Settings screen behind
+     * the car's gear offers no row for it -- so the default is the effective
+     * value, and leaving the old `false` meant continuous play could never fall
+     * back to random tracks on a library without sonic analysis, silently doing
+     * nothing once the similar-tracks tier ran dry. The preference itself is
+     * kept for a row that may yet be added; only the default flips.
      */
     @JvmStatic
     fun isFallbackToRandomTracksEnabled(): Boolean {

@@ -21,8 +21,9 @@ import org.robolectric.RuntimeEnvironment
  * The order used to come from two preferences inherited from tempo, whose
  * settings screen this fork deleted; they always returned their defaults, so the
  * order was fixed and merely spelled indirectly. This pins the order it is now
- * spelled directly, and that no rating button is among them -- the car draws its
- * own control for that, left of transport.
+ * spelled directly, and two absences: no rating button, because the car draws its
+ * own control for that left of transport, and no instant mix, because whether the
+ * queue extends itself is configuration and lives in Settings (#72).
  */
 @RunWith(RobolectricTestRunner::class)
 class BaseSessionCallbackOverflowTest {
@@ -43,12 +44,11 @@ class BaseSessionCallbackOverflowTest {
     }
 
     @Test
-    fun theOverflowIsRepeatThenShuffleThenInstantMix() {
+    fun theOverflowIsRepeatThenShuffle() {
         assertEquals(
             listOf(
                 Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_OFF,
-                Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON,
-                Constants.CUSTOM_COMMAND_INSTANT_MIX_ON
+                Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON
             ),
             overflowOf(player())
         )
@@ -61,8 +61,7 @@ class BaseSessionCallbackOverflowTest {
         assertEquals(
             listOf(
                 Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_ALL,
-                Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF,
-                Constants.CUSTOM_COMMAND_INSTANT_MIX_ON
+                Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF
             ),
             overflowOf(player(repeatMode = Player.REPEAT_MODE_ALL, shuffle = true))
         )
@@ -79,5 +78,19 @@ class BaseSessionCallbackOverflowTest {
         ).flatMap { overflowOf(it) }
 
         assertEquals(emptyList<String>(), everyState.filter { "HEART" in it })
+    }
+
+    @Test
+    fun noInstantMixButtonIsOfferedAtAll() {
+        // The ⊖ half of the old pair had no branch in onCustomCommand and returned
+        // ERROR_NOT_SUPPORTED; the ⚡ half truncated the queue after the current
+        // track on a single tap, in a menu used at speed. Neither comes back.
+        val everyState = listOf(
+            player(),
+            player(repeatMode = Player.REPEAT_MODE_ONE),
+            player(repeatMode = Player.REPEAT_MODE_ALL, shuffle = true)
+        ).flatMap { overflowOf(it) }
+
+        assertEquals(emptyList<String>(), everyState.filter { "INSTANT_MIX" in it })
     }
 }
