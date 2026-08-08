@@ -19,8 +19,8 @@ import com.cappielloantonio.tempo.plex.PlexIdentity
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
-import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
+import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.CarSignInResolution

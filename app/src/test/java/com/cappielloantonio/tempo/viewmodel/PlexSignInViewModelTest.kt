@@ -13,7 +13,7 @@ import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
-import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
+import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.auth.PlexPinState
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.models.Connection
@@ -103,7 +103,7 @@ class PlexSignInViewModelTest {
     /**
      * A media server that survives [AuthClient.mediaServers]: `provides`
      * contains "server" and it has at least one connection with a non-blank
-     * `uri`, per [com.cappielloantonio.tempo.plex.api.auth.ServerProbe.hasUsableConnection].
+     * `uri`, per [com.cappielloantonio.tempo.plex.api.server.ServerProbe.hasUsableConnection].
      */
     private fun aMediaServer(accessToken: String? = null, clientIdentifier: String? = "machine-id") =
         Resource().apply {

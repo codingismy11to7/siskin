@@ -1,4 +1,4 @@
-package com.cappielloantonio.tempo.plex.api.auth
+package com.cappielloantonio.tempo.plex.api.server
 
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
