@@ -6,6 +6,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MediaSource
@@ -13,6 +14,8 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressResolver
 
 @UnstableApi
 class DynamicMediaSourceFactory(
@@ -23,11 +26,18 @@ class DynamicMediaSourceFactory(
         val streamingCacheSize = Preferences.getStreamingCacheSize()
         val useUpstream = streamingCacheSize <= 0L
 
-        val dataSourceFactory: DataSource.Factory = if (useUpstream) {
+        val selected: DataSource.Factory = if (useUpstream) {
             DownloadUtil.getUpstreamDataSourceFactory(context)
         } else {
             DownloadUtil.getCacheDataSourceFactory(context)
         }
+
+        // Wrapped here rather than inside getCacheDataSourceFactory, which
+        // already has a ResolvingDataSource of its own: that one is only on the
+        // caching path, so a resolver added there would silently not run for
+        // anyone who set the streaming cache to zero.
+        val dataSourceFactory: DataSource.Factory =
+            ResolvingDataSource.Factory(selected, ServerAddressResolver(ServerAddressBook.shared))
 
         return when {
             mediaItem.localConfiguration?.mimeType == MimeTypes.APPLICATION_M3U8 ||
