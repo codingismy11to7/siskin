@@ -1,21 +1,36 @@
 package com.cappielloantonio.tempo.plex.api.server
 
+import arrow.core.left
+import arrow.core.right
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexHost
+import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
+import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
 
 /**
@@ -50,6 +65,19 @@ class ServerAddressBookTest {
 
     private fun resource(id: String, vararg connections: Connection) = Resource().apply {
         this.clientIdentifier = id
+        this.connections = connections.toList()
+    }
+
+    /**
+     * Shaped like what plex.tv's /resources actually returns: `provides`
+     * contains "server" and it carries at least one https connection, per
+     * [AuthClient.mediaServers] / [ServerProbe.hasUsableConnection]. [resource]
+     * above sets neither, because storedCandidates/adopt never go through that
+     * filter -- only a list freshly fetched from plex.tv does.
+     */
+    private fun mediaServerResource(id: String, vararg connections: Connection) = Resource().apply {
+        this.clientIdentifier = id
+        this.provides = "server"
         this.connections = connections.toList()
     }
 
@@ -103,9 +131,21 @@ class ServerAddressBookTest {
 
     /** Answers /identity, like a reachable Plex server. */
     private fun liveServer() = MockWebServer().apply {
-        dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
-            override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest) =
+        dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) =
                 MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{}}""")
+        }
+        start()
+    }
+
+    /**
+     * Answers every request with failure while staying alive, so a caller can
+     * read requestCount afterward -- unlike [deadUri], which shuts down before
+     * returning and leaves nothing to query.
+     */
+    private fun failingServer() = MockWebServer().apply {
+        dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(500)
         }
         start()
     }
@@ -119,11 +159,19 @@ class ServerAddressBookTest {
         return uri
     }
 
+    /**
+     * A syntactically https:// address nothing listens on. Only exists to
+     * satisfy [AuthClient.mediaServers]'s scheme filter on a resource built
+     * for a test -- the port is closed, so a probe against it fails at the TCP
+     * level exactly like [deadUri], with no TLS handshake ever attempted.
+     */
+    private fun deadHttpsUri(): String = deadUri().replaceFirst("http://", "https://")
+
     private fun signedInAt(uri: String, machineIdentifier: String = "machine-a") {
-        api.session = com.cappielloantonio.tempo.plex.PlexSession(
+        api.session = PlexSession(
             accountToken = "account-token",
             serverUri = uri,
-            musicSectionKey = com.cappielloantonio.tempo.plex.SectionKey("5"),
+            musicSectionKey = SectionKey("5"),
             serverToken = "server-token",
             machineIdentifier = machineIdentifier
         )
@@ -212,21 +260,111 @@ class ServerAddressBookTest {
 
     @Test
     fun aTotalFailureBacksOff() = runTest {
-        val dead = deadUri()
-        val alsoDead = deadUri()
-        var now = 0L
+        // Stays alive (unlike deadUri) so requestCount is readable afterward,
+        // and getResources() is stubbed so the plex.tv escalation this total
+        // failure reaches does not make a real network call -- see Important 3.
+        val server = failingServer()
+        val uri = server.url("/").toString().trimEnd('/')
+        // Starts non-zero deliberately: lastFailureAt is nullable now, so there
+        // is no 0L sentinel to collide with, but a clock starting at zero is
+        // exactly the value an earlier version of this test passed vacuously
+        // under. Kept non-zero so that mistake cannot silently recur.
+        var now = 1_000L
 
-        val book = ServerAddressBook(api, clock = { now })
-        book.adopt(resource("machine-a", connection(dead), connection(alsoDead)), dead)
-        signedInAt(dead)
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { getResources() } doReturn
+                PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+        }
+        val book = ServerAddressBook(api, authClient = authClient, clock = { now })
+        book.adopt(resource("machine-a", connection(uri)), uri)
+        signedInAt(uri)
 
-        assertNull(book.reprobe(dead))
+        assertNull(book.reprobe(uri))
+        val requestsAfterFirstFailure = server.requestCount
 
-        // Inside the cooldown: returns null without racing again. Observable as
-        // the call being immediate rather than paying another round of timeouts.
-        now = 1_000L
-        val started = System.currentTimeMillis()
-        assertNull(book.reprobe(dead))
-        assertTrue("should not have raced again", System.currentTimeMillis() - started < 500)
+        // Inside the cooldown: a second reprobe must not issue another
+        // request at all. A wall-clock assertion here would pass even with the
+        // cooldown deleted, since two connection-refused-style failures are
+        // fast regardless -- counting requests is what actually distinguishes
+        // "raced again" from "did not".
+        now += 1_000L
+        assertNull(book.reprobe(uri))
+        assertEquals("should not have raced again", requestsAfterFirstFailure, server.requestCount)
+
+        server.shutdown()
+    }
+
+    @Test
+    fun anExhaustedStoredListEscalatesToAFreshPlexTvList() = runTest {
+        // The only leg of reprobe that wasn't covered before this test: every
+        // stored candidate is dead, so it asks plex.tv for a fresh list and
+        // adopts whichever address in that fresh list answers.
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+        val storedDead = deadUri()
+        val freshDeadHttps = deadHttpsUri()
+
+        val freshResource = mediaServerResource(
+            "machine-a",
+            connection(freshDeadHttps),
+            connection(liveUri)
+        )
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { getResources() } doReturn listOf(freshResource).right()
+        }
+
+        val book = ServerAddressBook(api, authClient = authClient)
+        book.adopt(resource("machine-a", connection(storedDead)), storedDead)
+        signedInAt(storedDead)
+
+        val recovered = book.reprobe(storedDead)
+
+        assertEquals(liveUri, recovered)
+        assertEquals("winner persisted", liveUri, api.serverUri)
+        assertEquals(
+            "the fresh list replaces the stale stored one",
+            listOf(freshDeadHttps, liveUri),
+            book.storedCandidates("machine-a")?.direct
+        )
+        live.shutdown()
+    }
+
+    @Test
+    fun aRaceInFlightDoesNotResurrectASignedOutSession() = runTest {
+        // The hazard: reprobe captures the session, spends real time racing,
+        // then writes the captured session back. If sign-out lands in that
+        // window -- exactly when a user would, since the "sign in again"
+        // affordance appears while browse is failing -- the finishing race
+        // must not undo it and bring the account token back.
+        signedInAt("https://lan.example")
+
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestOf(any()) } doAnswer {
+                // Simulates sign-out landing mid-race. Deterministic, no
+                // sleeps: the stub itself mutates state before "returning" a
+                // winner, rather than a real race that might or might not
+                // lose to a background sign-out under a timer.
+                api.session = null
+                api.accountToken = null
+                "https://public.example"
+            }
+        }
+        val book = ServerAddressBook(api, probe = probe)
+        book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+
+        val recovered = book.reprobe("https://lan.example")
+
+        assertNull("a race that started before sign-out must not write a session back", recovered)
+        assertNull("session must stay cleared", api.session)
+        assertNull("account token must not be resurrected", api.accountToken)
+    }
+
+    @Test
+    fun sharedIsASingleton() {
+        // Collapsing and the cooldown are properties of one mutex and one
+        // lastFailureAt; a call site that built its own ServerAddressBook()
+        // would silently lose both. Pinning identity here is what a future
+        // call site accidentally reverting to `ServerAddressBook()` would break.
+        assertSame(ServerAddressBook.shared, ServerAddressBook.shared)
     }
 }
