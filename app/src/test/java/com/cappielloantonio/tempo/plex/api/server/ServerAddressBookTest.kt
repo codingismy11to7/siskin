@@ -3,8 +3,16 @@ package com.cappielloantonio.tempo.plex.api.server
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.test.runTest
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -91,5 +99,134 @@ class ServerAddressBookTest {
         api.serverUri = "https://lan.example"
 
         assertNull(ServerAddressBook(api).current())
+    }
+
+    /** Answers /identity, like a reachable Plex server. */
+    private fun liveServer() = MockWebServer().apply {
+        dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+            override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest) =
+                MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{}}""")
+        }
+        start()
+    }
+
+    /** A port with nothing listening: connection refused, the fastest failure. */
+    private fun deadUri(): String {
+        val server = MockWebServer()
+        server.start()
+        val uri = server.url("/").toString().trimEnd('/')
+        server.shutdown()
+        return uri
+    }
+
+    private fun signedInAt(uri: String, machineIdentifier: String = "machine-a") {
+        api.session = com.cappielloantonio.tempo.plex.PlexSession(
+            accountToken = "account-token",
+            serverUri = uri,
+            musicSectionKey = com.cappielloantonio.tempo.plex.SectionKey("5"),
+            serverToken = "server-token",
+            machineIdentifier = machineIdentifier
+        )
+    }
+
+    @Test
+    fun theDriveHome() = runTest {
+        // The bug this whole change exists for: signed in on an address that
+        // works, then that address stops answering while another one still does.
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+        val dead = deadUri()
+
+        val book = ServerAddressBook(api)
+        book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
+        signedInAt(dead)
+
+        val recovered = book.reprobe(dead)
+
+        assertEquals(liveUri, recovered)
+        assertEquals("Winner must be persisted", liveUri, api.serverUri)
+        live.shutdown()
+    }
+
+    @Test
+    fun reprobeKeepsTheRestOfTheSessionIntact() = runTest {
+        // Guards the invariant PlexSession's KDoc describes. If this copy is ever
+        // turned into a whole-session rebuild, this goes red.
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+        val dead = deadUri()
+
+        val book = ServerAddressBook(api)
+        book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
+        signedInAt(dead)
+
+        book.reprobe(dead)
+
+        val session = api.session
+        assertNotNull(session)
+        assertEquals("machine-a", session?.machineIdentifier)
+        assertEquals("5", session?.musicSectionKey?.value)
+        assertEquals("server-token", session?.serverToken)
+        assertEquals("account-token", session?.accountToken)
+        live.shutdown()
+    }
+
+    @Test
+    fun concurrentCallersShareOneRace() = runTest {
+        // Four browse tabs failing at once must not start four races.
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+        val dead = deadUri()
+
+        val book = ServerAddressBook(api)
+        book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
+        signedInAt(dead)
+
+        val results = coroutineScope {
+            (1..4).map { async { book.reprobe(dead) } }.awaitAll()
+        }
+
+        assertTrue("all four should get the new address", results.all { it == liveUri })
+        assertEquals("only one race should have run", 1, live.requestCount)
+        live.shutdown()
+    }
+
+    @Test
+    fun aCallerArrivingAfterTheFixDoesNotProbe() = runTest {
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+        val dead = deadUri()
+
+        val book = ServerAddressBook(api)
+        book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
+        signedInAt(dead)
+
+        book.reprobe(dead)
+        val requestsAfterFirst = live.requestCount
+
+        // Second caller still holding the old address; the book already moved on.
+        assertEquals(liveUri, book.reprobe(dead))
+        assertEquals("no second race", requestsAfterFirst, live.requestCount)
+        live.shutdown()
+    }
+
+    @Test
+    fun aTotalFailureBacksOff() = runTest {
+        val dead = deadUri()
+        val alsoDead = deadUri()
+        var now = 0L
+
+        val book = ServerAddressBook(api, clock = { now })
+        book.adopt(resource("machine-a", connection(dead), connection(alsoDead)), dead)
+        signedInAt(dead)
+
+        assertNull(book.reprobe(dead))
+
+        // Inside the cooldown: returns null without racing again. Observable as
+        // the call being immediate rather than paying another round of timeouts.
+        now = 1_000L
+        val started = System.currentTimeMillis()
+        assertNull(book.reprobe(dead))
+        assertTrue("should not have raced again", System.currentTimeMillis() - started < 500)
     }
 }

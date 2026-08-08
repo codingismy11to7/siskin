@@ -3,11 +3,13 @@ package com.cappielloantonio.tempo.plex.api.server
 import android.os.SystemClock
 import android.util.Log
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private const val TAG = "ServerAddressBook"
 
@@ -56,6 +58,85 @@ class ServerAddressBook(
         Log.d(TAG, "adopted $uri for $machineIdentifier")
     }
 
+    /**
+     * Re-races the server's known addresses and adopts whichever answers.
+     *
+     * [staleAddress] is the address the caller found not working. It is what
+     * makes concurrent callers collapse: four browse tabs that all failed
+     * against the same address produce one race, and the three that arrive
+     * after it get the winner without probing.
+     *
+     * Returns the address now in use, or null when nothing answered.
+     */
+    suspend fun reprobe(staleAddress: String?): String? = mutex.withLock {
+        val current = current()
+        if (current != staleAddress) {
+            Log.d(TAG, "address already moved to $current")
+            return@withLock current
+        }
+
+        val session = api.session ?: return@withLock null
+
+        if (lastFailureAt != 0L && clock() - lastFailureAt < FAILURE_COOLDOWN_MS) {
+            // A car with no usable network would otherwise pay a full race per
+            // browse tab, serially, for as long as it stayed offline.
+            Log.d(TAG, "in cooldown; not re-probing")
+            return@withLock null
+        }
+
+        storedCandidates(session.machineIdentifier)?.let { stored ->
+            probe.bestOf(stored)?.let { return@withLock adoptAddress(session, it) }
+            Log.d(TAG, "no stored address answered; asking plex.tv for a fresh list")
+        }
+
+        refreshFromPlexTv(session.machineIdentifier)?.let { refreshed ->
+            probe.bestOf(refreshed)?.let { return@withLock adoptAddress(session, it) }
+        }
+
+        Log.d(TAG, "nothing answered for ${session.machineIdentifier}")
+        lastFailureAt = clock()
+        null
+    }
+
+    /**
+     * Moves the session onto [uri], leaving everything else in it untouched.
+     *
+     * The copy is deliberate and load-bearing: machineIdentifier, the section
+     * key and the server token all stay, because this is the same server at a
+     * different address. Rebuilding the whole session here would be the mixed-set
+     * hazard PlexSession's KDoc describes.
+     */
+    private fun adoptAddress(session: PlexSession, uri: String): String {
+        api.session = session.copy(serverUri = uri)
+        lastFailureAt = 0L
+        Log.d(TAG, "re-probed onto $uri")
+        return uri
+    }
+
+    /**
+     * A fresh address list from plex.tv, or null when plex.tv cannot be reached
+     * or no longer lists this server.
+     *
+     * Outside any either { } block, so nothing here can swallow a raise.
+     */
+    private suspend fun refreshFromPlexTv(machineIdentifier: String?): ServerProbe.Candidates? {
+        if (machineIdentifier.isNullOrBlank()) return null
+
+        val resources = authClient.getResources().getOrNull() ?: run {
+            Log.d(TAG, "could not reach plex.tv for a fresh address list")
+            return null
+        }
+        val resource = AuthClient.mediaServers(resources)
+            .firstOrNull { it.clientIdentifier == machineIdentifier } ?: run {
+            Log.d(TAG, "plex.tv no longer lists $machineIdentifier")
+            return null
+        }
+
+        val candidates = ServerProbe.candidates(resource)
+        store(machineIdentifier, candidates)
+        return candidates
+    }
+
     /** The stored list, or null when absent, unreadable, or stamped for another server. */
     internal fun storedCandidates(machineIdentifier: String?): ServerProbe.Candidates? {
         if (machineIdentifier.isNullOrBlank()) return null
@@ -91,5 +172,12 @@ class ServerAddressBook(
 
     companion object {
         private val gson = Gson()
+
+        /**
+         * How long a total failure suppresses another race. Arbitrary, and
+         * flagged as such in the spec -- it exists so an offline car does not
+         * pay a full round of timeouts per browse tab.
+         */
+        private const val FAILURE_COOLDOWN_MS = 10_000L
     }
 }
