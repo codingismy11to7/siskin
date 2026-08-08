@@ -21,7 +21,6 @@ import okhttp3.mockwebserver.RecordedRequest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -360,11 +359,41 @@ class ServerAddressBookTest {
     }
 
     @Test
-    fun sharedIsASingleton() {
-        // Collapsing and the cooldown are properties of one mutex and one
-        // lastFailureAt; a call site that built its own ServerAddressBook()
-        // would silently lose both. Pinning identity here is what a future
-        // call site accidentally reverting to `ServerAddressBook()` would break.
-        assertSame(ServerAddressBook.shared, ServerAddressBook.shared)
+    fun aRaceInFlightDoesNotOverwriteASwitchToADifferentServer() = runTest {
+        // The other half of the same guard: adoptAddress also refuses when
+        // the re-read session's machineIdentifier differs from the one the
+        // race was started against. The library picker switching to a
+        // different server while a race for the old one is still in flight
+        // must not have the finishing race write the old server's address
+        // back over the server the user switched to.
+        signedInAt("https://lan.example", machineIdentifier = "machine-a")
+
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestOf(any()) } doAnswer {
+                // Simulates the library picker landing on a different server
+                // mid-race. Deterministic, no sleeps -- same technique as
+                // aRaceInFlightDoesNotResurrectASignedOutSession above.
+                api.session = PlexSession(
+                    accountToken = "account-token",
+                    serverUri = "https://other-server.example",
+                    musicSectionKey = SectionKey("7"),
+                    serverToken = "other-server-token",
+                    machineIdentifier = "machine-b"
+                )
+                "https://public.example"
+            }
+        }
+        val book = ServerAddressBook(api, probe = probe)
+        book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+
+        val recovered = book.reprobe("https://lan.example")
+
+        assertNull("a race started against the old server must not write over a switch", recovered)
+        assertEquals(
+            "the server the user switched to must keep its own address",
+            "https://other-server.example",
+            api.session?.serverUri
+        )
+        assertEquals("machine-b", api.session?.machineIdentifier)
     }
 }

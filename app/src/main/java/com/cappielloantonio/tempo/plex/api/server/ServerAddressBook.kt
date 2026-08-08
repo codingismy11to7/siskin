@@ -25,12 +25,22 @@ private const val TAG = "ServerAddressBook"
  * against a list already in hand rather than a trip back through sign-in.
  *
  * Call sites must use [shared] rather than constructing their own -- see its
- * KDoc for why. The constructor stays public only so tests can build isolated
- * instances with stubs and a fake clock.
+ * KDoc for why. The constructor is `internal`, which the Kotlin compiler
+ * treats as module-wide rather than per-package: `app/src/main` compiles as
+ * one module, so this blocks `ServerAddressBook()` from a genuinely separate
+ * Gradle module and from `app/src/androidTest` (which, unlike `app/src/test`,
+ * gets no friend-path to `app/src/main` and so cannot see it at all). It does
+ * **not** stop another class inside `app/src/main` from constructing its own
+ * instance -- `internal` has no notion of "everyone in this module except
+ * that one caller" -- so within this module, using [shared] is still a
+ * convention the compiler cannot check; confirmed empirically, not assumed.
+ * `app/src/test` stays able to build isolated instances with stubs and a fake
+ * clock the same way it already does for [storedCandidates] below, since AGP
+ * grants that source set a friend-path into `app/src/main` for `internal`.
  *
  * See docs/decisions/2026-08-08-server-address-book-design.md.
  */
-class ServerAddressBook(
+class ServerAddressBook internal constructor(
     private val api: PlexApi = PlexApi(),
     private val probe: ServerProbe = ServerProbe(),
     private val authClient: AuthClient = AuthClient(api),
@@ -199,14 +209,19 @@ class ServerAddressBook(
      * to a minute, reproducing the hang ServerProbe's own short probe timeout
      * exists to avoid.
      *
-     * The `catch` below is safe specifically because nothing in this class
-     * runs inside an either { } block. Arrow's raise unwinds an either by
-     * throwing a CancellationException subclass, which on the JVM extends
-     * IllegalStateException, so a broad catch lexically inside one would
-     * swallow it. TimeoutCancellationException is that same family, but nothing
-     * here can raise, so there is no raise for this to swallow -- it is a
-     * plain coroutine timeout being turned into "no fresh list", the same
-     * outcome as plex.tv being unreachable outright.
+     * The `catch` below is safe not merely because this class happens to
+     * contain no either { } block today, but because it could not swallow a
+     * raise even inside one: Arrow's raise unwinds an either by throwing its
+     * own CancellationException subclass, and kotlinx's
+     * TimeoutCancellationException is a *different*, unrelated
+     * CancellationException subclass -- both ultimately extend
+     * IllegalStateException on the JVM, which is why CLAUDE.md bans catching
+     * that broadly, but they are siblings under it, not one a subtype of the
+     * other. Catching the specific final class TimeoutCancellationException
+     * only ever matches an actual coroutine timeout, so a future either { }
+     * added to this file would not need this catch removed. It is a plain
+     * coroutine timeout being turned into "no fresh list", the same outcome
+     * as plex.tv being unreachable outright.
      */
     private suspend fun fetchResources(): List<Resource>? = try {
         withTimeout(PLEX_TV_TIMEOUT_MS) { authClient.getResources() }.getOrNull().also {
@@ -261,9 +276,12 @@ class ServerAddressBook(
         private const val FAILURE_COOLDOWN_MS = 10_000L
 
         /**
-         * Bounds the whole plex.tv leg of a re-probe. Comfortably under
-         * [FAILURE_COOLDOWN_MS] and well over a healthy round trip; see
-         * [fetchResources] for why this exists at all.
+         * Bounds the whole plex.tv leg of a re-probe. Currently the same
+         * value as [FAILURE_COOLDOWN_MS] -- that is not load-bearing, the two
+         * constants bound unrelated things (one leg of a single race versus
+         * how long until the next race is allowed to start) and nothing here
+         * requires one to stay under the other. Well over a healthy round
+         * trip; see [fetchResources] for why this exists at all.
          */
         private const val PLEX_TV_TIMEOUT_MS = 10_000L
 
@@ -272,13 +290,18 @@ class ServerAddressBook(
          *
          * Collapsing concurrent callers into one race and honouring the
          * failure cooldown are properties of a single instance's [mutex] and
-         * [lastFailureAt] -- a call site that builds its own
-         * `ServerAddressBook()` instead gets its own mutex and a fresh
+         * [lastFailureAt] -- a call site that built its own
+         * `ServerAddressBook()` instead would get its own mutex and a fresh
          * cooldown clock, silently defeating both for that path alone: an
          * offline car would then pay the per-tab round of timeouts the
-         * cooldown exists to prevent, once per call site that opted out.
-         * Lazily built with production defaults so it is cheap to reference
-         * before a session exists.
+         * cooldown exists to prevent, once per call site that opted out. The
+         * constructor being `internal` makes that impossible from outside
+         * `app/src/main` -- a separate Gradle module or `app/src/androidTest`
+         * gets a compile error instead of a working escape hatch -- though it
+         * does not, by itself, stop a same-module caller from typing
+         * `ServerAddressBook()` too; see the class KDoc for why `internal`
+         * cannot close that gap on its own. Lazily built with production
+         * defaults so it is cheap to reference before a session exists.
          */
         val shared: ServerAddressBook by lazy { ServerAddressBook() }
     }
