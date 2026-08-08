@@ -158,11 +158,26 @@ It runs `call()`, and on `Left(Unreachable)` re-probes and re-runs **only if the
 address actually changed**. Retrying against an address that just failed buys a
 second twenty-second timeout and nothing else.
 
-It wraps the calls whose failure a user is waiting on: the browse and search
-paths in `PlexBrowseRepository`, and `PlexMixRepository`, which feeds playback.
+It wraps the calls whose failure a user is waiting on, and there is one place to
+put it: `PlexBrowseRepository.launchInto` already takes a
+`suspend () -> Either<PlexTransportFailure, LibraryResult<…>>`, which is exactly
+this signature. Applying it there covers every browse node in the class at once,
+rather than wrapping call sites one at a time and leaving whichever gets
+forgotten as the bug that survives.
+
+`PlexMixRepository` gets it at its own call site, being a separate class.
+
 Deliberately **not** `PlexScrobbler` or the heart tap in `BaseSessionCallback` —
 those are fire-and-forget reports, so making them re-probe would spend a race on
 something nobody is watching, behind a lock the browse path may be queuing for.
+
+**Search is a known exception and stays one.** `PlexBrowseRepository.collect`
+folds each tier's failure into an empty list, so `search`'s block is always
+`Right` and never reaches the recovery path — a search against a dead address
+returns no results rather than re-probing. That is pre-existing behaviour, it is
+documented in `collect`, and changing it means changing what a partial search
+failure means. Out of scope here; the next browse of any tab recovers the
+address anyway.
 
 No client-rebuilding changes are needed for the retry to see the new address.
 `reprobe` writes a new `PlexSession` instance, so `refreshClients()`'s existing
@@ -217,10 +232,17 @@ defending.
 
 ## Playback
 
-`DownloadUtil.getCacheDataSourceFactory` already wires a
-`ResolvingDataSource.Factory` into the player's chain, whose resolver currently
-only clears a cache flag. It gains one job: rewrite scheme, host and port to
-`current()` for any URI whose path starts with `/library/parts/`.
+A `ResolvingDataSource.Factory` rewrites scheme, host and port to `current()`
+for any URI whose path starts with `/library/parts/`.
+
+It wraps in `DynamicMediaSourceFactory`, around whichever factory that class
+selects — **not** inside `DownloadUtil.getCacheDataSourceFactory`, even though
+that is where a `ResolvingDataSource.Factory` already exists. The existing one
+is only reachable on the caching path: `DynamicMediaSourceFactory` falls back to
+`getUpstreamDataSourceFactory` when `Preferences.getStreamingCacheSize()` is
+zero or less, and a resolver added there would silently not run for anyone who
+has turned the streaming cache off. Wrapping the selected factory covers both
+branches with one rule.
 
 That prefix is the Plex part-key signature. Local files and `content://` artwork
 do not match it, so the rule needs no candidate-set lookup and no state, and it
