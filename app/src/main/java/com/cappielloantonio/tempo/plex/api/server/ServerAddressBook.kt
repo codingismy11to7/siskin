@@ -12,6 +12,7 @@ import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -145,39 +146,81 @@ class ServerAddressBook private constructor(
      * instead, so it still collapses against whatever every other caller is
      * racing. There is no caller for which passing nothing is meaningful.
      *
-     * Returns the address now in use, or null when nothing answered, or when
-     * the session changed out from under a race already in flight (see
-     * [adoptAddress]).
+     * Returns the address now in use, or null when nothing answered, when the
+     * session changed out from under a race already in flight (see
+     * [adoptAddress]), or when something unexpected went wrong partway
+     * through (see the catch below) -- three different causes collapsed into
+     * one "try again later" outcome, which is the whole contract this
+     * function promises every caller.
+     *
+     * The catch exists because that contract used to have a fourth, unwritten
+     * outcome: an escaped exception. Two callers -- BaseMediaService's
+     * network-change and player-error handlers -- run this from a root
+     * coroutine (`CoroutineScope(SupervisorJob() + Dispatchers.IO)`, no
+     * `CoroutineExceptionHandler`), so a `Throwable` that got out of here
+     * would reach the thread's default uncaught-exception handler and kill
+     * the media service process mid-drive. It is not hypothetical: plex.tv
+     * returning a payload Gson cannot map to [Resource] surfaces as
+     * `JsonSyntaxException` out of `getResources()`, past [fetchResources]'
+     * narrower `TimeoutCancellationException`-only catch; a stored candidate
+     * URI OkHttp's `Request.Builder.url()` rejects surfaces as
+     * `IllegalArgumentException` out of `ServerProbe.answers`. Every
+     * pre-existing caller happens to sit inside a deliberate wide catch of
+     * its own (`PlexBrowseRepository.launchInto`,
+     * `PlexMixRepository.deliver`), which is what kept this latent for those
+     * two.
+     *
+     * Catching `Throwable` broadly here is safe for the same reason it is in
+     * [fetchResources]: this class has no Arrow `either { }` block anywhere
+     * in it, so there is no `raise` for a wide catch to swallow. The one
+     * thing that still must not be swallowed is genuine coroutine
+     * cancellation -- the service being destroyed mid-race -- which is why
+     * `CancellationException` is caught ahead of `Throwable` and rethrown
+     * rather than turned into `null`; that is precisely what keeps such a
+     * signal (or a future `raise`'s own `CancellationException` subclass, if
+     * this class ever grows an `either { }`) passing through untouched.
+     *
+     * An unexpected failure is recorded via [lastFailureAt] exactly like a
+     * total "nothing answered" is, so the cooldown arms instead of leaving
+     * every subsequent call to throw again immediately.
      */
     suspend fun reprobe(staleAddress: String): String? = mutex.withLock {
-        val current = current()
-        if (current != staleAddress) {
-            Log.d(TAG, "address already moved to $current")
-            return@withLock current
+        try {
+            val current = current()
+            if (current != staleAddress) {
+                Log.d(TAG, "address already moved to $current")
+                return@withLock current
+            }
+
+            val session = api.session ?: return@withLock null
+
+            val lastFailure = lastFailureAt
+            if (lastFailure != null && clock() - lastFailure < FAILURE_COOLDOWN_MS) {
+                // A car with no usable network would otherwise pay a full race per
+                // browse tab, serially, for as long as it stayed offline.
+                Log.d(TAG, "in cooldown; not re-probing")
+                return@withLock null
+            }
+
+            storedCandidates(session.machineIdentifier)?.let { stored ->
+                probe.bestOf(stored)?.let { return@withLock adoptAddress(session, it) }
+                Log.d(TAG, "no stored address answered; asking plex.tv for a fresh list")
+            }
+
+            refreshFromPlexTv(session.machineIdentifier)?.let { refreshed ->
+                probe.bestOf(refreshed)?.let { return@withLock adoptAddress(session, it) }
+            }
+
+            Log.d(TAG, "nothing answered for ${session.machineIdentifier}")
+            lastFailureAt = clock()
+            null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            Log.w(TAG, "reprobe failed unexpectedly for $staleAddress", t)
+            lastFailureAt = clock()
+            null
         }
-
-        val session = api.session ?: return@withLock null
-
-        val lastFailure = lastFailureAt
-        if (lastFailure != null && clock() - lastFailure < FAILURE_COOLDOWN_MS) {
-            // A car with no usable network would otherwise pay a full race per
-            // browse tab, serially, for as long as it stayed offline.
-            Log.d(TAG, "in cooldown; not re-probing")
-            return@withLock null
-        }
-
-        storedCandidates(session.machineIdentifier)?.let { stored ->
-            probe.bestOf(stored)?.let { return@withLock adoptAddress(session, it) }
-            Log.d(TAG, "no stored address answered; asking plex.tv for a fresh list")
-        }
-
-        refreshFromPlexTv(session.machineIdentifier)?.let { refreshed ->
-            probe.bestOf(refreshed)?.let { return@withLock adoptAddress(session, it) }
-        }
-
-        Log.d(TAG, "nothing answered for ${session.machineIdentifier}")
-        lastFailureAt = clock()
-        null
     }
 
     /**

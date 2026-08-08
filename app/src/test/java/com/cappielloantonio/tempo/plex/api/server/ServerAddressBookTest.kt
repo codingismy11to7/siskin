@@ -10,6 +10,7 @@ import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -291,6 +292,73 @@ class ServerAddressBookTest {
         assertEquals("should not have raced again", requestsAfterFirstFailure, server.requestCount)
 
         server.shutdown()
+    }
+
+    @Test
+    fun anUnexpectedFailureBecomesNullNotACrash() = runTest {
+        // The escape route this guards against: ServerProbe.answers can throw
+        // IllegalArgumentException out of OkHttp's Request.Builder.url() for a
+        // malformed stored address (the other concrete route -- a
+        // JsonSyntaxException Gson can't map -- lives past authClient, which
+        // this test never reaches). reprobe's contract is "the address in
+        // use, or null"; an escaped exception was never a legitimate third
+        // outcome, and BaseMediaService's two newest callers run this from a
+        // root coroutine with no CoroutineExceptionHandler, so letting one
+        // through would kill the media service process.
+        signedInAt("https://lan.example")
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestOf(any()) } doAnswer { throw IllegalArgumentException("bad url") }
+        }
+        val book = ServerAddressBook.newForTest(api, probe = probe)
+        book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+
+        assertNull(book.reprobe("https://lan.example"))
+    }
+
+    @Test
+    fun anUnexpectedFailureArmsTheCooldown() = runTest {
+        // The other half of the same fix: a throw must not skip
+        // lastFailureAt, or every subsequent call would hit the same
+        // exception again immediately instead of backing off the way a
+        // total "nothing answered" does.
+        signedInAt("https://lan.example")
+        // Same non-zero-start rationale as aTotalFailureBacksOff above.
+        var now = 1_000L
+        var probeCalls = 0
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestOf(any()) } doAnswer {
+                probeCalls++
+                throw IllegalArgumentException("bad url")
+            }
+        }
+        val book = ServerAddressBook.newForTest(api, probe = probe, clock = { now })
+        book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+
+        assertNull(book.reprobe("https://lan.example"))
+        val callsAfterFirst = probeCalls
+
+        // Inside the cooldown: counting probe invocations, not wall time, is
+        // what actually distinguishes "raced again" from "did not" -- see
+        // aTotalFailureBacksOff.
+        now += 1_000L
+        assertNull(book.reprobe("https://lan.example"))
+        assertEquals("cooldown must have armed; no second race", callsAfterFirst, probeCalls)
+    }
+
+    @Test(expected = CancellationException::class)
+    fun cancellationPropagatesRatherThanBecomingNull() = runTest {
+        // The one way the fix above could do harm: genuine cancellation --
+        // the service being destroyed mid-race -- reaching reprobe must
+        // still propagate out, not be swallowed into null by the same catch
+        // that turns an unexpected Throwable into null.
+        signedInAt("https://lan.example")
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestOf(any()) } doAnswer { throw CancellationException("simulated cancellation") }
+        }
+        val book = ServerAddressBook.newForTest(api, probe = probe)
+        book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+
+        book.reprobe("https://lan.example")
     }
 
     @Test

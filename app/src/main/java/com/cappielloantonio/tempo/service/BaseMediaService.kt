@@ -365,8 +365,13 @@ open class BaseMediaService : MediaLibraryService() {
         // would otherwise keep pointing at a session that is about to be released.
         BrowseTreeInvalidator.detach()
         QueuePreloader.cancel()
-        releaseNetworkCallback()
+        // Cancel before releaseNetworkCallback(): that call dereferences a lateinit
+        // var with no ::isInitialized guard and throws if the callback was never
+        // registered, which would otherwise take addressScope.cancel() down with it.
+        // Launching into an already-cancelled scope is a silent no-op, so there is
+        // no cost to cancelling first.
         addressScope.cancel()
+        releaseNetworkCallback()
         equalizerManager.release(exoplayer.audioSessionId)
         ReplayGainUtil.release()
         if (::bitmapLoader.isInitialized) bitmapLoader.shutdown()
