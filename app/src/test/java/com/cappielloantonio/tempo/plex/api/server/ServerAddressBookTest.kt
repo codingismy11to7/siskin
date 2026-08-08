@@ -466,6 +466,52 @@ class ServerAddressBookTest {
     }
 
     @Test
+    fun aRaceInFlightAdoptsALibrarySwitchOnTheSameServer() = runTest {
+        // Important 1: adoptAddress must build the written session from the
+        // freshly re-read session, not the one captured before the race
+        // started. The two siblings above cover sign-out and a switch to a
+        // *different* machineIdentifier; this covers the case that motivated
+        // the whole branch -- a library switch to a different section of the
+        // *same* server landing mid-race. Copying from the stale captured
+        // session would silently revert that choice back to the section the
+        // user raced away from.
+        signedInAt("https://lan.example", machineIdentifier = "machine-a")
+
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestOf(any()) } doAnswer {
+                // Simulates the More tab's library picker landing on a
+                // different section of the *same* server mid-race.
+                // Deterministic, no sleeps -- same technique as the sibling
+                // aRaceInFlight… tests.
+                api.session = PlexSession(
+                    accountToken = "account-token",
+                    serverUri = "https://lan.example",
+                    musicSectionKey = SectionKey("9"),
+                    serverToken = "server-token",
+                    machineIdentifier = "machine-a"
+                )
+                "https://public.example"
+            }
+        }
+        val book = ServerAddressBook.newForTest(api, probe = probe)
+        book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+
+        val recovered = book.reprobe("https://lan.example")
+
+        assertEquals("https://public.example", recovered)
+        assertEquals(
+            "the newly probed address must be adopted",
+            "https://public.example",
+            api.session?.serverUri
+        )
+        assertEquals(
+            "the section switched mid-race must survive, not revert to the one raced against",
+            "9",
+            api.session?.musicSectionKey?.value
+        )
+    }
+
+    @Test
     fun aCallIsRetriedOnceWhenTheAddressMoves() = runTest {
         val live = liveServer()
         val liveUri = live.url("/").toString().trimEnd('/')
@@ -548,10 +594,26 @@ class ServerAddressBookTest {
     fun anHttpFailureDoesNotReprobe() = runTest {
         // 401 means the token stopped being accepted. The address is fine, and
         // re-probing would spend a race answering the wrong question.
-        val dead = deadUri()
-        val book = ServerAddressBook.newForTest(api)
-        book.adopt(resource("machine-a", connection(dead)), dead)
-        signedInAt(dead)
+        //
+        // Important 2: the candidate must be live, not dead. Against a dead
+        // fixture, reprobe() returns null regardless of whether this guard
+        // fired -- "skipped the re-probe" and "raced and found nothing" look
+        // identical, and calls==1 is then satisfied downstream by the
+        // retry-only-on-change guard, never by the one under test. A live
+        // candidate makes a race that should not have happened observable as
+        // a request the live server actually received. authClient is
+        // stubbed regardless -- not expected to be reached from this
+        // fixture, but a regression that also breaks the retry-only-on-change
+        // guard must not be able to fall through to a real plex.tv call.
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { getResources() } doReturn
+                PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+        }
+        val book = ServerAddressBook.newForTest(api, authClient = authClient)
+        book.adopt(resource("machine-a", connection(liveUri)), liveUri)
+        signedInAt(liveUri)
 
         var calls = 0
         val result = book.withAddressRecovery {
@@ -561,22 +623,35 @@ class ServerAddressBookTest {
 
         assertEquals(1, calls)
         assertTrue(result.isLeft())
+        assertEquals("a 401 must not trigger a re-probe", 0, live.requestCount)
+        live.shutdown()
     }
 
     @Test
     fun aPlexTvFailureDoesNotReprobeTheServer() = runTest {
         // Unreachable, but about plex.tv -- says nothing about the server address.
-        val dead = deadUri()
-        val book = ServerAddressBook.newForTest(api)
-        book.adopt(resource("machine-a", connection(dead)), dead)
-        signedInAt(dead)
+        //
+        // Important 2: same fix as anHttpFailureDoesNotReprobe above, for the
+        // same reason -- see its comment.
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { getResources() } doReturn
+                PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+        }
+        val book = ServerAddressBook.newForTest(api, authClient = authClient)
+        book.adopt(resource("machine-a", connection(liveUri)), liveUri)
+        signedInAt(liveUri)
 
         var calls = 0
-        book.withAddressRecovery {
+        val result = book.withAddressRecovery {
             calls++
             PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
         }
 
         assertEquals(1, calls)
+        assertTrue(result.isLeft())
+        assertEquals("a plex.tv failure must not trigger a server re-probe", 0, live.requestCount)
+        live.shutdown()
     }
 }

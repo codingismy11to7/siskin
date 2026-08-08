@@ -339,6 +339,21 @@ which is honest. Left alone on purpose.
 string, so a rotated token has the same staleness shape as an address. Different
 trigger, different fix, not this bug.
 
+**The preloader's fetch stays address-independent; only its key changed.**
+`QueuePreloader` builds its `DataSpec` straight from the queued `MediaItem`'s
+URI and fetches through `getStreamingCacheWriterFactory`, which wires no
+`ResolvingDataSource.Factory` — unlike the player's factory, above. The cache
+*key* it writes under is now address-independent too (see "The cache key"),
+so the two have drifted apart: a preload started against a since-dead address
+would fetch from that dead host and, if it somehow completed, write under a
+key the live address would also resolve to. Dormant today —
+`PRECACHE_TRACKS_COUNT` defaults to 0 and there is no settings screen to
+change it, so `preload()` returns before building a `DataSpec` at all — but the
+asymmetry is new with this branch, not inherited. Wiring a resolver into
+`getStreamingCacheWriterFactory` the way the player's factory has one is what
+would close it, and is the first thing precaching needs if it is ever turned
+on.
+
 ## Verification
 
 The failing case is a drive: sign in at home on wifi, leave, and both browse and

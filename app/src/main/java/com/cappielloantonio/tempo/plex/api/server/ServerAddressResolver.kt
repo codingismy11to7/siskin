@@ -27,6 +27,14 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
  * comes only from plex.tv connection URIs, which are themselves bare
  * origins, so no incoming part URL is proxied either. Worth a sentence in
  * case anything ever lets a `serverUri` carry a path.
+ *
+ * An IPv6 literal base is a related, currently-unreachable hazard: OkHttp's
+ * `HttpUrl.host` strips the brackets from `https://[::1]:32400`, so
+ * `encodedAuthority` below would rebuild an unbracketed, invalid authority.
+ * Every address plex.tv advertises is a `plex.direct` hostname, never a
+ * literal, so this cannot fire today -- but Plex's "Custom server access
+ * URLs" setting could in principle put a bracketed literal in `serverUri`,
+ * and the failure would be silent.
  */
 @UnstableApi
 class ServerAddressResolver(
