@@ -31,11 +31,17 @@ import com.cappielloantonio.tempo.equalizer.EqualizerManager
 import com.cappielloantonio.tempo.equalizer.ExternalBackend
 import com.cappielloantonio.tempo.equalizer.DefaultBackend
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
 import com.cappielloantonio.tempo.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 private const val TAG = "BaseMediaService"
 
@@ -55,6 +61,8 @@ open class BaseMediaService : MediaLibraryService() {
     private lateinit var networkCallback: CustomNetworkCallback
     private lateinit var equalizerManager: EqualizerManager
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val addressBook = ServerAddressBook.shared
+    private val addressScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val binder = LocalBinder()
 
@@ -127,6 +135,12 @@ open class BaseMediaService : MediaLibraryService() {
                     else -> false
                 }
                 if (!recoverable) return
+
+                // The playback spelling of Unreachable. The re-prepare below can
+                // only help once the address the URL resolves to is a live one.
+                addressScope.launch {
+                    addressBook.current()?.let { addressBook.reprobe(it) }
+                }
 
                 val now = android.os.SystemClock.elapsedRealtime()
                 if (now - lastPlayerErrorRecoveryMs >= playerErrorRecoveryThrottleMs) {
@@ -352,6 +366,7 @@ open class BaseMediaService : MediaLibraryService() {
         BrowseTreeInvalidator.detach()
         QueuePreloader.cancel()
         releaseNetworkCallback()
+        addressScope.cancel()
         equalizerManager.release(exoplayer.audioSessionId)
         ReplayGainUtil.release()
         if (::bitmapLoader.isInitialized) bitmapLoader.shutdown()
@@ -505,6 +520,23 @@ open class BaseMediaService : MediaLibraryService() {
             val capabilities = manager.getNetworkCapabilities(network)
             if (capabilities != null)
                 wasWifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+        }
+
+        /**
+         * A new default network, which is when a stored server address is most
+         * likely to have stopped working -- the car left the LAN it signed in on.
+         *
+         * Deliberately not onCapabilitiesChanged, which the preloader below uses:
+         * that fires on a transport flip, so wifi-to-wifi would not trip it and
+         * neither would a Plex container taking a new LAN address.
+         *
+         * This also fires once at registration, which gives service start a
+         * re-probe for free.
+         */
+        override fun onAvailable(network: Network) {
+            addressScope.launch {
+                addressBook.current()?.let { addressBook.reprobe(it) }
+            }
         }
 
         override fun onCapabilitiesChanged(
