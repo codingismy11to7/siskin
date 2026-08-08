@@ -297,6 +297,26 @@ class ServerAddressBook private constructor(
         )
     }
 
+    /**
+     * Test-only: clears [lastFailureAt].
+     *
+     * [lastFailureAt] and [mutex] are per-instance state, which is exactly what
+     * [newForTest] is for -- but a test that has to exercise [shared] itself
+     * (the address-recovery tests in `PlexBrowseRepositoryTest` and
+     * `PlexMixRepositoryTest`, which wire through the real singleton on
+     * purpose) inherits whatever the previous test method left in
+     * [lastFailureAt], because [shared] outlives any one test method and
+     * nothing outside this file can reach a private field to reset it
+     * directly. An instance method rather than a companion one because the
+     * state being cleared is instance state; call it as
+     * `ServerAddressBook.shared.resetForTest()`. The same escape-hatch
+     * precedent as [newForTest] above -- this sets no new one.
+     */
+    @VisibleForTesting
+    fun resetForTest() {
+        lastFailureAt = null
+    }
+
     /** The persisted shape. Separate from ServerProbe.Candidates so the stamp travels with it. */
     private data class StoredCandidates(
         val machineIdentifier: String,

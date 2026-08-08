@@ -19,8 +19,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
-import org.robolectric.shadows.ShadowSystemClock
-import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -61,6 +59,11 @@ class PlexMixRepositoryTest {
             machineIdentifier = null
             serverCandidates = null
         }
+        // ServerAddressBook.shared is the real production singleton -- there is
+        // exactly one, by design -- so its failure-cooldown clock is shared with
+        // every other test in this run, not just this class. Nothing else can
+        // reach the private field that holds it, so this is the reset.
+        ServerAddressBook.shared.resetForTest()
     }
 
     @After
@@ -234,17 +237,6 @@ class PlexMixRepositoryTest {
 
     @Test
     fun similarTracksRecoversWhenTheStoredAddressDiesButAnotherStillAnswers() {
-        // ServerAddressBook.shared is the real production singleton -- there is
-        // exactly one, by design -- so its failure-cooldown clock is shared with
-        // every other test in this run, not just this class. Robolectric's fake
-        // SystemClock.elapsedRealtime() resets to the same small baseline at the
-        // start of every test method, but the cooldown timestamp any *other*
-        // test's total failure wrote into the singleton does not reset with it,
-        // so it can still read as "recent" here and silently block this test's
-        // re-probe. Advancing the clock well past FAILURE_COOLDOWN_MS makes that
-        // stale timestamp always read as expired, regardless of run order.
-        ShadowSystemClock.advanceBy(Duration.ofSeconds(11))
-
         val dead = deadUri()
         val live = liveServer(
             """{"MediaContainer":{"Metadata":[{"ratingKey":"11","type":"track","title":"One"}]}}"""
