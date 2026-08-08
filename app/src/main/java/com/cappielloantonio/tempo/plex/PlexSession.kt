@@ -9,8 +9,17 @@ package com.cappielloantonio.tempo.plex
  * would report as signed in and then ask one server for the other's section.
  * Constructing this type is all-or-nothing, and [PlexApi.session] persists it
  * the same way, so no reader can observe [serverUri], [musicSectionKey] and
- * [serverToken] out of step with one another -- those three always move
- * together.
+ * [serverToken] out of step with one another -- those three never describe
+ * *different servers*.
+ *
+ * That is the invariant, and it is subtly weaker than "these three never
+ * change independently". [serverUri] alone does move, when ServerAddressBook
+ * re-probes: an address that stopped answering is replaced while
+ * [machineIdentifier] stays put. That is safe precisely because
+ * [machineIdentifier] is what says *which* server -- the same server at a new
+ * address serves the same sections and accepts the same token. A change that
+ * moved [serverUri] to a *different* machine without moving the section key
+ * with it is the hazard this type exists to prevent, and still is.
  *
  * [accountToken] is the one exception: `PlexSignInViewModel.signIn()` writes
  * it on its own, mid-flow, before a session exists at all. Re-signing in while
