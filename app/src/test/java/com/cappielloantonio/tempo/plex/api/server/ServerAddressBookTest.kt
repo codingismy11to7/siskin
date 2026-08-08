@@ -428,7 +428,15 @@ class ServerAddressBookTest {
         // Retrying would buy a second full timeout and nothing else.
         val dead = deadUri()
 
-        val book = ServerAddressBook.newForTest(api)
+        // The only stored candidate is dead, so reprobe escalates to
+        // refreshFromPlexTv -- stubbed so that escalation does not make a real
+        // network call to plex.tv, the same way aTotalFailureBacksOff does --
+        // see Important 3.
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { getResources() } doReturn
+                PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+        }
+        val book = ServerAddressBook.newForTest(api, authClient = authClient)
         book.adopt(resource("machine-a", connection(dead)), dead)
         signedInAt(dead)
 
@@ -440,6 +448,32 @@ class ServerAddressBookTest {
 
         assertEquals("no retry", 1, calls)
         assertTrue(result.isLeft())
+    }
+
+    @Test
+    fun aCallIsNotRetriedWhenTheReprobedAddressIsTheSameOneThatFailed() = runTest {
+        // The other half of the retry guard: a re-probe can legitimately
+        // re-pick the address the caller just failed against -- its /identity
+        // answers while the library call itself timed out, a real case on a
+        // flaky link. Retrying against the same address would buy a second
+        // full timeout and nothing else, exactly like aCallIsNotRetriedWhenTheAddressCouldNotMove
+        // above, but reached through `after == before` rather than `after == null`.
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(resource("machine-a", connection(liveUri)), liveUri)
+        signedInAt(liveUri)
+
+        var calls = 0
+        val result = book.withAddressRecovery {
+            calls++
+            PlexTransportFailure.Unreachable(PlexHost.Server).left()
+        }
+
+        assertEquals("no retry: the re-probe returned the same address", 1, calls)
+        assertTrue(result.isLeft())
+        live.shutdown()
     }
 
     @Test

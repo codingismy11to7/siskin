@@ -36,7 +36,21 @@ class PlexMixRepository {
     }
 
     private val api = PlexApi()
-    private val libraryClient = LibraryClient(api)
+
+    /**
+     * A `get()`, not a `val`: [LibraryClient]'s own KDoc says it is pinned to
+     * the [com.cappielloantonio.tempo.plex.PlexSession.serverUri] it was built
+     * with and never re-reads it, so a `val` here would keep sending
+     * [deliver]'s retry to the address that [addressBook] just moved away
+     * from -- recovery would re-probe, adopt a live address, and then replay
+     * the request against the dead one anyway, paying the failure twice
+     * instead of once. Constructing one per access is cheap:
+     * `PlexRetrofitFactory.server()` derives from a shared `OkHttpClient` via
+     * `newBuilder`, so the connection pool and dispatcher are shared and no
+     * handshake is repeated, and MediaManager already builds a fresh
+     * [PlexMixRepository] per mix request, so nothing long-lived is churning.
+     */
+    private val libraryClient: LibraryClient get() = LibraryClient(api)
     private val addressBook = ServerAddressBook.shared
 
     /**
@@ -88,6 +102,15 @@ class PlexMixRepository {
      * the rest of the process. Hence the mapping sitting inside the `try` and
      * the callback outside it -- a callback that throws must not be retried with
      * an empty list.
+     *
+     * [request] is wrapped in [addressBook]'s address recovery, so a mix call
+     * against an address that has gone stale re-probes and retries once rather
+     * than coming back empty. That retry only recovers because [libraryClient]
+     * is a `get()` that re-reads the session on every access -- see its KDoc --
+     * so it picks up the address the re-probe just adopted; were it a `val`
+     * captured at construction, the retry would replay against the same dead
+     * address the first attempt just failed on, paying the timeout twice for
+     * no better result.
      *
      * The catch stays wide even though the request's failure is a value now: the
      * mapping inside it is not, and this is outside any `either { }` so there is

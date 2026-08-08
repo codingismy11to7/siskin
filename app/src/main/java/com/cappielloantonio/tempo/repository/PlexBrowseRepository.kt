@@ -336,6 +336,8 @@ class PlexBrowseRepository {
         launchInto { resultFor(request, map) }
 
     /**
+     * The suspend-to-ListenableFuture bridge, needed because media3's
+     * MediaLibraryService.Callback takes a ListenableFuture and nothing else.
      * Runs a browse on [scope] and completes the car's future with the outcome.
      *
      * The block is wrapped in address recovery, so a browse against an address
