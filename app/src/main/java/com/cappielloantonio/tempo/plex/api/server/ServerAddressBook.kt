@@ -3,8 +3,11 @@ package com.cappielloantonio.tempo.plex.api.server
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.google.gson.Gson
@@ -95,6 +98,39 @@ class ServerAddressBook private constructor(
         }
         store(machineIdentifier, ServerProbe.candidates(resource))
         Log.d(TAG, "adopted $uri for $machineIdentifier")
+    }
+
+    /**
+     * Runs [call], and on "could not reach the server" re-probes and runs it once
+     * more -- but only if the address actually moved. Retrying against an address
+     * that just failed buys a second twenty-second timeout and nothing else.
+     *
+     * Only [PlexTransportFailure.Unreachable] against [PlexHost.Server] qualifies.
+     * An HTTP status means the server answered, so the address is fine; an
+     * unreachable plex.tv says nothing about the server at all.
+     *
+     * Branches on Either values and catches nothing, so there is no broad catch
+     * anywhere near an either { } block.
+     */
+    suspend fun <T> withAddressRecovery(
+        call: suspend () -> Either<PlexTransportFailure, T>
+    ): Either<PlexTransportFailure, T> {
+        val before = current()
+        val outcome = call()
+
+        val failure = (outcome as? Either.Left)?.value
+        if (failure !is PlexTransportFailure.Unreachable || failure.host != PlexHost.Server) {
+            return outcome
+        }
+
+        // No session, so no address to re-probe and nothing a retry could reach.
+        if (before == null) return outcome
+
+        val after = reprobe(before)
+        if (after == null || after == before) return outcome
+
+        Log.d(TAG, "retrying against $after")
+        return call()
     }
 
     /**

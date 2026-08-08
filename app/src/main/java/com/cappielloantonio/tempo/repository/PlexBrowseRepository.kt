@@ -20,6 +20,7 @@ import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.util.ConstantsAA
@@ -50,6 +51,7 @@ private const val TAG = "PlexBrowseRepository"
 class PlexBrowseRepository {
 
     private val api = PlexApi()
+    private val addressBook = ServerAddressBook.shared
 
     /**
      * Every browse request runs here. SupervisorJob because the browse calls are
@@ -334,8 +336,17 @@ class PlexBrowseRepository {
         launchInto { resultFor(request, map) }
 
     /**
-     * The suspend-to-ListenableFuture bridge, needed because media3's
-     * MediaLibraryService.Callback takes a ListenableFuture and nothing else.
+     * Runs a browse on [scope] and completes the car's future with the outcome.
+     *
+     * The block is wrapped in address recovery, so a browse against an address
+     * that has gone stale re-probes and retries once rather than failing. One
+     * wrapping here covers every browse node in the class; wrapping call sites
+     * individually would leave whichever gets forgotten as the surviving bug.
+     *
+     * Search is the exception, and stays one: [collect] folds each tier's
+     * failure into an empty list, so search's block is always Right and never
+     * reaches recovery. Changing that means changing what a partial search
+     * failure means, which is a separate decision.
      *
      * The future is completed on every path: with a value, with a
      * [PlexTransportException] carrying a transport failure, or exceptionally
@@ -352,7 +363,7 @@ class PlexBrowseRepository {
 
         scope.launch {
             try {
-                block().fold(
+                addressBook.withAddressRecovery(block).fold(
                     { failure ->
                         Log.w(TAG, "browse could not reach the server: $failure")
                         future.setException(PlexTransportException(failure))

@@ -396,4 +396,85 @@ class ServerAddressBookTest {
         )
         assertEquals("machine-b", api.session?.machineIdentifier)
     }
+
+    @Test
+    fun aCallIsRetriedOnceWhenTheAddressMoves() = runTest {
+        val live = liveServer()
+        val liveUri = live.url("/").toString().trimEnd('/')
+        val dead = deadUri()
+
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
+        signedInAt(dead)
+
+        var calls = 0
+        val result = book.withAddressRecovery {
+            calls++
+            if (calls == 1) {
+                PlexTransportFailure.Unreachable(PlexHost.Server).left()
+            } else {
+                "ok".right()
+            }
+        }
+
+        assertEquals("ok", result.getOrNull())
+        assertEquals("exactly one retry", 2, calls)
+        live.shutdown()
+    }
+
+    @Test
+    fun aCallIsNotRetriedWhenTheAddressCouldNotMove() = runTest {
+        // Everything is dead, so the re-probe fails and the address is unchanged.
+        // Retrying would buy a second full timeout and nothing else.
+        val dead = deadUri()
+
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(resource("machine-a", connection(dead)), dead)
+        signedInAt(dead)
+
+        var calls = 0
+        val result = book.withAddressRecovery {
+            calls++
+            PlexTransportFailure.Unreachable(PlexHost.Server).left()
+        }
+
+        assertEquals("no retry", 1, calls)
+        assertTrue(result.isLeft())
+    }
+
+    @Test
+    fun anHttpFailureDoesNotReprobe() = runTest {
+        // 401 means the token stopped being accepted. The address is fine, and
+        // re-probing would spend a race answering the wrong question.
+        val dead = deadUri()
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(resource("machine-a", connection(dead)), dead)
+        signedInAt(dead)
+
+        var calls = 0
+        val result = book.withAddressRecovery {
+            calls++
+            PlexTransportFailure.Http(PlexHost.Server, 401).left()
+        }
+
+        assertEquals(1, calls)
+        assertTrue(result.isLeft())
+    }
+
+    @Test
+    fun aPlexTvFailureDoesNotReprobeTheServer() = runTest {
+        // Unreachable, but about plex.tv -- says nothing about the server address.
+        val dead = deadUri()
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(resource("machine-a", connection(dead)), dead)
+        signedInAt(dead)
+
+        var calls = 0
+        book.withAddressRecovery {
+            calls++
+            PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+        }
+
+        assertEquals(1, calls)
+    }
 }

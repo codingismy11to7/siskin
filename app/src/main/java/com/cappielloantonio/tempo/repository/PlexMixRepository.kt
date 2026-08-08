@@ -12,6 +12,7 @@ import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,7 @@ class PlexMixRepository {
 
     private val api = PlexApi()
     private val libraryClient = LibraryClient(api)
+    private val addressBook = ServerAddressBook.shared
 
     /**
      * Main, not IO: the only caller is MediaManager.continuousPlay, whose
@@ -97,7 +99,7 @@ class PlexMixRepository {
     ) {
         scope.launch {
             val tracks = try {
-                request().fold(
+                addressBook.withAddressRecovery(request).fold(
                     { failure ->
                         Log.w(TAG, "mix request failed: $failure")
                         emptyList()
