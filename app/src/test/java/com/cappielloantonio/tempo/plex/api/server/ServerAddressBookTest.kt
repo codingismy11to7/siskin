@@ -82,7 +82,7 @@ class ServerAddressBookTest {
 
     @Test
     fun adoptStoresEveryAdvertisedAddressSplitIntoTiers() {
-        val book = ServerAddressBook(api)
+        val book = ServerAddressBook.newForTest(api)
 
         book.adopt(
             resource(
@@ -101,7 +101,7 @@ class ServerAddressBookTest {
 
     @Test
     fun storedCandidatesAreRefusedForADifferentServer() {
-        val book = ServerAddressBook(api)
+        val book = ServerAddressBook.newForTest(api)
         book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
 
         // The stamp is the whole point: racing server A's addresses while the
@@ -115,7 +115,7 @@ class ServerAddressBookTest {
         api.musicSectionKey = "5"
         api.machineIdentifier = "machine-a"
 
-        assertEquals("https://lan.example", ServerAddressBook(api).current())
+        assertEquals("https://lan.example", ServerAddressBook.newForTest(api).current())
     }
 
     @Test
@@ -125,7 +125,7 @@ class ServerAddressBookTest {
         // rest of the app would refuse to use.
         api.serverUri = "https://lan.example"
 
-        assertNull(ServerAddressBook(api).current())
+        assertNull(ServerAddressBook.newForTest(api).current())
     }
 
     /** Answers /identity, like a reachable Plex server. */
@@ -184,7 +184,7 @@ class ServerAddressBookTest {
         val liveUri = live.url("/").toString().trimEnd('/')
         val dead = deadUri()
 
-        val book = ServerAddressBook(api)
+        val book = ServerAddressBook.newForTest(api)
         book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
         signedInAt(dead)
 
@@ -203,7 +203,7 @@ class ServerAddressBookTest {
         val liveUri = live.url("/").toString().trimEnd('/')
         val dead = deadUri()
 
-        val book = ServerAddressBook(api)
+        val book = ServerAddressBook.newForTest(api)
         book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
         signedInAt(dead)
 
@@ -225,7 +225,7 @@ class ServerAddressBookTest {
         val liveUri = live.url("/").toString().trimEnd('/')
         val dead = deadUri()
 
-        val book = ServerAddressBook(api)
+        val book = ServerAddressBook.newForTest(api)
         book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
         signedInAt(dead)
 
@@ -244,7 +244,7 @@ class ServerAddressBookTest {
         val liveUri = live.url("/").toString().trimEnd('/')
         val dead = deadUri()
 
-        val book = ServerAddressBook(api)
+        val book = ServerAddressBook.newForTest(api)
         book.adopt(resource("machine-a", connection(dead), connection(liveUri)), dead)
         signedInAt(dead)
 
@@ -274,7 +274,7 @@ class ServerAddressBookTest {
             onBlocking { getResources() } doReturn
                 PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
         }
-        val book = ServerAddressBook(api, authClient = authClient, clock = { now })
+        val book = ServerAddressBook.newForTest(api, authClient = authClient, clock = { now })
         book.adopt(resource("machine-a", connection(uri)), uri)
         signedInAt(uri)
 
@@ -312,7 +312,7 @@ class ServerAddressBookTest {
             onBlocking { getResources() } doReturn listOf(freshResource).right()
         }
 
-        val book = ServerAddressBook(api, authClient = authClient)
+        val book = ServerAddressBook.newForTest(api, authClient = authClient)
         book.adopt(resource("machine-a", connection(storedDead)), storedDead)
         signedInAt(storedDead)
 
@@ -348,7 +348,7 @@ class ServerAddressBookTest {
                 "https://public.example"
             }
         }
-        val book = ServerAddressBook(api, probe = probe)
+        val book = ServerAddressBook.newForTest(api, probe = probe)
         book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
 
         val recovered = book.reprobe("https://lan.example")
@@ -383,7 +383,7 @@ class ServerAddressBookTest {
                 "https://public.example"
             }
         }
-        val book = ServerAddressBook(api, probe = probe)
+        val book = ServerAddressBook.newForTest(api, probe = probe)
         book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
 
         val recovered = book.reprobe("https://lan.example")

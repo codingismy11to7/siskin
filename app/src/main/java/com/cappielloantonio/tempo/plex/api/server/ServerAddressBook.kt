@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.plex.api.server
 
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
@@ -24,23 +25,25 @@ private const val TAG = "ServerAddressBook"
  * server advertises beside the one currently in use, so recovering is a race
  * against a list already in hand rather than a trip back through sign-in.
  *
- * Call sites must use [shared] rather than constructing their own -- see its
- * KDoc for why. The constructor is `internal`, which the Kotlin compiler
- * treats as module-wide rather than per-package: `app/src/main` compiles as
- * one module, so this blocks `ServerAddressBook()` from a genuinely separate
- * Gradle module and from `app/src/androidTest` (which, unlike `app/src/test`,
- * gets no friend-path to `app/src/main` and so cannot see it at all). It does
- * **not** stop another class inside `app/src/main` from constructing its own
- * instance -- `internal` has no notion of "everyone in this module except
- * that one caller" -- so within this module, using [shared] is still a
- * convention the compiler cannot check; confirmed empirically, not assumed.
- * `app/src/test` stays able to build isolated instances with stubs and a fake
- * clock the same way it already does for [storedCandidates] below, since AGP
- * grants that source set a friend-path into `app/src/main` for `internal`.
+ * There must be exactly one instance. Collapsing concurrent callers into a
+ * single race ([mutex]) and honouring the failure cooldown ([lastFailureAt])
+ * are both properties of one instance's state -- a second instance gets its
+ * own mutex and its own cooldown clock, silently losing both for whatever
+ * call site built it: concurrent browse tabs would each start their own
+ * race instead of collapsing onto one, and an offline car would pay a full
+ * round of timeouts per tab instead of once per [FAILURE_COOLDOWN_MS]. The
+ * primary constructor is `private`, so [shared] in the companion is the only
+ * way production code can obtain an instance -- the compiler rejects
+ * `ServerAddressBook()` anywhere outside this file, including every other
+ * class in `app/src/main`. [newForTest] is the deliberate, clearly-marked
+ * escape hatch: it calls the same private constructor from within the
+ * companion, which Kotlin permits for members of the same class, and exists
+ * only so `app/src/test` can build isolated instances with stubs and a fake
+ * clock.
  *
  * See docs/decisions/2026-08-08-server-address-book-design.md.
  */
-class ServerAddressBook internal constructor(
+class ServerAddressBook private constructor(
     private val api: PlexApi = PlexApi(),
     private val probe: ServerProbe = ServerProbe(),
     private val authClient: AuthClient = AuthClient(api),
@@ -288,21 +291,28 @@ class ServerAddressBook internal constructor(
         /**
          * The instance every app-side call site must use.
          *
-         * Collapsing concurrent callers into one race and honouring the
-         * failure cooldown are properties of a single instance's [mutex] and
-         * [lastFailureAt] -- a call site that built its own
-         * `ServerAddressBook()` instead would get its own mutex and a fresh
-         * cooldown clock, silently defeating both for that path alone: an
-         * offline car would then pay the per-tab round of timeouts the
-         * cooldown exists to prevent, once per call site that opted out. The
-         * constructor being `internal` makes that impossible from outside
-         * `app/src/main` -- a separate Gradle module or `app/src/androidTest`
-         * gets a compile error instead of a working escape hatch -- though it
-         * does not, by itself, stop a same-module caller from typing
-         * `ServerAddressBook()` too; see the class KDoc for why `internal`
-         * cannot close that gap on its own. Lazily built with production
-         * defaults so it is cheap to reference before a session exists.
+         * See the class KDoc for why there must be exactly one. Lazily built
+         * with production defaults so it is cheap to reference before a
+         * session exists.
          */
         val shared: ServerAddressBook by lazy { ServerAddressBook() }
+
+        /**
+         * Test-only escape hatch from the private constructor.
+         *
+         * Production code cannot reach this -- [VisibleForTesting] documents
+         * the intent, but the enforcement is the private constructor itself,
+         * which only a member of this companion can call. Tests use it to
+         * build an isolated instance with stubbed [PlexApi], [ServerProbe],
+         * [AuthClient] and a fake clock, getting their own [mutex] and
+         * [lastFailureAt] on purpose -- the opposite of what [shared] is for.
+         */
+        @VisibleForTesting
+        fun newForTest(
+            api: PlexApi = PlexApi(),
+            probe: ServerProbe = ServerProbe(),
+            authClient: AuthClient = AuthClient(api),
+            clock: () -> Long = { SystemClock.elapsedRealtime() }
+        ): ServerAddressBook = ServerAddressBook(api, probe, authClient, clock)
     }
 }
