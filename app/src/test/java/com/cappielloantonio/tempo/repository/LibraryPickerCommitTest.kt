@@ -13,6 +13,8 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
@@ -20,6 +22,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -45,6 +48,11 @@ class LibraryPickerCommitTest {
         // field this test depends on is reset rather than assumed absent.
         api.accountToken = "acct"
         api.session = PlexSession("acct", "http://pms:32400", SectionKey("3"), null, "abc123")
+        // Every successful selectLibrary in this file now writes this key via
+        // addressBook.adopt(), so it needs the same reset as accountToken/session
+        // above -- otherwise a list stored by one test method would still be
+        // readable by the next.
+        api.serverCandidates = null
         // QueueRepository's dbExecutor is a static single-threaded executor shared
         // across every test method in this run, so this queues ahead of whatever
         // any individual test submits next; FIFO ordering (see the barrier helpers
@@ -72,6 +80,10 @@ class LibraryPickerCommitTest {
         name = "Basement"
         clientIdentifier = id
         this.accessToken = accessToken
+        // adopt() derives the address list from this, not from the uri passed to
+        // primeCandidateForTest/selectLibrary -- so a resource with no
+        // connections would make the address-list test pass vacuously.
+        connections = listOf(Connection().apply { uri = "https://$id.example:32400" })
     }
 
     private fun track(ratingKey: String) = PlexMediaMapper.buildTrackMediaItem(
@@ -166,6 +178,30 @@ class LibraryPickerCommitTest {
         assertEquals(SectionKey("7"), session?.musicSectionKey)
         assertEquals("srv-tok", session?.serverToken)
         assertEquals("xyz999", session?.machineIdentifier)
+    }
+
+    @Test
+    fun `a successful commit records the chosen server's address list`() {
+        // The More tab's half of the address-book write: chooseLibrary's sibling
+        // in PlexSignInViewModelTest (chooseLibraryRecordsTheServersOtherAddresses)
+        // covers sign-in; this is the path a driver reaches mid-drive, and the one
+        // the address book exists to spare from a plex.tv round trip.
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://newserver:32400",
+            resource = resource(id = "xyz999", accessToken = "srv-tok"),
+            sectionKey = "7",
+            libraryName = "Soundtrack"
+        )
+
+        repo.selectLibrary("xyz999|7").get()
+
+        val stored = ServerAddressBook.newForTest(api).storedCandidates("xyz999")
+        assertNotNull("selectLibrary must record the address list", stored)
+        assertTrue(
+            "the addresses the resource advertises must be stored",
+            stored!!.direct.isNotEmpty()
+        )
     }
 
     @Test
