@@ -201,14 +201,24 @@ lint defect rather than baseline noise.
   `addingTracksToARunningQueueLeavesShuffleAlone` — with the setting off, a
   shuffle row added rather than set clears the toggle rather than merely
   declining to set it.
+- A sibling of `addingTracksToARunningQueueLeavesShuffleAlone` with the setting
+  off, pinning that continuous play's mid-drive top-up still leaves the toggle
+  untouched under *both* settings. Structurally safe today — the early return in
+  `setShuffleForAddedRow` cannot see `carShuffle` — so it guards that guard
+  against a later edit rather than a live bug.
 - **`PlexSignInSettingsTest`** — the row is present with its label, its switch
   is `isClickable == false`, and tapping the row writes the preference.
 
 Every test touching this key must reset it in `@Before`. Robolectric caches
-`SharedPreferences` statically across test methods, so a test that assumes
-absence reads whatever the previous method wrote — and this key's default is
-true, which makes an accidental leak of `false` look like a passing on-branch
-test.
+`SharedPreferences` statically across test methods *and across test classes in a
+JVM fork*, so a test that assumes absence reads whatever ran before it — which,
+once `PreferencesCarShuffleTest` and `PlexSignInSettingsTest` both write the key,
+is another class's last assignment rather than the default.
+
+The failure that causes is loud rather than subtle: the on-branch tests assert
+`shuffleModeEnabled = true` and exact fetched order, so a leaked `false` breaks
+them outright. The reset is there to keep the starting state the class's own
+business, not to paper over a silent pass.
 
 ## Out of scope
 
