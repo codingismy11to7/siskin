@@ -209,9 +209,52 @@ so, so the two do not read as an inconsistency.
 
 ### Wiring
 
-`isShuffleRow` gains a third clause; `shuffleTracksFor` gains a branch to
-`getDecadeTracksForShuffle`. Nothing else changes: `setShuffleForTap`,
-`openingPositionIn` and the car-shuffle setting all key off `isShuffleRow`, and
+`isShuffleRow` gains a third clause. `shuffleTracksFor` gains a branch for
+`SHUFFLE_DECADE_ID`, but unlike the artist and playlist branches it does not
+call its repository fetch unconditionally — it tries the browse cache first
+and calls `getDecadeTracksForShuffle` only when that cache cannot be trusted.
+
+**A second `sort=random` draw is not extra randomness, it is a different
+sample of the same distribution.** The list already on screen when the row is
+tapped came from `getDecadeTracks`, itself a uniform random 500. Asking the
+server for another uniform random 500 is statistically identical for "shuffle
+the decade" — every track had the same chance of appearing either way — so a
+re-fetch buys nothing but a queue that no longer matches what the driver was
+looking at, plus a round trip. Measured cost of that round trip: ~300ms of
+dead air before playback on a fast connection, worse on cellular in a car.
+Drawing fresh on every tap was this document's original design, on the theory
+that a fresh draw reaches more of a 17,649-track decade than 500 rows can
+show — true, but not an answer to what this particular tap asks for. Reaching
+further into the decade is what leaving the tab and returning already does
+(see the resampling behaviour above); this tap should be cheap and should
+queue what is already in front of the driver.
+
+So the row replays `MediaLibraryServiceCallback.onGetChildren`'s
+`queueSourceCache` instead of asking again. That cache already holds the exact
+list `getDecadeTracks` returned, written the same way every browse node's list
+is. The guard is what makes reusing it safe: `queueSourceCache` is a single
+slot keyed by one constant, so it can hold *any* node's most recent list —
+using it unconditionally would queue whatever was last browsed, decade or not.
+`getDecadeTracks` always writes the decade's own shuffle row at index 0, so
+the cached list identifies itself, and only a match is trusted:
+
+```kotlin
+cached.firstOrNull()?.mediaId == SHUFFLE_DECADE_ID + decade
+```
+
+A miss — empty cache, cold after a process restart, or another node's list —
+falls back to `getDecadeTracksForShuffle`, unchanged in behaviour but now
+documented as the fallback rather than the default path.
+
+On a hit, the queue is `cached.drop(1)`, not a filter over `isShuffleRow`:
+index 0 is the row by construction, and dropping exactly the item the guard
+just matched is narrower than a predicate that could also drop something else
+the guard never checked. The shuffle row itself is playable but has no stream,
+so it must never reach the queue — a queue holding it would "play" a track
+that does not exist.
+
+Nothing else changes: `setShuffleForTap`, `openingPositionIn` and the
+car-shuffle setting all key off `isShuffleRow`, and
 [shuffle follows the tap](2026-08-02-shuffle-follows-the-tap-design.md) holds
 unchanged — the decade shuffle row turns shuffle on, a track inside a decade
 turns it off.
@@ -294,3 +337,9 @@ Reusing the existing fixtures rather than standing up new setup:
 - `isShuffleRow` recognises `SHUFFLE_DECADE_ID`.
 - `lintDebug` reports no new `MissingTranslation`, which is what proves the ten
   string entries actually landed.
+- The shuffle row's cache guard, in `MediaLibrarySessionCallbackShuffleTest`:
+  a tap right after browsing the decade queues the cached list and never
+  calls `getDecadeTracksForShuffle`; that queue excludes the shuffle row
+  itself; and a tap against a cache seeded with a *different* decade's list
+  (built by actually browsing that other decade, not by writing the private
+  cache directly) falls back to the repository call.
