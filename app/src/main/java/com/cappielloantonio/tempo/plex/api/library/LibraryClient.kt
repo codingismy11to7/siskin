@@ -101,6 +101,26 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         const val SORT_TITLE = "titleSort"
 
         /**
+         * Sorts by the name actually shown, rather than by Plex's sort title.
+         *
+         * `titleSort` is what [SORT_TITLE] and the server default order by, and
+         * in a car it files things where nobody will look for them. Measured on
+         * a live library of 1204 artists: 521 carry an explicit `titleSort`, and
+         * they are not all the tidy "The Beatles" -> "Beatles" case -- "Max
+         * Graham" sorts as "Deep Funk Project" and lands at index 292, among the
+         * Ds, while "The Hilliard Ensemble" sorts as "[anonymous]" and comes
+         * first in the whole library. Under `sort=title` the same artist lands
+         * at 645, under M.
+         *
+         * This matters more since the browse tree windows a long list into
+         * labelled ranges: a window is named after the item at its edge, so an
+         * ordering the names disagree with produces ranges that read as broken.
+         * Ordering by the displayed name is what keeps a label and its contents
+         * the same thing.
+         */
+        const val SORT_DISPLAY_TITLE = "title"
+
+        /**
          * Server-side shuffle, for continuous play's random tier and for the
          * decade track fetch.
          */
