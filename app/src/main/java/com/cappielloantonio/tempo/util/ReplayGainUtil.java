@@ -1,10 +1,12 @@
 package com.cappielloantonio.tempo.util;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.OptIn;
+import androidx.annotation.VisibleForTesting;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Metadata;
@@ -12,10 +14,15 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.Player;
+import androidx.media3.datasource.DataSource;
 import androidx.media3.exoplayer.MetadataRetriever;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.TrackGroupArray;
+import androidx.media3.extractor.DefaultExtractorsFactory;
 import androidx.media3.extractor.metadata.id3.InternalFrame;
 import androidx.media3.extractor.metadata.id3.TextInformationFrame;
+import androidx.media3.extractor.mp4.Mp4Extractor;
 
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.model.ReplayGain;
@@ -81,10 +88,51 @@ public class ReplayGainUtil {
         }
     }
 
+    /**
+     * The DataSource.Factory the gain prefetch reads through: playback's own.
+     *
+     * Reading a track's tags is part of playing it, so it goes through
+     * playback's plumbing. Everything DynamicMediaSourceFactory assembles is
+     * something this path needs too -- the streaming cache and its keys, so the
+     * header bytes pulled here are the bytes playback wants next rather than a
+     * second download of them, and ServerAddressResolver, so a queue built
+     * against an address that has since changed prefetches from the live one.
+     * Without the resolver every prefetch against a moved server fails into the
+     * catch(Throwable) below, which logs one debug line and leaves the feature
+     * looking like an untagged library.
+     */
+    @VisibleForTesting
+    public static DataSource.Factory prefetchDataSourceFactory(Context context) {
+        return new DynamicMediaSourceFactory(context).buildDataSourceFactory();
+    }
+
+    /**
+     * What MetadataRetriever would have built for itself, with our DataSource
+     * underneath it.
+     *
+     * The flags are not decoration. MetadataRetriever.Builder.build() constructs
+     * a factory only when none was set, and the one it constructs carries
+     * FLAG_OMIT_TRACK_SAMPLE_TABLE -- the metadata-only optimisation. Handing it
+     * a factory silently opts out of that, so reading tags off an M4A would
+     * parse the entire sample table for a track that is not going to be played.
+     * Passing them here is what keeps setMediaSourceFactory from being a
+     * regression for one container format.
+     */
+    private static MediaSource.Factory metadataSourceFactory(Context context) {
+        DefaultExtractorsFactory extractors = new DefaultExtractorsFactory()
+                .setMp4ExtractorFlags(
+                        Mp4Extractor.FLAG_OMIT_TRACK_SAMPLE_TABLE
+                                | Mp4Extractor.FLAG_READ_SEF_DATA);
+
+        return new DefaultMediaSourceFactory(prefetchDataSourceFactory(context), extractors);
+    }
+
     private static void submitPrefetch(MediaItem item) {
         prefetchExecutor.execute(() -> {
             try (MetadataRetriever retriever =
-                         new MetadataRetriever.Builder(App.getContext(), item).build()) {
+                         new MetadataRetriever.Builder(App.getContext(), item)
+                                 .setMediaSourceFactory(metadataSourceFactory(App.getContext()))
+                                 .build()) {
 
                 TrackGroupArray trackGroups =
                         retriever.retrieveTrackGroups().get(20,
