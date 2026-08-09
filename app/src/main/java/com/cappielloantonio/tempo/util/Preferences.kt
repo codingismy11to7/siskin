@@ -24,6 +24,7 @@ object Preferences {
     private const val PRECACHE_TRACKS_COUNT = "precache_tracks_count"
     private const val PRECACHE_WIFI_ONLY = "precache_wifi_only"
     private const val CONTINUOUS_PLAY = "continuous_play"
+    private const val CAR_SHUFFLE = "car_shuffle"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
     private const val FALLBACK_TO_RANDOM_TRACKS = "fallback_to_random_tracks"
     private const val LAST_INSTANT_MIX = "last_instant_mix"
@@ -154,6 +155,25 @@ object Preferences {
     @JvmStatic
     fun setContinuousPlayEnabled(enabled: Boolean) {
         App.getInstance().preferences.edit().putBoolean(CONTINUOUS_PLAY, enabled).apply()
+    }
+
+    /**
+     * Whether a shuffle row defers to the car's shuffle toggle -- true, the
+     * default -- or hands the player a queue this app shuffled itself.
+     *
+     * Defaults to true, which is the behaviour the app shipped with. Issue #31
+     * argues the costs of that behaviour and this is the switch that answers it;
+     * see docs/decisions/2026-08-09-car-shuffle-setting-design.md for why the
+     * default stays where it is rather than following continuous play's flip.
+     */
+    @JvmStatic
+    fun isCarShuffleEnabled(): Boolean {
+        return App.getInstance().preferences.getBoolean(CAR_SHUFFLE, true)
+    }
+
+    @JvmStatic
+    fun setCarShuffleEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit().putBoolean(CAR_SHUFFLE, enabled).apply()
     }
 
     @JvmStatic
