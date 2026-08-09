@@ -1,6 +1,5 @@
 package com.cappielloantonio.tempo.plex
 
-import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
@@ -29,11 +28,6 @@ class PlexMediaMapperTest {
         if (partKey != null) {
             media = listOf(Media().apply { part = listOf(Part().apply { key = partKey }) })
         }
-    }
-
-    private fun decade(key: String? = "1980", title: String? = "1980s") = Directory().apply {
-        this.key = key
-        this.title = title
     }
 
     // ── part key ──────────────────────────────────────────────

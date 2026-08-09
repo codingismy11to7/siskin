@@ -6,7 +6,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaConstants
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
@@ -275,11 +274,6 @@ class PlexMediaMapperAssemblyTest {
     }
 
     // ── decade rows ───────────────────────────────────────────
-
-    private fun decade(key: String? = "1980", title: String? = "1980s") = Directory().apply {
-        this.key = key
-        this.title = title
-    }
 
     @Test
     fun aDecadesPlayableChildrenGetTheListStyleHint() {
