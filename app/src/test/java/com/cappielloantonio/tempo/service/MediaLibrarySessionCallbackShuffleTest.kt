@@ -239,6 +239,33 @@ class MediaLibrarySessionCallbackShuffleTest {
         verify(player, never()).shuffleModeEnabled = true
     }
 
+    /**
+     * The add path is a browse tap too on cars that add rather than set, and
+     * with the setting off the queue it just received from resolveQueueForItem
+     * was already shuffled. Enabling the toggle would shuffle it a second time.
+     */
+    @Test
+    fun `with the car's shuffle off an added shuffle row does not enable the toggle`() {
+        Preferences.setCarShuffleEnabled(false)
+        whenever(browseRepository.getArtistTracks(ARTIST))
+            .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
+
+        callback.onAddMediaItems(session, controller, listOf(shuffleArtistRow())).get()
+
+        verify(player, never()).shuffleModeEnabled = true
+    }
+
+    /** And with the setting on, the add path still defers the way it always did. */
+    @Test
+    fun `an added shuffle row still enables the toggle when the car's shuffle is on`() {
+        whenever(browseRepository.getArtistTracks(ARTIST))
+            .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
+
+        callback.onAddMediaItems(session, controller, listOf(shuffleArtistRow())).get()
+
+        verify(player).shuffleModeEnabled = true
+    }
+
     // ─────────────────────────────────────────────────────────────
 
     private fun setMediaItems(tapped: MediaItem): MediaSession.MediaItemsWithStartPosition =

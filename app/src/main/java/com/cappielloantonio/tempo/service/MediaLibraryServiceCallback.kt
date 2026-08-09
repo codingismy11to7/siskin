@@ -293,14 +293,13 @@ class MediaLibrarySessionCallback(
 
         // This path cannot choose a start index -- it returns a bare list -- so a
         // car that adds rather than sets gets shuffled continuation from track
-        // one instead of a random opener.
-        enableShuffleIfShuffleRow(firstItem, mediaSession.player)
+        // one instead of a random opener. With the car's shuffle off that costs
+        // nothing: the list it returns is already shuffled, so track one is a
+        // random draw.
+        val carShuffle = Preferences.isCarShuffleEnabled()
+        enableShuffleIfShuffleRow(firstItem, mediaSession.player, carShuffle)
 
-        // Fixed true, not read from the setting: this path still always turns the
-        // player's shuffle on for a shuffle row (enableShuffleIfShuffleRow, above),
-        // so passing a real carShuffle here would shuffle the queue too and shuffle
-        // it twice. Wiring the setting through this path belongs with fixing that.
-        return resolveQueueForItem(firstItem, mediaItems, carShuffle = true)
+        return resolveQueueForItem(firstItem, mediaItems, carShuffle)
     }
 
     /**
@@ -396,9 +395,19 @@ class MediaLibrarySessionCallback(
      * because that override runs on the session's application thread while the
      * queue future completes on whichever thread the coroutine finished on --
      * and the player may only be touched from the former.
+     *
+     * Gated on "use the car's shuffle" as well, and that gate is separate from
+     * the enable-only argument above rather than a restatement of it. Enable-only
+     * is about *which items* may touch the toggle; the gate is about whether the
+     * toggle should be touched at all, given [resolveQueueForItem] has already
+     * shuffled the list this path is about to return.
      */
-    private fun enableShuffleIfShuffleRow(firstItem: MediaItem, player: Player) {
-        if (!isShuffleRow(firstItem)) return
+    private fun enableShuffleIfShuffleRow(
+        firstItem: MediaItem,
+        player: Player,
+        carShuffle: Boolean
+    ) {
+        if (!isShuffleRow(firstItem) || !carShuffle) return
         Log.d(TAG, "shuffle row tapped: enabling player shuffle")
         player.shuffleModeEnabled = true
     }
