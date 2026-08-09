@@ -158,6 +158,11 @@ class PlexSignInFragment : Fragment() {
                     Preferences.isCarShuffleEnabled()
                 ) { Preferences.setCarShuffleEnabled(it) }
 
+                addToggle(
+                    getString(R.string.car_settings_replay_gain),
+                    Preferences.isReplayGainEnabled()
+                ) { Preferences.setReplayGainEnabled(it) }
+
                 addChoice(getString(R.string.car_settings_sign_out)) {
                     viewModel.signOut()
                     (requireActivity() as LoginHost).onSignedOut()
@@ -369,9 +374,10 @@ class PlexSignInFragment : Fragment() {
      * never run, and the switch would show one thing while the preference said
      * another.
      *
-     * This is the first row of its kind here, and [applyArrangement] chose the
-     * open-ended list arrangement in anticipation of it. Transcoding and
-     * ReplayGain are meant to follow this shape.
+     * [applyArrangement] chose the open-ended list arrangement before this row
+     * existed, so that adding one would be only adding one. Continuous play was
+     * the first, replay gain the second and the first to actually reuse the
+     * shape; transcoding is the one still coming.
      */
     private fun addToggle(label: String, initial: Boolean, onChange: (Boolean) -> Unit) {
         val bind = this.bind ?: return
