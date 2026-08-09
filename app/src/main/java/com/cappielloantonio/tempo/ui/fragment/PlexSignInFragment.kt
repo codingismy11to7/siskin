@@ -158,6 +158,11 @@ class PlexSignInFragment : Fragment() {
                     Preferences.isCarShuffleEnabled()
                 ) { Preferences.setCarShuffleEnabled(it) }
 
+                addToggle(
+                    getString(R.string.car_settings_replay_gain),
+                    Preferences.isReplayGainEnabled()
+                ) { Preferences.setReplayGainEnabled(it) }
+
                 addChoice(getString(R.string.car_settings_sign_out)) {
                     viewModel.signOut()
                     (requireActivity() as LoginHost).onSignedOut()
@@ -284,11 +289,11 @@ class PlexSignInFragment : Fragment() {
      *
      * Settings qualifies too, and deliberately. It is the one screen here that
      * is *expected* to grow, so it was given the list arrangement back when it
-     * held nothing but a Sign out button -- ahead of the second row, precisely
-     * so that the row's arrival would cost nothing. The row has since arrived:
-     * the continuous-play toggle sits above Sign out, and adding it was only
-     * adding a row. Transcoding and ReplayGain are still to come and are meant
-     * to be the same.
+     * held nothing but a Sign out button -- ahead of the first row, precisely
+     * so that a row's arrival would cost nothing. Three have since arrived:
+     * continuous play, the car's shuffle and replay gain all sit above Sign
+     * out, and adding each was only adding a row. Transcoding is still to come
+     * and is meant to be the same.
      *
      * Every other state is a single short block, and those read best as one
      * centred composition -- headings included. So the scroll view shrinks to
@@ -369,9 +374,11 @@ class PlexSignInFragment : Fragment() {
      * never run, and the switch would show one thing while the preference said
      * another.
      *
-     * This is the first row of its kind here, and [applyArrangement] chose the
-     * open-ended list arrangement in anticipation of it. Transcoding and
-     * ReplayGain are meant to follow this shape.
+     * [applyArrangement] chose the open-ended list arrangement before any of
+     * these rows existed, so that adding one would be only adding one. It has
+     * held: continuous play introduced the shape, the car's shuffle and replay
+     * gain each cost a call and four translations, and transcoding is the one
+     * still coming.
      */
     private fun addToggle(label: String, initial: Boolean, onChange: (Boolean) -> Unit) {
         val bind = this.bind ?: return

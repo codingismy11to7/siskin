@@ -1,10 +1,12 @@
 package com.cappielloantonio.tempo.util;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.OptIn;
+import androidx.annotation.VisibleForTesting;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Metadata;
@@ -12,16 +14,23 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.Player;
+import androidx.media3.common.Timeline;
+import androidx.media3.datasource.DataSource;
 import androidx.media3.exoplayer.MetadataRetriever;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.TrackGroupArray;
+import androidx.media3.extractor.DefaultExtractorsFactory;
 import androidx.media3.extractor.metadata.id3.InternalFrame;
 import androidx.media3.extractor.metadata.id3.TextInformationFrame;
+import androidx.media3.extractor.mp4.Mp4Extractor;
 
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.model.ReplayGain;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -40,6 +49,13 @@ public class ReplayGainUtil {
 
     private static final ConcurrentHashMap<String, List<ReplayGain>> gainDataMap =
             new ConcurrentHashMap<>();
+
+    /**
+     * How far ahead gains are fetched. One is the strict minimum -- the pending
+     * gain handed to the audio processor at a gapless boundary -- and leaves a
+     * skip landing on a track whose gain is not known yet.
+     */
+    private static final int PREFETCH_WINDOW = 3;
 
     private static final Set<String> prefetchedIds = ConcurrentHashMap.newKeySet();
 
@@ -65,14 +81,49 @@ public class ReplayGainUtil {
         playerRef = new WeakReference<>(null);
     }
 
+    /**
+     * The next {@code count} items the player will actually reach, current one
+     * excluded.
+     *
+     * Excluded because it needs no retriever: {@link #setReplayGain} reads the
+     * current track's gain out of the metadata the player itself parsed, on
+     * onTracksChanged, at no network cost. The prefetch exists for the *next*
+     * track, whose gain has to be known before the gapless boundary arrives.
+     *
+     * Walks the timeline rather than counting up from the index, which is what
+     * makes it right under shuffle -- the same reason
+     * QueuePreloader.collectUpcomingStreamUris does. The {@code currentIndex}
+     * guard is what stops REPEAT_MODE_ONE, where getNextWindowIndex returns the
+     * index it was given, from filling the window with copies of the playing
+     * track.
+     */
+    @VisibleForTesting
+    public static List<MediaItem> upcomingPrefetchTargets(Player player, int count) {
+        Timeline timeline = player.getCurrentTimeline();
+        if (timeline.isEmpty()) return Collections.emptyList();
+
+        int currentIndex = player.getCurrentMediaItemIndex();
+        if (currentIndex == C.INDEX_UNSET) return Collections.emptyList();
+
+        List<MediaItem> items = new ArrayList<>(count);
+        int index = currentIndex;
+
+        while (items.size() < count) {
+            index = timeline.getNextWindowIndex(
+                    index, player.getRepeatMode(), player.getShuffleModeEnabled());
+            if (index == C.INDEX_UNSET || index == currentIndex) break;
+            items.add(player.getMediaItemAt(index));
+        }
+
+        return items;
+    }
+
     public static void prefetchQueueGains(Player player) {
         if (Objects.equals(Preferences.getReplayGainMode(), "disabled")) return;
 
         playerRef = new WeakReference<>(player);
 
-        for (int i = 0; i < player.getMediaItemCount(); i++) {
-            MediaItem item = player.getMediaItemAt(i);
-
+        for (MediaItem item : upcomingPrefetchTargets(player, PREFETCH_WINDOW)) {
             if (item.mediaId == null || item.localConfiguration == null) continue;
 
             if (!prefetchedIds.add(item.mediaId)) continue;
@@ -81,10 +132,52 @@ public class ReplayGainUtil {
         }
     }
 
+    /**
+     * The DataSource.Factory the gain prefetch reads through: playback's own.
+     *
+     * Reading a track's tags is part of playing it, so it goes through
+     * playback's plumbing. Everything DynamicMediaSourceFactory assembles is
+     * something this path needs too -- the streaming cache and its keys, so the
+     * header bytes pulled here are the bytes playback wants next rather than a
+     * second download of them, and ServerAddressResolver, so a queue built
+     * against an address that has since changed prefetches from the live one.
+     * Without the resolver every prefetch against a moved server fails into the
+     * catch(Throwable) below, which logs one debug line and leaves the feature
+     * looking like an untagged library.
+     */
+    @VisibleForTesting
+    public static DataSource.Factory prefetchDataSourceFactory(Context context) {
+        return new DynamicMediaSourceFactory(context).buildDataSourceFactory();
+    }
+
+    /**
+     * What MetadataRetriever would have built for itself, with our DataSource
+     * underneath it.
+     *
+     * The flags are not decoration. MetadataRetriever.Builder.build() constructs
+     * a factory only when none was set, and the one it constructs carries
+     * FLAG_OMIT_TRACK_SAMPLE_TABLE -- the metadata-only optimisation. Handing it
+     * a factory silently opts out of that, so reading tags off an M4A would
+     * parse the entire sample table for a track that is not going to be played.
+     * Passing them here is what keeps setMediaSourceFactory from being a
+     * regression for one container format.
+     */
+    private static MediaSource.Factory metadataSourceFactory(Context context) {
+        DefaultExtractorsFactory extractors = new DefaultExtractorsFactory()
+                .setMp4ExtractorFlags(
+                        Mp4Extractor.FLAG_OMIT_TRACK_SAMPLE_TABLE
+                                | Mp4Extractor.FLAG_READ_SEF_DATA);
+
+        return new DefaultMediaSourceFactory(prefetchDataSourceFactory(context), extractors);
+    }
+
     private static void submitPrefetch(MediaItem item) {
         prefetchExecutor.execute(() -> {
+            Context context = App.getContext();
             try (MetadataRetriever retriever =
-                         new MetadataRetriever.Builder(App.getContext(), item).build()) {
+                         new MetadataRetriever.Builder(context, item)
+                                 .setMediaSourceFactory(metadataSourceFactory(context))
+                                 .build()) {
 
                 TrackGroupArray trackGroups =
                         retriever.retrieveTrackGroups().get(20,
@@ -143,7 +236,25 @@ public class ReplayGainUtil {
                         }
                     }
 
-                    queuePendingForNextTrack(p);
+                    // Only re-arm the pending gain if this prefetch is actually
+                    // for the upcoming track. Every item in PREFETCH_WINDOW
+                    // completes through this same callback, including ones two
+                    // or three tracks out that cannot affect the pending slot --
+                    // and queuePendingForNextTrack ends in
+                    // audioProcessor.setPendingGain, which sets
+                    // hasPendingFlushGain = true. onPositionDiscontinuity calls
+                    // clearPendingGain() specifically to hold that flag false
+                    // until onFlush runs, so the same-format branch in
+                    // ReplayGainAudioProcessor cannot promote a future track's
+                    // gain onto the one currently playing. A prefetch for a
+                    // distant track landing inside that window would re-arm the
+                    // flag anyway and lose the race onPositionDiscontinuity is
+                    // trying to win. That promotion also overwrites
+                    // baselineGainLinear, so a lost race is not a transient
+                    // glitch -- the wrong level holds for the rest of the track.
+                    int nextIndex = p.getNextMediaItemIndex();
+                    MediaItem next = nextIndex == C.INDEX_UNSET ? null : p.getMediaItemAt(nextIndex);
+                    if (next != null && item.mediaId.equals(next.mediaId)) queuePendingForNextTrack(p);
                 });
 
             } catch (Throwable e) {

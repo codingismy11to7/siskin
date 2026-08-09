@@ -37,10 +37,11 @@ class PlexSignInSettingsTest {
     @Before
     fun setUp() {
         // Robolectric keeps App's SharedPreferences in a static field between
-        // methods, and both the session and the two toggles are read out of it.
+        // methods, and the session and all three toggles are read out of it.
         App.getInstance().preferences.edit()
             .remove("continuous_play")
             .remove("car_shuffle")
+            .remove("replay_gain_mode")
             .commit()
         PlexApi().session = PlexSession(
             accountToken = "t",
@@ -83,17 +84,22 @@ class PlexSignInSettingsTest {
     private fun carShuffleSwitch(view: View) =
         switchLabelled(view, App.getInstance().getString(R.string.car_settings_car_shuffle))
 
+    private fun replayGainSwitch(view: View) =
+        switchLabelled(view, App.getInstance().getString(R.string.car_settings_replay_gain))
+
     @Test
-    fun `settings offers both toggles at their defaults`() {
+    fun `settings offers every toggle at its default`() {
         val screen = settingsScreen()
 
-        assertEquals(2, switchesIn(screen).size)
-        // The two defaults differ, and each is a decision: continuous play is
-        // off because reaching the end of a queue is not a request for more
-        // music, and the car's shuffle is deferred to because that is what the
-        // app already did.
+        assertEquals(3, switchesIn(screen).size)
+        // The defaults differ, and each is a decision: continuous play is off
+        // because reaching the end of a queue is not a request for more music,
+        // the car's shuffle is deferred to because that is what the app already
+        // did, and replay gain is off because a library carrying no ReplayGain
+        // tags would pay the whole cost of the feature for none of its benefit.
         assertFalse(continuousPlaySwitch(screen).isChecked)
         assertTrue(carShuffleSwitch(screen).isChecked)
+        assertFalse(replayGainSwitch(screen).isChecked)
     }
 
     @Test
@@ -164,5 +170,44 @@ class PlexSignInSettingsTest {
         assertFalse(Preferences.isCarShuffleEnabled())
         assertFalse(toggle.isChecked)
         assertFalse(toggle.isClickable)
+    }
+
+    @Test
+    fun `tapping the replay gain row turns it on`() {
+        val toggle = replayGainSwitch(settingsScreen())
+
+        (toggle.parent as View).performClick()
+
+        assertTrue(Preferences.isReplayGainEnabled())
+        assertTrue(toggle.isChecked)
+        assertFalse(toggle.isClickable)
+    }
+
+    @Test
+    fun `tapping the replay gain row again turns it back off`() {
+        Preferences.setReplayGainEnabled(true)
+        val toggle = replayGainSwitch(settingsScreen())
+
+        (toggle.parent as View).performClick()
+
+        assertFalse(Preferences.isReplayGainEnabled())
+        assertFalse(toggle.isChecked)
+    }
+
+    /**
+     * Three rows now share one `addToggle` and one `choice_container`, and each
+     * closes over its own preference. A row that wrote a neighbour's key would
+     * still look right on screen -- the switch it moved is the one it was built
+     * with -- so nothing else here would catch it.
+     */
+    @Test
+    fun `a row writes only its own preference`() {
+        val screen = settingsScreen()
+
+        (replayGainSwitch(screen).parent as View).performClick()
+
+        assertTrue(Preferences.isReplayGainEnabled())
+        assertFalse(Preferences.isContinuousPlayEnabled())
+        assertTrue(Preferences.isCarShuffleEnabled())
     }
 }

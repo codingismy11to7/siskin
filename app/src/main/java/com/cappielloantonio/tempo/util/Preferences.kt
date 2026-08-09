@@ -89,16 +89,62 @@ object Preferences {
         return App.getInstance().preferences.getBoolean(DATA_SAVING_MODE, false)
     }
 
+    /**
+     * Four-way: "disabled", "track", "album", "auto". [ReplayGainUtil] switches on
+     * these exact strings and this returns them unchanged.
+     *
+     * "disabled" was the permanent value rather than a default until
+     * [setReplayGainEnabled] existed, so the whole gain pipeline -- an audio
+     * processor installed unconditionally in the sink, and five call sites --
+     * never did anything.
+     */
     @JvmStatic
     fun getReplayGainMode(): String? {
         return App.getInstance().preferences.getString(REPLAY_GAIN_MODE, "disabled")
     }
 
+    /**
+     * The boolean view of the four-way mode, for the Settings row.
+     *
+     * Any mode but "disabled" reads as on, so a "track" or "album" written by a
+     * future chooser -- or by hand -- is not silently reported as off by a screen
+     * that cannot yet express it.
+     */
+    @JvmStatic
+    fun isReplayGainEnabled(): Boolean {
+        return getReplayGainMode() != "disabled"
+    }
+
+    /**
+     * On means "auto": album gain when the adjacent track shares an album title,
+     * track gain otherwise. That is a superset of the other two modes -- album
+     * behaviour inside an album, track behaviour across a shuffle -- which is why
+     * one switch can stand in for the enum without lying about it.
+     */
+    @JvmStatic
+    fun setReplayGainEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit()
+            .putString(REPLAY_GAIN_MODE, if (enabled) "auto" else "disabled")
+            .apply()
+    }
+
+    /**
+     * Defaults to true. Nothing writes this key -- the Settings screen behind
+     * the car's gear offers no row for it -- so the default is the effective
+     * value. Now that [setReplayGainEnabled] gives the mode above a writer,
+     * this key's writer-less status is the exception on this screen rather
+     * than the rule.
+     */
     @JvmStatic
     fun isReplayGainPreventClipping(): Boolean {
         return App.getInstance().preferences.getBoolean(REPLAY_GAIN_PREVENT_CLIPPING, true)
     }
 
+    /**
+     * Defaults to 0 dB. Nothing writes this key either, same as
+     * [isReplayGainPreventClipping] just above -- no row, so the default is
+     * the effective value.
+     */
     @JvmStatic
     fun getLoudnessPreamp(): Float {
         return App.getInstance().preferences.getInt(LOUDNESS_PREAMP, 0).toFloat()

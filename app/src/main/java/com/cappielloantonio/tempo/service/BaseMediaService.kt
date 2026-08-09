@@ -154,6 +154,17 @@ open class BaseMediaService : MediaLibraryService() {
                 if (mediaItem == null) return
                 ReplayGainUtil.applyGain(player, mediaItem)
 
+                // The prefetch window is three tracks wide, and a track ending
+                // does not change the timeline -- so onTimelineChanged alone
+                // would fill the window once per queue and never slide it. Same
+                // defensive catch as the call site there: a failure to prefetch
+                // a gain must not take playback down with it.
+                try {
+                    ReplayGainUtil.prefetchQueueGains(player)
+                } catch (t: Throwable) {
+                    Log.w(TAG, "prefetchQueueGains failed: $t")
+                }
+
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK || reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                     MediaManager.setLastPlayedTimestamp(mediaItem)
                 }
