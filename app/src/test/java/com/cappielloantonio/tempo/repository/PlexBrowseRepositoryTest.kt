@@ -9,9 +9,12 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.MediaContainer
 import com.cappielloantonio.tempo.plex.base.PlexResponse
+import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Metadata
+import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -61,12 +64,23 @@ class PlexBrowseRepositoryTest {
         // Every field is reset explicitly rather than assumed absent: App
         // caches the SharedPreferences in a static field that Robolectric does
         // not reset between methods, so a value written by one test is
-        // otherwise visible to the next.
+        // otherwise visible to the next. machineIdentifier and serverCandidates
+        // are part of that now too -- a value left over from an address-recovery
+        // test would let a later test's fetch reach ServerAddressBook.shared's
+        // re-probe path and race real addresses instead of hitting the mock
+        // server it thinks it is talking to.
         PlexApi().apply {
             accountToken = "account-token"
             serverUri = server.url("/").toString()
             musicSectionKey = "1"
+            machineIdentifier = null
+            serverCandidates = null
         }
+        // ServerAddressBook.shared is the real production singleton -- there is
+        // exactly one, by design -- so its failure-cooldown clock is shared with
+        // every other test in this run, not just this class. Nothing else can
+        // reach the private field that holds it, so this is the reset.
+        ServerAddressBook.shared.resetForTest()
     }
 
     @After
@@ -424,6 +438,73 @@ class PlexBrowseRepositoryTest {
         assertEquals(LibraryResult.RESULT_SUCCESS, afterSignIn.resultCode)
         assertEquals(listOf("11"), afterSignIn.value!!.map { it.mediaId })
         assertEquals("the rebuilt client must reach the mock server", 1, server.requestCount)
+    }
+
+    // ── address recovery: launchInto wired to ServerAddressBook.shared ──
+    //
+    // Proves the wiring itself, not ServerAddressBook's internals (those are
+    // ServerAddressBookTest's job): a browse against a session's stored
+    // address that has gone stale re-probes through the real
+    // ServerAddressBook.shared and retries once against whichever stored
+    // candidate answers, recovering instead of failing. Reverting launchInto's
+    // call site back to a bare `block()` leaves this red -- see Important 2 in
+    // the task 4 review findings.
+
+    /** A port with nothing listening: connection refused, the fastest failure. */
+    private fun deadUri(): String {
+        val dead = MockWebServer()
+        dead.start()
+        val uri = dead.url("/").toString().trimEnd('/')
+        dead.shutdown()
+        return uri
+    }
+
+    /** Answers /identity like a reachable Plex server, and everything else with [body]. */
+    private fun liveServer(body: String) = MockWebServer().apply {
+        dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest) =
+                if (request.requestUrl?.encodedPath == "/identity") {
+                    MockResponse().setResponseCode(200)
+                } else {
+                    MockResponse().setResponseCode(200).setBody(body)
+                }
+        }
+        start()
+    }
+
+    @Test
+    fun aBrowseRecoversWhenTheStoredAddressDiesButAnotherStillAnswers() {
+        val dead = deadUri()
+        val live = liveServer(tracksBody("11"))
+        val liveUri = live.url("/").toString().trimEnd('/')
+
+        PlexApi().apply {
+            accountToken = "account-token"
+            serverUri = dead
+            musicSectionKey = "1"
+            machineIdentifier = "machine-a"
+        }
+        ServerAddressBook.shared.adopt(
+            Resource().apply {
+                clientIdentifier = "machine-a"
+                connections = listOf(
+                    Connection().apply { uri = dead },
+                    Connection().apply { uri = liveUri }
+                )
+            },
+            dead
+        )
+
+        val result = await(PlexBrowseRepository().getAlbumTracks("5"))
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        assertEquals(listOf("11"), result.value!!.map { it.mediaId })
+        assertEquals(
+            "the re-probe must move the session onto the address that answered",
+            liveUri,
+            PlexApi().serverUri
+        )
+        live.shutdown()
     }
 
     /**

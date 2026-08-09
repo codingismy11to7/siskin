@@ -19,8 +19,9 @@ import com.cappielloantonio.tempo.plex.PlexIdentity
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
-import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.CarSignInResolution
@@ -50,6 +51,7 @@ class LibraryPickerRepository {
 
     private val api = PlexApi()
     private val authClient = AuthClient(api)
+    private val addressBook = ServerAddressBook.shared
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
@@ -282,6 +284,11 @@ class LibraryPickerRepository {
             // that dead URL every five seconds.
             BrowseTreeInvalidator.stopPlayback()
         }
+
+        // Recorded before the session write below so a re-probe has a list to
+        // race the moment this session exists, rather than only after the
+        // first recovery escalates all the way to plex.tv.
+        addressBook.adopt(resource, uri)
 
         api.session = next
 

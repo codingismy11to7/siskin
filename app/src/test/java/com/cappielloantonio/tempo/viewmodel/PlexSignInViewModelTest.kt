@@ -13,7 +13,8 @@ import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
-import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.auth.PlexPinState
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.models.Connection
@@ -89,6 +90,7 @@ class PlexSignInViewModelTest {
     fun clearSession() {
         PlexApi().session = null
         PlexApi().accountToken = null
+        PlexApi().serverCandidates = null
     }
 
     private val created = CreatedPin(
@@ -103,7 +105,7 @@ class PlexSignInViewModelTest {
     /**
      * A media server that survives [AuthClient.mediaServers]: `provides`
      * contains "server" and it has at least one connection with a non-blank
-     * `uri`, per [com.cappielloantonio.tempo.plex.api.auth.ServerProbe.hasUsableConnection].
+     * `uri`, per [com.cappielloantonio.tempo.plex.api.server.ServerProbe.hasUsableConnection].
      */
     private fun aMediaServer(accessToken: String? = null, clientIdentifier: String? = "machine-id") =
         Resource().apply {
@@ -293,6 +295,40 @@ class PlexSignInViewModelTest {
                 machineIdentifier = machineIdentifier
             ),
             PlexApi().session
+        )
+    }
+
+    @Test
+    fun chooseLibraryRecordsTheServersOtherAddresses() = runTest(dispatcher) {
+        // Without this, a fresh sign-in has no list to race, so the first
+        // recovery after driving away has to go through plex.tv -- exactly the
+        // round trip the stored list exists to avoid.
+        val machineIdentifier = "machine-id"
+        val resource = aMediaServer(
+            accessToken = "resource-access-token",
+            clientIdentifier = machineIdentifier
+        )
+        val serverUri = server.url("/").toString()
+        val authClient = setUpToChoosingServer(resource)
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+        viewModel.connect()
+        advanceUntilIdle()
+        viewModel.chooseServer(resource)
+        awaitSettled(viewModel)
+
+        val section = (viewModel.state.value as PlexSignInState.ChoosingLibrary).sections.head
+        viewModel.chooseLibrary(section)
+
+        val stored = ServerAddressBook.newForTest(PlexApi()).storedCandidates(machineIdentifier)
+        assertNotNull("sign-in must record the address list", stored)
+        assertTrue(
+            "the addresses aMediaServer advertises must be stored",
+            stored!!.direct.isNotEmpty()
         )
     }
 

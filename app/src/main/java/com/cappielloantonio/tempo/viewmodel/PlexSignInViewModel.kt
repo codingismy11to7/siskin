@@ -20,8 +20,9 @@ import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatePinError
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
-import com.cappielloantonio.tempo.plex.api.auth.ServerProbe
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.auth.PlexPinState
 import com.cappielloantonio.tempo.plex.auth.PlexSignInFlow
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
@@ -49,6 +50,8 @@ class PlexSignInViewModel @JvmOverloads constructor(
     private val probe: ServerProbe = ServerProbe(
         headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null)
     ),
+    /** Records the server's other addresses when chooseLibrary commits a session. */
+    private val addressBook: ServerAddressBook = ServerAddressBook.shared,
     /**
      * Seam, not a feature. The poll loop's bounds are measured in wall-clock
      * seconds, which a StandardTestDispatcher cannot advance -- so without this
@@ -369,6 +372,11 @@ class PlexSignInViewModel @JvmOverloads constructor(
             _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
             return
         }
+
+        // Recorded before the session write below so a re-probe has a list to
+        // race the moment this session exists, rather than only after the
+        // first recovery escalates all the way to plex.tv.
+        addressBook.adopt(resource, uri)
 
         // The one write. All five values land together or not at all.
         api.session = PlexSession(

@@ -54,6 +54,20 @@ class PlexApi {
         set(value) = preferences.edit().putString(KEY_MACHINE_IDENTIFIER, value).apply()
 
     /**
+     * Every address the current server advertises, as JSON; null before one has
+     * been recorded. Read and written only through ServerAddressBook, which owns
+     * the encoding and the machineIdentifier stamp.
+     *
+     * Deliberately *not* part of [session]. A session is credentials, written
+     * all-or-nothing; this is a cache of reachability information that goes
+     * stale on its own schedule and whose absence is survivable -- a re-probe
+     * without it just starts from plex.tv instead.
+     */
+    var serverCandidates: String?
+        get() = preferences.getString(KEY_SERVER_CANDIDATES, null)
+        set(value) = preferences.edit().putString(KEY_SERVER_CANDIDATES, value).apply()
+
+    /**
      * The signed-in connection, or null when there is not a complete one.
      *
      * Written as a unit: one `edit()` carrying all five keys, or four removed
@@ -97,6 +111,7 @@ class PlexApi {
         private const val KEY_SERVER_URI = "plex_server_uri"
         private const val KEY_MUSIC_SECTION_KEY = "plex_music_section_key"
         private const val KEY_MACHINE_IDENTIFIER = "plex_machine_identifier"
+        private const val KEY_SERVER_CANDIDATES = "plex_server_candidates"
 
         /**
          * Process-wide, because each Plex client constructs its own PlexApi and the

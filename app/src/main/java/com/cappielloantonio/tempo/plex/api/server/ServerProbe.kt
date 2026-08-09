@@ -1,4 +1,4 @@
-package com.cappielloantonio.tempo.plex.api.auth
+package com.cappielloantonio.tempo.plex.api.server
 
 import android.util.Log
 import com.cappielloantonio.tempo.plex.models.Connection
@@ -41,10 +41,18 @@ class ServerProbe(
      * answers faster than the LAN is still the wrong answer -- it is a fallback
      * tier, not a competitor.
      */
-    suspend fun bestConnectionUri(resource: Resource): String? {
-        val candidates = candidates(resource)
-        return race(candidates.direct) ?: race(candidates.relay)
-    }
+    suspend fun bestConnectionUri(resource: Resource): String? = bestOf(candidates(resource))
+
+    /**
+     * The same two-tier race as [bestConnectionUri], against candidates the
+     * caller already holds.
+     *
+     * ServerAddressBook races a list it persisted at sign-in rather than one
+     * just fetched from plex.tv -- that is what lets a re-probe work on a LAN
+     * whose internet is down but whose Plex server is fine.
+     */
+    suspend fun bestOf(candidates: Candidates): String? =
+        race(candidates.direct) ?: race(candidates.relay)
 
     /**
      * Every candidate at once; the first success wins and the rest are cancelled.
