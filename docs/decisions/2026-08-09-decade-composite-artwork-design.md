@@ -240,6 +240,16 @@ defence in depth that function's comment asks for.
 Anything else is refused the way an absent image is — `FileNotFoundException`,
 which the car renders as its placeholder.
 
+**Both guards are invoked from `openFile`, beside the album path's own.** That
+placement is the point: the two rule sets differ deliberately, and a reader
+comparing them should find them adjacent rather than in separate files. The
+provider stays Java — a Kotlin rewrite is
+[#86](https://github.com/codingismy11to7/siskin/issues/86), deliberately not
+folded in here — so each guard delegates to a pure Kotlin helper exactly as the
+album path already delegates to `MediaUrlBuilder.isServerRelativePath`. That is
+an established shape in this file, not a new one. `DecadeCompositeArt` therefore
+receives an already-validated decade and bucket and does no parsing of its own.
+
 One easy thing to miss: **`uriMatcher` is presently dead code.** It is declared
 with an `albumArt/*` rule, but `openFile` never consults it — it reads
 `getLastPathSegment()` and assumes the album-art shape. A second path is what
@@ -306,6 +316,11 @@ glyph when its composite cannot be built.
 
 - **No Room, no prefetch, no WorkManager.** `PlexBrowseRepository` still does not
   touch the database, and the cache is files in `cacheDir`.
+- **`AlbumArtContentProvider` stays Java.** Rewriting it in Kotlin is
+  [#86](https://github.com/codingismy11to7/siskin/issues/86) and is kept out of
+  this branch on purpose: it is ~200 lines of language churn through the one file
+  whose diff most needs to be readable, and the part carrying real translation
+  risk — `openFile`'s pipe-and-copy body — is the part with no test coverage.
 - **The Decades row in More keeps `ic_aa_decades`.** That is the row *for* the
   node, not a decade tile.
 - **The decade's own children keep `PLAYABLE_CHILD_STYLE`.** That key describes
