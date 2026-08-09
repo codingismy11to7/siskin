@@ -200,10 +200,14 @@ class PlexBrowseRepository {
     /**
      * Every track by one artist, flat and in library order.
      *
-     * Feeds the shuffle row, and left unshuffled on purpose: the player owns
-     * shuffling (the session already carries the command), so turning the car's
-     * shuffle toggle off mid-listen falls back to the artist's real running
-     * order rather than to an order this function invented.
+     * Feeds the shuffle row, and left unshuffled on purpose under both settings.
+     *
+     * With "use the car's shuffle" on, the player owns shuffling (the session
+     * already carries the command), so turning the car's toggle off mid-listen
+     * falls back to the artist's real running order rather than to an order this
+     * function invented. With it off, MediaLibrarySessionCallback shuffles at
+     * the tap -- still not here, which keeps this function the single honest
+     * description of what the server was asked for.
      *
      * Uses the same `artist.id` filter as [getArtistAlbums] rather than the
      * artist's allLeaves endpoint. Both returned identical counts on a live

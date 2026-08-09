@@ -16,6 +16,7 @@ import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.CredentialGate
+import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -239,16 +240,20 @@ class MediaLibrarySessionCallback(
 
         Log.d(TAG, "mediaId = ${firstItem.mediaId}, startIndex = $startIndex, startPositionMs = $startPositionMs")
 
-        val shuffling = isShuffleRow(firstItem)
-        setShuffleForTap(shuffling, mediaSession.player)
+        val shuffleRow = isShuffleRow(firstItem)
+        // Read once and threaded through: the queue's order, the player's toggle
+        // and the opening position are three answers that have to agree, and
+        // re-reading for each would let a Settings write land between them.
+        val carShuffle = Preferences.isCarShuffleEnabled()
+        setShuffleForTap(shuffleRow && carShuffle, mediaSession.player)
 
-        val futureQueue = resolveQueueForItem(firstItem, mediaItems)
+        val futureQueue = resolveQueueForItem(firstItem, mediaItems, carShuffle)
 
         return Futures.transform(
             futureQueue,
             { resolvedItems ->
                 val items = resolvedItems ?: emptyList()
-                val opening = openingPositionIn(items, firstItem, shuffling, startIndex)
+                val opening = openingPositionIn(items, firstItem, shuffleRow, carShuffle, startIndex)
                 Log.d(TAG, "Opening at $opening of ${items.size} for ${firstItem.mediaId}")
 
                 if (items.isNotEmpty()) {
@@ -291,7 +296,11 @@ class MediaLibrarySessionCallback(
         // one instead of a random opener.
         enableShuffleIfShuffleRow(firstItem, mediaSession.player)
 
-        return resolveQueueForItem(firstItem, mediaItems)
+        // Fixed true, not read from the setting: this path still always turns the
+        // player's shuffle on for a shuffle row (enableShuffleIfShuffleRow, above),
+        // so passing a real carShuffle here would shuffle the queue too and shuffle
+        // it twice. Wiring the setting through this path belongs with fixing that.
+        return resolveQueueForItem(firstItem, mediaItems, carShuffle = true)
     }
 
     /**
@@ -315,15 +324,30 @@ class MediaLibrarySessionCallback(
      * A shuffle row is the one tap whose opener is ours to choose: shuffle mode
      * orders what comes *after* the current item, so a row that opened at item 0
      * would shuffle the same artist from the same song every time.
+     *
+     * That paragraph describes the deferring branch. With "use the car's
+     * shuffle" off the queue arrived shuffled and the player walks it in order,
+     * so the opener is 0 -- the head of a shuffled list is already a random
+     * draw, and drawing again would skip a prefix of the queue for nothing.
+     *
+     * That 0 is explicit rather than left to the `else` branch, which would
+     * otherwise be reached: the tapped shuffle row is deliberately absent from
+     * the queue it builds, so `indexOfFirst` returns -1 and the fallback is
+     * `carStartIndex` -- `C.INDEX_UNSET` for a browse tap. media3 reads that as
+     * "the player's default position", which with shuffle off is item 0. The
+     * right answer, arrived at by accident; this chooses it.
      */
     private fun openingPositionIn(
         items: List<MediaItem>,
         tapped: MediaItem,
-        shuffling: Boolean,
+        shuffleRow: Boolean,
+        carShuffle: Boolean,
         carStartIndex: Int
     ): Int = when {
         items.isEmpty() -> carStartIndex
-        shuffling -> Random.nextInt(items.size)
+        shuffleRow && carShuffle -> Random.nextInt(items.size)
+        // The queue arrived shuffled, so its head is already a random draw.
+        shuffleRow -> 0
         // Absent means the queue this resolved to is not the list the row was
         // tapped in -- a stale browse cache is how that happens. The player's
         // default position is a better answer than a made-up one.
@@ -332,8 +356,12 @@ class MediaLibrarySessionCallback(
     }
 
     /**
-     * Sets the player's shuffle from the row that was tapped: on for a shuffle
-     * row, off for anything else.
+     * Sets the player's shuffle from the tap: on only for a shuffle row that
+     * "use the car's shuffle" says to defer to, off for anything else.
+     *
+     * With that setting off the caller passes false for a shuffle row too. That
+     * is what makes the pre-shuffled queue play in the order it was handed over
+     * instead of being shuffled a second time by the player.
      *
      * Total rather than enable-only, and that is the whole point -- shuffle used
      * to stick, because the only thing that ever wrote it turned it on. There is
@@ -377,7 +405,8 @@ class MediaLibrarySessionCallback(
 
     private fun resolveQueueForItem(
         firstItem: MediaItem,
-        mediaItems: List<MediaItem>
+        mediaItems: List<MediaItem>,
+        carShuffle: Boolean
     ): ListenableFuture<List<MediaItem>> {
         Log.d(TAG, "Resolve queue for item")
 
@@ -391,9 +420,17 @@ class MediaLibrarySessionCallback(
             // Before the parent-tag branches: a shuffle row carries no parent tag
             // and is not in any cache, so it would otherwise fall through to the
             // fallback below and "play" itself -- a row with no stream.
+            //
+            // The one place the artist row and the playlist row meet, which is
+            // why the shuffle lives here rather than in either repository call.
+            // With the setting off the player is not shuffling, so the order
+            // handed over is the order heard.
             shuffleTracks != null -> Futures.transform(
                 shuffleTracks,
-                { result -> result?.value ?: emptyList() },
+                { result ->
+                    val tracks = result?.value ?: emptyList()
+                    if (carShuffle) tracks else tracks.shuffled()
+                },
                 MoreExecutors.directExecutor()
             )
 
