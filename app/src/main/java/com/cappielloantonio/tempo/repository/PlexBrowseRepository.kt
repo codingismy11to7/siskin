@@ -31,7 +31,10 @@ import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 private const val TAG = "PlexBrowseRepository"
@@ -316,6 +319,164 @@ class PlexBrowseRepository {
 
     fun getAlbumTracks(albumRatingKey: String) =
         cachedTracks({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { it }
+
+    // ── windowed browse ────────────────────────────────────────
+    //
+    // The car asks for every node in full -- onGetChildren always arrives as
+    // page=0, pageSize=Integer.MAX_VALUE, and reaching the end of a short list
+    // provokes no follow-up request -- so paging cannot come from the car. It
+    // comes from the tree instead: a list too long to browse becomes a list of
+    // ranges, each of which is a node the car can ask for in full.
+
+    /**
+     * The Artists tab: window rows, or the artists themselves if they fit.
+     *
+     * [LibraryClient.SORT_DISPLAY_TITLE] rather than the server default, and the
+     * window listing and its contents must pass the *same* sort -- the window ids
+     * are offsets into this ordering, so a mismatch would point every window at
+     * the wrong slice.
+     */
+    fun getArtistWindows(windowPrefix: String, artistPrefix: String) =
+        windowed(PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_aa_artists) { body ->
+            itemsOf(body, TYPE_ARTIST).mapNotNull {
+                PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+            }
+        }
+
+    fun getArtistWindow(start: Int, artistPrefix: String) = window(
+        PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, start
+    ) { body ->
+        itemsOf(body, TYPE_ARTIST).mapNotNull {
+            PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+        }
+    }
+
+    /** The Albums tab, ordered by displayed name for the same reason. */
+    fun getAlbumWindows(windowPrefix: String, albumPrefix: String) =
+        windowed(PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_aa_albums) { body ->
+            itemsOf(body, TYPE_ALBUM).mapNotNull {
+                PlexMediaMapper.albumToMediaItem(it, albumPrefix)
+            }
+        }
+
+    fun getAlbumWindow(start: Int, albumPrefix: String) = window(
+        PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, start
+    ) { body ->
+        itemsOf(body, TYPE_ALBUM).mapNotNull {
+            PlexMediaMapper.albumToMediaItem(it, albumPrefix)
+        }
+    }
+
+    private fun window(
+        type: Int,
+        sort: String?,
+        start: Int,
+        map: (PlexResponse) -> List<MediaItem>
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return fetch(
+            { libraryClient.getSectionContent(key, type, start, ConstantsAA.WINDOW_SIZE, sort) },
+            map
+        )
+    }
+
+    /**
+     * One request decides the shape: it asks for the first window and reads
+     * `totalSize` off the same response, so a library that fits costs exactly
+     * what it costs today and never pays for the window machinery.
+     */
+    private fun windowed(
+        type: Int,
+        sort: String?,
+        windowPrefix: String,
+        icon: Int,
+        map: (PlexResponse) -> List<MediaItem>
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return launchInto {
+            either {
+                val head = when (
+                    val outcome =
+                        libraryClient.getSectionContent(key, type, 0, ConstantsAA.WINDOW_SIZE, sort)
+                ) {
+                    is Either.Right -> outcome.value
+                    is Either.Left -> when (val failure = outcome.value) {
+                        is PlexTransportFailure.Http -> {
+                            Log.w(TAG, "windowed browse failed with HTTP ${failure.code}")
+                            return@either errorFor(failure.code)
+                        }
+
+                        is PlexTransportFailure.Unreachable -> raise(failure)
+                    }
+                }
+
+                val total = head.mediaContainer?.totalSize ?: 0
+                val items = if (total <= ConstantsAA.WINDOW_SIZE) {
+                    map(head)
+                } else {
+                    windowRows(key, type, sort, total, windowPrefix, icon, head)
+                }
+                LibraryResult.ofItemList(ImmutableList.copyOf(items), null)
+            }
+        }
+    }
+
+    /**
+     * Labels each window with the title it starts at and the title the next one
+     * starts at -- "Beck - Cake" -- so the boundary name appears on both sides of
+     * the seam and reads as a range rather than as an exclusive bound.
+     *
+     * The boundary titles cost one one-item request each, issued together rather
+     * than in series: on a car's connection the round trips dominate, and they
+     * are independent. Index 0 needs no request because the count came back on a
+     * response that already holds the first window.
+     *
+     * `titleAt` returns null instead of raising, deliberately: these run inside
+     * `async`, and a `raise` crossing a coroutine-builder boundary is exactly
+     * what this codebase forbids. A window whose label could not be fetched
+     * falls back to its position, which is worth more than failing the tab.
+     */
+    private suspend fun windowRows(
+        key: SectionKey,
+        type: Int,
+        sort: String?,
+        total: Int,
+        windowPrefix: String,
+        icon: Int,
+        head: PlexResponse
+    ): List<MediaItem> {
+        val size = ConstantsAA.WINDOW_SIZE
+        val count = (total + size - 1) / size
+        val boundaries = (0 until count).map { it * size } + (total - 1)
+
+        val titles = coroutineScope {
+            boundaries.map { index ->
+                async {
+                    if (index == 0) {
+                        head.mediaContainer?.metadata?.firstOrNull()?.title
+                    } else {
+                        titleAt(key, type, sort, index)
+                    }
+                }
+            }.awaitAll()
+        }
+
+        return (0 until count).map { window ->
+            val from = titles[window]
+            val to = titles[window + 1]
+            val label = if (from != null && to != null) {
+                "${shortened(from)}  -  ${shortened(to)}"
+            } else {
+                "${window * size + 1} - ${minOf((window + 1) * size, total)}"
+            }
+            PlexMediaMapper.windowRowToMediaItem(windowPrefix + (window * size), label, icon)
+        }
+    }
+
+    private suspend fun titleAt(key: SectionKey, type: Int, sort: String?, index: Int): String? =
+        libraryClient.getSectionContent(key, type, index, 1, sort)
+            .getOrNull()
+            ?.mediaContainer?.metadata?.firstOrNull()?.title
 
     /**
      * Plex rejects a multi-type search with HTTP 400, so this issues three and
