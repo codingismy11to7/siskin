@@ -1,8 +1,10 @@
 package com.cappielloantonio.tempo.plex
 
+import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
+import com.cappielloantonio.tempo.util.ConstantsAA
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -27,6 +29,11 @@ class PlexMediaMapperTest {
         if (partKey != null) {
             media = listOf(Media().apply { part = listOf(Part().apply { key = partKey }) })
         }
+    }
+
+    private fun decade(key: String? = "1980", title: String? = "1980s") = Directory().apply {
+        this.key = key
+        this.title = title
     }
 
     // ── part key ──────────────────────────────────────────────
@@ -135,5 +142,39 @@ class PlexMediaMapperTest {
                 track().apply { grandparentTitle = "Bob Dylan"; originalTitle = "  " }
             )
         )
+    }
+
+    // ── decade rows ───────────────────────────────────────────
+
+    @Test
+    fun aDecadeBecomesABrowsableRowCarryingItsKey() {
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID)!!
+
+        assertEquals(ConstantsAA.DECADE_ID + "1980", item.mediaId)
+        assertEquals("1980s", item.mediaMetadata.title)
+        assertTrue(item.mediaMetadata.isBrowsable!!)
+        // Never playable: a playable row opens Now Playing on tap, and a decade
+        // has no single track to point at.
+        assertFalse(item.mediaMetadata.isPlayable!!)
+    }
+
+    @Test
+    fun aDecadeCarriesNoArtworkSoTheCarSuppliesItsOwn() {
+        // Plex offers no composite for a filter value -- see issue #84. Passing
+        // no artworkUri hands the row to the car's own placeholder rather than
+        // to a repeated glyph that would carry no more information.
+        assertNull(PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID)!!
+            .mediaMetadata.artworkUri)
+    }
+
+    @Test
+    fun aDecadeWithoutAKeyOrTitleIsDropped() {
+        // A row whose id carries no decade would fetch nothing on tap. Filtered
+        // on key and title rather than on `type`, because a decade Directory has
+        // no type field at all -- unlike the section Directory that
+        // LibraryClient.musicSections narrows.
+        assertNull(PlexMediaMapper.decadeToMediaItem(decade(key = null), ConstantsAA.DECADE_ID))
+        assertNull(PlexMediaMapper.decadeToMediaItem(decade(key = "  "), ConstantsAA.DECADE_ID))
+        assertNull(PlexMediaMapper.decadeToMediaItem(decade(title = null), ConstantsAA.DECADE_ID))
     }
 }
