@@ -184,6 +184,23 @@ object MediaBrowserTree {
                 )
             )
 
+        treeNodes[ConstantsAA.DECADES_ID] =
+            MediaItemNode(
+                buildMediaItem(
+                    // A list, not a grid: these rows carry no artwork of their
+                    // own -- Plex has no composite for a filter value, see
+                    // issue #84 -- and a grid of placeholders is worse than a
+                    // list of labels. Flip to true when composites land.
+                    browsableChildrenAsGrid = false,
+                    title = appContext.getString(R.string.aa_decades),
+                    mediaId = ConstantsAA.DECADES_ID,
+                    isPlayable = false,
+                    isBrowsable = true,
+                    imageUri = iconUri(R.drawable.ic_aa_decades),
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
+                )
+            )
+
         treeNodes[ConstantsAA.SELECT_LIBRARY_ID] =
             MediaItemNode(
                 buildMediaItem(
@@ -197,6 +214,7 @@ object MediaBrowserTree {
                 )
             )
 
+        treeNodes[ConstantsAA.MORE_ID]!!.addChild(ConstantsAA.DECADES_ID)
         treeNodes[ConstantsAA.MORE_ID]!!.addChild(ConstantsAA.SELECT_LIBRARY_ID)
 
         val root = treeNodes[ConstantsAA.ROOT_ID]!!
@@ -253,6 +271,12 @@ object MediaBrowserTree {
         if (mediaId == SIGNED_OUT_ROW_ID) {
             return signedOutRow(appContext).single()
         }
+
+        // No branch for DECADE_ID rows, deliberately: unlike the picker and
+        // signed-out rows above, nothing calls BrowseTreeInvalidator on a
+        // decade, so there's no live subscription that a null here would
+        // drop. Artist and album rows already navigate correctly with no
+        // branch here either.
         return null
     }
 
@@ -271,6 +295,8 @@ object MediaBrowserTree {
 
             ConstantsAA.SELECT_LIBRARY_ID -> pickerRepository.getServers()
 
+            ConstantsAA.DECADES_ID -> browseRepository.getDecades(ConstantsAA.DECADE_ID)
+
             else -> {
                 if (id.startsWith(ConstantsAA.PLAYLIST_ID)) {
                     return browseRepository.getPlaylistTracks(
@@ -286,6 +312,11 @@ object MediaBrowserTree {
                     return browseRepository.getArtistAlbums(
                         ConstantsAA.ALBUM_ID,
                         id.removePrefix(ConstantsAA.ARTIST_ID)
+                    )
+                }
+                if (id.startsWith(ConstantsAA.DECADE_ID)) {
+                    return browseRepository.getDecadeTracks(
+                        id.removePrefix(ConstantsAA.DECADE_ID)
                     )
                 }
                 if (id.startsWith(ConstantsAA.PICK_LIBRARY_ID)) {
