@@ -168,14 +168,22 @@ class PlexBrowseRepository {
     }
 
     /**
-     * The same query with no shuffle row, for the queue that row builds.
+     * The same query with no shuffle row, for when the row's tap cannot be
+     * served from what is already on screen.
      *
-     * Yields a *different* sample than the browse list showed, because each call
-     * is its own `sort=random` draw and Plex offers no seed to pin one --
-     * measured against PMS 1.43.3, where `sort=random:12345` is accepted and
-     * ignored. That is right here rather than a defect to work around: the row
-     * says "shuffle the decade", not "shuffle what is on screen", and a fresh
-     * draw reaches more of a 17,649-track decade than a 500-row list can show.
+     * `MediaLibraryServiceCallback.cachedDecadeTracks` tries the cached browse
+     * list first -- the tap should queue what the user was looking at, not
+     * spend a round trip drawing a second uniform random 500 that is
+     * statistically identical for the purpose but not the same tracks. This
+     * function is the fallback for when that cache cannot be trusted: cold
+     * after a process restart, or holding a different node's list.
+     *
+     * Each call is its own `sort=random` draw and Plex offers no seed to pin
+     * one -- measured against PMS 1.43.3, where `sort=random:12345` is accepted
+     * and ignored -- so even the fallback path yields a *different* sample than
+     * whatever the browse list last showed. That is accepted here rather than
+     * worked around: it is what "shuffle the decade" means when there is no
+     * displayed list left to honor.
      */
     fun getDecadeTracksForShuffle(decadeKey: String) = decadeTracks(decadeKey) { it }
 

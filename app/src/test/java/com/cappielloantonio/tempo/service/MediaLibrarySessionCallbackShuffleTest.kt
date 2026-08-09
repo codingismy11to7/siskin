@@ -5,6 +5,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.model.SessionMediaItem
@@ -19,6 +20,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -147,6 +149,70 @@ class MediaLibrarySessionCallbackShuffleTest {
         setMediaItems(row)
 
         verify(player).shuffleModeEnabled = true
+    }
+
+    /**
+     * The redundant-fetch fix: the list on screen was already served through
+     * `onGetChildren`, which cached it under `QUEUE_CACHED_SOURCE`. Tapping
+     * "Shuffle this decade" right after browsing it must replay that list
+     * rather than draw a second uniform random 500 -- statistically identical
+     * for the tap, but ~300ms of dead air and a queue that does not match what
+     * was on screen.
+     */
+    @Test
+    fun `tapping a decade shuffle row after browsing it serves the cached list`() {
+        val tracks = albumTracks("1", "2", "3", "4")
+        browseDecade(DECADE, tracks)
+
+        val result = setMediaItems(decadeShuffleRow(DECADE))
+
+        assertEquals(
+            tracks.map { it.mediaId },
+            result.mediaItems.map { it.mediaId }
+        )
+        verify(browseRepository, never()).getDecadeTracksForShuffle(DECADE)
+    }
+
+    /**
+     * The shuffle row itself is playable but has no stream -- it exists to be
+     * tapped, not to be queued. A queue that kept it would "play" a track that
+     * does not exist. `drop(1)` on the cache hit path has to remove exactly it.
+     */
+    @Test
+    fun `the cached decade shuffle queue excludes the shuffle row`() {
+        val tracks = albumTracks("1", "2", "3", "4")
+        browseDecade(DECADE, tracks)
+
+        val result = setMediaItems(decadeShuffleRow(DECADE))
+
+        assertTrue(
+            "queue must not contain the shuffle row: ${result.mediaItems.map { it.mediaId }}",
+            result.mediaItems.none { it.mediaId == ConstantsAA.SHUFFLE_DECADE_ID + DECADE }
+        )
+    }
+
+    /**
+     * `queueSourceCache` is a single slot keyed by one constant, so it can hold
+     * any node's most recent list -- here, a different decade's. The guard has
+     * to notice that and fall back to a fresh fetch rather than queue the wrong
+     * decade's tracks. Seeded by actually browsing the other decade, the same
+     * way a real stale cache would arise, rather than by reaching into the
+     * cache directly.
+     */
+    @Test
+    fun `tapping a decade shuffle row with a mismatched cache falls back to the repository`() {
+        browseDecade(OTHER_DECADE, albumTracks("9"))
+        val freshTracks = albumTracks("1", "2", "3", "4")
+        whenever(browseRepository.getDecadeTracksForShuffle(DECADE))
+            .thenReturn(itemList(freshTracks))
+
+        val result = setMediaItems(decadeShuffleRow(DECADE))
+
+        verify(browseRepository).getDecadeTracksForShuffle(DECADE)
+        assertEquals(
+            freshTracks.map { it.mediaId },
+            result.mediaItems.map { it.mediaId }
+        )
     }
 
     /**
@@ -377,6 +443,39 @@ class MediaLibrarySessionCallbackShuffleTest {
         .setMediaId(ConstantsAA.SHUFFLE_ARTIST_ID + ARTIST)
         .build()
 
+    /**
+     * Built with the same [PlexMediaMapper.shuffleRowToMediaItem] the real row
+     * uses, not a bare `MediaItem.Builder()`: [browseDecade] runs the row
+     * through `LibraryResult.ofItemList`, which requires `isBrowsable` to be
+     * set on every item, and a bare builder trips that check.
+     */
+    private fun decadeShuffleRow(decade: String) =
+        PlexMediaMapper.shuffleRowToMediaItem(ConstantsAA.SHUFFLE_DECADE_ID + decade, "Shuffle this decade")
+
+    /**
+     * What a real browse of a decade leaves in `queueSourceCache`: the shuffle
+     * row at index 0, then its tracks -- see
+     * `PlexBrowseRepository.getDecadeTracks`. Driving it through
+     * `onGetChildren`, the way `MediaLibrarySessionCallbackStartIndexTest`'s
+     * `browseAlbum` does, rather than reaching into the private top-level cache
+     * directly.
+     */
+    private fun browseDecade(decade: String, tracks: List<MediaItem>) {
+        whenever(browseRepository.getDecadeTracks(decade))
+            .thenReturn(itemList(listOf(decadeShuffleRow(decade)) + tracks))
+
+        val children = callback.onGetChildren(
+            mock<MediaLibraryService.MediaLibrarySession>(),
+            controller,
+            ConstantsAA.DECADE_ID + decade,
+            0,
+            ConstantsAA.MAX_ITEMS,
+            null
+        ).get()
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, children.resultCode)
+    }
+
     /** What a browse list leaves in the session cache for a later tap. */
     private fun rememberAsSiblings(tracks: List<MediaItem>) {
         tracks.forEach { track ->
@@ -417,6 +516,7 @@ class MediaLibrarySessionCallbackShuffleTest {
         const val ARTIST = "7"
         const val PLAYLIST = "88"
         const val DECADE = "1980"
+        const val OTHER_DECADE = "1970"
 
         /** Sibling group the cached tracks share -- see SessionMediaItemRepository. */
         const val GROUP = 1_700_000_000_000L
