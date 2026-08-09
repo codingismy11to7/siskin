@@ -347,8 +347,13 @@ assert nothing while appearing to pass.
 - **Cover selection:** four or more thumbs yields four; three yields one;
   thumb-less entries are skipped; the request asks for eight.
 - **Layout is a pure function** — `cells(count, size)` returning destination
-  rects — asserted directly: four gives four quadrants, one gives a single
-  full-bleed rect.
+  rectangles — asserted directly: four gives four quadrants, one gives a single
+  full-bleed rectangle. It returns a **plain Kotlin data class, not
+  `android.graphics.Rect`**, for the same reason `MediaUrlBuilder` uses
+  `java.net.URLEncoder` over `android.net.Uri`: `android.jar` is stubbed in unit
+  tests, so a `Rect` built there is not reliably the `Rect` it looks like, and a
+  test asserting on its fields could pass while measuring nothing. Conversion to
+  `Rect` happens at the draw call, which is not unit-tested anyway.
 - **Bucket arithmetic** across an hour boundary and within one.
 - **Eviction** keeps the two live buckets and deletes older files.
 - **`MediaBrowserTreeTest`:** the `DECADES_ID` node reports the grid style.
