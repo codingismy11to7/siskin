@@ -371,7 +371,7 @@ class MediaLibrarySessionCallback(
      *
      * Total rather than enable-only, and that is the whole point -- shuffle used
      * to stick, because the only thing that ever wrote it turned it on. There is
-     * no third case to handle: tracks and the two shuffle rows are the only
+     * no third case to handle: tracks and the three shuffle rows are the only
      * items in the browse tree with `isPlayable` set, so every other row
      * navigates and never reaches here.
      *
