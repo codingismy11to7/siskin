@@ -7,6 +7,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.model.SessionMediaItem
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
@@ -56,6 +57,12 @@ class MediaLibrarySessionCallbackStartIndexTest {
 
     @Before
     fun setUp() {
+        // Robolectric shares one SharedPreferences instance across test classes,
+        // so this clears "use the car's shuffle" back to its true default rather
+        // than inheriting a false another class wrote. These tests are all
+        // written against the on branch.
+        App.getInstance().preferences.edit().remove("car_shuffle").commit()
+
         // Robolectric keeps these preferences in a static field between methods,
         // so every field the gate reads is written here rather than assumed
         // absent. onGetChildren refuses to browse without a session.

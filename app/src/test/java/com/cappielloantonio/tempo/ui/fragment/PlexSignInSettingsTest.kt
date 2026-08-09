@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.ui.fragment
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
@@ -36,8 +37,11 @@ class PlexSignInSettingsTest {
     @Before
     fun setUp() {
         // Robolectric keeps App's SharedPreferences in a static field between
-        // methods, and both the session and the toggle are read out of it.
-        App.getInstance().preferences.edit().remove("continuous_play").commit()
+        // methods, and both the session and the two toggles are read out of it.
+        App.getInstance().preferences.edit()
+            .remove("continuous_play")
+            .remove("car_shuffle")
+            .commit()
         PlexApi().session = PlexSession(
             accountToken = "t",
             serverUri = "https://example.invalid",
@@ -58,24 +62,57 @@ class PlexSignInSettingsTest {
         else -> emptyList()
     }
 
-    @Test
-    fun `settings offers one switch, off, when nothing has asked for continuous play`() {
-        val switches = switchesIn(settingsScreen())
+    /**
+     * Selects by the row's label rather than by position. render() builds the
+     * rows in source order, so an index would quietly follow any later
+     * reordering and assert against the wrong switch -- and both switches are
+     * MaterialSwitches with nothing else to tell them apart.
+     */
+    private fun switchLabelled(view: View, label: String): MaterialSwitch =
+        switchesIn(view).single { toggle ->
+            val row = toggle.parent as ViewGroup
+            (0 until row.childCount)
+                .map { row.getChildAt(it) }
+                .filterIsInstance<TextView>()
+                .any { it.text.toString() == label }
+        }
 
-        assertEquals(1, switches.size)
-        assertFalse(switches.single().isChecked)
+    private fun continuousPlaySwitch(view: View) =
+        switchLabelled(view, App.getInstance().getString(R.string.car_settings_continuous_play))
+
+    private fun carShuffleSwitch(view: View) =
+        switchLabelled(view, App.getInstance().getString(R.string.car_settings_car_shuffle))
+
+    @Test
+    fun `settings offers both toggles at their defaults`() {
+        val screen = settingsScreen()
+
+        assertEquals(2, switchesIn(screen).size)
+        // The two defaults differ, and each is a decision: continuous play is
+        // off because reaching the end of a queue is not a request for more
+        // music, and the car's shuffle is deferred to because that is what the
+        // app already did.
+        assertFalse(continuousPlaySwitch(screen).isChecked)
+        assertTrue(carShuffleSwitch(screen).isChecked)
     }
 
     @Test
-    fun `the switch reflects a preference that is already on`() {
+    fun `the continuous play switch reflects a preference that is already on`() {
         Preferences.setContinuousPlayEnabled(true)
 
-        assertTrue(switchesIn(settingsScreen()).single().isChecked)
+        assertTrue(continuousPlaySwitch(settingsScreen()).isChecked)
+    }
+
+    @Test
+    fun `the car shuffle switch reflects a preference that has been turned off`() {
+        Preferences.setCarShuffleEnabled(false)
+
+        assertFalse(carShuffleSwitch(settingsScreen()).isChecked)
     }
 
     @Test
     fun `tapping the row turns continuous play on`() {
-        val toggle = switchesIn(settingsScreen()).single()
+        val toggle = continuousPlaySwitch(settingsScreen())
 
         // The row owns the click, not the thumb -- a thumb is a phone-sized
         // target and this is a head unit. performClick() runs the row's listener
@@ -104,13 +141,28 @@ class PlexSignInSettingsTest {
     }
 
     @Test
-    fun `tapping the row again turns it back off`() {
+    fun `tapping the continuous play row again turns it back off`() {
         Preferences.setContinuousPlayEnabled(true)
-        val toggle = switchesIn(settingsScreen()).single()
+        val toggle = continuousPlaySwitch(settingsScreen())
 
         (toggle.parent as View).performClick()
 
         assertFalse(Preferences.isContinuousPlayEnabled())
         assertFalse(toggle.isChecked)
+    }
+
+    /**
+     * The car-shuffle row starts on, so its interesting direction is off -- which
+     * is the tap that opts into a queue this app shuffles.
+     */
+    @Test
+    fun `tapping the car shuffle row turns it off`() {
+        val toggle = carShuffleSwitch(settingsScreen())
+
+        (toggle.parent as View).performClick()
+
+        assertFalse(Preferences.isCarShuffleEnabled())
+        assertFalse(toggle.isChecked)
+        assertFalse(toggle.isClickable)
     }
 }

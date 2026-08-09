@@ -153,6 +153,11 @@ class PlexSignInFragment : Fragment() {
                     Preferences.isContinuousPlayEnabled()
                 ) { Preferences.setContinuousPlayEnabled(it) }
 
+                addToggle(
+                    getString(R.string.car_settings_car_shuffle),
+                    Preferences.isCarShuffleEnabled()
+                ) { Preferences.setCarShuffleEnabled(it) }
+
                 addChoice(getString(R.string.car_settings_sign_out)) {
                     viewModel.signOut()
                     (requireActivity() as LoginHost).onSignedOut()
