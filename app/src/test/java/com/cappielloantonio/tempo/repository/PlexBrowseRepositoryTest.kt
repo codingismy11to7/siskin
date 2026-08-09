@@ -74,7 +74,7 @@ class PlexBrowseRepositoryTest {
         { error("map must not run when the request failed") }
 
     /**
-     * A stand-in for the real `getPlaylists`/`getArtists`/... map lambdas:
+     * A stand-in for the real `getPlaylists`/`getArtistWindows`/... map lambdas:
      * narrow with [PlexBrowseRepository.tracksOf] like a real caller would,
      * then blow up on anything that survives the narrowing. `resultFor`
      * always invokes this on a successful response, even when the eventual
@@ -578,7 +578,7 @@ class PlexBrowseRepositoryTest {
     @Test
     fun getPlaylistsWithNoSectionSelectedReturnsTheSamePermissionDeniedErrorAsTheOtherSectionScopedMethods() {
         // Playlists must be scoped to the chosen music section exactly like
-        // getArtists/getAlbums (see PlexBrowseRepository.getPlaylists KDoc) --
+        // getArtistWindows/getAlbumWindows (see PlexBrowseRepository.getPlaylists KDoc) --
         // without that, this tab shows playlists from whichever library Plex
         // feels like rather than the one the user picked. No section is chosen
         // here (overriding startServer()'s default), so this must hit the same

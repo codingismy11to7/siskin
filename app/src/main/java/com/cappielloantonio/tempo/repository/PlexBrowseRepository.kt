@@ -107,7 +107,7 @@ class PlexBrowseRepository {
     // ── browse nodes ──────────────────────────────────────────
 
     /**
-     * Scoped to the chosen music section, like getArtists/getAlbums:
+     * Scoped to the chosen music section, like getArtistWindows/getAlbumWindows:
      * `sectionID` is the query parameter that actually filters a playlist
      * listing on the server, and `librarySectionID` is silently ignored --
      * both measured against a live PMS 1.43.3 server, see
@@ -222,23 +222,12 @@ class PlexBrowseRepository {
             App.getContext().getString(R.string.aa_shuffle_decade)
         )
 
-    fun getArtists(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val key = sectionKey ?: return errorFuture()
-        return fetch(
-            { libraryClient.getSectionContent(key, PlexItemType.ARTIST, 0, ConstantsAA.MAX_ITEMS) }
-        ) { body ->
-            itemsOf(body, TYPE_ARTIST).mapNotNull {
-                PlexMediaMapper.artistToMediaItem(it, prefix)
-            }
-        }
-    }
-
     /**
      * Deliberately the section listing filtered by artist rather than the
      * artist's own children endpoint, which drops albums -- see
      * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getChildren]
      * for the measurements. Being section-scoped, it needs the chosen music
-     * section the way getArtists and getAlbums do.
+     * section the way getArtistWindows and getAlbumWindows do.
      */
     fun getArtistAlbums(
         albumPrefix: String,
@@ -302,17 +291,6 @@ class PlexBrowseRepository {
         }) { body ->
             tracksOf(body).mapNotNull {
                 PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
-            }
-        }
-    }
-
-    fun getAlbums(prefix: String, sort: String?): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val key = sectionKey ?: return errorFuture()
-        return fetch(
-            { libraryClient.getSectionContent(key, PlexItemType.ALBUM, 0, ConstantsAA.MAX_ITEMS, sort) }
-        ) { body ->
-            itemsOf(body, TYPE_ALBUM).mapNotNull {
-                PlexMediaMapper.albumToMediaItem(it, prefix)
             }
         }
     }
