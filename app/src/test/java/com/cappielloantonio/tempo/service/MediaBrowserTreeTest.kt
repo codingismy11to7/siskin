@@ -195,4 +195,23 @@ class MediaBrowserTreeTest {
             row.mediaMetadata.artist
         )
     }
+
+    @Test
+    fun decadesLeadsTheMoreTabAheadOfSelectLibrary() {
+        val children = MediaBrowserTree.getChildren(ConstantsAA.MORE_ID)
+            .get().value!!.map { it.mediaId }
+
+        assertEquals(
+            listOf(ConstantsAA.DECADES_ID, ConstantsAA.SELECT_LIBRARY_ID),
+            children
+        )
+    }
+
+    @Test
+    fun theDecadesRowIsBrowsableAndNotPlayable() {
+        val item = MediaBrowserTree.getItem(ConstantsAA.DECADES_ID)!!
+
+        assertEquals(true, item.mediaMetadata.isBrowsable)
+        assertEquals(false, item.mediaMetadata.isPlayable)
+    }
 }

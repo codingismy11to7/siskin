@@ -6,6 +6,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
@@ -59,7 +60,8 @@ class LibraryServiceTest {
             start = 0,
             size = 50,
             sort = "titleSort",
-            artistId = "15100"
+            artistId = "15100",
+            decade = null
         )
 
         val request = server.takeRequest()
@@ -121,6 +123,44 @@ class LibraryServiceTest {
     }
 
     @Test
+    fun getDecadesAsksTheSectionsDecadeIndexForAlbums() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+        service().getDecades(sectionId = "4", type = 9)
+
+        val request = server.takeRequest()
+        assertEquals("/library/sections/4/decade", request.requestUrl?.encodedPath)
+        // type=9 (album) is the only type with a decade filter at all. Measured
+        // against PMS 1.43.3: filters?type=10 lists mood, genre, userRating and
+        // audioCodec, and nothing else.
+        assertEquals("9", request.requestUrl?.queryParameter("type"))
+    }
+
+    @Test
+    fun getSectionContentFiltersTracksOnAlbumDecadeNotDecade() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+        service().getSectionContent(
+            sectionId = "4",
+            type = 10,
+            start = 0,
+            size = 500,
+            sort = "random",
+            artistId = null,
+            decade = "1980"
+        )
+
+        val request = server.takeRequest()
+        // album.decade, with the dot. Measured against PMS 1.43.3: a bare
+        // `decade=1980` on type=10 answers 200 with ZERO results rather than
+        // erroring, so the misspelling renders an empty list and reads as an
+        // empty library. `year=1985` fails the same way.
+        assertEquals("1980", request.requestUrl?.queryParameter("album.decade"))
+        assertNull(request.requestUrl?.queryParameter("decade"))
+        assertEquals("random", request.requestUrl?.queryParameter("sort"))
+    }
+
+    @Test
     fun everyEndpointIsCovered() {
         // Fails when an endpoint is added to LibraryService without a test
         // above. The gap this file closes formed exactly that way.
@@ -131,7 +171,8 @@ class LibraryServiceTest {
                 "getChildren",
                 "getNearest",
                 "getMetadata",
-                "getSectionHubs"
+                "getSectionHubs",
+                "getDecades"
             ),
             annotatedEndpoints(LibraryService::class.java)
         )

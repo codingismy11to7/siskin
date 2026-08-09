@@ -11,6 +11,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaConstants
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
+import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
@@ -286,7 +287,7 @@ object PlexMediaMapper {
 
     /**
      * A "shuffle this <thing>" row, at the head of the list of what it shuffles:
-     * an artist's albums, or a playlist's tracks.
+     * an artist's albums, a playlist's tracks, or a decade's tracks.
      *
      * [mediaId] is one of ConstantsAA's shuffle prefixes plus the subject's
      * ratingKey, and carrying it in the id is the whole mechanism --
@@ -317,6 +318,59 @@ object PlexMediaMapper {
                     .build()
             )
             .build()
+
+    /**
+     * A decade row, from the `Directory` entries
+     * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getDecades]
+     * returns.
+     *
+     * Deliberately not built through [browsableItem]: that helper always sets an
+     * artworkUri, falling back to an icon when there is no thumb, and a decade
+     * has neither. Plex exposes no composite for a filter value (issue #84), so
+     * this row carries no artwork at all and the car draws its own placeholder --
+     * a music note on a per-row colour. That colour means nothing, which
+     * `LibraryPickerRepository.browsableRow` rightly calls noisy; it is accepted
+     * here because the alternative is a single repeated glyph carrying just as
+     * little, and because a composite is meant to replace it.
+     *
+     * Filtered on key and title rather than on `type`: a decade Directory has no
+     * `type` field, unlike the section Directory `LibraryClient.musicSections`
+     * narrows.
+     *
+     * [Directory.title] arrives already formatted for display ("1980s") and
+     * [Directory.key] is the first year ("1980"). The key rides in the media id
+     * because that is all the car sends back on a tap.
+     */
+    @JvmStatic
+    fun decadeToMediaItem(directory: Directory, idPrefix: String): MediaItem? {
+        val key = directory.key?.takeIf { it.isNotBlank() } ?: return null
+        val title = directory.title?.takeIf { it.isNotBlank() } ?: return null
+
+        // Only the playable-child key is set. A decade's children are the
+        // shuffle row plus up to 500 tracks -- all playable, and none
+        // browsable -- so EXTRAS_KEY_CONTENT_STYLE_BROWSABLE would be a hint
+        // about a grid that never renders here. See BrowseContentStyle's KDoc:
+        // these keys describe an item's children, not the item itself.
+        val extras = Bundle().apply {
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                BrowseContentStyle.PLAYABLE_CHILD_STYLE
+            )
+        }
+
+        return MediaItem.Builder()
+            .setMediaId(idPrefix + key)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                    .setExtras(extras)
+                    .build()
+            )
+            .build()
+    }
 
     @JvmStatic
     fun playlistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {

@@ -9,6 +9,7 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
+import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.MediaContainer
 import com.cappielloantonio.tempo.plex.base.PlexResponse
@@ -637,5 +638,76 @@ class PlexBrowseRepositoryTest {
         val result = PlexBrowseRepository().getPlaylists("prefix").get(2, TimeUnit.SECONDS)
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
+    }
+
+    // ── getDecades / decade tracks ──────────────────────────────
+
+    private fun decadesBody(vararg decades: String) = """
+        {"MediaContainer":{"Directory":[${
+        decades.joinToString(",") { """{"fastKey":"/x","key":"$it","title":"${it}s"}""" }
+    }]}}
+    """.trimIndent()
+
+    @Test
+    fun decadesComeFromTheSectionsDecadeIndexInServerOrder() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(decadesBody("2000", "1990")))
+
+        val result = await(PlexBrowseRepository().getDecades(ConstantsAA.DECADE_ID))
+
+        val request = server.takeRequest()
+        assertEquals("/library/sections/1/decade", request.requestUrl?.encodedPath)
+        // Albums, the only type with a decade filter.
+        assertEquals(PlexItemType.ALBUM, request.requestUrl?.queryParameter("type")?.toInt())
+        assertEquals(
+            listOf(ConstantsAA.DECADE_ID + "2000", ConstantsAA.DECADE_ID + "1990"),
+            result.value!!.map { it.mediaId }
+        )
+        // Server order is preserved -- Plex returns newest first, which is the
+        // order the car should show, so nothing re-sorts it.
+        assertEquals(listOf("2000s", "1990s"), result.value!!.map { it.mediaMetadata.title })
+    }
+
+    @Test
+    fun directoriesOfReturnsEmptyForAnAbsentOrEmptyContainer() {
+        assertTrue(PlexBrowseRepository.directoriesOf(null).isEmpty())
+        assertTrue(PlexBrowseRepository.directoriesOf(PlexResponse()).isEmpty())
+    }
+
+    @Test
+    fun aDecadesTracksAreSampledRandomlyAndLedByTheShuffleRow() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
+
+        val result = await(PlexBrowseRepository().getDecadeTracks("1980"))
+
+        val request = server.takeRequest()
+        assertEquals("/library/sections/1/all", request.requestUrl?.encodedPath)
+        assertEquals(PlexItemType.TRACK, request.requestUrl?.queryParameter("type")?.toInt())
+        // album.decade, not decade -- a bare `decade` on type=10 answers 200
+        // with an empty container and the screen would render empty.
+        assertEquals("1980", request.requestUrl?.queryParameter("album.decade"))
+        assertNull(request.requestUrl?.queryParameter("decade"))
+        // Random rather than library order: the 2000s holds 17,649 tracks
+        // against a 500 cap, so unsorted would pin every visit to the same
+        // sliver and leave the rest of the decade unreachable by any tap.
+        assertEquals(LibraryClient.SORT_RANDOM, request.requestUrl?.queryParameter("sort"))
+
+        val row = result.value!!.first()
+        assertEquals(ConstantsAA.SHUFFLE_DECADE_ID + "1980", row.mediaId)
+        assertEquals(true, row.mediaMetadata.isPlayable)
+        assertEquals(false, row.mediaMetadata.isBrowsable)
+        // A non-null localConfiguration would make resolveQueueForItem treat the
+        // row as an already-resolved track and play a stream that does not exist.
+        assertNull(row.localConfiguration)
+        assertEquals(listOf("11", "22"), result.value!!.drop(1).map { it.mediaId })
+    }
+
+    @Test
+    fun theQueueADecadeShuffleRowBuildsDoesNotContainTheRowItself() {
+        // A queue holding the row would hold a playable item with no stream.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
+
+        val result = await(PlexBrowseRepository().getDecadeTracksForShuffle("1980"))
+
+        assertEquals(listOf("11", "22"), result.value!!.map { it.mediaId })
     }
 }

@@ -1,12 +1,17 @@
 package com.cappielloantonio.tempo.plex
 
+import androidx.annotation.OptIn
 import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaConstants
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
+import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -22,6 +27,7 @@ import org.robolectric.RobolectricTestRunner
  * returnDefaultValues makes Bundle discard every write and hand back null, under
  * which these assertions would pass against any implementation at all.
  */
+@OptIn(UnstableApi::class)
 @RunWith(RobolectricTestRunner::class)
 class PlexMediaMapperAssemblyTest {
 
@@ -265,5 +271,34 @@ class PlexMediaMapperAssemblyTest {
 
         assertEquals(HeartRating(false), unhearted.mediaMetadata.userRating)
         assertFalse(PlexMediaMapper.readTrackFields(unhearted)!!.isHearted)
+    }
+
+    // ── decade rows ───────────────────────────────────────────
+
+    @Test
+    fun aDecadesPlayableChildrenGetTheListStyleHint() {
+        // A decade's children -- the shuffle row plus up to 500 tracks -- are
+        // all playable. Without this hint the car falls back to its own
+        // default, which may be a grid of identical album art (see
+        // BrowseContentStyle.PLAYABLE_CHILD_STYLE).
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID)!!
+        val extras = item.mediaMetadata.extras!!
+
+        assertEquals(
+            BrowseContentStyle.PLAYABLE_CHILD_STYLE,
+            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE)
+        )
+    }
+
+    @Test
+    fun aDecadeSetsNoBrowsableChildStyleBecauseItHasNoBrowsableChildren() {
+        // A decade's only children are the shuffle row and tracks -- nothing
+        // browsable -- so EXTRAS_KEY_CONTENT_STYLE_BROWSABLE is deliberately
+        // left unset rather than set to some default; setting it would hint
+        // at a grid of content that never renders.
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID)!!
+        val extras = item.mediaMetadata.extras!!
+
+        assertFalse(extras.containsKey(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE))
     }
 }

@@ -163,11 +163,14 @@ class MediaLibrarySessionCallback(
      */
     private fun isShuffleRow(item: MediaItem) =
         item.mediaId.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID) ||
-            item.mediaId.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID)
+            item.mediaId.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID) ||
+            item.mediaId.startsWith(ConstantsAA.SHUFFLE_DECADE_ID)
 
     /**
      * Fetches the tracks a tapped shuffle row stands for, or null if the item is
-     * not a shuffle row. **Issues a network request** -- call it once per tap.
+     * not a shuffle row. **Issues a network request** -- call it once per tap --
+     * except for the decade branch's cache hit, which is already-complete and
+     * issues none; see [cachedDecadeTracks].
      *
      * Dispatch is on the id prefix, which is the only thing the car sends back:
      * it rebuilds the item from the media id alone, so the extras the row was
@@ -190,8 +193,57 @@ class MediaLibrarySessionCallback(
                 browseRepository.getPlaylistTracksForShuffle(playlist)
             }
 
+            id.startsWith(ConstantsAA.SHUFFLE_DECADE_ID) -> {
+                val decade = id.removePrefix(ConstantsAA.SHUFFLE_DECADE_ID)
+                cachedDecadeTracks(decade)
+                    ?: run {
+                        Log.d(TAG, "Fetching a random sample of the ${decade}s to shuffle")
+                        browseRepository.getDecadeTracksForShuffle(decade)
+                    }
+            }
+
             else -> null
         }
+    }
+
+    /**
+     * Replays the decade's own browse list instead of drawing a second
+     * `sort=random` sample, or null to fall back to
+     * [PlexBrowseRepository.getDecadeTracksForShuffle] if the cache cannot be
+     * trusted for this decade.
+     *
+     * The list on screen when the row was tapped is already a uniform random
+     * 500 -- [PlexBrowseRepository.getDecadeTracks] draws it the same way this
+     * fallback would. A second draw is statistically identical for the tap: it
+     * buys no extra randomness, only different tracks, so what plays stops
+     * matching what was on screen. Measured cost of that extra round trip:
+     * ~300ms of dead air before playback on a fast connection, worse on
+     * cellular in a car.
+     *
+     * [queueSourceCache] is a single slot keyed by one constant, so it can hold
+     * any node's most recent list -- a stale or unrelated one would queue the
+     * wrong decade's tracks entirely. [PlexBrowseRepository.getDecadeTracks]
+     * always puts the decade's own shuffle row at index 0, so the cached list
+     * identifies itself: a match there is certain enough to trust, and its
+     * absence (empty cache, cold after a process restart, or a different node's
+     * list) is the signal to fall back rather than guess.
+     *
+     * `drop(1)` rather than filtering by [isShuffleRow]: index 0 is the row by
+     * construction, and dropping exactly the item the guard just matched is
+     * narrower than a predicate that could also drop something else. The queue
+     * must not contain the shuffle row -- it is playable with no stream, and a
+     * queue holding it would "play" a track that does not exist.
+     */
+    private fun cachedDecadeTracks(
+        decade: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
+        val cached = queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE]
+        if (cached?.firstOrNull()?.mediaId != ConstantsAA.SHUFFLE_DECADE_ID + decade) return null
+
+        Log.d(TAG, "Serving decade $decade shuffle from the cached browse list")
+        return Futures.immediateFuture(
+            LibraryResult.ofItemList(ImmutableList.copyOf(cached.drop(1)), null)
+        )
     }
 
     /**
@@ -364,7 +416,7 @@ class MediaLibrarySessionCallback(
      *
      * Total rather than enable-only, and that is the whole point -- shuffle used
      * to stick, because the only thing that ever wrote it turned it on. There is
-     * no third case to handle: tracks and the two shuffle rows are the only
+     * no third case to handle: tracks and the three shuffle rows are the only
      * items in the browse tree with `isPlayable` set, so every other row
      * navigates and never reaches here.
      *

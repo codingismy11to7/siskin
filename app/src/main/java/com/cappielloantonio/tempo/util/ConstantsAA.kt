@@ -16,6 +16,11 @@ object ConstantsAA {
     const val MORE_ID = "[moreID]"
     const val SELECT_LIBRARY_ID = "[selectLibraryID]"
 
+    const val DECADES_ID = "[decadesID]"
+
+    /** Prefix; the remainder is the decade's first year, e.g. "1980". */
+    const val DECADE_ID = "[decadeID]"
+
     /** Prefix; the remainder is the server's machine identifier. */
     const val PICK_SERVER_ID = "[pickServerID]"
 
@@ -42,16 +47,18 @@ object ConstantsAA {
 
     /**
      * Prefixes of the synthetic shuffle rows, each carrying the ratingKey of the
-     * thing to shuffle after it. Nothing on the server answers to these ids:
-     * they are playable rows with no stream, and MediaLibrarySessionCallback
-     * swaps one for its subject's tracks when it is tapped.
+     * thing to shuffle after it -- or, for [SHUFFLE_DECADE_ID], the decade's
+     * first year. Nothing on the server answers to these ids: they are playable
+     * rows with no stream, and MediaLibrarySessionCallback swaps one for its
+     * subject's tracks when it is tapped.
      *
-     * Two prefixes rather than one plus an embedded kind, because the prefix is
+     * Three prefixes rather than one plus an embedded kind, because the prefix is
      * what the callback dispatches on -- it decides which repository call
      * supplies the tracks.
      */
     const val SHUFFLE_ARTIST_ID = "[shuffleArtistID]"
     const val SHUFFLE_PLAYLIST_ID = "[shufflePlaylistID]"
+    const val SHUFFLE_DECADE_ID = "[shuffleDecadeID]"
 
     // Android Auto Source tag
     const val QUEUE_CACHED_SOURCE = "[aaQueueCachedSource]"
