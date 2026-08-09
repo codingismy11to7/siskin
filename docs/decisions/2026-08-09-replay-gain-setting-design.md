@@ -5,12 +5,18 @@
 
 ## Context
 
-Adds the second row to the Settings screen that
+Adds a row to the Settings screen that
 [sign-in behind the car's settings gear](2026-08-01-car-sign-in-entry-point-design.md)
 built and [continuous play](2026-08-02-continuous-play-setting-design.md) first
 put a control on — that design named ReplayGain as one of the rows the `addToggle`
 shape was built for, so this is the row following the pattern rather than
 inventing one.
+
+It was written as the second row and landed as the third:
+[use the car's shuffle](2026-08-09-car-shuffle-setting-design.md) merged while
+this branch was open, which is the arrangement's own argument holding up — two
+rows arriving independently on the same day, each costing a call and four
+translations.
 
 It also reaches into the prefetch path that
 [the Plex browse and playback slice](2026-07-28-plex-browse-playback-design.md)
