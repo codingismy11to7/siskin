@@ -277,6 +277,11 @@ object MediaBrowserTree {
         // decade, so there's no live subscription that a null here would
         // drop. Artist and album rows already navigate correctly with no
         // branch here either.
+        //
+        // That is a different question from the DECADES_ID node itself: like
+        // the three music tabs, it is a registered tree node left stale on a
+        // library switch on purpose -- see LibraryPickerRepository.selectLibrary,
+        // which invalidates the root and the picker node but not those tabs.
         return null
     }
 

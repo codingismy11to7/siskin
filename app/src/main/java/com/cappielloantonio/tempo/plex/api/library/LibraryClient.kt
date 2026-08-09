@@ -100,7 +100,10 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
          */
         const val SORT_TITLE = "titleSort"
 
-        /** Server-side shuffle, for continuous play's random tier. */
+        /**
+         * Server-side shuffle, for continuous play's random tier and for the
+         * decade track fetch.
+         */
         const val SORT_RANDOM = "random"
 
         /**

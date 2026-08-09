@@ -287,7 +287,7 @@ object PlexMediaMapper {
 
     /**
      * A "shuffle this <thing>" row, at the head of the list of what it shuffles:
-     * an artist's albums, or a playlist's tracks.
+     * an artist's albums, a playlist's tracks, or a decade's tracks.
      *
      * [mediaId] is one of ConstantsAA's shuffle prefixes plus the subject's
      * ratingKey, and carrying it in the id is the whole mechanism --

@@ -271,6 +271,12 @@ class PlexBrowseRepository {
      * artist's allLeaves endpoint. Both returned identical counts on a live
      * server (297, 16 and 14 tracks for the three artists sampled), so this
      * picks the query already proven against the artist relation.
+     *
+     * Unsorted does not contradict [decadeTracks] fetching `sort=random`: an
+     * artist has a real running order to fall back to when the car's shuffle
+     * toggle goes off mid-listen, whereas a decade has none, and unsorted there
+     * would mean permanently sampling only the first 500 of the decade in
+     * library order.
      */
     fun getArtistTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
