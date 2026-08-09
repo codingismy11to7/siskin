@@ -134,6 +134,21 @@ class MediaLibrarySessionCallbackShuffleTest {
         verify(player).shuffleModeEnabled = true
     }
 
+    /** The decade row is the third, and dispatches on its own prefix. */
+    @Test
+    fun tappingADecadeShuffleRowTurnsShuffleOn() {
+        val tracks = albumTracks("1", "2", "3", "4")
+        whenever(browseRepository.getDecadeTracksForShuffle(DECADE))
+            .thenReturn(itemList(tracks))
+
+        val row = MediaItem.Builder()
+            .setMediaId(ConstantsAA.SHUFFLE_DECADE_ID + DECADE)
+            .build()
+        setMediaItems(row)
+
+        verify(player).shuffleModeEnabled = true
+    }
+
     /**
      * With the setting off the queue is ours to order, so the player must be
      * told *not* to shuffle -- and told rather than left alone, because a toggle
@@ -401,6 +416,7 @@ class MediaLibrarySessionCallbackShuffleTest {
         const val SERVER = "https://plex.example"
         const val ARTIST = "7"
         const val PLAYLIST = "88"
+        const val DECADE = "1980"
 
         /** Sibling group the cached tracks share -- see SessionMediaItemRepository. */
         const val GROUP = 1_700_000_000_000L

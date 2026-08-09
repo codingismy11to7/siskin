@@ -163,7 +163,8 @@ class MediaLibrarySessionCallback(
      */
     private fun isShuffleRow(item: MediaItem) =
         item.mediaId.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID) ||
-            item.mediaId.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID)
+            item.mediaId.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID) ||
+            item.mediaId.startsWith(ConstantsAA.SHUFFLE_DECADE_ID)
 
     /**
      * Fetches the tracks a tapped shuffle row stands for, or null if the item is
@@ -188,6 +189,12 @@ class MediaLibrarySessionCallback(
                 val playlist = id.removePrefix(ConstantsAA.SHUFFLE_PLAYLIST_ID)
                 Log.d(TAG, "Fetching every track in playlist $playlist to shuffle")
                 browseRepository.getPlaylistTracksForShuffle(playlist)
+            }
+
+            id.startsWith(ConstantsAA.SHUFFLE_DECADE_ID) -> {
+                val decade = id.removePrefix(ConstantsAA.SHUFFLE_DECADE_ID)
+                Log.d(TAG, "Fetching a random sample of the ${decade}s to shuffle")
+                browseRepository.getDecadeTracksForShuffle(decade)
             }
 
             else -> null
