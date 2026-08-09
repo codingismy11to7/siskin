@@ -12,6 +12,8 @@
     <string name="aa_now_browsing_no_server">Stai esplorando: %1$s</string>
     <string name="aa_playlists">Playlist</string>
     <string name="aa_select_library">Seleziona libreria</string>
+    <string name="aa_decades">Decenni</string>
+    <string name="aa_shuffle_decade">Riproduci questo decennio in ordine casuale</string>
 
     <string name="car_settings_continuous_play">Continua a riprodurre musica</string>
     <string name="car_settings_car_shuffle">Usa la riproduzione casuale dell\'auto</string>

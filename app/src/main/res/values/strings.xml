@@ -12,6 +12,8 @@
     <string name="aa_now_browsing_no_server">Now browsing: %1$s</string>
     <string name="aa_playlists">Playlists</string>
     <string name="aa_select_library">Select Library</string>
+    <string name="aa_decades">Decades</string>
+    <string name="aa_shuffle_decade">Shuffle the decade</string>
 
     <!-- A proper noun. Marked non-translatable because every locale file used to
          carry an identical copy of it, which is what a translator does when handed

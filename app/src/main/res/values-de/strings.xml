@@ -12,6 +12,8 @@
     <string name="aa_now_browsing_no_server">Aktuell geöffnet: %1$s</string>
     <string name="aa_playlists">Wiedergabelisten</string>
     <string name="aa_select_library">Bibliothek auswählen</string>
+    <string name="aa_decades">Jahrzehnte</string>
+    <string name="aa_shuffle_decade">Dieses Jahrzehnt zufällig wiedergeben</string>
 
     <string name="car_settings_continuous_play">Musik weiterlaufen lassen</string>
     <string name="car_settings_car_shuffle">Zufallswiedergabe des Autos verwenden</string>
