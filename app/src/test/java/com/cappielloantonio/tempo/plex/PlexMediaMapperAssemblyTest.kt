@@ -301,4 +301,37 @@ class PlexMediaMapperAssemblyTest {
 
         assertFalse(extras.containsKey(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE))
     }
+
+    // ── window rows ───────────────────────────────────────────
+
+    @Test
+    fun windowRowIsBrowsableAndNotPlayable() {
+        val row = PlexMediaMapper.windowRowToMediaItem(
+            "[artistWindowID]50", "Beck  -  Cake", R.drawable.ic_aa_artists
+        )
+        assertEquals("[artistWindowID]50", row.mediaId)
+        assertEquals("Beck  -  Cake", row.mediaMetadata.title)
+        assertEquals(true, row.mediaMetadata.isBrowsable)
+        assertEquals(false, row.mediaMetadata.isPlayable)
+    }
+
+    @Test
+    fun windowRowCarriesAnIconRatherThanNoArtwork() {
+        // An absent artworkUri makes the car draw a music note on a per-row
+        // colour; at 25-56 rows a tab that is a column of unrelated colours.
+        val row = PlexMediaMapper.windowRowToMediaItem(
+            "[albumWindowID]0", "A  -  B", R.drawable.ic_aa_albums
+        )
+        assertNotNull(row.mediaMetadata.artworkUri)
+    }
+
+    @Test
+    fun windowRowNeverCarriesAStreamUri() {
+        // A non-null localConfiguration would make resolveQueueForItem treat the
+        // row as already resolved and "play" a row that has no stream.
+        val row = PlexMediaMapper.windowRowToMediaItem(
+            "[artistWindowID]0", "A  -  B", R.drawable.ic_aa_artists
+        )
+        assertNull(row.localConfiguration)
+    }
 }

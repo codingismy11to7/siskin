@@ -372,6 +372,45 @@ object PlexMediaMapper {
             .build()
     }
 
+    /**
+     * A "Beck - Cake" row standing for one window of a list too long to send in
+     * full.
+     *
+     * A window is a range rather than a library item, so there is nothing on the
+     * server to draw and [icon] is always a local drawable. It is set rather than
+     * left null -- which is what [decadeToMediaItem] does -- because the car fills
+     * an absent artworkUri with a music note on a per-row colour, and a tab
+     * holding 25 to 56 windows turns that into a column of unrelated colours
+     * competing for a driver's attention. One repeated glyph says just as little
+     * and says it quietly.
+     *
+     * Its children *are* artists or albums, so unlike [decadeToMediaItem] this
+     * sets the browsable content style -- those children render as a grid.
+     */
+    @JvmStatic
+    fun windowRowToMediaItem(mediaId: String, title: String, icon: Int): MediaItem {
+        val extras = Bundle().apply {
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                BrowseContentStyle.browsableChildStyle(true)
+            )
+        }
+
+        return MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                    .setArtworkUri(ResourceUris.forResource(icon))
+                    .setExtras(extras)
+                    .build()
+            )
+            .build()
+    }
+
     @JvmStatic
     fun playlistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
