@@ -173,9 +173,10 @@ public class ReplayGainUtil {
 
     private static void submitPrefetch(MediaItem item) {
         prefetchExecutor.execute(() -> {
+            Context context = App.getContext();
             try (MetadataRetriever retriever =
-                         new MetadataRetriever.Builder(App.getContext(), item)
-                                 .setMediaSourceFactory(metadataSourceFactory(App.getContext()))
+                         new MetadataRetriever.Builder(context, item)
+                                 .setMediaSourceFactory(metadataSourceFactory(context))
                                  .build()) {
 
                 TrackGroupArray trackGroups =
@@ -235,7 +236,25 @@ public class ReplayGainUtil {
                         }
                     }
 
-                    queuePendingForNextTrack(p);
+                    // Only re-arm the pending gain if this prefetch is actually
+                    // for the upcoming track. Every item in PREFETCH_WINDOW
+                    // completes through this same callback, including ones two
+                    // or three tracks out that cannot affect the pending slot --
+                    // and queuePendingForNextTrack ends in
+                    // audioProcessor.setPendingGain, which sets
+                    // hasPendingFlushGain = true. onPositionDiscontinuity calls
+                    // clearPendingGain() specifically to hold that flag false
+                    // until onFlush runs, so the same-format branch in
+                    // ReplayGainAudioProcessor cannot promote a future track's
+                    // gain onto the one currently playing. A prefetch for a
+                    // distant track landing inside that window would re-arm the
+                    // flag anyway and lose the race onPositionDiscontinuity is
+                    // trying to win. That promotion also overwrites
+                    // baselineGainLinear, so a lost race is not a transient
+                    // glitch -- the wrong level holds for the rest of the track.
+                    int nextIndex = p.getNextMediaItemIndex();
+                    MediaItem next = nextIndex == C.INDEX_UNSET ? null : p.getMediaItemAt(nextIndex);
+                    if (next != null && item.mediaId.equals(next.mediaId)) queuePendingForNextTrack(p);
                 });
 
             } catch (Throwable e) {
