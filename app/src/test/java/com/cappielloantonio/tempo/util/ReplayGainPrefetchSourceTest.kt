@@ -27,6 +27,14 @@ import org.robolectric.RuntimeEnvironment
  *
  * What it does not pin is the mp4 extractor flags, which are not observable from
  * outside a MediaSource.Factory. Those are a comment and a code review.
+ *
+ * Nor does it pin that submitPrefetch actually calls setMediaSourceFactory in
+ * the first place -- a revert to the two-argument MetadataRetriever.Builder
+ * would leave this suite green, because that builder still produces a working
+ * MetadataRetriever, just one wired to its own DefaultMediaSourceFactory
+ * instead of the one under test here. MetadataRetriever exposes no way to ask
+ * which factory it ended up with, so there is no cheap assertion for this
+ * either; it stays a comment and a code review too.
  */
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)

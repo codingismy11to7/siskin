@@ -231,7 +231,17 @@ all. A label naming the feature can be false about nothing.
   open the same resource at once. `DownloadUtil` sets no `CacheDataSource`
   flags, so `FLAG_BLOCK_ON_CACHE` is unset and a locked key falls through to
   upstream instead of blocking. Worst case is a duplicate read of the overlap,
-  which is what happens on every track today.
+  which is what happens on every track today. There is a second edge past
+  that one: `StreamingCacheDataSource.close()` calls
+  `cache.removeResource(cacheKey)` whenever the key's `ContentMetadata` has no
+  content length, and `CacheDataSource` only writes content length when it
+  wins the hole span and is the one writing to the cache. A prefetch that
+  loses that race to playback, or hits an upstream response with no
+  `Content-Length`, closes with the length unset and removes the cached spans
+  for that key -- including bytes playback itself wrote. Checked
+  `SimpleCache.removeResource`: it is synchronised and only unlinks files, and
+  an in-flight reader keeps its file descriptor, so what this costs is cache
+  churn -- a span refetched later -- not corruption, a crash, or wrong audio.
 - **`prefetchedIds` only clears on `release()`**, so it grows with the number of
   distinct tracks played in a session. Bounded by library size and left alone.
 - **An untagged library** resolves every gain to zero and plays at preamp-only,

@@ -290,10 +290,10 @@ class PlexSignInFragment : Fragment() {
      * Settings qualifies too, and deliberately. It is the one screen here that
      * is *expected* to grow, so it was given the list arrangement back when it
      * held nothing but a Sign out button -- ahead of the second row, precisely
-     * so that the row's arrival would cost nothing. The row has since arrived:
-     * the continuous-play toggle sits above Sign out, and adding it was only
-     * adding a row. Transcoding and ReplayGain are still to come and are meant
-     * to be the same.
+     * so that the row's arrival would cost nothing. Two rows have since
+     * arrived: continuous play and replay gain both sit above Sign out, and
+     * adding each was only adding a row. Transcoding is still to come and is
+     * meant to be the same.
      *
      * Every other state is a single short block, and those read best as one
      * centred composition -- headings included. So the scroll view shrinks to

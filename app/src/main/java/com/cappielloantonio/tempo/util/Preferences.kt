@@ -128,11 +128,23 @@ object Preferences {
             .apply()
     }
 
+    /**
+     * Defaults to true. Nothing writes this key -- the Settings screen behind
+     * the car's gear offers no row for it -- so the default is the effective
+     * value. Now that [setReplayGainEnabled] gives the mode above a writer,
+     * this key's writer-less status is the exception on this screen rather
+     * than the rule.
+     */
     @JvmStatic
     fun isReplayGainPreventClipping(): Boolean {
         return App.getInstance().preferences.getBoolean(REPLAY_GAIN_PREVENT_CLIPPING, true)
     }
 
+    /**
+     * Defaults to 0 dB. Nothing writes this key either, same as
+     * [isReplayGainPreventClipping] just above -- no row, so the default is
+     * the effective value.
+     */
     @JvmStatic
     fun getLoudnessPreamp(): Float {
         return App.getInstance().preferences.getInt(LOUDNESS_PREAMP, 0).toFloat()

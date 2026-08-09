@@ -39,8 +39,7 @@ import java.util.UUID
 @UnstableApi
 class ResolvedStreamFixture {
 
-    lateinit var liveServer: MockWebServer
-        private set
+    private lateinit var liveServer: MockWebServer
 
     private lateinit var api: PlexApi
 
@@ -127,6 +126,6 @@ class ResolvedStreamFixture {
     }
 
     companion object {
-        const val DEFAULT_STREAMING_CACHE_SIZE = 256L
+        private const val DEFAULT_STREAMING_CACHE_SIZE = 256L
     }
 }
