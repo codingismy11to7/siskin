@@ -307,11 +307,7 @@ class PlexBrowseRepository {
     }
 
     fun getAlbumTracks(albumRatingKey: String) =
-        fetch({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { body ->
-            tracksOf(body).mapNotNull {
-                PlexMediaMapper.trackToMediaItem(it, ConstantsAA.QUEUE_CACHED_SOURCE, serverUri, token)
-            }
-        }
+        cachedTracks({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { it }
 
     /**
      * Plex rejects a multi-type search with HTTP 400, so this issues three and
