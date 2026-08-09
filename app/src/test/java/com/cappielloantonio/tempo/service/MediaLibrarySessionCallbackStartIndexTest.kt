@@ -57,8 +57,10 @@ class MediaLibrarySessionCallbackStartIndexTest {
 
     @Before
     fun setUp() {
-        // Defaults to true, and a leak of false from another class would make
-        // the three on-branch tests below pass for the wrong reason.
+        // Robolectric shares one SharedPreferences instance across test classes,
+        // so this clears "use the car's shuffle" back to its true default rather
+        // than inheriting a false another class wrote. These tests are all
+        // written against the on branch.
         App.getInstance().preferences.edit().remove("car_shuffle").commit()
 
         // Robolectric keeps these preferences in a static field between methods,

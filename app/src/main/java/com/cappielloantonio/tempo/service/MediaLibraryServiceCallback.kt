@@ -297,7 +297,7 @@ class MediaLibrarySessionCallback(
         // nothing: the list it returns is already shuffled, so track one is a
         // random draw.
         val carShuffle = Preferences.isCarShuffleEnabled()
-        enableShuffleIfShuffleRow(firstItem, mediaSession.player, carShuffle)
+        setShuffleForAddedRow(firstItem, mediaSession.player, carShuffle)
 
         return resolveQueueForItem(firstItem, mediaItems, carShuffle)
     }
@@ -379,37 +379,43 @@ class MediaLibrarySessionCallback(
     }
 
     /**
-     * Turns the player's shuffle on when the tapped row is the shuffle row.
+     * Sets the player's shuffle from an added shuffle row, and writes nothing
+     * for anything else.
      *
-     * Deliberately enable-only, and deliberately **not** replaced by
-     * [setShuffleForTap] the way the [onSetMediaItems] call site was.
-     * [onAddMediaItems] is not only a browse-tap path: MediaManager's
-     * continuous play appends instant-mix tracks through
-     * `browser.addMediaItems`, which arrives here too. A total setter would
-     * clear shuffle *mid-listen* every time the queue topped itself up -- and
-     * that top-up fires precisely when a queue is running low, which is the
-     * long shuffle-this-artist session it would ruin. Enable-only cannot: it
-     * fires only on a shuffle row, and continuous play never sends one.
+     * **Only a shuffle row ever reaches the write**, and that early return is
+     * the guarantee this function is shaped around. [onAddMediaItems] is not
+     * only a browse-tap path: MediaManager's continuous play appends
+     * instant-mix tracks through `browser.addMediaItems`, which arrives here
+     * too. A setter that wrote on every call would clear shuffle *mid-listen*
+     * every time the queue topped itself up -- and that top-up fires precisely
+     * when a queue is running low, which is the long shuffle-this-artist
+     * session it would ruin. A mix track is never a shuffle row, so continuous
+     * play returns before touching the player, exactly as it did when this was
+     * enable-only.
+     *
+     * Enable-only was the older way of guaranteeing that, and it is no longer
+     * enough. `shuffleModeEnabled` outlives the process -- BaseMediaService
+     * persists it in `onShuffleModeEnabledChanged` and restores it when the
+     * player is built -- so declining to write leaves whatever the last listen
+     * left, which is routinely `true`. Tap the row with "use the car's shuffle"
+     * on, turn the setting off, tap the row again: [resolveQueueForItem] hands
+     * over a shuffled queue and the player shuffles it a second time. That
+     * double shuffle is the jumping-around the setting exists to remove, so for
+     * a shuffle row the write has to be total.
      *
      * Called from [onAddMediaItems] rather than from [resolveQueueForItem],
      * because that override runs on the session's application thread while the
      * queue future completes on whichever thread the coroutine finished on --
      * and the player may only be touched from the former.
-     *
-     * Gated on "use the car's shuffle" as well, and that gate is separate from
-     * the enable-only argument above rather than a restatement of it. Enable-only
-     * is about *which items* may touch the toggle; the gate is about whether the
-     * toggle should be touched at all, given [resolveQueueForItem] has already
-     * shuffled the list this path is about to return.
      */
-    private fun enableShuffleIfShuffleRow(
+    private fun setShuffleForAddedRow(
         firstItem: MediaItem,
         player: Player,
         carShuffle: Boolean
     ) {
-        if (!isShuffleRow(firstItem) || !carShuffle) return
-        Log.d(TAG, "shuffle row tapped: enabling player shuffle")
-        player.shuffleModeEnabled = true
+        if (!isShuffleRow(firstItem)) return
+        Log.d(TAG, "shuffle row added: shuffle -> $carShuffle")
+        player.shuffleModeEnabled = carShuffle
     }
 
     private fun resolveQueueForItem(

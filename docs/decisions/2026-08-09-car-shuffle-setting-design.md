@@ -115,13 +115,19 @@ the session's application thread.
       shuffleRow               -> 0                            // new
       else                     -> indexOfFirst { … } ?: carStartIndex
 
-- **`enableShuffleIfShuffleRow`**, reached from `onAddMediaItems` — gated on the
-  setting too. Without it, a car that adds rather than sets still flips the
-  toggle on, and the queue it just received was already shuffled.
+- **`enableShuffleIfShuffleRow`**, reached from `onAddMediaItems` — takes the
+  setting and becomes `setShuffleForAddedRow`, writing
+  `player.shuffleModeEnabled = carShuffle` for a shuffle row. Declining to
+  enable is not enough: the toggle persists across process death, so a car that
+  adds rather than sets would hand over an already-shuffled queue to a player
+  still shuffling from an earlier listen. The rename follows the write becoming
+  total.
 
 `PlexBrowseRepository` is **unchanged**. The shuffle lives at the tap, not at the
 fetch, so `getArtistTracks` and `getPlaylistTracksForShuffle` keep returning
-library order under both settings. Only their KDoc's reasoning changes.
+library order under both settings. Only `getArtistTracks`' KDoc reasoning
+changes; `getPlaylistTracksForShuffle`'s says nothing about shuffling, only why
+the row is left out of the queue.
 
 ### The opening-position branch is load-bearing
 
@@ -156,9 +162,11 @@ each still documents a real hazard on the branch it belongs to.
   still fixes the sticking it was written for.
 - `openingPositionIn` — the random-opener paragraph now covers one of two
   openers.
-- `enableShuffleIfShuffleRow` — its argument for being enable-only is about
-  continuous play topping up the queue mid-listen, and is untouched by the
-  setting. The gate is added ahead of it.
+- `enableShuffleIfShuffleRow` — its argument is about continuous play topping up
+  the queue mid-listen, and that hazard is untouched by the setting. What
+  changes is which property answers it: no longer "this only ever turns shuffle
+  on", but "only a shuffle row writes the toggle here, and a mix track is never
+  one". The KDoc keeps the reasoning and changes its subject.
 
 ## Settings row
 
@@ -184,7 +192,8 @@ lint defect rather than baseline noise.
   tests assert the on branch and must pass unchanged.
 - The `onAddMediaItems` case beside
   `addingTracksToARunningQueueLeavesShuffleAlone` — with the setting off, a
-  shuffle row added rather than set does not enable the toggle.
+  shuffle row added rather than set clears the toggle rather than merely
+  declining to set it.
 - **`PlexSignInSettingsTest`** — the row is present with its label, its switch
   is `isClickable == false`, and tapping the row writes the preference.
 
