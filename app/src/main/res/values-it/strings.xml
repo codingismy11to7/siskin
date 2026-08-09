@@ -13,6 +13,7 @@
     <string name="aa_playlists">Playlist</string>
     <string name="aa_select_library">Seleziona libreria</string>
 
+    <string name="car_settings_continuous_play">Continua a riprodurre musica</string>
     <string name="car_settings_sign_out">Esci</string>
     <string name="car_settings_title">Impostazioni</string>
     <string name="car_sign_in_action">Connetti</string>
