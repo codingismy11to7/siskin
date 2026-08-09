@@ -121,7 +121,7 @@ More
 │   ├── 2010s
 │   ⋮
 │   └── 1950s
-│       ├── ▸ Shuffle the decade
+│       ├── ▸ Shuffle this decade
 │       └── up to 500 tracks, randomly sampled
 └── Server Select
 ```
@@ -225,7 +225,7 @@ Two strings, and therefore **ten entries** across the five locales
 (`values`, `-de`, `-es`, `-fr`, `-it`), plus one drawable:
 
 - `aa_decades` → "Decades"
-- `aa_shuffle_decade` → "Shuffle the decade"
+- `aa_shuffle_decade` → "Shuffle this decade"
 
 `aa_shuffle_decade` is fixed text rather than a format string. "Shuffle the
 1980s" would need a `%s` and would raise, in four other languages, the question
