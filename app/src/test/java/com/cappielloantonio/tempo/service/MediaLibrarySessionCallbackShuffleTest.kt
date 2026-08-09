@@ -33,10 +33,14 @@ import org.robolectric.RuntimeEnvironment
 /**
  * What shuffle mode a browse tap leaves the player in.
  *
- * The rule is that the tapped row decides *whether* the toggle is written and
- * "use the car's shuffle" decides *what*: a shuffle row writes the setting's
- * value, every other tap turns shuffle off. Before this, nothing ever turned it
- * off, so one tap on "Shuffle this artist" left every later tap shuffled.
+ * The two paths that write it follow different rules. On the set path every
+ * tap writes the toggle: a shuffle row writes whatever "use the car's
+ * shuffle" is set to, every other tap writes false. Before this, nothing ever
+ * turned it off, so one tap on "Shuffle this artist" left every later tap
+ * shuffled. On the add path the tapped row decides *whether* the toggle is
+ * written at all -- only a shuffle row reaches the write, because that path
+ * doubles as how continuous play tops up a running queue with mix tracks, and
+ * those must never touch shuffle mid-listen.
  *
  * Robolectric for the same reasons as the start-index tests: the fixtures are
  * real MediaItems built with a Uri and a Bundle, and the callback's constructor
@@ -60,9 +64,12 @@ class MediaLibrarySessionCallbackShuffleTest {
 
     @Before
     fun setUp() {
-        // Defaults to true, and a leak of false from another class would make
-        // the on-branch tests below pass for the wrong reason. Left uncounted
-        // deliberately: a number here rots the next time one is added.
+        // Defaults to true. Robolectric shares one SharedPreferences instance
+        // across test classes, so without this reset another class writing
+        // this key would decide this class's starting state instead. The
+        // tests below that rely on the default are written against the on
+        // branch, so a leaked false would make them fail, not pass for the
+        // wrong reason.
         App.getInstance().preferences.edit().remove("car_shuffle").commit()
 
         // Robolectric keeps these preferences in a static field between methods,
@@ -269,6 +276,29 @@ class MediaLibrarySessionCallbackShuffleTest {
      */
     @Test
     fun addingTracksToARunningQueueLeavesShuffleAlone() {
+        val mixTrack = albumTracks("9").single()
+
+        callback.onAddMediaItems(session, controller, listOf(mixTrack)).get()
+
+        verify(player, never()).shuffleModeEnabled = false
+        verify(player, never()).shuffleModeEnabled = true
+    }
+
+    /**
+     * The same mid-drive top-up, under the setting that makes it matter most:
+     * with "use the car's shuffle" off the app is doing the shuffling, and a
+     * mix track topping up a running queue still must not touch the toggle.
+     *
+     * This pins a guarantee rather than a live bug. `setShuffleForAddedRow`'s
+     * early return tests `isShuffleRow(firstItem)`, not `carShuffle` -- the
+     * guard cannot see the setting at all, so today it is structurally
+     * impossible for this case to differ from the on-setting sibling above.
+     * The test exists so a future edit that folds `carShuffle` into that guard
+     * gets caught here instead of on the road.
+     */
+    @Test
+    fun `with the car's shuffle off adding tracks to a running queue leaves shuffle alone`() {
+        Preferences.setCarShuffleEnabled(false)
         val mixTrack = albumTracks("9").single()
 
         callback.onAddMediaItems(session, controller, listOf(mixTrack)).get()

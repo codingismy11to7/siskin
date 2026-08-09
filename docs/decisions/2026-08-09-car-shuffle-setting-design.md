@@ -189,7 +189,14 @@ lint defect rather than baseline noise.
 - **`MediaLibrarySessionCallbackShuffleTest`**, extended — with the setting off,
   a shuffle-row tap builds a queue that is a permutation of the fetched tracks,
   leaves `shuffleModeEnabled` false, and opens at index 0. The three existing
-  tests assert the on branch and must pass unchanged.
+  tests assert the on branch and must pass unchanged. A fourth, new test on
+  the on branch — `with the car's shuffle on the queue keeps the order it was
+  fetched in` — asserts the queue comes through in the exact order the
+  repository fetched it in; it is the only test that would fail if
+  `if (carShuffle) tracks else tracks.shuffled()` collapsed to an
+  unconditional `.shuffled()`, which would otherwise pass the rest of the
+  suite and silently ship the opt-in behaviour to everyone who never opens
+  Settings.
 - The `onAddMediaItems` case beside
   `addingTracksToARunningQueueLeavesShuffleAlone` — with the setting off, a
   shuffle row added rather than set clears the toggle rather than merely
