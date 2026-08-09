@@ -495,6 +495,9 @@ class PlexBrowseRepository {
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_FORBIDDEN = 403
 
+        /** Characters per side of a window label; see [shortened]. */
+        private const val LABEL_TITLE_MAX = 16
+
         private const val TYPE_TRACK = "track"
         private const val TYPE_ALBUM = "album"
         private const val TYPE_ARTIST = "artist"
@@ -570,6 +573,28 @@ class PlexBrowseRepository {
                 LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED)
             } else {
                 LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+            }
+
+        /**
+         * Both ends of a range have to fit one row, so each is cut to half of
+         * what fits rather than letting the car truncate the label as a whole --
+         * which costs the *second* title entirely, the one that says where the
+         * window stops. Measured on a 1024x768 head unit: a row holds roughly 34
+         * characters, and album titles routinely exceed that on their own ("A
+         * State of Trance Classics, Vol. 2"), so this is the common case for
+         * albums rather than an edge case.
+         *
+         * Known limitation: 16 characters cannot always tell adjacent windows
+         * apart -- a run of "A State of Trance Classics, Vol. N" yields two rows
+         * reading the same. Widening trades directly against the second title
+         * fitting.
+         */
+        @JvmStatic
+        internal fun shortened(title: String): String =
+            if (title.length <= LABEL_TITLE_MAX) {
+                title
+            } else {
+                title.take(LABEL_TITLE_MAX - 1).trimEnd() + "…"
             }
     }
 }
