@@ -4,6 +4,7 @@ import android.util.Log
 import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
+import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.RatingKey
@@ -41,14 +42,16 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         start: Int,
         size: Int,
         sort: String? = null,
-        artistId: String? = null
+        artistId: String? = null,
+        decade: String? = null
     ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(
             TAG,
-            "getSectionContent($sectionKey, type=$type, start=$start, size=$size, sort=$sort, artistId=$artistId)"
+            "getSectionContent($sectionKey, type=$type, start=$start, size=$size, " +
+                "sort=$sort, artistId=$artistId, decade=$decade)"
         )
         return plexCall(PlexHost.Server) {
-            service.getSectionContent(sectionKey.value, type, start, size, sort, artistId)
+            service.getSectionContent(sectionKey.value, type, start, size, sort, artistId, decade)
         }
     }
 
@@ -69,6 +72,18 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
 
     suspend fun getSectionHubs(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getSectionHubs(sectionKey.value) }
+
+    /**
+     * The decades this section's albums fall into. Always asks for
+     * [PlexItemType.ALBUM] -- see [LibraryService.getDecades] for why no other
+     * type has an answer.
+     */
+    suspend fun getDecades(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "getDecades($sectionKey)")
+        return plexCall(PlexHost.Server) {
+            service.getDecades(sectionKey.value, PlexItemType.ALBUM)
+        }
+    }
 
     companion object {
         /** Plex reports a music library section's type as "artist". */

@@ -41,6 +41,15 @@ interface LibraryService {
      * `artistId` narrows an album listing to one artist, and is the only way this
      * app asks for an artist's albums -- see [getChildren] for why the obvious
      * endpoint is not used.
+     *
+     * `decade` narrows a *track* listing to one decade, and is spelled
+     * `album.decade` rather than `decade` for the same reason `artistId` is
+     * spelled `artist.id`: it filters on a related item's field, not on the
+     * track's own. Getting it wrong is silent. Measured against PMS 1.43.3,
+     * `type=10&decade=1980` answers 200 with an empty container, as does
+     * `type=10&year=1985`; only `type=10&album.decade=1980` returns tracks. What
+     * a caller sees is an empty browse list, which reads as an empty library
+     * rather than as a malformed request.
      */
     @GET("library/sections/{sectionId}/all")
     suspend fun getSectionContent(
@@ -49,7 +58,8 @@ interface LibraryService {
         @Header("X-Plex-Container-Start") start: Int,
         @Header("X-Plex-Container-Size") size: Int,
         @Query("sort") sort: String?,
-        @Query("artist.id") artistId: String?
+        @Query("artist.id") artistId: String?,
+        @Query("album.decade") decade: String?
     ): PlexResponse
 
     /**
@@ -102,4 +112,29 @@ interface LibraryService {
 
     @GET("hubs/sections/{sectionId}")
     suspend fun getSectionHubs(@Path("sectionId") sectionId: String): PlexResponse
+
+    /**
+     * The decades this section's albums fall into, newest first.
+     *
+     * `type` must be 9 (album). A music section exposes a decade filter for
+     * albums only -- measured against PMS 1.43.3, where `filters?type=9` lists
+     * genre, mood, style, year, decade, studio, format, subformat, collection
+     * and unmatched, while `filters?type=10` lists only mood, genre, userRating
+     * and audioCodec. Asking for the decades of *tracks* is not an error, it is
+     * an empty answer.
+     *
+     * Returns `Directory` entries, not `Metadata`, and each carries only
+     * `fastKey`, `key` and `title` -- no `type`, and no artwork of any kind.
+     * `key` is the decade's first year ("1980"); `title` is already formatted
+     * for display ("1980s"), so nothing here needs localising or deriving.
+     * Decades with no albums are simply absent, so there are no gaps to filter.
+     *
+     * Takes no paging: a library spans a handful of decades and the response is
+     * bounded by that.
+     */
+    @GET("library/sections/{sectionId}/decade")
+    suspend fun getDecades(
+        @Path("sectionId") sectionId: String,
+        @Query("type") type: Int
+    ): PlexResponse
 }
