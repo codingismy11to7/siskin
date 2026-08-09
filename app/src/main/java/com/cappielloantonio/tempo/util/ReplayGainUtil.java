@@ -14,6 +14,7 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.Player;
+import androidx.media3.common.Timeline;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.exoplayer.MetadataRetriever;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -29,6 +30,7 @@ import com.cappielloantonio.tempo.model.ReplayGain;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -47,6 +49,13 @@ public class ReplayGainUtil {
 
     private static final ConcurrentHashMap<String, List<ReplayGain>> gainDataMap =
             new ConcurrentHashMap<>();
+
+    /**
+     * How far ahead gains are fetched. One is the strict minimum -- the pending
+     * gain handed to the audio processor at a gapless boundary -- and leaves a
+     * skip landing on a track whose gain is not known yet.
+     */
+    private static final int PREFETCH_WINDOW = 3;
 
     private static final Set<String> prefetchedIds = ConcurrentHashMap.newKeySet();
 
@@ -72,14 +81,49 @@ public class ReplayGainUtil {
         playerRef = new WeakReference<>(null);
     }
 
+    /**
+     * The next {@code count} items the player will actually reach, current one
+     * excluded.
+     *
+     * Excluded because it needs no retriever: {@link #setReplayGain} reads the
+     * current track's gain out of the metadata the player itself parsed, on
+     * onTracksChanged, at no network cost. The prefetch exists for the *next*
+     * track, whose gain has to be known before the gapless boundary arrives.
+     *
+     * Walks the timeline rather than counting up from the index, which is what
+     * makes it right under shuffle -- the same reason
+     * QueuePreloader.collectUpcomingStreamUris does. The {@code currentIndex}
+     * guard is what stops REPEAT_MODE_ONE, where getNextWindowIndex returns the
+     * index it was given, from filling the window with copies of the playing
+     * track.
+     */
+    @VisibleForTesting
+    public static List<MediaItem> upcomingPrefetchTargets(Player player, int count) {
+        Timeline timeline = player.getCurrentTimeline();
+        if (timeline.isEmpty()) return Collections.emptyList();
+
+        int currentIndex = player.getCurrentMediaItemIndex();
+        if (currentIndex == C.INDEX_UNSET) return Collections.emptyList();
+
+        List<MediaItem> items = new ArrayList<>(count);
+        int index = currentIndex;
+
+        while (items.size() < count) {
+            index = timeline.getNextWindowIndex(
+                    index, player.getRepeatMode(), player.getShuffleModeEnabled());
+            if (index == C.INDEX_UNSET || index == currentIndex) break;
+            items.add(player.getMediaItemAt(index));
+        }
+
+        return items;
+    }
+
     public static void prefetchQueueGains(Player player) {
         if (Objects.equals(Preferences.getReplayGainMode(), "disabled")) return;
 
         playerRef = new WeakReference<>(player);
 
-        for (int i = 0; i < player.getMediaItemCount(); i++) {
-            MediaItem item = player.getMediaItemAt(i);
-
+        for (MediaItem item : upcomingPrefetchTargets(player, PREFETCH_WINDOW)) {
             if (item.mediaId == null || item.localConfiguration == null) continue;
 
             if (!prefetchedIds.add(item.mediaId)) continue;
