@@ -26,9 +26,11 @@ class MediaContainer {
     var totalSize: Int? = null
 
     /**
-     * Index of the first item in this page. media3 needs it to place a page
-     * within the whole list; without it a client can only guess from the
-     * request it sent.
+     * Index of the first item in this page. Nothing in this app reads it --
+     * media3 never actually pages a browse node, see LibraryService's KDoc --
+     * but it is part of the MediaContainer shape Plex returns whenever
+     * Start/Size are sent, so it is kept for fidelity with the real response
+     * rather than trimmed.
      */
     var offset: Int? = null
 

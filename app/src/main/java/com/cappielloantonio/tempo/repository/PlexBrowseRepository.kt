@@ -31,8 +31,12 @@ import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 private const val TAG = "PlexBrowseRepository"
 
@@ -104,7 +108,7 @@ class PlexBrowseRepository {
     // ── browse nodes ──────────────────────────────────────────
 
     /**
-     * Scoped to the chosen music section, like getArtists/getAlbums:
+     * Scoped to the chosen music section, like getArtistWindows/getAlbumWindows:
      * `sectionID` is the query parameter that actually filters a playlist
      * listing on the server, and `librarySectionID` is silently ignored --
      * both measured against a live PMS 1.43.3 server, see
@@ -219,23 +223,12 @@ class PlexBrowseRepository {
             App.getContext().getString(R.string.aa_shuffle_decade)
         )
 
-    fun getArtists(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val key = sectionKey ?: return errorFuture()
-        return fetch(
-            { libraryClient.getSectionContent(key, PlexItemType.ARTIST, 0, ConstantsAA.MAX_ITEMS) }
-        ) { body ->
-            itemsOf(body, TYPE_ARTIST).mapNotNull {
-                PlexMediaMapper.artistToMediaItem(it, prefix)
-            }
-        }
-    }
-
     /**
      * Deliberately the section listing filtered by artist rather than the
      * artist's own children endpoint, which drops albums -- see
      * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getChildren]
      * for the measurements. Being section-scoped, it needs the chosen music
-     * section the way getArtists and getAlbums do.
+     * section the way getArtistWindows and getAlbumWindows do.
      */
     fun getArtistAlbums(
         albumPrefix: String,
@@ -303,19 +296,201 @@ class PlexBrowseRepository {
         }
     }
 
-    fun getAlbums(prefix: String, sort: String?): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+    fun getAlbumTracks(albumRatingKey: String) =
+        cachedTracks({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { it }
+
+    // ── windowed browse ────────────────────────────────────────
+    //
+    // The car asks for every node in full -- onGetChildren always arrives as
+    // page=0, pageSize=Integer.MAX_VALUE, and reaching the end of a short list
+    // provokes no follow-up request -- so paging cannot come from the car. It
+    // comes from the tree instead: a list too long to browse becomes a list of
+    // ranges, each of which is a node the car can ask for in full.
+
+    /**
+     * The Artists tab: window rows, or the artists themselves if they fit.
+     *
+     * [LibraryClient.SORT_DISPLAY_TITLE] rather than the server default, and the
+     * window listing and its contents must pass the *same* sort -- the window ids
+     * are offsets into this ordering, so a mismatch would point every window at
+     * the wrong slice.
+     */
+    fun getArtistWindows(windowPrefix: String, artistPrefix: String) =
+        windowed(PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_aa_artists) { body ->
+            itemsOf(body, TYPE_ARTIST).mapNotNull {
+                PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+            }
+        }
+
+    fun getArtistWindow(start: Int, artistPrefix: String) = window(
+        PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, start
+    ) { body ->
+        itemsOf(body, TYPE_ARTIST).mapNotNull {
+            PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+        }
+    }
+
+    /** The Albums tab, ordered by displayed name for the same reason. */
+    fun getAlbumWindows(windowPrefix: String, albumPrefix: String) =
+        windowed(PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_aa_albums) { body ->
+            itemsOf(body, TYPE_ALBUM).mapNotNull {
+                PlexMediaMapper.albumToMediaItem(it, albumPrefix)
+            }
+        }
+
+    fun getAlbumWindow(start: Int, albumPrefix: String) = window(
+        PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, start
+    ) { body ->
+        itemsOf(body, TYPE_ALBUM).mapNotNull {
+            PlexMediaMapper.albumToMediaItem(it, albumPrefix)
+        }
+    }
+
+    private fun window(
+        type: Int,
+        sort: String?,
+        start: Int,
+        map: (PlexResponse) -> List<MediaItem>
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch(
-            { libraryClient.getSectionContent(key, PlexItemType.ALBUM, 0, ConstantsAA.MAX_ITEMS, sort) }
-        ) { body ->
-            itemsOf(body, TYPE_ALBUM).mapNotNull {
-                PlexMediaMapper.albumToMediaItem(it, prefix)
+            { libraryClient.getSectionContent(key, type, start, ConstantsAA.WINDOW_SIZE, sort) },
+            map
+        )
+    }
+
+    /**
+     * One request decides the shape: it asks for the first window and reads
+     * `totalSize` off the same response, so a library that fits costs exactly
+     * what it costs today and never pays for the window machinery.
+     *
+     * The HTTP/Unreachable handling below is the second decider of what a
+     * browse outcome means to media3, alongside [resultFor] -- see that
+     * function's KDoc for why this one cannot just call it and hand-copies the
+     * same routing instead. Keep the two in step.
+     */
+    private fun windowed(
+        type: Int,
+        sort: String?,
+        windowPrefix: String,
+        icon: Int,
+        map: (PlexResponse) -> List<MediaItem>
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return launchInto {
+            either {
+                val head = when (
+                    val outcome =
+                        libraryClient.getSectionContent(key, type, 0, ConstantsAA.WINDOW_SIZE, sort)
+                ) {
+                    is Either.Right -> outcome.value
+                    is Either.Left -> when (val failure = outcome.value) {
+                        is PlexTransportFailure.Http -> {
+                            Log.w(TAG, "windowed browse failed with HTTP ${failure.code}")
+                            return@either errorFor(failure.code)
+                        }
+
+                        is PlexTransportFailure.Unreachable -> raise(failure)
+                    }
+                }
+
+                // Not observed against PMS, which always returns totalSize once
+                // Start/Size were sent -- but silent is the wrong failure mode
+                // for a response that omits it anyway: falling back to 0 renders
+                // a flat, truncated first WINDOW_SIZE items with no sign
+                // anything went wrong, which is strictly worse than the bug this
+                // branch exists to fix. Logged so it is at least diagnosable
+                // from logcat if it ever happens.
+                val total = head.mediaContainer?.totalSize ?: run {
+                    Log.w(
+                        TAG,
+                        "windowed browse response carried no totalSize -- " +
+                            "falling back to a flat, possibly-truncated first " +
+                            "${ConstantsAA.WINDOW_SIZE} items"
+                    )
+                    0
+                }
+                val items = if (total <= ConstantsAA.WINDOW_SIZE) {
+                    map(head)
+                } else {
+                    windowRows(key, type, sort, total, windowPrefix, icon, head)
+                }
+                LibraryResult.ofItemList(ImmutableList.copyOf(items), null)
             }
         }
     }
 
-    fun getAlbumTracks(albumRatingKey: String) =
-        cachedTracks({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { it }
+    /**
+     * Labels each window with the title it starts at and the title the next one
+     * starts at -- "Beck - Cake" -- so the boundary name appears on both sides of
+     * the seam and reads as a range rather than as an exclusive bound.
+     *
+     * The boundary titles cost one one-item request each, issued together rather
+     * than in series: on a car's connection the round trips dominate, and they
+     * are independent. Index 0 needs no request because the count came back on a
+     * response that already holds the first window.
+     *
+     * `titleAt` returns null instead of raising, deliberately: these run inside
+     * `async`, and a `raise` crossing a coroutine-builder boundary is exactly
+     * what this codebase forbids. A window whose label could not be fetched
+     * falls back to its position, which is worth more than failing the tab.
+     *
+     * Each `titleAt` call is also capped at [BOUNDARY_TITLE_TIMEOUT_MS] via
+     * `withTimeoutOrNull`. `awaitAll` below has no deadline of its own tighter
+     * than the shared OkHttp client's one-minute call timeout, so one stalled
+     * boundary request would otherwise hold the whole tab at a spinner for up to
+     * a minute on a car's connection -- where the flat list this design replaced
+     * rendered in a single round trip. A timeout is just another way for
+     * `titleAt` to come back null, so it degrades to the same positional
+     * fallback ("1 - 50") rather than hanging. Wrapping it here is safe only
+     * because `titleAt` already returns `String?` and never raises -- wrapping
+     * something that could `raise` in `withTimeoutOrNull` would reintroduce the
+     * coroutine-builder hazard this codebase forbids, since a timeout cancels by
+     * throwing into the block.
+     */
+    private suspend fun windowRows(
+        key: SectionKey,
+        type: Int,
+        sort: String?,
+        total: Int,
+        windowPrefix: String,
+        icon: Int,
+        head: PlexResponse
+    ): List<MediaItem> {
+        val size = ConstantsAA.WINDOW_SIZE
+        val count = (total + size - 1) / size
+        val boundaries = (0 until count).map { it * size } + (total - 1)
+
+        val titles = coroutineScope {
+            boundaries.map { index ->
+                async {
+                    if (index == 0) {
+                        head.mediaContainer?.metadata?.firstOrNull()?.title
+                    } else {
+                        withTimeoutOrNull(BOUNDARY_TITLE_TIMEOUT_MS) {
+                            titleAt(key, type, sort, index)
+                        }
+                    }
+                }
+            }.awaitAll()
+        }
+
+        return (0 until count).map { window ->
+            val from = titles[window]
+            val to = titles[window + 1]
+            val label = if (from != null && to != null) {
+                "${shortened(from)}  -  ${shortened(to)}"
+            } else {
+                "${window * size + 1} - ${minOf((window + 1) * size, total)}"
+            }
+            PlexMediaMapper.windowRowToMediaItem(windowPrefix + (window * size), label, icon)
+        }
+    }
+
+    private suspend fun titleAt(key: SectionKey, type: Int, sort: String?, index: Int): String? =
+        libraryClient.getSectionContent(key, type, index, 1, sort)
+            .getOrNull()
+            ?.mediaContainer?.metadata?.firstOrNull()?.title
 
     /**
      * Plex rejects a multi-type search with HTTP 400, so this issues three and
@@ -495,6 +670,17 @@ class PlexBrowseRepository {
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_FORBIDDEN = 403
 
+        /** Characters per side of a window label; see [shortened]. */
+        private const val LABEL_TITLE_MAX = 16
+
+        /**
+         * Ceiling on one boundary-title request within [windowRows]. Well under
+         * the shared OkHttp client's one-minute call timeout, so a slow label
+         * degrades to a positional fallback instead of holding the whole tab at
+         * a spinner.
+         */
+        private const val BOUNDARY_TITLE_TIMEOUT_MS = 3_000L
+
         private const val TYPE_TRACK = "track"
         private const val TYPE_ALBUM = "album"
         private const val TYPE_ARTIST = "artist"
@@ -535,6 +721,12 @@ class PlexBrowseRepository {
          * reachability problem is not a rejection. That distinction used to be
          * held by a narrow catch clause and a comment warning not to widen it;
          * it is a `when` over a sealed type now.
+         *
+         * [windowed] is the second decider: it cannot call this function --
+         * it needs the head response itself for `totalSize`, not just its
+         * Left/Right -- so it hand-copies the same HTTP/Unreachable routing
+         * inline. The two must be kept in step; a change here to what an HTTP
+         * failure or an Unreachable failure means has to be mirrored there too.
          */
         internal suspend fun resultFor(
             request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
@@ -570,6 +762,28 @@ class PlexBrowseRepository {
                 LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED)
             } else {
                 LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+            }
+
+        /**
+         * Both ends of a range have to fit one row, so each is cut to half of
+         * what fits rather than letting the car truncate the label as a whole --
+         * which costs the *second* title entirely, the one that says where the
+         * window stops. Measured on a 1024x768 head unit: a row holds roughly 34
+         * characters, and album titles routinely exceed that on their own ("A
+         * State of Trance Classics, Vol. 2"), so this is the common case for
+         * albums rather than an edge case.
+         *
+         * Known limitation: 16 characters cannot always tell adjacent windows
+         * apart -- a run of "A State of Trance Classics, Vol. N" yields two rows
+         * reading the same. Widening trades directly against the second title
+         * fitting.
+         */
+        @JvmStatic
+        internal fun shortened(title: String): String =
+            if (title.length <= LABEL_TITLE_MAX) {
+                title
+            } else {
+                title.take(LABEL_TITLE_MAX - 1).trimEnd() + "…"
             }
     }
 }

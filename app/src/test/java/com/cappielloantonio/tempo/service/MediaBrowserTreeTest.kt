@@ -3,14 +3,19 @@ package com.cappielloantonio.tempo.service
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaConstants
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
+import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.ConstantsAA
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
@@ -213,5 +218,45 @@ class MediaBrowserTreeTest {
 
         assertEquals(true, item.mediaMetadata.isBrowsable)
         assertEquals(false, item.mediaMetadata.isPlayable)
+    }
+
+    @Test
+    fun aWindowIdRoutesToItsOwnSliceRatherThanToAnItem() {
+        // "[artistWindowID]50" must not be mistaken for "[artistID]..." -- the
+        // window tests run first for exactly that reason.
+        assertTrue(ConstantsAA.ARTIST_WINDOW_ID.startsWith("[artist"))
+        assertFalse(ConstantsAA.ARTIST_WINDOW_ID.startsWith(ConstantsAA.ARTIST_ID))
+        assertFalse(ConstantsAA.ALBUM_WINDOW_ID.startsWith(ConstantsAA.ALBUM_ID))
+
+        // The assertions above only rule out a spelling collision between the
+        // id constants; they never call getChildren, so a wrong branch ORDER
+        // in the routing below, or a swapped prefix argument, would still pass
+        // them. This exercises the routing itself.
+        val repository = mock<PlexBrowseRepository>()
+        MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
+
+        MediaBrowserTree.getChildren(ConstantsAA.ARTIST_WINDOW_ID + "50")
+        verify(repository).getArtistWindow(50, ConstantsAA.ARTIST_ID)
+
+        MediaBrowserTree.getChildren(ConstantsAA.ALBUM_WINDOW_ID + "50")
+        verify(repository).getAlbumWindow(50, ConstantsAA.ALBUM_ID)
+    }
+
+    @Test
+    fun theArtistsAndAlbumsTabsRenderTheirChildrenAsLists() {
+        // Their children are window rows carrying no artwork of their own; a grid
+        // of placeholders is worse than a list, the same call decadeToMediaItem
+        // already makes.
+        MediaBrowserTree.buildTree()
+        val artists = MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(false),
+            artists.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+        )
+        val albums = MediaBrowserTree.getItem(ConstantsAA.ALBUMS_ID)!!
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(false),
+            albums.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+        )
     }
 }

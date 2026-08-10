@@ -47,46 +47,17 @@ import java.util.concurrent.TimeUnit
 @RunWith(RobolectricTestRunner::class)
 class PlexBrowseRepositoryTest {
 
-    private lateinit var server: MockWebServer
+    private val fixture = PlexBrowseTestServer()
+    private val server: MockWebServer get() = fixture.server
 
     @Before
     fun startServer() {
-        server = MockWebServer()
-        server.start()
-        // Points the repository's Retrofit base URL at the mock server. It reads
-        // this back through PlexApi.session on every call (see refreshClients),
-        // so it must be set before the first request rather than injected --
-        // and accountToken and musicSectionKey have to be present too, because
-        // PlexSession only exists as a complete unit: a real serverUri with no
-        // section chosen is a state the atomic session model no longer allows,
-        // so an incomplete one here would fall back to the placeholder base URL
-        // exactly like a missing one.
-        //
-        // Every field is reset explicitly rather than assumed absent: App
-        // caches the SharedPreferences in a static field that Robolectric does
-        // not reset between methods, so a value written by one test is
-        // otherwise visible to the next. machineIdentifier and serverCandidates
-        // are part of that now too -- a value left over from an address-recovery
-        // test would let a later test's fetch reach ServerAddressBook.shared's
-        // re-probe path and race real addresses instead of hitting the mock
-        // server it thinks it is talking to.
-        PlexApi().apply {
-            accountToken = "account-token"
-            serverUri = server.url("/").toString()
-            musicSectionKey = "1"
-            machineIdentifier = null
-            serverCandidates = null
-        }
-        // ServerAddressBook.shared is the real production singleton -- there is
-        // exactly one, by design -- so its failure-cooldown clock is shared with
-        // every other test in this run, not just this class. Nothing else can
-        // reach the private field that holds it, so this is the reset.
-        ServerAddressBook.shared.resetForTest()
+        fixture.start()
     }
 
     @After
     fun stopServer() {
-        server.shutdown()
+        fixture.stop()
     }
 
     private fun response(vararg items: Metadata) = PlexResponse().apply {
@@ -103,7 +74,7 @@ class PlexBrowseRepositoryTest {
         { error("map must not run when the request failed") }
 
     /**
-     * A stand-in for the real `getPlaylists`/`getArtists`/... map lambdas:
+     * A stand-in for the real `getPlaylists`/`getArtistWindows`/... map lambdas:
      * narrow with [PlexBrowseRepository.tracksOf] like a real caller would,
      * then blow up on anything that survives the narrowing. `resultFor`
      * always invokes this on a successful response, even when the eventual
@@ -607,7 +578,7 @@ class PlexBrowseRepositoryTest {
     @Test
     fun getPlaylistsWithNoSectionSelectedReturnsTheSamePermissionDeniedErrorAsTheOtherSectionScopedMethods() {
         // Playlists must be scoped to the chosen music section exactly like
-        // getArtists/getAlbums (see PlexBrowseRepository.getPlaylists KDoc) --
+        // getArtistWindows/getAlbumWindows (see PlexBrowseRepository.getPlaylists KDoc) --
         // without that, this tab shows playlists from whichever library Plex
         // feels like rather than the one the user picked. No section is chosen
         // here (overriding startServer()'s default), so this must hit the same

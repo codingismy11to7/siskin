@@ -9,10 +9,12 @@ import androidx.media3.session.MediaConstants
  *
  * The two content-style keys describe an item's **children**, not the item
  * itself: EXTRAS_KEY_CONTENT_STYLE_BROWSABLE styles the browsable children and
- * EXTRAS_KEY_CONTENT_STYLE_PLAYABLE the playable ones. An album is therefore
- * rendered as a tile because the *Albums tab* asked for a browsable grid, not
- * because the album says so — what the album's own hints control is how its
- * tracks appear.
+ * EXTRAS_KEY_CONTENT_STYLE_PLAYABLE the playable ones. An album is rendered as
+ * a tile because the *window row* above it asked for a browsable grid, not
+ * because the Albums tab did -- the tab itself now asks for a list, since its
+ * own children are window rows rather than albums -- and not because the
+ * album says so either; what the album's own hints control is how its tracks
+ * appear.
  *
  * Writing one value to both keys, which is what this replaced, made every node
  * that wanted a grid of albums also ask for a grid of tracks.

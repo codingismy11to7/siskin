@@ -12,7 +12,6 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.repository.LibraryPickerRepository
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.BrowseContentStyle
@@ -111,11 +110,11 @@ object MediaBrowserTree {
      * four and silently drops a fifth, so do not add another top-level tab here
      * -- nest it under More instead.
      *
-     * Grid-versus-list styling is frozen at what a default install showed before
-     * the settings screen was removed: albums and artists as grids
-     * (AA_ALBUM_VIEW defaulted true), playlists as a list (AA_PLAYLIST_VIEW
-     * defaulted false). It governs each tab's *browsable* children only -- see
-     * BrowseContentStyle for why tracks are never affected by it.
+     * Grid-versus-list styling: Playlists is a list, and Artists and Albums
+     * became lists when they started serving window rows -- those carry no
+     * artwork of their own, and a grid of placeholders is worse than a list, the
+     * same call decadeToMediaItem makes. It governs each tab's *browsable*
+     * children only -- see BrowseContentStyle for why tracks are never affected.
      */
     fun buildTree() {
         treeNodes.clear()
@@ -148,7 +147,7 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.ARTISTS_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    browsableChildrenAsGrid = true,
+                    browsableChildrenAsGrid = false,
                     title = appContext.getString(R.string.aa_artists),
                     mediaId = ConstantsAA.ARTISTS_ID,
                     isPlayable = false,
@@ -161,7 +160,7 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.ALBUMS_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    browsableChildrenAsGrid = true,
+                    browsableChildrenAsGrid = false,
                     title = appContext.getString(R.string.aa_albums),
                     mediaId = ConstantsAA.ALBUMS_ID,
                     isPlayable = false,
@@ -290,10 +289,15 @@ object MediaBrowserTree {
             ConstantsAA.ROOT_ID -> treeNodes[ConstantsAA.ROOT_ID]!!.getChildren()
 
             ConstantsAA.PLAYLIST_ID -> browseRepository.getPlaylists(ConstantsAA.PLAYLIST_ID)
-            ConstantsAA.ARTISTS_ID -> browseRepository.getArtists(ConstantsAA.ARTIST_ID)
-            ConstantsAA.ALBUMS_ID -> browseRepository.getAlbums(
-                ConstantsAA.ALBUM_ID,
-                LibraryClient.SORT_TITLE
+
+            ConstantsAA.ARTISTS_ID -> browseRepository.getArtistWindows(
+                ConstantsAA.ARTIST_WINDOW_ID,
+                ConstantsAA.ARTIST_ID
+            )
+
+            ConstantsAA.ALBUMS_ID -> browseRepository.getAlbumWindows(
+                ConstantsAA.ALBUM_WINDOW_ID,
+                ConstantsAA.ALBUM_ID
             )
 
             ConstantsAA.MORE_ID -> treeNodes[ConstantsAA.MORE_ID]!!.getChildren()
@@ -306,6 +310,22 @@ object MediaBrowserTree {
                 if (id.startsWith(ConstantsAA.PLAYLIST_ID)) {
                     return browseRepository.getPlaylistTracks(
                         id.removePrefix(ConstantsAA.PLAYLIST_ID)
+                    )
+                }
+                // Before the ARTIST_ID/ALBUM_ID tests below: no window id is a
+                // prefix of an item id, but keeping the narrower match first
+                // means that stays true by construction rather than by
+                // coincidence of spelling.
+                if (id.startsWith(ConstantsAA.ARTIST_WINDOW_ID)) {
+                    return browseRepository.getArtistWindow(
+                        id.removePrefix(ConstantsAA.ARTIST_WINDOW_ID).toIntOrNull() ?: 0,
+                        ConstantsAA.ARTIST_ID
+                    )
+                }
+                if (id.startsWith(ConstantsAA.ALBUM_WINDOW_ID)) {
+                    return browseRepository.getAlbumWindow(
+                        id.removePrefix(ConstantsAA.ALBUM_WINDOW_ID).toIntOrNull() ?: 0,
+                        ConstantsAA.ALBUM_ID
                     )
                 }
                 if (id.startsWith(ConstantsAA.ALBUM_ID)) {

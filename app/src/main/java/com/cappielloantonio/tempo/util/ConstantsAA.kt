@@ -12,6 +12,23 @@ object ConstantsAA {
     const val ARTISTS_ID = "[artistsID]"
     const val PLAYLIST_ID = "[playlistID]"
 
+    /**
+     * How many items a browse window holds.
+     *
+     * The car keeps roughly the first 227KB of a browse list and silently drops
+     * the rest -- measured at 293 artists (774B each) and 282 albums (806B
+     * each), two surfaces agreeing within 0.2%. That is the backstop, not the
+     * target: a list long enough to hit it is already unusable in a car, so this
+     * is set for legibility while driving and the byte ceiling never comes near.
+     */
+    const val WINDOW_SIZE = 50
+
+    /** Prefix; the remainder is the window's first index, e.g. "50". */
+    const val ARTIST_WINDOW_ID = "[artistWindowID]"
+
+    /** Prefix; the remainder is the window's first index, e.g. "50". */
+    const val ALBUM_WINDOW_ID = "[albumWindowID]"
+
     // More tab
     const val MORE_ID = "[moreID]"
     const val SELECT_LIBRARY_ID = "[selectLibraryID]"

@@ -90,15 +90,24 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         private const val MUSIC_SECTION_TYPE = "artist"
 
         /**
-         * Sorts an album listing by album title, for the Albums tab.
+         * Sorts by the name actually shown, rather than by Plex's sort title.
          *
-         * Passed explicitly rather than left to the server default, which is
-         * artist order -- and artist order is illegible in the car, because the
-         * album tile's large text is the album title and the artist is only its
-         * subtitle, so the grid reads as unsorted. That mismatch is why the
-         * "view by albums" entry this used to be contrasted with was deleted.
+         * `titleSort` is what [SORT_TITLE] and the server default order by, and
+         * in a car it files things where nobody will look for them. Measured on
+         * a live library of 1204 artists: 521 carry an explicit `titleSort`, and
+         * they are not all the tidy "The Beatles" -> "Beatles" case -- "Max
+         * Graham" sorts as "Deep Funk Project" and lands at index 292, among the
+         * Ds, while "The Hilliard Ensemble" sorts as "[anonymous]" and comes
+         * first in the whole library. Under `sort=title` the same artist lands
+         * at 645, under M.
+         *
+         * This matters more since the browse tree windows a long list into
+         * labelled ranges: a window is named after the item at its edge, so an
+         * ordering the names disagree with produces ranges that read as broken.
+         * Ordering by the displayed name is what keeps a label and its contents
+         * the same thing.
          */
-        const val SORT_TITLE = "titleSort"
+        const val SORT_DISPLAY_TITLE = "title"
 
         /**
          * Server-side shuffle, for continuous play's random tier and for the
