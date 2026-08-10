@@ -280,21 +280,21 @@ object DecadeCompositeArt {
         }
     }
 
-    /** Data-saving mode is honoured exactly as the album path honours it: a
-     * cover that is not already cached fails the build, and the row falls back
-     * to the car's placeholder rather than spending the driver's data.
+    /** Data-saving mode is honoured exactly as the album path honours it. The
+     * preference it reads is frozen at false -- the settings screen that set it
+     * is gone -- so the branch is unreachable today and is kept only so the two
+     * artwork paths cannot drift apart.
      *
-     * In practice that means this composite essentially never builds under
-     * data-saving mode: [MediaUrlBuilder.artworkUrl] bakes width and height
-     * into the transcode URL, so the cell-sized cover this requests is a
-     * different Glide cache key from the 512px cover the album grid
-     * populates. Nothing else on the device ever requests this size, so
-     * `onlyRetrieveFromCache(true)` almost always misses rather than
-     * occasionally falling back. */
+     * centerCrop because the draw below passes a null source rect, which maps
+     * whatever arrives onto the whole cell: submit(edge, edge) only downsamples
+     * and preserves aspect ratio, so an oblong cover would be squashed square
+     * rather than cropped. Plex covers are square in practice, so this removes
+     * a case rather than fixing a visible defect. */
     private fun loadCover(context: Context, url: String, edge: Int): Bitmap? = try {
         var request = Glide.with(context)
             .asBitmap()
             .load(url)
+            .centerCrop()
             .diskCacheStrategy(DiskCacheStrategy.DATA)
         if (Preferences.isDataSavingMode()) {
             request = request.onlyRetrieveFromCache(true)
