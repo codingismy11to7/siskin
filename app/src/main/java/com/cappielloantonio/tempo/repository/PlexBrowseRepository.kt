@@ -533,18 +533,34 @@ class PlexBrowseRepository {
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch({ libraryClient.getFirstCharacters(key) }) { body ->
-            val rows = directoriesOf(body).mapNotNull { letterRow(it, letterPrefix) }
-            val total = directoriesOf(body).sumOf { it.size ?: 0 }
+            val buckets = directoriesOf(body)
+            val rows = buckets.mapNotNull { letterRow(it, letterPrefix) }
+            val total = buckets.sumOf { it.size ?: 0 }
+
+            // Not observed against PMS, which always sets size on every bucket --
+            // but silent is the wrong failure mode here too, the same as in
+            // windowed(): a renamed or stripped field reads identically to
+            // total == 0 below and would render the flat path's first
+            // WINDOW_SIZE artists with no sign anything went wrong. Logged so
+            // it is at least diagnosable from logcat; a real empty library (no
+            // buckets at all) is not this case and does not log.
+            if (buckets.isNotEmpty() && buckets.all { it.size == null }) {
+                Log.w(
+                    TAG,
+                    "firstCharacter index returned buckets with no size on any " +
+                        "of them -- falling back to bucket rows with no counts"
+                )
+            }
 
             if (total == 0 || total > ConstantsAA.WINDOW_SIZE) {
                 rows
             } else {
                 // Small enough that buckets would be worse than a list. Falls
                 // back to the rows -- not to an error and not to an empty tab --
-                // if this second request fails: they are already built, and they
-                // are a tab where every artist is two taps away. Same reasoning
-                // as titleAt, one level up.
-                flatArtists(key, artistPrefix) ?: rows
+                // if this second request fails or comes back empty: they are
+                // already built, and they are a tab where every artist is two
+                // taps away. Same reasoning as titleAt, one level up.
+                flatArtists(key, artistPrefix)?.takeIf { it.isNotEmpty() } ?: rows
             }
         }
     }
@@ -579,8 +595,12 @@ class PlexBrowseRepository {
      *
      * [LibraryClient.SORT_DISPLAY_TITLE] so this matches what the windowed path
      * returns at the same size -- a small library must not reorder itself when
-     * the setting is flipped. Null on any failure, which the caller reads as
-     * "keep the bucket rows".
+     * the setting is flipped. Null on any failure. That is not the only case
+     * the caller has to guard: a successful request can still answer 200 with
+     * no `Metadata`, which comes back here as an empty (non-null) list -- Plex
+     * omitting per-endpoint fields is not hypothetical, see the decade index.
+     * [getArtistLetters] therefore falls back to the bucket rows on null *or*
+     * empty, both read as "keep the bucket rows".
      */
     private suspend fun flatArtists(key: SectionKey, artistPrefix: String): List<MediaItem>? =
         libraryClient.getSectionContent(

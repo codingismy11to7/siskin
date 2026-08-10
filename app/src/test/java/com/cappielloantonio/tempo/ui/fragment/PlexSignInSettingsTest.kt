@@ -255,6 +255,7 @@ class PlexSignInSettingsTest {
 
         assertFalse(Preferences.isArtistsByInitialEnabled())
         assertFalse(artistsByInitialSwitch(settingsScreen()).isChecked)
+        assertFalse(toggle.isClickable)
 
         // The preference write alone is not the point of this row: the car
         // caches the Artists tab's browse list and will not re-fetch it on its

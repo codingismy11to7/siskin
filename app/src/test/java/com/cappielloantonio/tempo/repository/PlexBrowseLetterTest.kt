@@ -2,7 +2,9 @@ package com.cappielloantonio.tempo.repository
 
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.ResourceUris
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import org.junit.After
@@ -93,6 +95,37 @@ class PlexBrowseLetterTest {
     }
 
     @Test
+    fun letterRowsCarryTheArtistsIcon() = runTest {
+        fixture.server.enqueue(ok(index(Triple("A", "A", 79), Triple("B", "B", 1))))
+
+        val rows = PlexBrowseRepository()
+            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get().value!!
+
+        val expected = ResourceUris.forResource(R.drawable.ic_aa_artists)
+        rows.forEach { assertEquals(expected, it.mediaMetadata.artworkUri) }
+    }
+
+    @Test
+    fun anIndexWhoseBucketsCarryNoSizeAtAllFallsBackToTheBucketRowsWithOneRequest() = runTest {
+        // A renamed or stripped `size` field looks identical to total == 0 --
+        // the guard that already exists -- but it means something different: a
+        // real answer with every count missing, not a genuinely empty library.
+        // Either way there is nothing to flatten against, so this stays on the
+        // bucket rows and costs no second request.
+        fixture.server.enqueue(ok(index(Triple("A", "A", null), Triple("B", "B", null))))
+
+        val result = PlexBrowseRepository()
+            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        assertEquals(
+            listOf("[artistLetterID]A", "[artistLetterID]B"),
+            result.value!!.map { it.mediaId }
+        )
+        assertEquals(1, fixture.server.requestCount)
+    }
+
+    @Test
     fun anIndexWhoseCountsFitReturnsTheArtistsFlat() = runTest {
         // 3 + 2 = 5 artists. Five letter rows for five artists is a worse tab
         // than a list of five, and this keeps a small library behaving the same
@@ -123,6 +156,26 @@ class PlexBrowseLetterTest {
         // or an error would both be worse than that.
         fixture.server.enqueue(ok(index(Triple("A", "A", 3), Triple("B", "B", 2))))
         fixture.server.enqueue(MockResponse().setResponseCode(500))
+
+        val result = PlexBrowseRepository()
+            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        assertEquals(
+            listOf("[artistLetterID]A", "[artistLetterID]B"),
+            result.value!!.map { it.mediaId }
+        )
+    }
+
+    @Test
+    fun anEmptyFlatFetchFallsBackToTheBucketRows() = runTest {
+        // flatArtists returning an empty (non-null) list must not win over the
+        // bucket rows already in hand: the request succeeded, but a 200 with no
+        // Metadata -- or entries itemsOf's narrowing does not match -- would
+        // otherwise render the tab completely empty. Plex omitting per-endpoint
+        // fields is not hypothetical; see the decade index.
+        fixture.server.enqueue(ok(index(Triple("A", "A", 3), Triple("B", "B", 2))))
+        fixture.server.enqueue(ok(listing()))
 
         val result = PlexBrowseRepository()
             .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
