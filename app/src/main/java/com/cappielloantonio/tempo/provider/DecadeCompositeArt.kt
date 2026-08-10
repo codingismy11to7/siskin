@@ -1,9 +1,21 @@
 package com.cappielloantonio.tempo.provider
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
+import android.util.Log
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.api.library.LibraryClient
+import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
+import com.cappielloantonio.tempo.util.Preferences
+import kotlinx.coroutines.runBlocking
 import java.io.File
 
 /**
@@ -21,6 +33,9 @@ import java.io.File
  * feature behind one seam a test can drive without standing up a ContentProvider.
  */
 object DecadeCompositeArt {
+
+    private const val TAG = "DecadeCompositeArt"
+    private const val JPEG_QUALITY = 85
 
     private const val TYPE_ALBUM = "album"
 
@@ -78,4 +93,121 @@ object DecadeCompositeArt {
         PlexBrowseRepository.itemsOf(response, TYPE_ALBUM)
             .mapNotNull { PlexMediaMapper.artworkThumb(it) }
             .take(want)
+
+    /** A composite already on disk for this decade and bucket, or null.
+     *
+     * Deliberately does no network work and touches neither Glide nor Retrofit:
+     * the provider calls this on a binder thread and serves the file directly
+     * when it hits, so the common case never occupies a worker at all. */
+    @JvmStatic
+    fun cached(context: Context, decade: String, bucket: Long): File? {
+        val section = PlexApi().session?.musicSectionKey?.value ?: return null
+        return cacheFile(context, section, decade, bucket).takeIf { it.isFile }
+    }
+
+    /**
+     * Draws the composite and caches it, returning the file, or null if it could
+     * not be built.
+     *
+     * Every failure returns null, and the provider turns that into
+     * FileNotFoundException, which the car renders as its own placeholder --
+     * which is exactly what a decade row shows without this feature. No failure
+     * here is worse than not having shipped it.
+     *
+     * A 401 deliberately does not raise the sign-in affordance: a ContentProvider
+     * has no route to MediaLibraryServiceCallback's PendingIntent, and needs
+     * none, because the browse call that produced the list being drawn would
+     * have hit the same 401 first and raised it there.
+     *
+     * Blocking is correct here: the provider calls this on its own executor, off
+     * the binder thread, with the result piped back.
+     */
+    @JvmStatic
+    fun build(context: Context, decade: String, bucket: Long): File? {
+        val api = PlexApi()
+        val session = api.session ?: return null
+        val section = session.musicSectionKey
+
+        val response = runBlocking {
+            LibraryClient(api).getSectionContent(
+                sectionKey = section,
+                type = PlexItemType.ALBUM,
+                start = 0,
+                size = CompositeGrid.OVER_FETCH,
+                sort = LibraryClient.SORT_RANDOM,
+                albumDecade = decade
+            )
+        }.getOrNull() ?: return null
+
+        val thumbs = coverThumbs(response, CompositeGrid.COVERS)
+        val cells = CompositeGrid.cells(thumbs.size, CompositeGrid.SIZE)
+        if (cells.isEmpty()) return null
+
+        val token = PlexApi.serverTokenOrAccount(session.serverToken, session.accountToken)
+        val cellEdge = CompositeGrid.SIZE / if (cells.size == 1) 1 else 2
+
+        val covers = thumbs.take(cells.size).mapNotNull { thumb ->
+            val url = MediaUrlBuilder.artworkUrl(
+                session.serverUri, thumb, token, cellEdge, cellEdge
+            ) ?: return@mapNotNull null
+            loadCover(context, url, cellEdge)
+        }
+        if (covers.size != cells.size) return null
+
+        val composite = Bitmap.createBitmap(
+            CompositeGrid.SIZE, CompositeGrid.SIZE, Bitmap.Config.RGB_565
+        )
+        val file = cacheFile(context, section.value, decade, bucket)
+        return try {
+            // Drawing sits inside the same try as the write so that a draw that
+            // throws -- a cover Glide has since recycled is the way that happens
+            // -- still returns null and still recycles, rather than throwing out
+            // of a function whose contract is that failure is a null.
+            val canvas = Canvas(composite)
+            cells.forEachIndexed { index, cell ->
+                canvas.drawBitmap(
+                    covers[index],
+                    null,
+                    Rect(cell.left, cell.top, cell.right, cell.bottom),
+                    null
+                )
+            }
+
+            file.parentFile?.mkdirs()
+            // Written to a sibling and renamed, so a reader can never open a
+            // half-drawn composite: the provider's hit path only checks that the
+            // file exists.
+            val partial = File(file.parentFile, "${file.name}.partial")
+            partial.outputStream().use {
+                composite.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
+            }
+            partial.renameTo(file)
+            evictStale(context, System.currentTimeMillis())
+            file.takeIf { it.isFile }
+        } catch (e: Exception) {
+            // Outside any either { } block, so there is no Arrow raise for this
+            // to swallow.
+            Log.w(TAG, "could not cache the composite for $decade", e)
+            null
+        } finally {
+            composite.recycle()
+        }
+    }
+
+    /** Data-saving mode is honoured exactly as the album path honours it: a
+     * cover that is not already cached fails the build, and the row falls back
+     * to the car's placeholder rather than spending the driver's data. */
+    private fun loadCover(context: Context, url: String, edge: Int): Bitmap? = try {
+        var request = Glide.with(context)
+            .asBitmap()
+            .load(url)
+            .diskCacheStrategy(DiskCacheStrategy.DATA)
+        if (Preferences.isDataSavingMode()) {
+            request = request.onlyRetrieveFromCache(true)
+        }
+        request.submit(edge, edge).get()
+    } catch (e: Exception) {
+        Log.w(TAG, "could not load a cover for the composite", e)
+        null
+    }
 }
