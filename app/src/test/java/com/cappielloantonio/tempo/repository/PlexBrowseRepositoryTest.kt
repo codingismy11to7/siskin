@@ -74,7 +74,7 @@ class PlexBrowseRepositoryTest {
     }
 
     /** For the error branch, where `resultFor` must not call `map` at all. */
-    private val mapThatMustNotRun: (PlexResponse) -> List<MediaItem> =
+    private val mapThatMustNotRun: suspend (PlexResponse) -> List<MediaItem> =
         { error("map must not run when the request failed") }
 
     /**
@@ -86,7 +86,7 @@ class PlexBrowseRepositoryTest {
      * lambda that explodes unconditionally would fail against the real
      * production lambdas too and would prove nothing.
      */
-    private val trackMapThatMustNotBuildAnyItem: (PlexResponse) -> List<MediaItem> =
+    private val trackMapThatMustNotBuildAnyItem: suspend (PlexResponse) -> List<MediaItem> =
         { body -> PlexBrowseRepository.tracksOf(body).map { error("built a MediaItem from $it, but the narrowed list should have been empty") } }
 
     @Test

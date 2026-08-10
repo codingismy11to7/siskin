@@ -29,6 +29,17 @@ object ConstantsAA {
     /** Prefix; the remainder is the window's first index, e.g. "50". */
     const val ALBUM_WINDOW_ID = "[albumWindowID]"
 
+    /**
+     * Prefix; the remainder is a first-character bucket key exactly as the
+     * server gave it -- "A", "%23" for the symbol bucket, "∆".
+     *
+     * Kept percent-encoded on purpose. It is spliced straight back into the
+     * request path with `@Path(encoded = true)`, so decoding it here would send
+     * "%2523" and address a bucket that does not exist -- answered as an empty
+     * list, with no error anywhere.
+     */
+    const val ARTIST_LETTER_ID = "[artistLetterID]"
+
     // More tab
     const val MORE_ID = "[moreID]"
     const val SELECT_LIBRARY_ID = "[selectLibraryID]"

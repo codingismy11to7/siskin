@@ -25,6 +25,7 @@ object Preferences {
     private const val PRECACHE_WIFI_ONLY = "precache_wifi_only"
     private const val CONTINUOUS_PLAY = "continuous_play"
     private const val CAR_SHUFFLE = "car_shuffle"
+    private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
     private const val FALLBACK_TO_RANDOM_TRACKS = "fallback_to_random_tracks"
     private const val LAST_INSTANT_MIX = "last_instant_mix"
@@ -220,6 +221,25 @@ object Preferences {
     @JvmStatic
     fun setCarShuffleEnabled(enabled: Boolean) {
         App.getInstance().preferences.edit().putBoolean(CAR_SHUFFLE, enabled).apply()
+    }
+
+    /**
+     * Whether the Artists tab groups into Plex's first-character buckets --
+     * true, the default -- or into #87's offset windows.
+     *
+     * Defaults to true rather than following car-shuffle's "leave an existing
+     * install alone" rule, because there is no such install: #87 is unreleased,
+     * so no user has ever seen a window row. See
+     * docs/decisions/2026-08-10-artists-by-initial-design.md.
+     */
+    @JvmStatic
+    fun isArtistsByInitialEnabled(): Boolean {
+        return App.getInstance().preferences.getBoolean(ARTISTS_BY_INITIAL, true)
+    }
+
+    @JvmStatic
+    fun setArtistsByInitialEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit().putBoolean(ARTISTS_BY_INITIAL, enabled).apply()
     }
 
     @JvmStatic

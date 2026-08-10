@@ -39,8 +39,9 @@ class MediaContainer {
     var metadata: List<Metadata>? = null
 
     /**
-     * Containers: library sections, and decade entries from the decade index
-     * (see `PlexBrowseRepository.directoriesOf`). Hub rows arrive in [hub], not
+     * Containers: library sections, decade entries from the decade index, and
+     * first-character buckets from the bucket index (see
+     * `PlexBrowseRepository.directoriesOf`). Hub rows arrive in [hub], not
      * here.
      */
     @SerializedName("Directory")

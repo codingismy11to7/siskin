@@ -89,6 +89,37 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         }
     }
 
+    /**
+     * The first-character buckets this section's artists fall into. Always asks
+     * for [PlexItemType.ARTIST]: the Albums tab is not offered this shape,
+     * because album buckets B=350 and S=315 are both over the car's ~281-item
+     * ceiling.
+     */
+    suspend fun getFirstCharacters(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "getFirstCharacters($sectionKey)")
+        return plexCall(PlexHost.Server) {
+            service.getFirstCharacters(sectionKey.value, PlexItemType.ARTIST)
+        }
+    }
+
+    /**
+     * One bucket's artists. [key] must be passed exactly as the index gave it,
+     * percent-encoding included -- see [LibraryService.getFirstCharacterContent].
+     */
+    suspend fun getFirstCharacterContent(
+        sectionKey: SectionKey,
+        key: String,
+        start: Int,
+        size: Int
+    ): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "getFirstCharacterContent($sectionKey, key=$key, start=$start, size=$size)")
+        return plexCall(PlexHost.Server) {
+            service.getFirstCharacterContent(
+                sectionKey.value, key, PlexItemType.ARTIST, start, size
+            )
+        }
+    }
+
     companion object {
         /** Plex reports a music library section's type as "artist". */
         private const val MUSIC_SECTION_TYPE = "artist"
@@ -110,6 +141,15 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
          * ordering the names disagree with produces ranges that read as broken.
          * Ordering by the displayed name is what keeps a label and its contents
          * the same thing.
+         *
+         * This describes one of the Artists tab's two shapes. The
+         * first-character buckets send **no** sort at all, deliberately: their
+         * membership is decided by `titleSort`, so ordering their contents by
+         * the displayed name scrambles them -- bucket D under `sort=title` opens
+         * on "Arne Domnérus, Bob Dylan, Brigitte DeMeyer". A window has an edge
+         * item to be named after and a bucket does not, which is why the two
+         * disagree. See
+         * docs/decisions/2026-08-10-artists-by-initial-design.md.
          */
         const val SORT_DISPLAY_TITLE = "title"
 

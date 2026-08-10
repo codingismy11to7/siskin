@@ -4,20 +4,30 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
+import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
+import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.Preferences
 import com.google.android.material.materialswitch.MaterialSwitch
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
@@ -31,8 +41,11 @@ import org.robolectric.Shadows.shadowOf
  * play defaulted on; it was that nothing could turn it off. A default flip alone
  * would satisfy PreferencesContinuousPlayTest and still leave that true.
  */
+@UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class PlexSignInSettingsTest {
+
+    private lateinit var session: MediaLibrarySession
 
     @Before
     fun setUp() {
@@ -42,6 +55,7 @@ class PlexSignInSettingsTest {
             .remove("continuous_play")
             .remove("car_shuffle")
             .remove("replay_gain_mode")
+            .remove("artists_by_initial")
             .commit()
         PlexApi().session = PlexSession(
             accountToken = "t",
@@ -49,6 +63,21 @@ class PlexSignInSettingsTest {
             musicSectionKey = SectionKey("1"),
             serverToken = null
         )
+
+        // A live session is what makes the artists-by-initial row's
+        // BrowseTreeInvalidator.invalidateNode() call do anything at all --
+        // it returns early without one, so an assertion about it would pass
+        // vacuously. Same pattern as BrowseTreeInvalidatorTest / LibraryPickerCommitTest.
+        session = mock()
+        MediaBrowserTree.initialize(App.getContext(), mock())
+        BrowseTreeInvalidator.attach(session)
+    }
+
+    @After
+    fun tearDown() {
+        // BrowseTreeInvalidator is a process-wide singleton; leaving a mock
+        // attached would leak into whatever test class runs next.
+        BrowseTreeInvalidator.detach()
     }
 
     private fun settingsScreen(): View {
@@ -87,11 +116,14 @@ class PlexSignInSettingsTest {
     private fun replayGainSwitch(view: View) =
         switchLabelled(view, App.getInstance().getString(R.string.car_settings_replay_gain))
 
+    private fun artistsByInitialSwitch(view: View) =
+        switchLabelled(view, App.getInstance().getString(R.string.car_settings_artists_by_initial))
+
     @Test
     fun `settings offers every toggle at its default`() {
         val screen = settingsScreen()
 
-        assertEquals(3, switchesIn(screen).size)
+        assertEquals(4, switchesIn(screen).size)
         // The defaults differ, and each is a decision: continuous play is off
         // because reaching the end of a queue is not a request for more music,
         // the car's shuffle is deferred to because that is what the app already
@@ -100,6 +132,9 @@ class PlexSignInSettingsTest {
         assertFalse(continuousPlaySwitch(screen).isChecked)
         assertTrue(carShuffleSwitch(screen).isChecked)
         assertFalse(replayGainSwitch(screen).isChecked)
+        // On, unlike its neighbours: #87 is unreleased, so there is no install
+        // whose behaviour the default has to preserve.
+        assertTrue(artistsByInitialSwitch(screen).isChecked)
     }
 
     @Test
@@ -209,5 +244,27 @@ class PlexSignInSettingsTest {
         assertTrue(Preferences.isReplayGainEnabled())
         assertFalse(Preferences.isContinuousPlayEnabled())
         assertTrue(Preferences.isCarShuffleEnabled())
+    }
+
+    @Test
+    fun `tapping the artists-by-initial row turns it off`() {
+        val screen = settingsScreen()
+        val toggle = artistsByInitialSwitch(screen)
+
+        (toggle.parent as View).performClick()
+
+        assertFalse(Preferences.isArtistsByInitialEnabled())
+        assertFalse(artistsByInitialSwitch(settingsScreen()).isChecked)
+        assertFalse(toggle.isClickable)
+
+        // The preference write alone is not the point of this row: the car
+        // caches the Artists tab's browse list and will not re-fetch it on its
+        // own, so without this notification the tab keeps whichever shape it
+        // was first loaded with and the toggle reads as doing nothing until
+        // the next cold start. invalidateNode() posts to the main looper, so
+        // this must come after idling it or it races the post and fails
+        // intermittently.
+        shadowOf(Looper.getMainLooper()).idle()
+        verify(session).notifyChildrenChanged(eq(ConstantsAA.ARTISTS_ID), any(), eq(null))
     }
 }

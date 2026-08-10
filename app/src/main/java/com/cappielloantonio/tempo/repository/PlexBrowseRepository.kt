@@ -340,7 +340,9 @@ class PlexBrowseRepository {
     // page=0, pageSize=Integer.MAX_VALUE, and reaching the end of a short list
     // provokes no follow-up request -- so paging cannot come from the car. It
     // comes from the tree instead: a list too long to browse becomes a list of
-    // ranges, each of which is a node the car can ask for in full.
+    // groups, each of which is a node the car can ask for in full. Ranges are
+    // one such grouping and first-character buckets are the other; see the
+    // section below.
 
     /**
      * The Artists tab: window rows, or the artists themselves if they fit.
@@ -398,11 +400,6 @@ class PlexBrowseRepository {
      * One request decides the shape: it asks for the first window and reads
      * `totalSize` off the same response, so a library that fits costs exactly
      * what it costs today and never pays for the window machinery.
-     *
-     * The HTTP/Unreachable handling below is the second decider of what a
-     * browse outcome means to media3, alongside [resultFor] -- see that
-     * function's KDoc for why this one cannot just call it and hand-copies the
-     * same routing instead. Keep the two in step.
      */
     private fun windowed(
         type: Int,
@@ -412,45 +409,28 @@ class PlexBrowseRepository {
         map: (PlexResponse) -> List<MediaItem>
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
-        return launchInto {
-            either {
-                val head = when (
-                    val outcome =
-                        libraryClient.getSectionContent(key, type, 0, ConstantsAA.WINDOW_SIZE, sort)
-                ) {
-                    is Either.Right -> outcome.value
-                    is Either.Left -> when (val failure = outcome.value) {
-                        is PlexTransportFailure.Http -> {
-                            Log.w(TAG, "windowed browse failed with HTTP ${failure.code}")
-                            return@either errorFor(failure.code)
-                        }
-
-                        is PlexTransportFailure.Unreachable -> raise(failure)
-                    }
-                }
-
-                // Not observed against PMS, which always returns totalSize once
-                // Start/Size were sent -- but silent is the wrong failure mode
-                // for a response that omits it anyway: falling back to 0 renders
-                // a flat, truncated first WINDOW_SIZE items with no sign
-                // anything went wrong, which is strictly worse than the bug this
-                // branch exists to fix. Logged so it is at least diagnosable
-                // from logcat if it ever happens.
-                val total = head.mediaContainer?.totalSize ?: run {
-                    Log.w(
-                        TAG,
-                        "windowed browse response carried no totalSize -- " +
-                            "falling back to a flat, possibly-truncated first " +
-                            "${ConstantsAA.WINDOW_SIZE} items"
-                    )
-                    0
-                }
-                val items = if (total <= ConstantsAA.WINDOW_SIZE) {
-                    map(head)
-                } else {
-                    windowRows(key, type, sort, total, windowPrefix, icon, head)
-                }
-                LibraryResult.ofItemList(ImmutableList.copyOf(items), null)
+        return fetch({
+            libraryClient.getSectionContent(key, type, 0, ConstantsAA.WINDOW_SIZE, sort)
+        }) { head ->
+            // Not observed against PMS, which always returns totalSize once
+            // Start/Size were sent -- but silent is the wrong failure mode for a
+            // response that omits it anyway: falling back to 0 renders a flat,
+            // truncated first WINDOW_SIZE items with no sign anything went
+            // wrong, which is strictly worse than the bug this branch exists to
+            // fix. Logged so it is at least diagnosable from logcat.
+            val total = head.mediaContainer?.totalSize ?: run {
+                Log.w(
+                    TAG,
+                    "windowed browse response carried no totalSize -- " +
+                        "falling back to a flat, possibly-truncated first " +
+                        "${ConstantsAA.WINDOW_SIZE} items"
+                )
+                0
+            }
+            if (total <= ConstantsAA.WINDOW_SIZE) {
+                map(head)
+            } else {
+                windowRows(key, type, sort, total, windowPrefix, icon, head)
             }
         }
     }
@@ -518,7 +498,7 @@ class PlexBrowseRepository {
             } else {
                 "${window * size + 1} - ${minOf((window + 1) * size, total)}"
             }
-            PlexMediaMapper.windowRowToMediaItem(windowPrefix + (window * size), label, icon)
+            PlexMediaMapper.groupRowToMediaItem(windowPrefix + (window * size), label, icon)
         }
     }
 
@@ -526,6 +506,135 @@ class PlexBrowseRepository {
         libraryClient.getSectionContent(key, type, index, 1, sort)
             .getOrNull()
             ?.mediaContainer?.metadata?.firstOrNull()?.title
+
+    // ── browse by first character ──────────────────────────────
+    //
+    // The same problem the windowed nodes solve, answered with Plex's own
+    // grouping instead of with offsets: /library/sections/{k}/firstCharacter
+    // returns one bucket per distinct initial, with counts, in ~1.3KB. Artists
+    // only -- album buckets B=350 and S=315 are over the car's ceiling.
+
+    /**
+     * The Artists tab with [com.cappielloantonio.tempo.util.Preferences.isArtistsByInitialEnabled]
+     * on: one row per first-character bucket, or the artists themselves if they
+     * fit.
+     *
+     * One request decides the shape, the way [windowed] uses `totalSize`: the
+     * bucket counts sum to the section's total, so a library at or under
+     * [ConstantsAA.WINDOW_SIZE] is recognised from the index alone.
+     *
+     * No boundary titles and no `titleAt`. A bucket's label arrives in the same
+     * response as its count, so there is no fan-out to cap and no positional
+     * fallback to degrade to.
+     */
+    fun getArtistLetters(
+        letterPrefix: String,
+        artistPrefix: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return fetch({ libraryClient.getFirstCharacters(key) }) { body ->
+            val buckets = directoriesOf(body)
+            val rows = buckets.mapNotNull { letterRow(it, letterPrefix) }
+            val total = buckets.sumOf { it.size ?: 0 }
+
+            // Not observed against PMS, which always sets size on every bucket --
+            // but silent is the wrong failure mode here too, the same as in
+            // windowed(): a renamed or stripped field reads identically to
+            // total == 0 below and would render the flat path's first
+            // WINDOW_SIZE artists with no sign anything went wrong. Logged so
+            // it is at least diagnosable from logcat; a real empty library (no
+            // buckets at all) is not this case and does not log.
+            if (buckets.isNotEmpty() && buckets.all { it.size == null }) {
+                Log.w(
+                    TAG,
+                    "firstCharacter index returned buckets with no size on any " +
+                        "of them -- falling back to bucket rows with no counts"
+                )
+            }
+
+            if (total == 0 || total > ConstantsAA.WINDOW_SIZE) {
+                rows
+            } else {
+                // Small enough that buckets would be worse than a list. Falls
+                // back to the rows -- not to an error and not to an empty tab --
+                // if this second request fails or comes back empty: they are
+                // already built, and they are a tab where every artist is two
+                // taps away. Same reasoning as titleAt, one level up.
+                flatArtists(key, artistPrefix)?.takeIf { it.isNotEmpty() } ?: rows
+            }
+        }
+    }
+
+    /**
+     * One bucket's artists.
+     *
+     * [bucketKey] is the index's `key` verbatim, percent-encoding included --
+     * see [com.cappielloantonio.tempo.plex.api.library.LibraryService.getFirstCharacterContent].
+     *
+     * [ConstantsAA.MAX_ITEMS] rather than a bucket-sized fetch, like every other
+     * uncapped node here. A bucket over the car's ~293-item ceiling truncates
+     * silently; that is a documented, accepted bound, and the setting is the way
+     * out of it.
+     */
+    fun getArtistLetter(
+        bucketKey: String,
+        artistPrefix: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return fetch({
+            libraryClient.getFirstCharacterContent(key, bucketKey, 0, ConstantsAA.MAX_ITEMS)
+        }) { body ->
+            itemsOf(body, TYPE_ARTIST).mapNotNull {
+                PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+            }
+        }
+    }
+
+    /**
+     * The artists themselves, for a library too small to group.
+     *
+     * [LibraryClient.SORT_DISPLAY_TITLE] so this matches what the windowed path
+     * returns at the same size -- a small library must not reorder itself when
+     * the setting is flipped. Null on any failure. That is not the only case
+     * the caller has to guard: a successful request can still answer 200 with
+     * no `Metadata`, which comes back here as an empty (non-null) list -- Plex
+     * omitting per-endpoint fields is not hypothetical, see the decade index.
+     * [getArtistLetters] therefore falls back to the bucket rows on null *or*
+     * empty, both read as "keep the bucket rows".
+     */
+    private suspend fun flatArtists(key: SectionKey, artistPrefix: String): List<MediaItem>? =
+        libraryClient.getSectionContent(
+            key,
+            PlexItemType.ARTIST,
+            0,
+            ConstantsAA.WINDOW_SIZE,
+            LibraryClient.SORT_DISPLAY_TITLE
+        ).getOrNull()?.let { body ->
+            itemsOf(body, TYPE_ARTIST).mapNotNull {
+                PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+            }
+        }
+
+    /**
+     * One bucket row. Null for an entry with no key or no title -- there is
+     * nothing to address or to label it with.
+     *
+     * The title is the server's verbatim: "A", "#", "∆" are already
+     * display-ready, so nothing here is localised or cut with [shortened]. The
+     * count is, hence the plurals lookup.
+     */
+    private fun letterRow(bucket: Directory, letterPrefix: String): MediaItem? {
+        val key = bucket.key?.takeIf { it.isNotBlank() } ?: return null
+        val title = bucket.title?.takeIf { it.isNotBlank() } ?: return null
+        return PlexMediaMapper.groupRowToMediaItem(
+            letterPrefix + key,
+            title,
+            R.drawable.ic_aa_artists,
+            bucket.size?.let { count ->
+                App.getContext().resources.getQuantityString(R.plurals.car_artist_count, count, count)
+            }
+        )
+    }
 
     /**
      * Plex rejects a multi-type search with HTTP 400, so this issues three and
@@ -610,10 +719,17 @@ class PlexBrowseRepository {
      * transport failure stays a Left and reaches [launchInto], which completes
      * the future exceptionally so the callback reads it as "unreachable" rather
      * than "rejected".
+     *
+     * [map] is a suspend lambda so a node whose shape depends on its first
+     * response can issue further requests inside it and still route failures
+     * through [resultFor] alone -- which is what [windowed] needs for
+     * `totalSize` and [getArtistLetters] for its bucket counts. It runs
+     * lexically inside `resultFor`'s `either { }`, so nothing in a map lambda
+     * may catch broadly.
      */
     private fun fetch(
         request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
-        map: (PlexResponse) -> List<MediaItem>
+        map: suspend (PlexResponse) -> List<MediaItem>
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
         launchInto { resultFor(request, map) }
 
@@ -757,15 +873,15 @@ class PlexBrowseRepository {
          * held by a narrow catch clause and a comment warning not to widen it;
          * it is a `when` over a sealed type now.
          *
-         * [windowed] is the second decider: it cannot call this function --
-         * it needs the head response itself for `totalSize`, not just its
-         * Left/Right -- so it hand-copies the same HTTP/Unreachable routing
-         * inline. The two must be kept in step; a change here to what an HTTP
-         * failure or an Unreachable failure means has to be mirrored there too.
+         * This is the *only* place that decision is made. [windowed] used to
+         * hand-copy this routing, because it needs the head response itself for
+         * `totalSize` rather than just its Left/Right, and both functions
+         * carried a warning to keep the two copies in step. [map] being a
+         * suspend lambda is what removed the need for the copy.
          */
         internal suspend fun resultFor(
             request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
-            map: (PlexResponse) -> List<MediaItem>
+            map: suspend (PlexResponse) -> List<MediaItem>
         ): Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>> = either {
             val failure = when (val outcome = request()) {
                 is Either.Right ->

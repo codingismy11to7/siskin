@@ -195,10 +195,11 @@ class PlexBrowseWindowTest {
 
     @Test
     fun aFailedFirstRequestReturnsPermissionDeniedForA401() = runTest {
-        // windowed()'s own HTTP-failure branch, not fetch()/resultFor()'s --
-        // every other 401 test in this file and PlexBrowseRepositoryTest goes
-        // through those, so a regression in this copy would silently drop the
-        // "sign in again" affordance from the two most-used tabs with CI green.
+        // The Artists tab's own path to the "sign in again" affordance. windowed()
+        // used to hand-copy resultFor's HTTP routing and this test guarded that
+        // copy; the copy is gone, and this now pins that the tab still reaches
+        // the shared decider through fetch() rather than losing the affordance on
+        // the way.
         fixture.server.enqueue(MockResponse().setResponseCode(401))
 
         val result = PlexBrowseRepository()

@@ -15,9 +15,15 @@
     <string name="aa_decades">Decenni</string>
     <string name="aa_shuffle_decade">Riproduci questo decennio in ordine casuale</string>
 
+    <plurals name="car_artist_count">
+        <item quantity="one">%d artista</item>
+        <item quantity="many">%d di artisti</item>
+        <item quantity="other">%d artisti</item>
+    </plurals>
     <string name="car_settings_continuous_play">Continua a riprodurre musica</string>
     <string name="car_settings_car_shuffle">Usa la riproduzione casuale dell\'auto</string>
     <string name="car_settings_replay_gain">Livellamento del volume</string>
+    <string name="car_settings_artists_by_initial">Mostra artisti per iniziale</string>
     <string name="car_settings_sign_out">Esci</string>
     <string name="car_settings_title">Impostazioni</string>
     <string name="car_sign_in_action">Connetti</string>

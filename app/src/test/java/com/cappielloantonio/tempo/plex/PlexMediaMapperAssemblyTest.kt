@@ -390,7 +390,7 @@ class PlexMediaMapperAssemblyTest {
 
     @Test
     fun windowRowIsBrowsableAndNotPlayable() {
-        val row = PlexMediaMapper.windowRowToMediaItem(
+        val row = PlexMediaMapper.groupRowToMediaItem(
             "[artistWindowID]50", "Beck  -  Cake", R.drawable.ic_aa_artists
         )
         assertEquals("[artistWindowID]50", row.mediaId)
@@ -406,7 +406,7 @@ class PlexMediaMapperAssemblyTest {
         // .setExtras(extras) entirely would still pass every other window-row
         // assertion in this file, which is why this needs its own test rather
         // than piggybacking on windowRowIsBrowsableAndNotPlayable.
-        val row = PlexMediaMapper.windowRowToMediaItem(
+        val row = PlexMediaMapper.groupRowToMediaItem(
             "[artistWindowID]0", "A  -  B", R.drawable.ic_aa_artists
         )
         val extras = row.mediaMetadata.extras!!
@@ -421,7 +421,7 @@ class PlexMediaMapperAssemblyTest {
     fun windowRowCarriesAnIconRatherThanNoArtwork() {
         // An absent artworkUri makes the car draw a music note on a per-row
         // colour; at 25-56 rows a tab that is a column of unrelated colours.
-        val row = PlexMediaMapper.windowRowToMediaItem(
+        val row = PlexMediaMapper.groupRowToMediaItem(
             "[albumWindowID]0", "A  -  B", R.drawable.ic_aa_albums
         )
         assertNotNull(row.mediaMetadata.artworkUri)
@@ -431,10 +431,35 @@ class PlexMediaMapperAssemblyTest {
     fun windowRowNeverCarriesAStreamUri() {
         // A non-null localConfiguration would make resolveQueueForItem treat the
         // row as already resolved and "play" a row that has no stream.
-        val row = PlexMediaMapper.windowRowToMediaItem(
+        val row = PlexMediaMapper.groupRowToMediaItem(
             "[artistWindowID]0", "A  -  B", R.drawable.ic_aa_artists
         )
         assertNull(row.localConfiguration)
+    }
+
+    @Test
+    fun `a group row carries its subtitle on the browse list's second line`() {
+        // The same line an album uses for its artist. A letter row spends it on
+        // the bucket's count, which is the only visible sign that a bucket
+        // larger than the car's ~293-item ceiling is showing fewer artists than
+        // it claims.
+        val row = PlexMediaMapper.groupRowToMediaItem(
+            "[artistLetterID]A", "A", R.drawable.ic_aa_artists, "79 artists"
+        )
+
+        assertEquals("A", row.mediaMetadata.title)
+        assertEquals("79 artists", row.mediaMetadata.artist)
+    }
+
+    @Test
+    fun `a group row with no subtitle leaves the second line empty`() {
+        // Window rows pass none: every window holds WINDOW_SIZE items except the
+        // last, so a count would say nothing.
+        val row = PlexMediaMapper.groupRowToMediaItem(
+            "[artistWindowID]0", "Beck  -  Cake", R.drawable.ic_aa_artists
+        )
+
+        assertNull(row.mediaMetadata.artist)
     }
 
     private companion object {

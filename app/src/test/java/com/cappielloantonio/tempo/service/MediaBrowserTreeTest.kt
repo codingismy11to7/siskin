@@ -4,10 +4,12 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
+import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Preferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -40,6 +42,13 @@ class MediaBrowserTreeTest {
         val context = RuntimeEnvironment.getApplication()
         MediaBrowserTree.initialize(context, mock<PlexBrowseRepository>())
         MediaBrowserTree.buildTree()
+
+        // Robolectric caches SharedPreferences statically across test methods
+        // (and across test classes in the same JVM fork). This class now
+        // writes the by-initial key, so without this reset one method's write
+        // would decide another's result -- and a later-running class would
+        // inherit it too.
+        App.getInstance().preferences.edit().remove("artists_by_initial").commit()
     }
 
     @Test
@@ -256,6 +265,19 @@ class MediaBrowserTreeTest {
 
     @Test
     fun theArtistsAndAlbumsTabsRenderTheirChildrenAsLists() {
+        // List under both settings, deliberately. buildTree() runs on
+        // onGetLibraryRoot, before any library has been queried, so a style that
+        // depended on the preference would need the root invalidated and visibly
+        // re-rendered on every toggle. A one-character letter label needs no
+        // width, so a list costs it nothing.
+        Preferences.setArtistsByInitialEnabled(true)
+        MediaBrowserTree.buildTree()
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(false),
+            MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!.mediaMetadata.extras!!
+                .getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+        )
+
         // Their children are window rows carrying no artwork of their own; a grid
         // of placeholders is worse than a list.
         //
@@ -264,6 +286,12 @@ class MediaBrowserTreeTest {
         // real covers, so a grid there shows something. A window row has nothing
         // but the range it spans ("Beck  -  Cake"), which is text, and text reads
         // better in a list.
+        //
+        // Flip the setting for this second block so the two blocks actually
+        // cover both values -- otherwise both would run under `true` (the
+        // default when the preference key is absent) and a regression that
+        // wired browsableChildrenAsGrid to the preference would pass unnoticed.
+        Preferences.setArtistsByInitialEnabled(false)
         MediaBrowserTree.buildTree()
         val artists = MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!
         assertEquals(
@@ -275,5 +303,52 @@ class MediaBrowserTreeTest {
             BrowseContentStyle.browsableChildStyle(false),
             albums.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
         )
+    }
+
+    @Test
+    fun theArtistsTabFollowsTheByInitialPreference() {
+        val repository = mock<PlexBrowseRepository>()
+        MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
+
+        Preferences.setArtistsByInitialEnabled(true)
+        MediaBrowserTree.getChildren(ConstantsAA.ARTISTS_ID)
+        verify(repository).getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID)
+
+        Preferences.setArtistsByInitialEnabled(false)
+        MediaBrowserTree.getChildren(ConstantsAA.ARTISTS_ID)
+        verify(repository).getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID)
+    }
+
+    @Test
+    fun theAlbumsTabIgnoresTheByInitialPreference() {
+        // Album buckets B=350 and S=315 are over the car's ceiling, so the
+        // setting is not offered there and must not leak into this tab.
+        val repository = mock<PlexBrowseRepository>()
+        MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
+
+        Preferences.setArtistsByInitialEnabled(true)
+        MediaBrowserTree.getChildren(ConstantsAA.ALBUMS_ID)
+
+        verify(repository).getAlbumWindows(ConstantsAA.ALBUM_WINDOW_ID, ConstantsAA.ALBUM_ID)
+    }
+
+    @Test
+    fun aLetterIdRoutesToItsBucketRatherThanToAnItem() {
+        // "[artistLetterID]A" must not be mistaken for "[artistID]..." -- the
+        // letter test has to come first in the routing for the same reason the
+        // window test does.
+        assertFalse(ConstantsAA.ARTIST_LETTER_ID.startsWith(ConstantsAA.ARTIST_ID))
+        assertFalse(ConstantsAA.ARTIST_ID.startsWith(ConstantsAA.ARTIST_LETTER_ID))
+
+        val repository = mock<PlexBrowseRepository>()
+        MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
+
+        MediaBrowserTree.getChildren(ConstantsAA.ARTIST_LETTER_ID + "A")
+        verify(repository).getArtistLetter("A", ConstantsAA.ARTIST_ID)
+
+        // The encoded key reaches the repository untouched: decoding it here
+        // would send "%2523" back to the server.
+        MediaBrowserTree.getChildren(ConstantsAA.ARTIST_LETTER_ID + "%23")
+        verify(repository).getArtistLetter("%23", ConstantsAA.ARTIST_ID)
     }
 }
