@@ -289,10 +289,10 @@ defence in depth that function's comment asks for.
 Anything else is refused the way an absent image is — `FileNotFoundException`,
 which the car renders as its placeholder.
 
-**Both guards are invoked from `openFile`, beside the album path's own.** That
-placement is the point: the two rule sets differ deliberately, and a reader
-comparing them should find them adjacent rather than in separate files. The
-provider stays Java — a Kotlin rewrite is
+**All three guards are invoked from `openFile`, beside the album path's own.**
+That placement is the point: the two rule sets differ deliberately, and a
+reader comparing them should find them adjacent rather than in separate files.
+The provider stays Java — a Kotlin rewrite is
 [#86](https://github.com/codingismy11to7/siskin/issues/86), deliberately not
 folded in here — so each guard delegates to a pure Kotlin helper exactly as the
 album path already delegates to `MediaUrlBuilder.isServerRelativePath`. That is

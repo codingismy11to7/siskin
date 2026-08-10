@@ -1,8 +1,11 @@
 package com.cappielloantonio.tempo.provider
 
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.SectionKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -10,10 +13,17 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Robolectric for a real cacheDir. The filenames are the whole contract here:
+ * Robolectric for a real cacheDir. The filenames are most of the contract here:
  * they are what keeps one library's composites from being served for
  * another -- on the same server (the section key) and across servers (the
  * machine identifier) -- and what eviction reads back to decide staleness.
+ *
+ * `scopeOf` is tested alongside them because it names the same two values, and
+ * everything downstream of it -- the artwork URI, the provider's guard, a
+ * decade row's media id -- takes it on trust as *the* definition of which
+ * library. Every one of those has fixtures that pass a scope string in, so a
+ * `scopeOf` that dropped the machine identifier would leave the whole suite
+ * green while restoring the bug it was added to fix.
  */
 @RunWith(RobolectricTestRunner::class)
 class DecadeCompositeArtCacheTest {
@@ -23,6 +33,54 @@ class DecadeCompositeArtCacheTest {
     @Before
     fun setUp() {
         DecadeCompositeArt.cacheDir(context).deleteRecursively()
+    }
+
+    private fun session(machineIdentifier: String?, sectionKey: String) = PlexSession(
+        accountToken = "account-token",
+        serverUri = "https://plex.example",
+        musicSectionKey = SectionKey(sectionKey),
+        serverToken = null,
+        machineIdentifier = machineIdentifier
+    )
+
+    @Test
+    fun twoServersSharingASectionKeyGetDifferentScopes() {
+        // The bug the scope segment exists for, at its source. A section key is
+        // a small integer, so two servers each having a music section "4" is
+        // ordinary -- and the URI that key alone produces is byte-identical
+        // across them, which is what let the car re-serve the previous server's
+        // mosaic out of its own image cache after More -> Server Select.
+        assertNotEquals(
+            DecadeCompositeArt.scopeOf(session("machinea", "4")),
+            DecadeCompositeArt.scopeOf(session("machineb", "4"))
+        )
+    }
+
+    @Test
+    fun twoLibrariesOnOneServerGetDifferentScopes() {
+        // The other axis, which the machine identifier alone cannot separate:
+        // More -> Server Select can switch between two libraries on the same
+        // server, and neither identifier subsumes the other.
+        assertNotEquals(
+            DecadeCompositeArt.scopeOf(session("machinea", "4")),
+            DecadeCompositeArt.scopeOf(session("machinea", "9"))
+        )
+    }
+
+    @Test
+    fun theScopeIsTheFirstTwoFieldsOfTheCacheFilename() {
+        // Not a coincidence to be tidied away: the URI has to change on exactly
+        // the axes the filename does, or the car serves a tile the file no
+        // longer stands for. Asserted as a prefix relationship rather than by
+        // spelling the format out twice, so the two can only be changed
+        // together.
+        val session = session("machinea", "4")
+        val file = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1980", 100)
+
+        assertTrue(
+            "${file.name} should start with ${DecadeCompositeArt.scopeOf(session)}",
+            file.name.startsWith(DecadeCompositeArt.scopeOf(session) + "-")
+        )
     }
 
     @Test

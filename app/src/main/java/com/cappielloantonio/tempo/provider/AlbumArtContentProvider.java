@@ -226,6 +226,17 @@ public class AlbumArtContentProvider extends ContentProvider {
         // nothing else, and the composite below is still named from the session
         // rather than from anything the caller sent. That is what makes a
         // charset guard unnecessary here rather than merely absent.
+        //
+        // Known window, named rather than closed: currentScope() reads the
+        // session here and DecadeCompositeArt.cached() reads it again below, so
+        // a library switch landing between the two lets a URI validated against
+        // the old scope be answered out of the new session's cache file. It is
+        // microseconds wide and costs one wrong tile until the browse list
+        // behind it is re-fetched, which a library switch provokes anyway.
+        // Closing it means threading one session snapshot through both, which
+        // is what build() already does for itself -- see the snapshot it pins
+        // for its lock key -- and is worth doing when this file becomes Kotlin
+        // (#86) rather than growing a second session-shaped Java parameter now.
         String scope = DecadeCompositeArt.currentScope();
         if (scope == null || !scope.equals(segments.get(1))) {
             throw new FileNotFoundException("Not this library's composite");
