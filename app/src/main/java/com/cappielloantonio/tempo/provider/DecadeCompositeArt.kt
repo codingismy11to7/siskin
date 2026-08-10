@@ -176,14 +176,32 @@ object DecadeCompositeArt {
             file.parentFile?.mkdirs()
             // Written to a sibling and renamed, so a reader can never open a
             // half-drawn composite: the provider's hit path only checks that the
-            // file exists.
-            val partial = File(file.parentFile, "${file.name}.partial")
+            // file exists. The sibling is unique per attempt, not just per
+            // destination: this is an exported ContentProvider served on a
+            // thread pool, and the car can open the same decade tile
+            // concurrently, so two builds for the same decade and bucket can
+            // run at once. A shared partial name would let their writes
+            // interleave, and whichever rename ran last would publish a
+            // corrupt JPEG under the real cache name, where it would sit for
+            // the rest of the bucket's hour -- evictStale only reaps files it
+            // named, so a corrupt-but-correctly-named composite is invisible
+            // to it. A unique partial turns that race into last-writer-wins
+            // between two *complete* files instead of a race over one buffer.
+            val partial = File.createTempFile(file.name, ".partial", file.parentFile)
             partial.outputStream().use {
                 composite.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
             }
-            partial.renameTo(file)
-            evictStale(context, System.currentTimeMillis())
-            file.takeIf { it.isFile }
+            if (partial.renameTo(file)) {
+                evictStale(context, System.currentTimeMillis())
+                file.takeIf { it.isFile }
+            } else {
+                // A failed rename must not orphan the partial: evictStale
+                // never sweeps it, correctly, since the sweep only touches
+                // files it named itself. Delete it explicitly and fail the
+                // build like every other failure path here.
+                partial.delete()
+                null
+            }
         } catch (e: Exception) {
             // Outside any either { } block, so there is no Arrow raise for this
             // to swallow.
