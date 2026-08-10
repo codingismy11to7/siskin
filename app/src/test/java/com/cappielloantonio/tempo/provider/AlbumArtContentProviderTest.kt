@@ -122,14 +122,14 @@ class AlbumArtContentProviderTest {
     // ── the decade composite path ─────────────────────────────
 
     @Test
-    fun refusesADecadeSegmentThatIsNotAPlausibleDecade() {
-        // This segment becomes part of a cache filename, so the check is what
-        // keeps a decoded `/` out of cacheDir -- and it narrows the filename
-        // space to 200 values (1900-2099) rather than the 10,000 a bare
-        // \d{4} would admit.
+    fun refusesADecadeSegmentThatIsNotFourDigits() {
+        // This segment becomes part of a cache filename, so what the guard has
+        // to establish is that it is digits only -- no decoded `/`, no `..`, no
+        // separator of any kind -- and of fixed width. Everything below fails
+        // one of those two.
         val live = CompositeArtBucket.current(System.currentTimeMillis())
 
-        listOf(
+        val hostile = listOf(
             "..", "../..", "198", "19800", "abcd", "19 0", "", "%2e%2e",
             // The one that actually escapes: Uri.getPathSegments() decodes
             // percent-escapes, so this arrives as the single segment
@@ -138,17 +138,30 @@ class AlbumArtContentProviderTest {
             // "/../../evil" straight into the cache filename, resolving
             // above cacheDir.
             "%2f..%2f..%2fevil",
-        ).forEach { hostile ->
-            assertThrows(hostile, FileNotFoundException::class.java) {
+        )
+
+        // Collected rather than asserted one at a time, so removing the guard
+        // reports every segment that got through. Only the last of these is
+        // dangerous unguarded -- ".." is a harmless literal filename and
+        // "../.." never reaches the regex, the UriMatcher having already
+        // refused a three-segment decade -- and a fail-fast loop would stop
+        // at ".." and never say whether the decoded slash still bounced.
+        val accepted = hostile.filter { segment ->
+            try {
                 provider.openFile(
                     Uri.parse(
                         "content://${AlbumArtContentProvider.AUTHORITY}/" +
-                            "${AlbumArtContentProvider.DECADE_ART}/$hostile/$live"
+                            "${AlbumArtContentProvider.DECADE_ART}/$segment/$live"
                     ),
                     "r"
-                )
+                )?.close()
+                true
+            } catch (_: FileNotFoundException) {
+                false
             }
         }
+
+        assertEquals(emptyList<String>(), accepted)
     }
 
     @Test
@@ -178,11 +191,8 @@ class AlbumArtContentProviderTest {
         // real file instead, so statSize reports the file's actual length --
         // 3, the size of what was written below -- where a pipe's is 0. That
         // is what fails if the fast path is removed and every request pipes.
-        val context = App.getContext()
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
-        val file = DecadeCompositeArt.cacheFile(context, "4", "1980", bucket)
-        file.parentFile!!.mkdirs()
-        file.writeBytes(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()))
+        writeCachedComposite("1980", bucket, bytes = 3)
 
         val descriptor = provider.openFile(
             AlbumArtContentProvider.decadeContentUri("1980", bucket), "r"
@@ -193,6 +203,43 @@ class AlbumArtContentProviderTest {
         descriptor.close()
     }
 
+    /**
+     * The guard is four digits, not the twentieth century.
+     *
+     * Refusals alone cannot pin that: a pattern narrowed to `(19|20)\d{2}`, or
+     * mistyped as `(19)\d{2}`, still refuses every hostile segment above and
+     * still serves 1980, which is the only decade any other test here opens
+     * successfully. So the whole 2000s onward could break with a green suite.
+     *
+     * 1890 is not a hypothetical -- a classical or historical album can carry
+     * it, and a library that has one would silently lose that tile.
+     *
+     * Each decade's cache file is written to a different length, so statSize
+     * pins *which* file was opened as well as that a real file was rather than
+     * the read end of a pipe.
+     */
+    @Test
+    fun servesEveryFourDigitDecade() {
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        val sizes = mapOf("2020" to 5, "1890" to 7, "2090" to 11)
+        sizes.forEach { (decade, bytes) -> writeCachedComposite(decade, bucket, bytes) }
+
+        // Every decade is opened before anything is asserted, so a narrowed
+        // pattern names all of the decades it broke rather than only the first
+        // one the loop reached.
+        val served: Map<String, Any?> = sizes.keys.associateWith { decade ->
+            try {
+                provider.openFile(
+                    AlbumArtContentProvider.decadeContentUri(decade, bucket), "r"
+                )!!.use { it.statSize }
+            } catch (e: FileNotFoundException) {
+                "refused: ${e.message}"
+            }
+        }
+
+        assertEquals(sizes.mapValues { (_, bytes) -> bytes.toLong() }, served)
+    }
+
     @Test
     fun decadeContentUriRoundTripsTheDecadeAndBucket() {
         val uri = AlbumArtContentProvider.decadeContentUri("1980", 487234L)
@@ -201,5 +248,13 @@ class AlbumArtContentProviderTest {
             listOf(AlbumArtContentProvider.DECADE_ART, "1980", "487234"),
             uri.pathSegments
         )
+    }
+
+    /** A composite already on disk for [decade], of exactly [bytes] length --
+     * the length being what the assertions read back off the descriptor. */
+    private fun writeCachedComposite(decade: String, bucket: Long, bytes: Int) {
+        val file = DecadeCompositeArt.cacheFile(App.getContext(), "4", decade, bucket)
+        file.parentFile!!.mkdirs()
+        file.writeBytes(ByteArray(bytes))
     }
 }

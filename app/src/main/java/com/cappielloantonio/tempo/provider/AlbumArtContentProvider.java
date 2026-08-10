@@ -40,17 +40,27 @@ public class AlbumArtContentProvider extends ContentProvider {
     private static final int MATCH_ALBUM_ART = 1;
     private static final int MATCH_DECADE_ART = 2;
 
-    /** A decade key must look like a decade -- 1900 through 2099. It becomes
-     * part of a cache filename, so refusing anything else is what keeps a
-     * decoded `/` out of the cache filename DecadeCompositeArt.cacheFile
-     * builds; matches() anchors the whole segment rather than a prefix. It
-     * also bounds the filename space to 200 values instead of the 10,000
-     * `\d{4}` would admit. That bound does not by itself absorb a hostile
-     * caller: a bogus but well-formed decade (e.g. "1907") still yields no
-     * albums, DecadeCompositeArt.build() returns null before writing
-     * anything to cache, and nothing is left to answer the next request --
-     * so a caller looping such a value still costs one Plex query per open. */
-    private static final Pattern DECADE = Pattern.compile("(19|20)\\d{2}");
+    /** A decade key must be four digits. It becomes part of a cache filename,
+     * and what the guard buys is exactly two properties: the segment is
+     * digits only, so no decoded `/`, no `..` and no separator of any kind
+     * reaches the filename DecadeCompositeArt.cacheFile interpolates; and it
+     * is a fixed-width run, so there is no length to play with either.
+     * matches() anchors the whole segment rather than a prefix, which is what
+     * makes both properties hold of the segment and not merely of a prefix
+     * of it.
+     *
+     * Deliberately not narrowed to `(19|20)\d{2}`. The smaller filename space
+     * that buys does no work: nothing is ever cached for a decade that yields
+     * no albums, so the bogus names are never written, and a caller wanting to
+     * burn Plex queries can loop the 200 allowed-but-absent values as happily
+     * as 10,000. Meanwhile it refuses a genuine pre-1900 key -- an 1890s
+     * classical or historical album -- which a real library can produce.
+     *
+     * The residual is the same either way, and is named here rather than
+     * oversold: a well-formed but absent decade still costs one Plex query per
+     * open, because DecadeCompositeArt.build() returns null before writing
+     * anything and so leaves nothing cached to answer the next request. */
+    private static final Pattern DECADE = Pattern.compile("\\d{4}");
 
     // Plex's photo transcoder requires both dimensions. The image-size preference
     // this used to read is frozen at its "-1" sentinel -- the settings screen that

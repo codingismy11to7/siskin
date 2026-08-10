@@ -228,13 +228,24 @@ defence in depth that function's comment asks for.
 
 **Needs a guard:** two of them.
 
-- **The decade segment must match `(19|20)\d{2}`.** It becomes part of a
-  cache filename, so this is what keeps a decoded `/` out of `cacheDir`, and
-  it bounds the filename space to 200 values rather than the 10,000 a bare
-  `\d{4}` would admit. It does not by itself absorb a hostile caller: a bogus
-  but well-formed decade still yields no albums, so nothing is cached to
-  answer the next request, and a caller looping such a value still costs one
-  Plex query per open.
+- **The decade segment must match `\d{4}`.** It becomes part of a cache
+  filename, and the two properties that matter are both properties of that
+  pattern: **digits only**, so no decoded `/`, no `..` and no separator of any
+  kind reaches `DecadeCompositeArt.cacheFile`'s filename interpolation, and
+  **fixed length**, so there is no length to play with either. `matches()`
+  anchors the whole segment rather than a prefix.
+
+  Narrowing it to `(19|20)\d{2}` was considered and rejected. The smaller
+  filename space is not worth anything: nothing is ever cached for a decade
+  that yields no albums, so the bogus names are never written, and a caller
+  wanting to burn Plex queries can loop the 200 allowed-but-absent values as
+  effectively as 10,000. Against that it refuses a genuine pre-1900 decade key
+  — an 1890s classical or historical album — which a real library can produce.
+
+  Either way the guard does not by itself absorb a hostile caller, and that
+  residual is worth naming rather than overselling: a well-formed but absent
+  decade still costs one Plex query per open, because `build()` returns null
+  before writing anything and leaves nothing cached to answer the next request.
 - **The bucket must be the current one or the one immediately before it.**
   Without this, a caller could walk arbitrary bucket values to force unlimited
   cache misses, and every miss is a Plex request made with the user's token. The
@@ -347,7 +358,14 @@ assert nothing while appearing to pass.
   the decades doc gave `album.decade`.
 - **Hostile segments are refused:** a non-numeric decade, `..`, an empty segment,
   and a two-hour-stale bucket. Mirrors the existing hostile-path test in
-  `AlbumArtContentProviderTest`.
+  `AlbumArtContentProviderTest`. The segment that actually escapes `cacheDir` is
+  `%2f..%2f..%2fevil` — `getPathSegments()` decodes it *after* the `UriMatcher`
+  has accepted the segment — so that one carries the test's weight.
+- **The decade pattern is pinned in both directions.** Refusals alone would pass
+  against a guard narrowed too far, and every other decade test uses `1980`, so
+  a typo like `(19)\d{2}` would break the 2000s onward with a green suite.
+  Decades outside the 1900s are served positively from cache files the test
+  writes, each a different length so `statSize` pins which file was opened.
 - **Cover selection:** four or more thumbs yields four; three yields one;
   thumb-less entries are skipped; the request asks for eight.
 - **Layout is a pure function** — `cells(count, size)` returning destination
