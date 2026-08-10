@@ -412,11 +412,23 @@ assert nothing while appearing to pass.
 
 ## Verification in the car
 
-The 240px tile figure above is an estimate from the emulator profile's
-dimensions, not a measurement, so 2×2 legibility is a claim this design has not
-yet proven. Capturing the Decades grid on the landscape AVD, and on the portrait
-one, would settle it.
+The 240px tile figure used above to choose 2×2 over 3×3 was an estimate from the
+emulator profile's dimensions. **Measured on the landscape AVD** — API 33,
+`automotive_1024p_landscape`, 1024×768 — the estimate was close and conservative:
 
-That is a proposal and not a step to take unprompted: each variant is its own
-AVD, and switching tears down whatever is running — possibly mid-use or mirrored
-over scrcpy. Run it when asked, on whatever AVD is already up.
+| | measured |
+|---|---|
+| tile pitch (`media_item_click_target` centres) | 266px |
+| drawn thumbnail | ~260 × 260px |
+| cover cell at 2×2 | ~130px |
+| cover cell had it been 3×3 | ~87px |
+
+Three tiles to a row, so a decade's mosaic gets 130px a cover — enough that cover
+text survives, which it would not have at 87px. The choice holds on the evidence
+rather than on the estimate.
+
+**The portrait variant is still unverified.** Each variant is its own AVD and
+switching tears down whatever is running — possibly mid-use, possibly mirrored
+over scrcpy — so it is not a step to take unprompted. Run it when asked, on
+whatever AVD is already up. Portrait is 800×1280 at ldpi, a different pitch
+entirely, so nothing above transfers to it.
