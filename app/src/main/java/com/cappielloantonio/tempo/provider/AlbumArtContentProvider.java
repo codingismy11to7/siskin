@@ -25,14 +25,25 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 public class AlbumArtContentProvider extends ContentProvider {
     public static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".albumart.provider";
     public static final String ALBUM_ART = "albumArt";
+    public static final String DECADE_ART = "decadeArt";
+
+    private static final int MATCH_ALBUM_ART = 1;
+    private static final int MATCH_DECADE_ART = 2;
+
+    /** A decade key is exactly four digits. It becomes part of a cache
+     * filename, so this is what keeps `..` out of cacheDir, and it bounds a
+     * hostile caller on an exported provider to about ten distinct decades. */
+    private static final Pattern DECADE = Pattern.compile("\\d{4}");
 
     // Plex's photo transcoder requires both dimensions. The image-size preference
     // this used to read is frozen at its "-1" sentinel -- the settings screen that
@@ -45,7 +56,8 @@ public class AlbumArtContentProvider extends ContentProvider {
     private static final UriMatcher uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
 
     static {
-        uriMatcher.addURI(AUTHORITY, "albumArt/*", 1);
+        uriMatcher.addURI(AUTHORITY, ALBUM_ART + "/*", MATCH_ALBUM_ART);
+        uriMatcher.addURI(AUTHORITY, DECADE_ART + "/*/#", MATCH_DECADE_ART);
     }
 
     public static Uri contentUri(String artworkId) {
@@ -57,9 +69,34 @@ public class AlbumArtContentProvider extends ContentProvider {
                 .build();
     }
 
+    public static Uri decadeContentUri(String decade, long bucket) {
+        return new Uri.Builder()
+                .scheme(ContentResolver.SCHEME_CONTENT)
+                .authority(AUTHORITY)
+                .appendPath(DECADE_ART)
+                .appendPath(decade)
+                .appendPath(Long.toString(bucket))
+                .build();
+    }
+
     @Nullable
     @Override
     public ParcelFileDescriptor openFile(@NonNull Uri uri, @NonNull String mode) throws FileNotFoundException {
+        // uriMatcher was declared and never consulted while there was only one
+        // path: openFile read getLastPathSegment() and assumed the album shape.
+        // A second path is what makes it load-bearing -- reading the decade off
+        // the last segment would silently pick up the bucket instead.
+        switch (uriMatcher.match(uri)) {
+            case MATCH_ALBUM_ART:
+                return openAlbumArt(uri);
+            case MATCH_DECADE_ART:
+                return openDecadeArt(uri);
+            default:
+                throw new FileNotFoundException("Unrecognised artwork URI");
+        }
+    }
+
+    private ParcelFileDescriptor openAlbumArt(Uri uri) throws FileNotFoundException {
         Context context = getContext();
 
         // The last path segment is a Plex thumb path such as
@@ -113,6 +150,45 @@ public class AlbumArtContentProvider extends ContentProvider {
             }
             return fileRequest.submit().get();
         });
+    }
+
+    /**
+     * The decade composite. Its validation differs from openAlbumArt's, and
+     * deliberately: no caller-supplied path reaches MediaUrlBuilder here -- the
+     * four thumbs come from our own Plex response -- so the open-proxy hazard
+     * that path guards against cannot arise. What this path needs instead is a
+     * bound on how much work a caller can ask for, because every cache miss is a
+     * Plex request made with the user's token.
+     */
+    private ParcelFileDescriptor openDecadeArt(Uri uri) throws FileNotFoundException {
+        Context context = getContext();
+        List<String> segments = uri.getPathSegments();
+        String decade = segments.get(1);
+
+        if (!DECADE.matcher(decade).matches()) {
+            throw new FileNotFoundException("Not a decade");
+        }
+
+        long bucket;
+        try {
+            bucket = Long.parseLong(segments.get(2));
+        } catch (NumberFormatException e) {
+            throw new FileNotFoundException("Not a bucket");
+        }
+        if (!CompositeArtBucket.isLive(bucket, System.currentTimeMillis())) {
+            throw new FileNotFoundException("Stale composite bucket");
+        }
+
+        // The hit path does no background work at all: no Glide, no Retrofit, no
+        // executor thread. Eight decades scroll into view at once against a pool
+        // sized max(2, cores / 2), and only the first browse in an hour should
+        // pay for a build.
+        File cached = DecadeCompositeArt.cached(context, decade, bucket);
+        if (cached != null) {
+            return ParcelFileDescriptor.open(cached, ParcelFileDescriptor.MODE_READ_ONLY);
+        }
+
+        return pipeFrom(decade, () -> DecadeCompositeArt.build(context, decade, bucket));
     }
 
     /**

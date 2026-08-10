@@ -38,6 +38,7 @@ class AlbumArtContentProviderTest {
             .edit()
             .putString("plex_server_uri", "https://plex.example")
             .putString("plex_token", "tok123")
+            .putString("plex_music_section_key", "4")
             .commit()
 
         provider = Robolectric.buildContentProvider(AlbumArtContentProvider::class.java).create().get()
@@ -110,5 +111,72 @@ class AlbumArtContentProviderTest {
         val uri = AlbumArtContentProvider.contentUri("/library/metadata/1234/thumb/1699999999")
 
         assertEquals("/library/metadata/1234/thumb/1699999999", uri.lastPathSegment)
+    }
+
+    // ── the decade composite path ─────────────────────────────
+
+    @Test
+    fun refusesADecadeSegmentThatIsNotFourDigits() {
+        // This segment becomes part of a cache filename, so the check is what
+        // keeps `..` out of cacheDir -- and it bounds a hostile caller on an
+        // exported provider to about ten distinct decades.
+        val live = CompositeArtBucket.current(System.currentTimeMillis())
+
+        listOf("..", "../..", "198", "19800", "abcd", "19 0", "", "%2e%2e").forEach { hostile ->
+            assertThrows(hostile, FileNotFoundException::class.java) {
+                provider.openFile(
+                    Uri.parse(
+                        "content://${AlbumArtContentProvider.AUTHORITY}/" +
+                            "${AlbumArtContentProvider.DECADE_ART}/$hostile/$live"
+                    ),
+                    "r"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun refusesABucketOutsideTheLiveWindow() {
+        // Every miss is a Plex request made with the user's token. Without this,
+        // any app on the head unit could walk bucket values to force unlimited
+        // misses.
+        val live = CompositeArtBucket.current(System.currentTimeMillis())
+
+        listOf(live - 2, live + 1, 0L).forEach { bucket ->
+            assertThrows("bucket=$bucket", FileNotFoundException::class.java) {
+                provider.openFile(
+                    AlbumArtContentProvider.decadeContentUri("1980", bucket), "r"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun servesACachedCompositeWithoutBuildingOne() {
+        // The hit path must not touch the network: eight decades scroll into
+        // view at once against an executor sized max(2, cores / 2), and a build
+        // holds its thread for a round trip plus four cover fetches.
+        val context = App.getContext()
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        val file = DecadeCompositeArt.cacheFile(context, "4", "1980", bucket)
+        file.parentFile!!.mkdirs()
+        file.writeBytes(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()))
+
+        val descriptor = provider.openFile(
+            AlbumArtContentProvider.decadeContentUri("1980", bucket), "r"
+        )
+
+        assertNotNull(descriptor)
+        descriptor!!.close()
+    }
+
+    @Test
+    fun decadeContentUriRoundTripsTheDecadeAndBucket() {
+        val uri = AlbumArtContentProvider.decadeContentUri("1980", 487234L)
+
+        assertEquals(
+            listOf(AlbumArtContentProvider.DECADE_ART, "1980", "487234"),
+            uri.pathSegments
+        )
     }
 }
