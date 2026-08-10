@@ -31,8 +31,27 @@ package com.cappielloantonio.tempo.util
  * convention**, and safe for the same kind of reason it is there: neither side
  * can contain one. A scope is a normalised machine identifier -- letters and
  * digits, or a hyphenated sentinel -- then `-`, then a section key, which is an
- * integer. A decade is the four digits the provider's own `\d{4}` guard
- * requires. So the *last* pipe is always the one this object wrote.
+ * integer. That side is genuinely constrained, by
+ * `DecadeCompositeArt.isSafeCacheIdentifier`.
+ *
+ * The decade side is not validated here, and it is worth being exact about why
+ * it is still safe. The provider's `\d{4}` guard runs on the *read* path, on an
+ * incoming URI -- it never sees this string being minted. What actually holds is
+ * that the decade arrives from Plex's `/library/sections/{key}/decade` index,
+ * which returns years. [decadeIn] takes the *last* pipe regardless, so a stray
+ * one in the scope could not corrupt the split even if one appeared.
+ *
+ * ### This kills the change event on a server switch, not every change event
+ *
+ * The artwork URI also carries an hour bucket, and the id does not. So the first
+ * browse after the hour rolls hands the car N change events for N unchanged ids.
+ * That is safe on its own -- the list is the same size, so every index the car
+ * binds is valid -- and it is why the bucket is deliberately *not* in the id:
+ * putting it there would churn every decade row hourly and stale every persisted
+ * id. The invariant this object establishes is therefore "no change event
+ * *alongside a removal*", which is the shape that crashes. A library gaining or
+ * losing a decade in the same refresh as an hour roll would still reach it, and
+ * is rare enough to accept.
  *
  * The composite is opaque everywhere except [decadeIn], which
  * `PlexBrowseRepository.decadeTracks` calls to build the Plex filter. That is
