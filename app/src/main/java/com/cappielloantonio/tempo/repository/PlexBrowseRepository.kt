@@ -496,7 +496,7 @@ class PlexBrowseRepository {
             } else {
                 "${window * size + 1} - ${minOf((window + 1) * size, total)}"
             }
-            PlexMediaMapper.windowRowToMediaItem(windowPrefix + (window * size), label, icon)
+            PlexMediaMapper.groupRowToMediaItem(windowPrefix + (window * size), label, icon)
         }
     }
 

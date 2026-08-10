@@ -15,6 +15,10 @@
     <string name="aa_decades">Jahrzehnte</string>
     <string name="aa_shuffle_decade">Dieses Jahrzehnt zufällig wiedergeben</string>
 
+    <plurals name="car_artist_count">
+        <item quantity="one">%d Interpret</item>
+        <item quantity="other">%d Interpreten</item>
+    </plurals>
     <string name="car_settings_continuous_play">Musik weiterlaufen lassen</string>
     <string name="car_settings_car_shuffle">Zufallswiedergabe des Autos verwenden</string>
     <string name="car_settings_replay_gain">Lautstärkeangleichung</string>

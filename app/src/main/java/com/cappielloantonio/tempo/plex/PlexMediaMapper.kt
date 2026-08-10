@@ -388,26 +388,36 @@ object PlexMediaMapper {
     }
 
     /**
-     * A "Beck - Cake" row standing for one window of a list too long to send in
-     * full.
+     * A row standing for a *group* of items rather than an item: one window of a
+     * list too long to send in full ("Beck  -  Cake"), or one first-character
+     * bucket ("A").
      *
-     * A window is a range rather than a library item, so there is nothing on the
-     * server to draw and [icon] is always a local drawable. It is set rather than
-     * left null -- which is what [decadeToMediaItem] does -- because the car fills
-     * an absent artworkUri with a music note on a per-row colour, and a tab
-     * holding 25 to 56 windows turns that into a column of unrelated colours
-     * competing for a driver's attention. One repeated glyph says just as little
-     * and says it quietly.
+     * A group is a range or a filter value rather than a library item, so there
+     * is nothing on the server to draw and [icon] is always a local drawable. It
+     * is set rather than left null -- which is what [decadeToMediaItem] does --
+     * because the car fills an absent artworkUri with a music note on a per-row
+     * colour, and a tab holding 25 to 56 of them turns that into a column of
+     * unrelated colours competing for a driver's attention. One repeated glyph
+     * says just as little and says it quietly.
+     *
+     * [subtitle] rides the browse list's second line, the same one an album uses
+     * for its artist. Letter rows spend it on the bucket's count; window rows
+     * pass none, because every window holds WINDOW_SIZE items but the last.
      *
      * Its children *are* artists or albums, so unlike [decadeToMediaItem] this
      * sets the browsable content style -- those children render as a grid.
      *
      * Otherwise this largely re-implements [browsableItem]; the one deliberate
      * difference from it is that EXTRAS_KEY_CONTENT_STYLE_PLAYABLE is not set
-     * here, because a window row has no playable children of its own.
+     * here, because a group row has no playable children of its own.
      */
     @JvmStatic
-    fun windowRowToMediaItem(mediaId: String, title: String, icon: Int): MediaItem {
+    fun groupRowToMediaItem(
+        mediaId: String,
+        title: String,
+        icon: Int,
+        subtitle: String? = null
+    ): MediaItem {
         val extras = Bundle().apply {
             putInt(
                 MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
@@ -420,6 +430,7 @@ object PlexMediaMapper {
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)
+                    .setArtist(subtitle)
                     .setIsBrowsable(true)
                     .setIsPlayable(false)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
