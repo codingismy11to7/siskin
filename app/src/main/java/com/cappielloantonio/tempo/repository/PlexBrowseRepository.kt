@@ -398,11 +398,6 @@ class PlexBrowseRepository {
      * One request decides the shape: it asks for the first window and reads
      * `totalSize` off the same response, so a library that fits costs exactly
      * what it costs today and never pays for the window machinery.
-     *
-     * The HTTP/Unreachable handling below is the second decider of what a
-     * browse outcome means to media3, alongside [resultFor] -- see that
-     * function's KDoc for why this one cannot just call it and hand-copies the
-     * same routing instead. Keep the two in step.
      */
     private fun windowed(
         type: Int,
@@ -412,45 +407,28 @@ class PlexBrowseRepository {
         map: (PlexResponse) -> List<MediaItem>
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
-        return launchInto {
-            either {
-                val head = when (
-                    val outcome =
-                        libraryClient.getSectionContent(key, type, 0, ConstantsAA.WINDOW_SIZE, sort)
-                ) {
-                    is Either.Right -> outcome.value
-                    is Either.Left -> when (val failure = outcome.value) {
-                        is PlexTransportFailure.Http -> {
-                            Log.w(TAG, "windowed browse failed with HTTP ${failure.code}")
-                            return@either errorFor(failure.code)
-                        }
-
-                        is PlexTransportFailure.Unreachable -> raise(failure)
-                    }
-                }
-
-                // Not observed against PMS, which always returns totalSize once
-                // Start/Size were sent -- but silent is the wrong failure mode
-                // for a response that omits it anyway: falling back to 0 renders
-                // a flat, truncated first WINDOW_SIZE items with no sign
-                // anything went wrong, which is strictly worse than the bug this
-                // branch exists to fix. Logged so it is at least diagnosable
-                // from logcat if it ever happens.
-                val total = head.mediaContainer?.totalSize ?: run {
-                    Log.w(
-                        TAG,
-                        "windowed browse response carried no totalSize -- " +
-                            "falling back to a flat, possibly-truncated first " +
-                            "${ConstantsAA.WINDOW_SIZE} items"
-                    )
-                    0
-                }
-                val items = if (total <= ConstantsAA.WINDOW_SIZE) {
-                    map(head)
-                } else {
-                    windowRows(key, type, sort, total, windowPrefix, icon, head)
-                }
-                LibraryResult.ofItemList(ImmutableList.copyOf(items), null)
+        return fetch({
+            libraryClient.getSectionContent(key, type, 0, ConstantsAA.WINDOW_SIZE, sort)
+        }) { head ->
+            // Not observed against PMS, which always returns totalSize once
+            // Start/Size were sent -- but silent is the wrong failure mode for a
+            // response that omits it anyway: falling back to 0 renders a flat,
+            // truncated first WINDOW_SIZE items with no sign anything went
+            // wrong, which is strictly worse than the bug this branch exists to
+            // fix. Logged so it is at least diagnosable from logcat.
+            val total = head.mediaContainer?.totalSize ?: run {
+                Log.w(
+                    TAG,
+                    "windowed browse response carried no totalSize -- " +
+                        "falling back to a flat, possibly-truncated first " +
+                        "${ConstantsAA.WINDOW_SIZE} items"
+                )
+                0
+            }
+            if (total <= ConstantsAA.WINDOW_SIZE) {
+                map(head)
+            } else {
+                windowRows(key, type, sort, total, windowPrefix, icon, head)
             }
         }
     }
@@ -610,10 +588,17 @@ class PlexBrowseRepository {
      * transport failure stays a Left and reaches [launchInto], which completes
      * the future exceptionally so the callback reads it as "unreachable" rather
      * than "rejected".
+     *
+     * [map] is a suspend lambda so a node whose shape depends on its first
+     * response can issue further requests inside it and still route failures
+     * through [resultFor] alone -- which is what [windowed] needs for
+     * `totalSize` and [getArtistLetters] for its bucket counts. It runs
+     * lexically inside `resultFor`'s `either { }`, so nothing in a map lambda
+     * may catch broadly.
      */
     private fun fetch(
         request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
-        map: (PlexResponse) -> List<MediaItem>
+        map: suspend (PlexResponse) -> List<MediaItem>
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
         launchInto { resultFor(request, map) }
 
@@ -757,15 +742,15 @@ class PlexBrowseRepository {
          * held by a narrow catch clause and a comment warning not to widen it;
          * it is a `when` over a sealed type now.
          *
-         * [windowed] is the second decider: it cannot call this function --
-         * it needs the head response itself for `totalSize`, not just its
-         * Left/Right -- so it hand-copies the same HTTP/Unreachable routing
-         * inline. The two must be kept in step; a change here to what an HTTP
-         * failure or an Unreachable failure means has to be mirrored there too.
+         * This is the *only* place that decision is made. [windowed] used to
+         * hand-copy this routing, because it needs the head response itself for
+         * `totalSize` rather than just its Left/Right, and both functions
+         * carried a warning to keep the two copies in step. [map] being a
+         * suspend lambda is what removed the need for the copy.
          */
         internal suspend fun resultFor(
             request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
-            map: (PlexResponse) -> List<MediaItem>
+            map: suspend (PlexResponse) -> List<MediaItem>
         ): Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>> = either {
             val failure = when (val outcome = request()) {
                 is Either.Right ->
