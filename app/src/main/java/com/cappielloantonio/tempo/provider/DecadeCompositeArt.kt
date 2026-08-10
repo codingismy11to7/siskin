@@ -10,6 +10,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
 import com.cappielloantonio.tempo.plex.base.PlexResponse
@@ -127,12 +128,45 @@ object DecadeCompositeArt {
     fun build(context: Context, decade: String, bucket: Long): File? {
         val api = PlexApi()
         val session = api.session ?: return null
+
+        // Deduplicated per tile. The car can open one decade concurrently, and
+        // until a build renames its file into place every concurrent open is a
+        // fresh miss -- N metadata queries and 4N cover transcodes for one
+        // image, all made with the user's token. The key is the same triple
+        // that names the cache file, so the eight tiles of a first browse still
+        // build in parallel; see CompositeBuildLocks for why that matters and
+        // why its map does not grow.
+        return CompositeBuildLocks.exclusively(
+            "${session.musicSectionKey.value}-$decade-$bucket"
+        ) {
+            // Re-checked after acquiring, which is what turns N concurrent
+            // opens into one build and N-1 hits: whoever waited here was
+            // waiting for exactly the file the winner has now written.
+            cached(context, decade, bucket)
+                ?: buildLocked(context, api, session, decade, bucket)
+        }
+    }
+
+    /**
+     * [build]'s body, run holding that tile's lock.
+     *
+     * Split out only so `build` can express the lock and the re-check in a
+     * couple of lines; every failure contract described on [build] is this
+     * function's, and the bitmap is recycled on every exit from it.
+     */
+    private fun buildLocked(
+        context: Context,
+        api: PlexApi,
+        session: PlexSession,
+        decade: String,
+        bucket: Long
+    ): File? {
         val section = session.musicSectionKey
 
         val response = try {
             runBlocking {
-                // Pinned to the session snapshot above, not the one-argument
-                // LibraryClient(api) convenience constructor: that reads
+                // Pinned to the session snapshot build() took, not the
+                // one-argument LibraryClient(api) constructor: that reads
                 // api.serverUri/serverToken fresh from preferences, which can
                 // race a library switch on More -> Server Select and pair this
                 // section key with a different server's address mid-build.
