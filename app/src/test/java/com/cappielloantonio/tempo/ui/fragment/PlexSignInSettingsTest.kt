@@ -42,6 +42,7 @@ class PlexSignInSettingsTest {
             .remove("continuous_play")
             .remove("car_shuffle")
             .remove("replay_gain_mode")
+            .remove("artists_by_initial")
             .commit()
         PlexApi().session = PlexSession(
             accountToken = "t",
@@ -87,11 +88,14 @@ class PlexSignInSettingsTest {
     private fun replayGainSwitch(view: View) =
         switchLabelled(view, App.getInstance().getString(R.string.car_settings_replay_gain))
 
+    private fun artistsByInitialSwitch(view: View) =
+        switchLabelled(view, App.getInstance().getString(R.string.car_settings_artists_by_initial))
+
     @Test
     fun `settings offers every toggle at its default`() {
         val screen = settingsScreen()
 
-        assertEquals(3, switchesIn(screen).size)
+        assertEquals(4, switchesIn(screen).size)
         // The defaults differ, and each is a decision: continuous play is off
         // because reaching the end of a queue is not a request for more music,
         // the car's shuffle is deferred to because that is what the app already
@@ -100,6 +104,9 @@ class PlexSignInSettingsTest {
         assertFalse(continuousPlaySwitch(screen).isChecked)
         assertTrue(carShuffleSwitch(screen).isChecked)
         assertFalse(replayGainSwitch(screen).isChecked)
+        // On, unlike its neighbours: #87 is unreleased, so there is no install
+        // whose behaviour the default has to preserve.
+        assertTrue(artistsByInitialSwitch(screen).isChecked)
     }
 
     @Test
@@ -209,5 +216,16 @@ class PlexSignInSettingsTest {
         assertTrue(Preferences.isReplayGainEnabled())
         assertFalse(Preferences.isContinuousPlayEnabled())
         assertTrue(Preferences.isCarShuffleEnabled())
+    }
+
+    @Test
+    fun `tapping the artists-by-initial row turns it off`() {
+        val screen = settingsScreen()
+        val toggle = artistsByInitialSwitch(screen)
+
+        (toggle.parent as View).performClick()
+
+        assertFalse(Preferences.isArtistsByInitialEnabled())
+        assertFalse(artistsByInitialSwitch(settingsScreen()).isChecked)
     }
 }

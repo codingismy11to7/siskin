@@ -11,8 +11,10 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
+import androidx.annotation.OptIn
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.media3.common.util.UnstableApi
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
@@ -23,6 +25,8 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentPlexSignInBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
+import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
@@ -89,6 +93,7 @@ class PlexSignInFragment : Fragment() {
         bind = null
     }
 
+    @OptIn(UnstableApi::class)
     private fun render(state: PlexSignInState) {
         val bind = this.bind ?: return
 
@@ -162,6 +167,19 @@ class PlexSignInFragment : Fragment() {
                     getString(R.string.car_settings_replay_gain),
                     Preferences.isReplayGainEnabled()
                 ) { Preferences.setReplayGainEnabled(it) }
+
+                // Invalidates the Artists tab as well as writing the key. The car
+                // caches a browse list and does not re-fetch it on
+                // back-navigation, so without this the tab keeps whichever shape
+                // it was first loaded with and the row reads as doing nothing
+                // until the next cold start.
+                addToggle(
+                    getString(R.string.car_settings_artists_by_initial),
+                    Preferences.isArtistsByInitialEnabled()
+                ) {
+                    Preferences.setArtistsByInitialEnabled(it)
+                    BrowseTreeInvalidator.invalidateNode(ConstantsAA.ARTISTS_ID, 0)
+                }
 
                 addChoice(getString(R.string.car_settings_sign_out)) {
                     viewModel.signOut()
