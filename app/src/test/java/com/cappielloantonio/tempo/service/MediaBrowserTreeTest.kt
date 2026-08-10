@@ -286,6 +286,12 @@ class MediaBrowserTreeTest {
         // real covers, so a grid there shows something. A window row has nothing
         // but the range it spans ("Beck  -  Cake"), which is text, and text reads
         // better in a list.
+        //
+        // Flip the setting for this second block so the two blocks actually
+        // cover both values -- otherwise both would run under `true` (the
+        // default when the preference key is absent) and a regression that
+        // wired browsableChildrenAsGrid to the preference would pass unnoticed.
+        Preferences.setArtistsByInitialEnabled(false)
         MediaBrowserTree.buildTree()
         val artists = MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!
         assertEquals(
