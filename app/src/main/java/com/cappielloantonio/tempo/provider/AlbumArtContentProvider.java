@@ -40,10 +40,17 @@ public class AlbumArtContentProvider extends ContentProvider {
     private static final int MATCH_ALBUM_ART = 1;
     private static final int MATCH_DECADE_ART = 2;
 
-    /** A decade key is exactly four digits. It becomes part of a cache
-     * filename, so this is what keeps `..` out of cacheDir, and it bounds a
-     * hostile caller on an exported provider to about ten distinct decades. */
-    private static final Pattern DECADE = Pattern.compile("\\d{4}");
+    /** A decade key must look like a decade -- 1900 through 2099. It becomes
+     * part of a cache filename, so refusing anything else is what keeps a
+     * decoded `/` out of the cache filename DecadeCompositeArt.cacheFile
+     * builds; matches() anchors the whole segment rather than a prefix. It
+     * also bounds the filename space to 200 values instead of the 10,000
+     * `\d{4}` would admit. That bound does not by itself absorb a hostile
+     * caller: a bogus but well-formed decade (e.g. "1907") still yields no
+     * albums, DecadeCompositeArt.build() returns null before writing
+     * anything to cache, and nothing is left to answer the next request --
+     * so a caller looping such a value still costs one Plex query per open. */
+    private static final Pattern DECADE = Pattern.compile("(19|20)\\d{2}");
 
     // Plex's photo transcoder requires both dimensions. The image-size preference
     // this used to read is frozen at its "-1" sentinel -- the settings screen that

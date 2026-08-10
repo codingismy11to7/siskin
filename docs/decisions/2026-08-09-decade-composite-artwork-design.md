@@ -228,9 +228,13 @@ defence in depth that function's comment asks for.
 
 **Needs a guard:** two of them.
 
-- **The decade segment must be four digits.** It becomes part of a cache
-  filename, so this is what keeps `../` out of `cacheDir`, and it bounds a
-  hostile caller to about ten distinct decades.
+- **The decade segment must match `(19|20)\d{2}`.** It becomes part of a
+  cache filename, so this is what keeps a decoded `/` out of `cacheDir`, and
+  it bounds the filename space to 200 values rather than the 10,000 a bare
+  `\d{4}` would admit. It does not by itself absorb a hostile caller: a bogus
+  but well-formed decade still yields no albums, so nothing is cached to
+  answer the next request, and a caller looping such a value still costs one
+  Plex query per open.
 - **The bucket must be the current one or the one immediately before it.**
   Without this, a caller could walk arbitrary bucket values to force unlimited
   cache misses, and every miss is a Plex request made with the user's token. The

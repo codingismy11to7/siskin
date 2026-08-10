@@ -41,6 +41,12 @@ class AlbumArtContentProviderTest {
             .putString("plex_music_section_key", "4")
             .commit()
 
+        // Robolectric's cacheDir is real and persists across test methods within
+        // a run; servesACachedCompositeWithoutBuildingOne writes into it
+        // directly, so it is cleared here rather than assumed empty --
+        // DecadeCompositeArtCacheTest resets the same way for the same reason.
+        DecadeCompositeArt.cacheDir(context).deleteRecursively()
+
         provider = Robolectric.buildContentProvider(AlbumArtContentProvider::class.java).create().get()
     }
 
@@ -116,13 +122,23 @@ class AlbumArtContentProviderTest {
     // ── the decade composite path ─────────────────────────────
 
     @Test
-    fun refusesADecadeSegmentThatIsNotFourDigits() {
+    fun refusesADecadeSegmentThatIsNotAPlausibleDecade() {
         // This segment becomes part of a cache filename, so the check is what
-        // keeps `..` out of cacheDir -- and it bounds a hostile caller on an
-        // exported provider to about ten distinct decades.
+        // keeps a decoded `/` out of cacheDir -- and it narrows the filename
+        // space to 200 values (1900-2099) rather than the 10,000 a bare
+        // \d{4} would admit.
         val live = CompositeArtBucket.current(System.currentTimeMillis())
 
-        listOf("..", "../..", "198", "19800", "abcd", "19 0", "", "%2e%2e").forEach { hostile ->
+        listOf(
+            "..", "../..", "198", "19800", "abcd", "19 0", "", "%2e%2e",
+            // The one that actually escapes: Uri.getPathSegments() decodes
+            // percent-escapes, so this arrives as the single segment
+            // "/../../evil" -- the UriMatcher's `*` accepts a segment
+            // containing a decoded separator, and unguarded that would put
+            // "/../../evil" straight into the cache filename, resolving
+            // above cacheDir.
+            "%2f..%2f..%2fevil",
+        ).forEach { hostile ->
             assertThrows(hostile, FileNotFoundException::class.java) {
                 provider.openFile(
                     Uri.parse(
@@ -156,6 +172,12 @@ class AlbumArtContentProviderTest {
         // The hit path must not touch the network: eight decades scroll into
         // view at once against an executor sized max(2, cores / 2), and a build
         // holds its thread for a round trip plus four cover fetches.
+        //
+        // A descriptor alone does not pin that: a miss also returns one, the
+        // read end of a pipe. A hit returns ParcelFileDescriptor.open on the
+        // real file instead, so statSize reports the file's actual length --
+        // 3, the size of what was written below -- where a pipe's is 0. That
+        // is what fails if the fast path is removed and every request pipes.
         val context = App.getContext()
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         val file = DecadeCompositeArt.cacheFile(context, "4", "1980", bucket)
@@ -167,7 +189,8 @@ class AlbumArtContentProviderTest {
         )
 
         assertNotNull(descriptor)
-        descriptor!!.close()
+        assertEquals(3L, descriptor!!.statSize)
+        descriptor.close()
     }
 
     @Test
