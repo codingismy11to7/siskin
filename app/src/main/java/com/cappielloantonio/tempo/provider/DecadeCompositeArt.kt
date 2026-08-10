@@ -33,6 +33,6 @@ object DecadeCompositeArt {
     @JvmStatic
     fun coverThumbs(response: PlexResponse?, want: Int): List<String> =
         PlexBrowseRepository.itemsOf(response, TYPE_ALBUM)
-            .mapNotNull { PlexMediaMapper.artworkThumb(it)?.takeIf { t -> t.isNotBlank() } }
+            .mapNotNull { PlexMediaMapper.artworkThumb(it) }
             .take(want)
 }

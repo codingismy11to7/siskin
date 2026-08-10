@@ -13,10 +13,11 @@ import org.junit.Test
  */
 class DecadeCompositeArtSelectionTest {
 
-    private fun album(ratingKey: String?, thumb: String?) = Metadata().apply {
+    private fun album(ratingKey: String?, thumb: String?, parentThumb: String? = null) = Metadata().apply {
         this.type = "album"
         this.ratingKey = ratingKey
         this.thumb = thumb
+        this.parentThumb = parentThumb
     }
 
     private fun response(vararg items: Metadata) = PlexResponse().apply {
@@ -83,6 +84,20 @@ class DecadeCompositeArtSelectionTest {
 
         assertEquals(
             listOf("/library/metadata/1/thumb/1"),
+            DecadeCompositeArt.coverThumbs(body, want = 4)
+        )
+    }
+
+    @Test
+    fun fallsBackToTheParentThumbSoAnAlbumWithoutItsOwnStillContributes() {
+        // The reason this goes through PlexMediaMapper.artworkThumb rather than
+        // reading `thumb`: a cover that exists only on the parent is still a
+        // cover, and dropping it would shrink the grid for no reason. Reading
+        // `thumb` directly would leave every other test in this class passing.
+        val body = response(album("1", null, parentThumb = "/library/metadata/9/thumb/1"))
+
+        assertEquals(
+            listOf("/library/metadata/9/thumb/1"),
             DecadeCompositeArt.coverThumbs(body, want = 4)
         )
     }
