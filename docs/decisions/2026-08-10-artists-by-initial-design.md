@@ -314,6 +314,16 @@ The cost is one extra round trip, on small libraries only — the case where the
 second request is smallest. `getArtistLetter` is not involved, so nothing else
 pays for it.
 
+**If that second request fails, the tab falls back to the letter rows** rather
+than to an error or an empty list. They are already in hand from the index and
+cost nothing to build, and they are a working tab: every artist is still two taps
+away. This is `titleAt`'s reasoning — a degraded label is worth more than a
+failed tab — applied one level up, and it is what keeps the letter path free of
+error routing of its own. The alternative, raising the failure, would have to
+choose between reporting a 401 as "unreachable" and losing the sign-in
+affordance, or dropping the whole tab over a request the index had just proven
+the server was answering.
+
 ### Rows carry their count on the second line
 
 A letter row's title is the bucket's `title` verbatim — "A", "#", "∆". These are
