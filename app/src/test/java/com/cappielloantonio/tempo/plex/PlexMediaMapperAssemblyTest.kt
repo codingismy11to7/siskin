@@ -316,6 +316,24 @@ class PlexMediaMapperAssemblyTest {
     }
 
     @Test
+    fun windowRowSetsBrowsableChildStyleToAGridBecauseItsChildrenAreArtistsOrAlbums() {
+        // The property that makes a window's children (artists or albums)
+        // render as a grid rather than a list. An implementation that dropped
+        // .setExtras(extras) entirely would still pass every other window-row
+        // assertion in this file, which is why this needs its own test rather
+        // than piggybacking on windowRowIsBrowsableAndNotPlayable.
+        val row = PlexMediaMapper.windowRowToMediaItem(
+            "[artistWindowID]0", "A  -  B", R.drawable.ic_aa_artists
+        )
+        val extras = row.mediaMetadata.extras!!
+
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(true),
+            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+        )
+    }
+
+    @Test
     fun windowRowCarriesAnIconRatherThanNoArtwork() {
         // An absent artworkUri makes the car draw a music note on a per-row
         // colour; at 25-56 rows a tab that is a column of unrelated colours.

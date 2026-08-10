@@ -15,6 +15,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
@@ -226,6 +227,19 @@ class MediaBrowserTreeTest {
         assertTrue(ConstantsAA.ARTIST_WINDOW_ID.startsWith("[artist"))
         assertFalse(ConstantsAA.ARTIST_WINDOW_ID.startsWith(ConstantsAA.ARTIST_ID))
         assertFalse(ConstantsAA.ALBUM_WINDOW_ID.startsWith(ConstantsAA.ALBUM_ID))
+
+        // The assertions above only rule out a spelling collision between the
+        // id constants; they never call getChildren, so a wrong branch ORDER
+        // in the routing below, or a swapped prefix argument, would still pass
+        // them. This exercises the routing itself.
+        val repository = mock<PlexBrowseRepository>()
+        MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
+
+        MediaBrowserTree.getChildren(ConstantsAA.ARTIST_WINDOW_ID + "50")
+        verify(repository).getArtistWindow(50, ConstantsAA.ARTIST_ID)
+
+        MediaBrowserTree.getChildren(ConstantsAA.ALBUM_WINDOW_ID + "50")
+        verify(repository).getAlbumWindow(50, ConstantsAA.ALBUM_ID)
     }
 
     @Test
@@ -238,6 +252,11 @@ class MediaBrowserTreeTest {
         assertEquals(
             BrowseContentStyle.browsableChildStyle(false),
             artists.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+        )
+        val albums = MediaBrowserTree.getItem(ConstantsAA.ALBUMS_ID)!!
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(false),
+            albums.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
         )
     }
 }

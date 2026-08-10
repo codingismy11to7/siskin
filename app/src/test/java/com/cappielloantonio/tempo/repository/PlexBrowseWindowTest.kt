@@ -1,10 +1,12 @@
 package com.cappielloantonio.tempo.repository
 
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.util.ConstantsAA
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.QueueDispatcher
 import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -100,6 +102,13 @@ class PlexBrowseWindowTest {
         // total/size+1 = 120/50+1 = 3 -- the two agree there and the test above
         // cannot tell them apart. total=100 is where they diverge: the true
         // ceiling is 2 windows (0, 50), while total/size+1 would claim 3.
+        //
+        // failFast rather than the default queue behaviour: an implementation
+        // using the wrong formula requests a 4th response that was never
+        // enqueued, and the default QueueDispatcher blocks on take() waiting
+        // for one -- which would surface as this test hanging on .get() forever
+        // rather than as a clean assertion failure.
+        fixture.server.dispatcher = QueueDispatcher().apply { setFailFast(true) }
         fixture.server.enqueue(ok(listing(totalSize = 100, "Aardvark")))
         repeat(2) { fixture.server.enqueue(ok(listing(totalSize = 100, "Boundary$it"))) }
 
@@ -182,6 +191,20 @@ class PlexBrowseWindowTest {
         assertEquals("50", request.getHeader("X-Plex-Container-Start"))
         assertEquals("50", request.getHeader("X-Plex-Container-Size"))
         assertEquals("title", request.requestUrl!!.queryParameter("sort"))
+    }
+
+    @Test
+    fun aFailedFirstRequestReturnsPermissionDeniedForA401() = runTest {
+        // windowed()'s own HTTP-failure branch, not fetch()/resultFor()'s --
+        // every other 401 test in this file and PlexBrowseRepositoryTest goes
+        // through those, so a regression in this copy would silently drop the
+        // "sign in again" affordance from the two most-used tabs with CI green.
+        fixture.server.enqueue(MockResponse().setResponseCode(401))
+
+        val result = PlexBrowseRepository()
+            .getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID).get()
+
+        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
 
     @Test
