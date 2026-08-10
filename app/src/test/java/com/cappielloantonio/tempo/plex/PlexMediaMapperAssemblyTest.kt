@@ -13,9 +13,11 @@ import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -284,7 +286,7 @@ class PlexMediaMapperAssemblyTest {
         // the MediaItem is even built -- not just handing back an unset field.
         val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)!!
 
-        assertEquals(ConstantsAA.DECADE_ID + "1980", item.mediaId)
+        assertEquals(ConstantsAA.DECADE_ID + DecadeKey.of(SCOPE, "1980"), item.mediaId)
         assertEquals("1980s", item.mediaMetadata.title)
         assertTrue(item.mediaMetadata.isBrowsable!!)
         // Never playable: a playable row opens Now Playing on tap, and a decade
@@ -334,6 +336,53 @@ class PlexMediaMapperAssemblyTest {
         assertEquals(
             AlbumArtContentProvider.decadeContentUri(SCOPE, "1980", 487234L),
             item.mediaMetadata.artworkUri
+        )
+    }
+
+    /**
+     * The regression test for the crash, and the property whose absence caused
+     * it.
+     *
+     * `com.android.car.media` keeps its Decades adapter across a server switch
+     * and diffs the old list against the new one. Every other browsable row is
+     * keyed by a Plex ratingKey, which is server-specific, so a switch is always
+     * remove-then-insert. A decade key is "1980" on every server: with the
+     * library only in the artworkUri, DiffUtil saw the *same* row with changed
+     * contents, emitted a change alongside the removals for the decades the new
+     * library does not have, and `BatchingListUpdateCallback` flushed that
+     * change as the removal arrived -- binding a position valid for the old list
+     * against the already-latched shorter one, IndexOutOfBoundsException out of
+     * `BrowseAdapter.onBindViewHolder`. Binding straight off a change is the
+     * car app's defect and not ours to fix; not handing it a change is.
+     *
+     * Both rows are the same decade, the same bucket and the same title, so the
+     * ids are the only thing that can differ -- which is exactly the shape of
+     * the two adapters being diffed.
+     */
+    @Test
+    fun twoLibrariesMintDifferentMediaIdsForTheSameDecade() {
+        val onServerA =
+            PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, "serverA-4", 487234L)!!
+        val onServerB =
+            PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, "serverB-4", 487234L)!!
+
+        assertNotEquals(onServerA.mediaId, onServerB.mediaId)
+    }
+
+    /**
+     * The other half of it: the id has to keep carrying the decade in the form
+     * `PlexBrowseRepository` can filter Plex on, or every decade browses empty.
+     * A mapper that hashed the two together would pass the test above.
+     */
+    @Test
+    fun aDecadeRowsIdStillYieldsTheBareDecade() {
+        val item = PlexMediaMapper.decadeToMediaItem(
+            decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L
+        )!!
+
+        assertEquals(
+            "1980",
+            DecadeKey.decadeIn(item.mediaId.removePrefix(ConstantsAA.DECADE_ID))
         )
     }
 

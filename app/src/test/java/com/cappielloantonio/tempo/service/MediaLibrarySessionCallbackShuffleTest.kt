@@ -15,6 +15,7 @@ import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -515,8 +516,16 @@ class MediaLibrarySessionCallbackShuffleTest {
         const val SERVER = "https://plex.example"
         const val ARTIST = "7"
         const val PLAYLIST = "88"
-        const val DECADE = "1980"
-        const val OTHER_DECADE = "1970"
+
+        /**
+         * Whole DecadeKey payloads -- library and decade -- because that is
+         * what a decade row's media id carries and therefore all the callback
+         * ever sees. It never splits one, so these are opaque to it; written
+         * in their real shape rather than as a bare "1980" so the guard below
+         * is exercised on the string the car actually sends.
+         */
+        val DECADE = DecadeKey.of("abc123def456-4", "1980")
+        val OTHER_DECADE = DecadeKey.of("abc123def456-4", "1970")
 
         /** Sibling group the cached tracks share -- see SessionMediaItemRepository. */
         const val GROUP = 1_700_000_000_000L

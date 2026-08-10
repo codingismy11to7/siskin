@@ -27,6 +27,7 @@ import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.provider.DecadeCompositeArt
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.DecadeKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -181,7 +182,16 @@ class PlexBrowseRepository {
         }
     }
 
-    /** The browse list: the shuffle row, then a random sample of the decade. */
+    /**
+     * The browse list: the shuffle row, then a random sample of the decade.
+     *
+     * [decadeKey] is the whole [DecadeKey] payload -- library and decade -- as
+     * it came off the tapped row's media id, and it stays whole here. The
+     * shuffle row is built from it unsplit so that the guard in
+     * `MediaLibraryServiceCallback.cachedDecadeTracks`, which reconstructs
+     * `SHUFFLE_DECADE_ID + key` from what the car sends back, matches by
+     * construction.
+     */
     fun getDecadeTracks(decadeKey: String) = decadeTracks(decadeKey) { tracks ->
         listOf(shuffleDecadeRow(decadeKey)) + tracks
     }
@@ -214,6 +224,12 @@ class PlexBrowseRepository {
      * sampling the first 500 of the decade in library order, leaving the rest
      * unreachable by any sequence of taps. Random is the honest description of
      * what the server was asked for.
+     *
+     * **The one place a decade row's id is taken apart.** [decadeKey] arrives as
+     * the whole `<scope>|<decade>` payload and is opaque to every other caller;
+     * only the Plex filter needs the bare decade, and only here. Splitting it
+     * anywhere else would put the shuffle row and the browse-cache guard at risk
+     * of disagreeing about which string names a decade -- see [DecadeKey].
      */
     private fun decadeTracks(
         decadeKey: String,
@@ -227,7 +243,11 @@ class PlexBrowseRepository {
                 0,
                 ConstantsAA.MAX_ITEMS,
                 sort = LibraryClient.SORT_RANDOM,
-                trackDecade = decadeKey
+                // The bare decade, never the composite key: Plex answers an
+                // unrecognised filter value with 200 and an empty container,
+                // so the whole key here would render as an empty decade rather
+                // than as an error.
+                trackDecade = DecadeKey.decadeIn(decadeKey)
             )
         }, decorate)
     }

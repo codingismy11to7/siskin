@@ -339,6 +339,10 @@ object MediaBrowserTree {
                     )
                 }
                 if (id.startsWith(ConstantsAA.DECADE_ID)) {
+                    // The DecadeKey payload -- library and decade -- handed over
+                    // whole. Nothing here needs to know its shape, and the
+                    // shuffle row the repository builds from it has to carry the
+                    // same string the callback's cache guard rebuilds.
                     return browseRepository.getDecadeTracks(
                         id.removePrefix(ConstantsAA.DECADE_ID)
                     )

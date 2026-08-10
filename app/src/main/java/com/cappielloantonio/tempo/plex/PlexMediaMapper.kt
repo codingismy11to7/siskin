@@ -17,6 +17,7 @@ import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.ResourceUris
 
 /**
@@ -344,7 +345,10 @@ object PlexMediaMapper {
      *
      * [Directory.title] arrives already formatted for display ("1980s") and
      * [Directory.key] is the first year ("1980"). The key rides in the media id
-     * because that is all the car sends back on a tap.
+     * because that is all the car sends back on a tap -- and so does [scope],
+     * via [DecadeKey], because a decade is the one row type whose key means the
+     * same thing on every server. See [DecadeKey] for what the car does with
+     * two servers' rows that share an id.
      */
     @JvmStatic
     fun decadeToMediaItem(
@@ -369,7 +373,7 @@ object PlexMediaMapper {
         }
 
         return MediaItem.Builder()
-            .setMediaId(idPrefix + key)
+            .setMediaId(idPrefix + DecadeKey.of(scope, key))
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)
