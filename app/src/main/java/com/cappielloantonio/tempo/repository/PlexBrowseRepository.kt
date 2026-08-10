@@ -505,6 +505,115 @@ class PlexBrowseRepository {
             .getOrNull()
             ?.mediaContainer?.metadata?.firstOrNull()?.title
 
+    // ── browse by first character ──────────────────────────────
+    //
+    // The same problem the windowed nodes solve, answered with Plex's own
+    // grouping instead of with offsets: /library/sections/{k}/firstCharacter
+    // returns one bucket per distinct initial, with counts, in ~1.3KB. Artists
+    // only -- album buckets B=350 and S=315 are over the car's ceiling.
+
+    /**
+     * The Artists tab with [com.cappielloantonio.tempo.util.Preferences.isArtistsByInitialEnabled]
+     * on: one row per first-character bucket, or the artists themselves if they
+     * fit.
+     *
+     * One request decides the shape, the way [windowed] uses `totalSize`: the
+     * bucket counts sum to the section's total, so a library at or under
+     * [ConstantsAA.WINDOW_SIZE] is recognised from the index alone.
+     *
+     * No boundary titles and no `titleAt`. A bucket's label arrives in the same
+     * response as its count, so there is no fan-out to cap and no positional
+     * fallback to degrade to.
+     */
+    fun getArtistLetters(
+        letterPrefix: String,
+        artistPrefix: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return fetch({ libraryClient.getFirstCharacters(key) }) { body ->
+            val rows = directoriesOf(body).mapNotNull { letterRow(it, letterPrefix) }
+            val total = directoriesOf(body).sumOf { it.size ?: 0 }
+
+            if (total == 0 || total > ConstantsAA.WINDOW_SIZE) {
+                rows
+            } else {
+                // Small enough that buckets would be worse than a list. Falls
+                // back to the rows -- not to an error and not to an empty tab --
+                // if this second request fails: they are already built, and they
+                // are a tab where every artist is two taps away. Same reasoning
+                // as titleAt, one level up.
+                flatArtists(key, artistPrefix) ?: rows
+            }
+        }
+    }
+
+    /**
+     * One bucket's artists.
+     *
+     * [bucketKey] is the index's `key` verbatim, percent-encoding included --
+     * see [com.cappielloantonio.tempo.plex.api.library.LibraryService.getFirstCharacterContent].
+     *
+     * [ConstantsAA.MAX_ITEMS] rather than a bucket-sized fetch, like every other
+     * uncapped node here. A bucket over the car's ~293-item ceiling truncates
+     * silently; that is a documented, accepted bound, and the setting is the way
+     * out of it.
+     */
+    fun getArtistLetter(
+        bucketKey: String,
+        artistPrefix: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return fetch({
+            libraryClient.getFirstCharacterContent(key, bucketKey, 0, ConstantsAA.MAX_ITEMS)
+        }) { body ->
+            itemsOf(body, TYPE_ARTIST).mapNotNull {
+                PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+            }
+        }
+    }
+
+    /**
+     * The artists themselves, for a library too small to group.
+     *
+     * [LibraryClient.SORT_DISPLAY_TITLE] so this matches what the windowed path
+     * returns at the same size -- a small library must not reorder itself when
+     * the setting is flipped. Null on any failure, which the caller reads as
+     * "keep the bucket rows".
+     */
+    private suspend fun flatArtists(key: SectionKey, artistPrefix: String): List<MediaItem>? =
+        libraryClient.getSectionContent(
+            key,
+            PlexItemType.ARTIST,
+            0,
+            ConstantsAA.WINDOW_SIZE,
+            LibraryClient.SORT_DISPLAY_TITLE
+        ).getOrNull()?.let { body ->
+            itemsOf(body, TYPE_ARTIST).mapNotNull {
+                PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+            }
+        }
+
+    /**
+     * One bucket row. Null for an entry with no key or no title -- there is
+     * nothing to address or to label it with.
+     *
+     * The title is the server's verbatim: "A", "#", "∆" are already
+     * display-ready, so nothing here is localised or cut with [shortened]. The
+     * count is, hence the plurals lookup.
+     */
+    private fun letterRow(bucket: Directory, letterPrefix: String): MediaItem? {
+        val key = bucket.key?.takeIf { it.isNotBlank() } ?: return null
+        val title = bucket.title?.takeIf { it.isNotBlank() } ?: return null
+        return PlexMediaMapper.groupRowToMediaItem(
+            letterPrefix + key,
+            title,
+            R.drawable.ic_aa_artists,
+            bucket.size?.let { count ->
+                App.getContext().resources.getQuantityString(R.plurals.car_artist_count, count, count)
+            }
+        )
+    }
+
     /**
      * Plex rejects a multi-type search with HTTP 400, so this issues three and
      * merges. They run sequentially rather than in parallel: three small
