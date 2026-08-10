@@ -112,10 +112,15 @@ object MediaBrowserTree {
      * -- nest it under More instead.
      *
      * Grid-versus-list styling: Playlists is a list, and Artists and Albums
-     * became lists when they started serving window rows -- those carry no
-     * artwork of their own, and a grid of placeholders is worse than a list, the
-     * same call decadeToMediaItem makes. It governs each tab's *browsable*
-     * children only -- see BrowseContentStyle for why tracks are never affected.
+     * became lists when they started serving group rows -- a window's range
+     * ("Beck  -  Cake") or a bucket's letter carries no artwork of its own, and a
+     * grid of placeholders is worse than a list, the same call
+     * decadeToMediaItem makes. Artists is a list under *both* settings on
+     * purpose: this runs on onGetLibraryRoot, before any library has been
+     * queried, so a style that followed the by-initial preference would need the
+     * root invalidated and visibly re-rendered on every toggle. It governs each
+     * tab's *browsable* children only -- see BrowseContentStyle for why tracks
+     * are never affected.
      */
     fun buildTree() {
         treeNodes.clear()

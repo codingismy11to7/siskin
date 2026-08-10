@@ -17,6 +17,7 @@
 
     <plurals name="car_artist_count">
         <item quantity="one">%d artista</item>
+        <item quantity="many">%d de artistas</item>
         <item quantity="other">%d artistas</item>
     </plurals>
     <string name="car_settings_continuous_play">Seguir reproduciendo música</string>

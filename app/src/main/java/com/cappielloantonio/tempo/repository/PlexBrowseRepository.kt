@@ -340,7 +340,9 @@ class PlexBrowseRepository {
     // page=0, pageSize=Integer.MAX_VALUE, and reaching the end of a short list
     // provokes no follow-up request -- so paging cannot come from the car. It
     // comes from the tree instead: a list too long to browse becomes a list of
-    // ranges, each of which is a node the car can ask for in full.
+    // groups, each of which is a node the car can ask for in full. Ranges are
+    // one such grouping and first-character buckets are the other; see the
+    // section below.
 
     /**
      * The Artists tab: window rows, or the artists themselves if they fit.

@@ -141,6 +141,15 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
          * ordering the names disagree with produces ranges that read as broken.
          * Ordering by the displayed name is what keeps a label and its contents
          * the same thing.
+         *
+         * This describes one of the Artists tab's two shapes. The
+         * first-character buckets send **no** sort at all, deliberately: their
+         * membership is decided by `titleSort`, so ordering their contents by
+         * the displayed name scrambles them -- bucket D under `sort=title` opens
+         * on "Arne Domnérus, Bob Dylan, Brigitte DeMeyer". A window has an edge
+         * item to be named after and a bucket does not, which is why the two
+         * disagree. See
+         * docs/decisions/2026-08-10-artists-by-initial-design.md.
          */
         const val SORT_DISPLAY_TITLE = "title"
 

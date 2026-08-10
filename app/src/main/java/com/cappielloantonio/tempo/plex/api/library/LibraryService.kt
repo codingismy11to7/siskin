@@ -10,20 +10,22 @@ import retrofit2.http.Query
  * Plex Media Server library endpoints. Every response is MediaContainer-wrapped.
  *
  * Paging is expressed through X-Plex-Container-Start / -Size headers rather than
- * query parameters, on the endpoints that return a list: getSectionContent and
- * getChildren. Not for media3's benefit -- measured on the AAOS API 33 emulator,
- * onGetChildren always arrives as page=0, pageSize=Integer.MAX_VALUE, even
- * scrolled to a list's true end, so the car never actually pages a node (see
- * docs/decisions/2026-08-09-browse-list-windowing-design.md). These headers
- * exist for the windowed browse tree instead: PlexBrowseRepository's windowed
- * browse nodes fetch one WINDOW_SIZE-item slice per window and one single-item
- * slice per boundary label, and both ride Start/Size. getSections, getMetadata
- * and getSectionHubs return bounded results and take no paging.
+ * query parameters, on the endpoints that return a list: getSectionContent,
+ * getChildren and getFirstCharacterContent. Not for media3's benefit --
+ * measured on the AAOS API 33 emulator, onGetChildren always arrives as
+ * page=0, pageSize=Integer.MAX_VALUE, even scrolled to a list's true end, so
+ * the car never actually pages a node (see
+ * docs/decisions/2026-08-09-browse-list-windowing-design.md). These headers exist
+ * for the browse tree's grouped nodes instead: PlexBrowseRepository's windowed
+ * nodes fetch one WINDOW_SIZE-item slice per window and one single-item slice
+ * per boundary label, and getFirstCharacterContent fetches one bucket, all on
+ * Start/Size. getSections, getMetadata, getSectionHubs, getDecades and
+ * getFirstCharacters return bounded results and take no paging.
  *
  * The OpenAPI spec does not document these headers on these operations -- container
  * paging is a general Plex mechanism rather than a per-endpoint one -- so they were
- * verified directly against PMS 1.43.3: both endpoints honour Start/Size and return
- * size, totalSize and offset.
+ * verified directly against PMS 1.43.3: all three endpoints honour Start/Size and
+ * return size, totalSize and offset.
  *
  * A non-2xx still throws `HttpException` here -- Retrofit's behaviour, unchanged
  * -- but no call site sees that any more. `LibraryClient` wraps every call in
