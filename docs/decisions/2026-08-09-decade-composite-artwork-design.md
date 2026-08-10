@@ -76,25 +76,45 @@ in one day under a 24-hour TTL would not.
 
 ## What gets built
 
-### The URI carries a time bucket, and that is load-bearing
+### The URI carries a scope and a time bucket, and both are load-bearing
 
 ```
-content://us.codingismy11to7.siskin[.debug].albumart.provider/decadeArt/1980/487234
-                                                              └ path ┘ └dec┘ └bucket┘
+content://us.codingismy11to7.siskin[.debug].albumart.provider/decadeArt/abc123-4/1980/487234
+                                                              └ path ┘ └ scope ┘ └dec┘ └bucket┘
 ```
 
-`bucket = nowMs / 3_600_000`.
+`bucket = nowMs / 3_600_000`. `scope = DecadeCompositeArt.scopeOf(session)` —
+the normalised machine identifier and the section key, the same two values that
+open the cache filename.
 
-A URI that named only the decade would be constant forever, and the car's own
-image cache could pin the tile for the life of the process — the TTL would exist
-in our code and never be observable in the car. Rolling the bucket changes the
-URI, which invalidates every cache in the chain at once without any of them
-needing to know a TTL exists.
+**The car caches artwork by URI, so everything that has to invalidate a tile
+has to be visible in the URI.** That is one rule with two instances. A URI that
+named only the decade would be constant forever and the car's own image cache
+could pin the tile for the life of the process — the TTL would exist in our code
+and never be observable in the car. The identical argument applies to *which
+library* the tile is drawn from, and was originally missed: "1980s" on server A
+and "1980s" on server B minted byte-identical URIs.
 
-The bucket is computed at browse time and passed into
-`PlexMediaMapper.decadeToMediaItem(directory, idPrefix, bucket)` rather than read
-from a clock inside it, so the mapper stays a pure function — the same reason
-`MediaUrlBuilder` uses `java.net.URLEncoder` over `android.net.Uri`.
+The scope segment was added after a play-test found the artwork still unchanged
+across a server switch, and the lesson is worth stating plainly: **keying the
+cache *file* by machine identifier was correct and did not fix the bug, because
+nothing ever reached the file.** Measured on the device after a switch,
+`cache/decade-art/` held composites under exactly one machine identifier — no
+second prefix and no failed-build placeholder — which is the signature of a
+provider that was never opened. A cache key can only disambiguate requests that
+arrive; it cannot cause one to arrive.
+
+Both are computed once per browse and passed into
+`PlexMediaMapper.decadeToMediaItem(directory, idPrefix, scope, bucket)` rather
+than read from a clock or a session inside it, so the mapper stays a pure
+function — the same reason `MediaUrlBuilder` uses `java.net.URLEncoder` over
+`android.net.Uri`. Once per browse rather than once per row also means every
+decade in one listing agrees about both.
+
+`getDecades` therefore reads the whole `PlexSession` where it used to read only
+the section key. That is deliberately not a second way to fail: the section key
+was already derived from that session, so a null one is the same signed-out case
+that already returned an error future.
 
 ### The provider picks the covers, lazily
 
@@ -118,8 +138,8 @@ the car renders a placeholder and swaps artwork in asynchronously already.
 
 ```
 PlexBrowseRepository.getDecades(prefix)          one request, unchanged
-   └─ PlexMediaMapper.decadeToMediaItem(dir, prefix, bucket)
-         artworkUri = content://…/decadeArt/1980/487234
+   └─ PlexMediaMapper.decadeToMediaItem(dir, prefix, scope, bucket)
+         artworkUri = content://…/decadeArt/abc123-4/1980/487234
 
 the car opens that URI
    └─ AlbumArtContentProvider.openFile          Java, thin: validate + delegate
@@ -226,7 +246,7 @@ transcoder will fetch an absolute URL on another host, authenticated with the
 user's token — cannot arise here. The check still runs on each thumb, as the
 defence in depth that function's comment asks for.
 
-**Needs a guard:** two of them.
+**Needs a guard:** three of them.
 
 - **The decade segment must match `\d{4}`.** It becomes part of a cache
   filename, and the two properties that matter are both properties of that
@@ -251,6 +271,20 @@ defence in depth that function's comment asks for.
   cache misses, and every miss is a Plex request made with the user's token. The
   previous bucket is accepted so the hour boundary is not brittle: a URI minted
   at 10:59:59 and opened at 11:00:01 still draws.
+- **The scope must be the current session's.** A URI naming a library the user
+  has since left is a URI we can neither honour nor rebuild: serving it hands
+  back the previous server's mosaic, which is the bug the segment exists to
+  fix arriving from the other side, and the tile it actually names cannot be
+  built from a session we no longer hold. No session at all is the same answer
+  for the same reason — nothing to compare against and nothing to draw.
+
+  Unlike the decade, **this segment never reaches a filename and must not.** It
+  is compared for equality against a string computed locally from the session
+  and used for nothing else; the composite goes on being named from that
+  session directly. That is what makes a charset guard unnecessary here rather
+  than merely absent, and it is the property to preserve — interpolating an
+  incoming scope into a path would open exactly the traversal surface the
+  `\d{4}` rule and `isSafeCacheIdentifier` exist to close.
 
 Anything else is refused the way an absent image is — `FileNotFoundException`,
 which the car renders as its placeholder.
@@ -268,9 +302,10 @@ receives an already-validated decade and bucket and does no parsing of its own.
 One easy thing to miss: **`uriMatcher` is presently dead code.** It is declared
 with an `albumArt/*` rule, but `openFile` never consults it — it reads
 `getLastPathSegment()` and assumes the album-art shape. A second path is what
-makes the matcher load-bearing, and `decadeArt/#/#` needs its own rule. Reading
-the decade and bucket off `getLastPathSegment()` would silently pick up only the
-bucket.
+makes the matcher load-bearing, and the decade shape needs its own rule:
+`decadeArt/*/*/#` — scope, decade, bucket. Reading the decade and bucket off
+`getLastPathSegment()` would silently pick up only the bucket, and the arity
+itself is a guard, because `openDecadeArt` reads all three segments by index.
 
 ## The cache
 
@@ -338,7 +373,11 @@ from growing for the life of the process.
 
 Both identifiers are in the filename so composites do not survive a library
 switch under More → Server Select, on either axis — a different library on the
-same server, or the same section key on a different server. Eviction is a sweep
+same server, or the same section key on a different server. **Necessary and not
+sufficient:** the same two values also form the URI's scope segment, and it is
+the URI that decides whether this provider is opened at all. Keying only the
+filename left the car answering from its own image cache; see "The URI carries a
+scope and a time bucket". Eviction is a sweep
 on successful build: delete anything in the directory outside the two live
 buckets. Steady state is on the order of sixteen small JPEGs. `cacheDir` is
 system-evictable, and losing a file costs one rebuild.
@@ -431,7 +470,17 @@ assert nothing while appearing to pass.
 - **Eviction** keeps the two live buckets and deletes older files.
 - **`MediaBrowserTreeTest`:** the `DECADES_ID` node reports the grid style.
 - **`PlexMediaMapperTest`:** a decade item now carries an `artworkUri`, and it
-  round-trips the decade and bucket.
+  round-trips the scope, the decade and the bucket. That assertion lives in
+  `PlexMediaMapperAssemblyTest`, the Robolectric one: under
+  `returnDefaultValues` `Uri.Builder` hands back null, so the plain-JUnit suite
+  would be comparing null to null.
+- **Two scopes, two URIs.** The regression test for the play-tested bug, and the
+  one whose absence let it ship: the same decade and bucket under two different
+  scopes must not mint the same URI.
+- **The scope guard, in both directions.** A foreign scope is refused; the
+  current one is served, and that half asserts `statSize` against a cache file
+  the test wrote, because a guard that refused everything would pass the
+  refusal half while blanking every decade tile in the car.
 
 ## Verification in the car
 

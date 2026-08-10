@@ -146,8 +146,25 @@ class PlexMediaMapperTest {
         // on key and title rather than on `type`, because a decade Directory has
         // no type field at all -- unlike the section Directory that
         // LibraryClient.musicSections narrows.
-        assertNull(PlexMediaMapper.decadeToMediaItem(decade(key = null), ConstantsAA.DECADE_ID, bucket = 487234L))
-        assertNull(PlexMediaMapper.decadeToMediaItem(decade(key = "  "), ConstantsAA.DECADE_ID, bucket = 487234L))
-        assertNull(PlexMediaMapper.decadeToMediaItem(decade(title = null), ConstantsAA.DECADE_ID, bucket = 487234L))
+        //
+        // Plain JUnit is enough for these three only because each returns
+        // before an artwork Uri is built; anything asserting on the Uri itself
+        // belongs in PlexMediaMapperAssemblyTest, where Robolectric supplies a
+        // real Uri.Builder. Under returnDefaultValues this one hands back null
+        // and the assertion would compare null to null.
+        val dropped = listOf(
+            decade(key = null),
+            decade(key = "  "),
+            decade(title = null)
+        ).map {
+            PlexMediaMapper.decadeToMediaItem(it, ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)
+        }
+
+        dropped.forEach { assertNull(it) }
+    }
+
+    private companion object {
+        /** Any library scope; these rows never reach the artwork URI. */
+        const val SCOPE = "abc123def456-4"
     }
 }

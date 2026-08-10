@@ -282,7 +282,7 @@ class PlexMediaMapperAssemblyTest {
         // builds a content Uri for its artwork, and android.net.Uri.Builder's
         // chained setters return null under returnDefaultValues, NPEing before
         // the MediaItem is even built -- not just handing back an unset field.
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, bucket = 487234L)!!
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)!!
 
         assertEquals(ConstantsAA.DECADE_ID + "1980", item.mediaId)
         assertEquals("1980s", item.mediaMetadata.title)
@@ -298,7 +298,7 @@ class PlexMediaMapperAssemblyTest {
         // all playable. Without this hint the car falls back to its own
         // default, which may be a grid of identical album art (see
         // BrowseContentStyle.PLAYABLE_CHILD_STYLE).
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, bucket = 487234L)!!
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)!!
         val extras = item.mediaMetadata.extras!!
 
         assertEquals(
@@ -313,20 +313,26 @@ class PlexMediaMapperAssemblyTest {
         // browsable -- so EXTRAS_KEY_CONTENT_STYLE_BROWSABLE is deliberately
         // left unset rather than set to some default; setting it would hint
         // at a grid of content that never renders.
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, bucket = 487234L)!!
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)!!
         val extras = item.mediaMetadata.extras!!
 
         assertFalse(extras.containsKey(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE))
     }
 
     @Test
-    fun aDecadeCarriesTheCompositeForItsBucket() {
+    fun aDecadeCarriesTheCompositeForItsScopeAndBucket() {
+        // Both arguments are passed through, and both have to be: the URI is
+        // what the car's image cache keys on, so a row that dropped either
+        // would pin one tile across an hour's roll or across a switch to
+        // another server. A distinctive scope is used rather than a plausible
+        // one so a mapper that ignored it fails here rather than coincidentally
+        // agreeing.
         val item = PlexMediaMapper.decadeToMediaItem(
-            decade(), ConstantsAA.DECADE_ID, bucket = 487234L
+            decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L
         )!!
 
         assertEquals(
-            AlbumArtContentProvider.decadeContentUri("1980", 487234L),
+            AlbumArtContentProvider.decadeContentUri(SCOPE, "1980", 487234L),
             item.mediaMetadata.artworkUri
         )
     }
@@ -380,5 +386,13 @@ class PlexMediaMapperAssemblyTest {
             "[artistWindowID]0", "A  -  B", R.drawable.ic_aa_artists
         )
         assertNull(row.localConfiguration)
+    }
+
+    private companion object {
+        /** A library scope as DecadeCompositeArt.scopeOf builds one: machine
+         * identifier, then section key. Deliberately not a value any other
+         * fixture here uses, so a mapper that dropped the argument could not
+         * pass by accident. */
+        const val SCOPE = "5cope1dent1f1er-7"
     }
 }

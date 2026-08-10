@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.cappielloantonio.tempo.App
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Before
@@ -149,14 +150,20 @@ class AlbumArtContentProviderTest {
         // reports every segment that got through. Only the last of these is
         // dangerous unguarded -- ".." is a harmless literal filename and
         // "../.." never reaches the regex, the UriMatcher having already
-        // refused a three-segment decade -- and a fail-fast loop would stop
+        // refused a four-segment decade -- and a fail-fast loop would stop
         // at ".." and never say whether the decoded slash still bounced.
+        //
+        // Built by hand rather than through decadeContentUri, because
+        // appendPath would escape the `%` of "%2f..%2f..%2fevil" into "%25"
+        // and disarm the one case that carries this test's weight. The scope
+        // is the live one, so it is the decade guard that has to do the
+        // refusing here and not the scope check.
         val accepted = hostile.filter { segment ->
             try {
                 provider.openFile(
                     Uri.parse(
                         "content://${AlbumArtContentProvider.AUTHORITY}/" +
-                            "${AlbumArtContentProvider.DECADE_ART}/$segment/$live"
+                            "${AlbumArtContentProvider.DECADE_ART}/${scope()}/$segment/$live"
                     ),
                     "r"
                 )?.close()
@@ -179,7 +186,7 @@ class AlbumArtContentProviderTest {
         listOf(live - 2, live + 1, 0L).forEach { bucket ->
             assertThrows("bucket=$bucket", FileNotFoundException::class.java) {
                 provider.openFile(
-                    AlbumArtContentProvider.decadeContentUri("1980", bucket), "r"
+                    AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket), "r"
                 )
             }
         }
@@ -200,7 +207,7 @@ class AlbumArtContentProviderTest {
         writeCachedComposite("1980", bucket, bytes = 3)
 
         val descriptor = provider.openFile(
-            AlbumArtContentProvider.decadeContentUri("1980", bucket), "r"
+            AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket), "r"
         )
 
         assertNotNull(descriptor)
@@ -235,7 +242,7 @@ class AlbumArtContentProviderTest {
         val served: Map<String, Any?> = sizes.keys.associateWith { decade ->
             try {
                 provider.openFile(
-                    AlbumArtContentProvider.decadeContentUri(decade, bucket), "r"
+                    AlbumArtContentProvider.decadeContentUri(scope(), decade, bucket), "r"
                 )!!.use { it.statSize }
             } catch (e: FileNotFoundException) {
                 "refused: ${e.message}"
@@ -246,14 +253,68 @@ class AlbumArtContentProviderTest {
     }
 
     @Test
-    fun decadeContentUriRoundTripsTheDecadeAndBucket() {
-        val uri = AlbumArtContentProvider.decadeContentUri("1980", 487234L)
+    fun decadeContentUriRoundTripsTheScopeDecadeAndBucket() {
+        val uri = AlbumArtContentProvider.decadeContentUri("abc123def456-4", "1980", 487234L)
 
         assertEquals(
-            listOf(AlbumArtContentProvider.DECADE_ART, "1980", "487234"),
+            listOf(AlbumArtContentProvider.DECADE_ART, "abc123def456-4", "1980", "487234"),
             uri.pathSegments
         )
     }
+
+    /**
+     * The regression this segment exists for.
+     *
+     * Keying the *cache file* by machine identifier was correct and did not fix
+     * the reported bug: after switching servers the car went on drawing the old
+     * mosaic, and the cache directory showed composites under exactly one
+     * machine identifier -- no second prefix, no failed-build placeholder. The
+     * provider was never asked. A URI naming only the decade and the hour is
+     * byte-identical across servers, so the car's own image cache answered from
+     * what it already held. Different libraries have to mint different URIs or
+     * nothing downstream of the URI can matter.
+     */
+    @Test
+    fun twoLibrariesMintDifferentUrisForTheSameDecadeAndBucket() {
+        assertNotEquals(
+            AlbumArtContentProvider.decadeContentUri("serverA-4", "1980", 487234L),
+            AlbumArtContentProvider.decadeContentUri("serverB-4", "1980", 487234L)
+        )
+    }
+
+    /**
+     * A URI minted for a library the user has since left is refused, not served
+     * from whatever the current one happens to have cached.
+     *
+     * Both directions in one test on purpose. A guard that refused everything
+     * would pass the refusal half while blanking every decade tile in the car,
+     * so the accept half runs first and asserts `statSize` -- 3, the length
+     * written below -- because a pipe reports 0 and a descriptor alone would
+     * prove nothing. The refusal half then asks for the same decade, the same
+     * bucket and the same on-disk file under a foreign scope: without the
+     * guard the provider names its cache file from the current session, finds
+     * that file and serves it, which is precisely the stale art being fixed.
+     */
+    @Test
+    fun refusesACompositeMintedForAnotherLibrary() {
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        writeCachedComposite("1980", bucket, bytes = 3)
+
+        provider.openFile(
+            AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket), "r"
+        )!!.use { assertEquals(3L, it.statSize) }
+
+        assertThrows(FileNotFoundException::class.java) {
+            provider.openFile(
+                AlbumArtContentProvider.decadeContentUri("f00dcafe-9", "1980", bucket), "r"
+            )
+        }
+    }
+
+    /** The scope of the session setUp() wrote, computed the way the rows the
+     * car receives compute it -- one definition, so a test cannot pin a format
+     * the minting side has since moved off. */
+    private fun scope(): String = DecadeCompositeArt.currentScope()!!
 
     /** A composite already on disk for [decade], of exactly [bytes] length --
      * the length being what the assertions read back off the descriptor. Keyed

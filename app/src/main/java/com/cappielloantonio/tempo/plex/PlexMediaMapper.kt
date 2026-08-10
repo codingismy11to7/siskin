@@ -330,11 +330,13 @@ object PlexMediaMapper {
      * same icon carry less than the car's own per-row placeholder does.
      *
      * The artwork is ours rather than Plex's -- there is no composite for a
-     * filter value, see the 2026-08-09 decade composite artwork design -- and
-     * [bucket] is the hour window it belongs to. It rides in the URI so that an
-     * hour's roll changes the URI itself, which is what stops the car's image
-     * cache from pinning one draw for the life of the process. Passed in rather
-     * than read from a clock here, so this stays a pure function.
+     * filter value, see the 2026-08-09 decade composite artwork design.
+     * [bucket] is the hour window it belongs to and [scope] is the library it
+     * was drawn from; both ride in the URI for one reason, which is that the
+     * car's image cache keys on the URI and will otherwise pin a tile for the
+     * life of the process. An hour's roll has to change the URI, and so does a
+     * switch to another server. Both are passed in rather than read from a
+     * clock or a session here, so this stays a pure function.
      *
      * Filtered on key and title rather than on `type`: a decade Directory has no
      * `type` field, unlike the section Directory `LibraryClient.musicSections`
@@ -345,7 +347,12 @@ object PlexMediaMapper {
      * because that is all the car sends back on a tap.
      */
     @JvmStatic
-    fun decadeToMediaItem(directory: Directory, idPrefix: String, bucket: Long): MediaItem? {
+    fun decadeToMediaItem(
+        directory: Directory,
+        idPrefix: String,
+        scope: String,
+        bucket: Long
+    ): MediaItem? {
         val key = directory.key?.takeIf { it.isNotBlank() } ?: return null
         val title = directory.title?.takeIf { it.isNotBlank() } ?: return null
 
@@ -369,7 +376,7 @@ object PlexMediaMapper {
                     .setIsBrowsable(true)
                     .setIsPlayable(false)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                    .setArtworkUri(AlbumArtContentProvider.decadeContentUri(key, bucket))
+                    .setArtworkUri(AlbumArtContentProvider.decadeContentUri(scope, key, bucket))
                     .setExtras(extras)
                     .build()
             )

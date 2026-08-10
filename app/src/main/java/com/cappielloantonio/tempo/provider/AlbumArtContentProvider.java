@@ -74,7 +74,10 @@ public class AlbumArtContentProvider extends ContentProvider {
 
     static {
         uriMatcher.addURI(AUTHORITY, ALBUM_ART + "/*", MATCH_ALBUM_ART);
-        uriMatcher.addURI(AUTHORITY, DECADE_ART + "/*/#", MATCH_DECADE_ART);
+        // scope / decade / bucket. The arity is the guard: openDecadeArt reads
+        // each of the three by index, so a URI of any other shape must not
+        // reach it at all.
+        uriMatcher.addURI(AUTHORITY, DECADE_ART + "/*/*/#", MATCH_DECADE_ART);
     }
 
     public static Uri contentUri(String artworkId) {
@@ -86,11 +89,25 @@ public class AlbumArtContentProvider extends ContentProvider {
                 .build();
     }
 
-    public static Uri decadeContentUri(String decade, long bucket) {
+    /**
+     * The composite for one decade, in one library, for one hour.
+     *
+     * All three parts are in the URI for a single reason: the car caches
+     * artwork by URI, so anything that has to invalidate a tile has to be
+     * visible here. The bucket covers time. {@code scope} --
+     * {@link DecadeCompositeArt#scopeOf} -- covers *which library*, and it was
+     * the missing one: "1980s" on two servers minted byte-identical URIs, so
+     * after a switch under More -&gt; Server Select the car re-served the old
+     * server's mosaic out of its own cache and this provider was never opened
+     * at all. Keying the cache file by server, which is where that bug was
+     * first chased, cannot fix what never reaches the file.
+     */
+    public static Uri decadeContentUri(String scope, String decade, long bucket) {
         return new Uri.Builder()
                 .scheme(ContentResolver.SCHEME_CONTENT)
                 .authority(AUTHORITY)
                 .appendPath(DECADE_ART)
+                .appendPath(scope)
                 .appendPath(decade)
                 .appendPath(Long.toString(bucket))
                 .build();
@@ -175,12 +192,13 @@ public class AlbumArtContentProvider extends ContentProvider {
      * four thumbs come from our own Plex response -- so the open-proxy hazard
      * that path guards against cannot arise. What this path needs instead is a
      * bound on how much work a caller can ask for, because every cache miss is a
-     * Plex request made with the user's token.
+     * Plex request made with the user's token, and an answer to "is this URI
+     * even about the library we are pointed at now".
      */
     private ParcelFileDescriptor openDecadeArt(Uri uri) throws FileNotFoundException {
         Context context = getContext();
         List<String> segments = uri.getPathSegments();
-        String decade = segments.get(1);
+        String decade = segments.get(2);
 
         if (!DECADE.matcher(decade).matches()) {
             throw new FileNotFoundException("Not a decade");
@@ -188,12 +206,29 @@ public class AlbumArtContentProvider extends ContentProvider {
 
         long bucket;
         try {
-            bucket = Long.parseLong(segments.get(2));
+            bucket = Long.parseLong(segments.get(3));
         } catch (NumberFormatException e) {
             throw new FileNotFoundException("Not a bucket");
         }
         if (!CompositeArtBucket.isLive(bucket, System.currentTimeMillis())) {
             throw new FileNotFoundException("Stale composite bucket");
+        }
+
+        // A URI minted for a server the user has since left. Serving it would
+        // hand back the previous library's mosaic -- the bug this segment
+        // exists to fix, arriving from the other direction -- and the tile it
+        // actually asks for is one we can no longer build. Signed out is the
+        // same answer for the same reason: no session, nothing to honour a
+        // scope against and nothing to draw.
+        //
+        // Unlike the decade above, this segment never reaches a filename: it is
+        // compared for equality against a locally computed string and used for
+        // nothing else, and the composite below is still named from the session
+        // rather than from anything the caller sent. That is what makes a
+        // charset guard unnecessary here rather than merely absent.
+        String scope = DecadeCompositeArt.currentScope();
+        if (scope == null || !scope.equals(segments.get(1))) {
+            throw new FileNotFoundException("Not this library's composite");
         }
 
         // The hit path does no background work at all: no Glide, no Retrofit, no

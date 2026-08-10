@@ -25,6 +25,7 @@ import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
+import com.cappielloantonio.tempo.provider.DecadeCompositeArt
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -161,12 +162,22 @@ class PlexBrowseRepository {
      * returns them.
      */
     fun getDecades(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val key = sectionKey ?: return errorFuture()
-        // Read once per browse, not once per row, so every decade in one listing
-        // shares a bucket and the eight tiles roll together rather than drifting.
+        // The whole session rather than sectionKey, because the composite URIs
+        // below need the machine identifier too. Still the one way this fails,
+        // not a second: sectionKey reads this same session, so a null here is
+        // the same signed-out case every other browse node returns an error
+        // future for.
+        val session = api.session ?: return errorFuture()
+        // Both read once per browse rather than once per row, so every decade
+        // in one listing agrees: the eight tiles roll together on the hour
+        // rather than drifting, and they all name the library this listing was
+        // actually fetched from.
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
-        return fetch({ libraryClient.getDecades(key) }) { body ->
-            directoriesOf(body).mapNotNull { PlexMediaMapper.decadeToMediaItem(it, prefix, bucket) }
+        val scope = DecadeCompositeArt.scopeOf(session)
+        return fetch({ libraryClient.getDecades(session.musicSectionKey) }) { body ->
+            directoriesOf(body).mapNotNull {
+                PlexMediaMapper.decadeToMediaItem(it, prefix, scope, bucket)
+            }
         }
     }
 

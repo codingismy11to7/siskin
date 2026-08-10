@@ -100,6 +100,40 @@ object DecadeCompositeArt {
     private fun cacheIdentifier(machineIdentifier: String?): String =
         machineIdentifier?.takeIf(::isSafeCacheIdentifier) ?: NO_MACHINE_ID
 
+    /**
+     * Which server and which library a composite belongs to, as the one string
+     * both sides of the `decadeArt` URI use.
+     *
+     * Built from the same two values as the first two fields of [cacheFile]'s
+     * name -- the normalised machine identifier and the section key -- so the
+     * URI a row is minted with and the file it resolves to cannot disagree
+     * about what "this library" means. `AlbumArtContentProvider` mints with it
+     * and checks against it; one definition is what stops those two drifting.
+     *
+     * **It is never a filename input, and must not become one.** The provider
+     * compares an incoming segment against this string for equality and does
+     * nothing else with it; the cache file goes on being named from the
+     * session directly. That is the whole reason the segment needs no charset
+     * guard of its own -- unlike the machine identifier, which
+     * [isSafeCacheIdentifier] restricts precisely because it *does* reach a
+     * filename. Interpolating an incoming scope into a path would hand an
+     * exported provider the traversal surface both that guard and the
+     * provider's `\d{4}` decade rule exist to close.
+     */
+    @JvmStatic
+    fun scopeOf(session: PlexSession): String =
+        "${cacheIdentifier(session.machineIdentifier)}-${session.musicSectionKey.value}"
+
+    /**
+     * [scopeOf] the session in force right now, or null when there is none.
+     *
+     * A null means no URI can be honoured rather than every URI can: with no
+     * session there is nothing to compare a scope against and nothing to
+     * build either.
+     */
+    @JvmStatic
+    fun currentScope(): String? = PlexApi().session?.let(::scopeOf)
+
     /** Composites live under cacheDir, so the system may evict them; losing one
      * costs a single rebuild. */
     @JvmStatic
@@ -116,6 +150,12 @@ object DecadeCompositeArt {
      * in the name too, because it is what keeps two libraries *on the same
      * server* apart when More -> Server Select switches between them. The
      * bucket is in the name because that is what makes an hour roll a miss.
+     *
+     * Those first two fields are exactly what [scopeOf] names, and that is not
+     * a coincidence to be tidied away: the URI has to change on the same axes
+     * this filename does, or the car serves a tile the file no longer stands
+     * for. Naming the file is this function's job alone, though -- see
+     * [scopeOf] on why the URI's copy must never be interpolated into a path.
      */
     @JvmStatic
     fun cacheFile(
