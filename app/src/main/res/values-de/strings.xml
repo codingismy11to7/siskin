@@ -28,8 +28,6 @@
     <string name="exo_controls_repeat_all_description">Aktueller Modus: Alle wiederholen. Wiederholmodus wechseln.</string>
     <string name="exo_controls_repeat_off_description">Aktueller Modus: Keine Wiederholung. Wiederholmodus wechseln.</string>
     <string name="exo_controls_repeat_one_description">Aktueller Modus: Titel wiederholen. Wiederholmodus wechseln.</string>
-    <string name="exo_controls_shuffle_off_description">Zufallswiedergabe aktivieren</string>
-    <string name="exo_controls_shuffle_on_description">Zufallswiedergabe deaktivieren</string>
 
     <string name="plex_sign_in_choose_library">Musikbibliothek auswählen</string>
     <string name="plex_sign_in_choose_server">Plex-Server auswählen</string>
@@ -46,4 +44,7 @@
     <string name="plex_sign_in_instructions_no_qr">Gehe zu plex.tv/link und gib ein:</string>
     <string name="plex_sign_in_qr_description">QR-Code für die Anmeldung bei Plex</string>
     <string name="plex_sign_in_retry">Erneut versuchen</string>
+
+    <string name="shuffle_enable_description">Zufallswiedergabe aktivieren</string>
+    <string name="shuffle_disable_description">Zufallswiedergabe deaktivieren</string>
 </resources>

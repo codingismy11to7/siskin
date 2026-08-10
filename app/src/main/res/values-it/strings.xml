@@ -28,8 +28,6 @@
     <string name="exo_controls_repeat_all_description">Modalità attuale: ripeti tutto. Cambia modalità di ripetizione.</string>
     <string name="exo_controls_repeat_off_description">Modalità attuale: nessuna ripetizione. Cambia modalità di ripetizione.</string>
     <string name="exo_controls_repeat_one_description">Modalità attuale: ripeti brano. Cambia modalità di ripetizione.</string>
-    <string name="exo_controls_shuffle_off_description">Attiva la riproduzione casuale</string>
-    <string name="exo_controls_shuffle_on_description">Disattiva la riproduzione casuale</string>
 
     <string name="plex_sign_in_choose_library">Scegli una libreria musicale</string>
     <string name="plex_sign_in_choose_server">Scegli un server Plex</string>
@@ -46,4 +44,7 @@
     <string name="plex_sign_in_instructions_no_qr">Vai su plex.tv/link e inserisci:</string>
     <string name="plex_sign_in_qr_description">Codice QR per accedere a Plex</string>
     <string name="plex_sign_in_retry">Riprova</string>
+
+    <string name="shuffle_enable_description">Attiva la riproduzione casuale</string>
+    <string name="shuffle_disable_description">Disattiva la riproduzione casuale</string>
 </resources>

@@ -51,16 +51,29 @@ open class BaseSessionCallback(
     // CommandButtons
     // ─────────────────────────────────────────────────────────────
 
+    // ...ModeOn is the button shown while shuffle is *off*: buildMediaButtonPreferences
+    // offers the action you can take, not the state you are in, and the command and the
+    // label are both named for that action. The icon is the one part that reads the other
+    // way -- ...ModeOn draws ICON_SHUFFLE_OFF -- because an icon depicts the state you are
+    // in while a label says what tapping does.
+    //
+    // The labels were ExoPlayer's exo_controls_shuffle_{on,off}_description until #74.
+    // Those are named for the state, so pairing them with these action-named properties by
+    // matching name gave each button the opposite of its own action, which is how the bug
+    // got written; the ids say enable/disable now so there is nothing left to match up
+    // wrongly. The repeat buttons below keep the state naming, because their strings are
+    // worded as state -- the two sets are not meant to line up.
+
     private val customCommandToggleShuffleModeOn =
         CommandButton.Builder(CommandButton.ICON_SHUFFLE_OFF)
-            .setDisplayName(context.getString(R.string.exo_controls_shuffle_on_description))
+            .setDisplayName(context.getString(R.string.shuffle_enable_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
     private val customCommandToggleShuffleModeOff =
         CommandButton.Builder(CommandButton.ICON_SHUFFLE_ON)
-            .setDisplayName(context.getString(R.string.exo_controls_shuffle_off_description))
+            .setDisplayName(context.getString(R.string.shuffle_disable_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
