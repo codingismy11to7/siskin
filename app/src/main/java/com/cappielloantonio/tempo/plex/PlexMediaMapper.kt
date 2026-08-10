@@ -324,14 +324,17 @@ object PlexMediaMapper {
      * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getDecades]
      * returns.
      *
-     * Deliberately not built through [browsableItem]: that helper always sets an
-     * artworkUri, falling back to an icon when there is no thumb, and a decade
-     * has neither. Plex exposes no composite for a filter value (issue #84), so
-     * this row carries no artwork at all and the car draws its own placeholder --
-     * a music note on a per-row colour. That colour means nothing, which
-     * `LibraryPickerRepository.browsableRow` rightly calls noisy; it is accepted
-     * here because the alternative is a single repeated glyph carrying just as
-     * little, and because a composite is meant to replace it.
+     * Deliberately not built through [browsableItem], which falls back to an
+     * icon when there is no thumb. A decade wants no artwork at all rather than
+     * a shared glyph when its composite cannot be built: eight rows wearing the
+     * same icon carry less than the car's own per-row placeholder does.
+     *
+     * The artwork is ours rather than Plex's -- there is no composite for a
+     * filter value, see the 2026-08-09 decade composite artwork design -- and
+     * [bucket] is the hour window it belongs to. It rides in the URI so that an
+     * hour's roll changes the URI itself, which is what stops the car's image
+     * cache from pinning one draw for the life of the process. Passed in rather
+     * than read from a clock here, so this stays a pure function.
      *
      * Filtered on key and title rather than on `type`: a decade Directory has no
      * `type` field, unlike the section Directory `LibraryClient.musicSections`
@@ -342,7 +345,7 @@ object PlexMediaMapper {
      * because that is all the car sends back on a tap.
      */
     @JvmStatic
-    fun decadeToMediaItem(directory: Directory, idPrefix: String): MediaItem? {
+    fun decadeToMediaItem(directory: Directory, idPrefix: String, bucket: Long): MediaItem? {
         val key = directory.key?.takeIf { it.isNotBlank() } ?: return null
         val title = directory.title?.takeIf { it.isNotBlank() } ?: return null
 
@@ -366,6 +369,7 @@ object PlexMediaMapper {
                     .setIsBrowsable(true)
                     .setIsPlayable(false)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                    .setArtworkUri(AlbumArtContentProvider.decadeContentUri(key, bucket))
                     .setExtras(extras)
                     .build()
             )

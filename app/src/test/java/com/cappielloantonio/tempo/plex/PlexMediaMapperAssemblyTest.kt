@@ -9,6 +9,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
+import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
@@ -276,12 +277,28 @@ class PlexMediaMapperAssemblyTest {
     // ── decade rows ───────────────────────────────────────────
 
     @Test
+    fun aDecadeBecomesABrowsableRowCarryingItsKey() {
+        // Robolectric rather than plain JUnit: decadeToMediaItem now always
+        // builds a content Uri for its artwork, and android.net.Uri.Builder's
+        // chained setters return null under returnDefaultValues, NPEing before
+        // the MediaItem is even built -- not just handing back an unset field.
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, bucket = 487234L)!!
+
+        assertEquals(ConstantsAA.DECADE_ID + "1980", item.mediaId)
+        assertEquals("1980s", item.mediaMetadata.title)
+        assertTrue(item.mediaMetadata.isBrowsable!!)
+        // Never playable: a playable row opens Now Playing on tap, and a decade
+        // has no single track to point at.
+        assertFalse(item.mediaMetadata.isPlayable!!)
+    }
+
+    @Test
     fun aDecadesPlayableChildrenGetTheListStyleHint() {
         // A decade's children -- the shuffle row plus up to 500 tracks -- are
         // all playable. Without this hint the car falls back to its own
         // default, which may be a grid of identical album art (see
         // BrowseContentStyle.PLAYABLE_CHILD_STYLE).
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID)!!
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, bucket = 487234L)!!
         val extras = item.mediaMetadata.extras!!
 
         assertEquals(
@@ -296,10 +313,22 @@ class PlexMediaMapperAssemblyTest {
         // browsable -- so EXTRAS_KEY_CONTENT_STYLE_BROWSABLE is deliberately
         // left unset rather than set to some default; setting it would hint
         // at a grid of content that never renders.
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID)!!
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, bucket = 487234L)!!
         val extras = item.mediaMetadata.extras!!
 
         assertFalse(extras.containsKey(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE))
+    }
+
+    @Test
+    fun aDecadeCarriesTheCompositeForItsBucket() {
+        val item = PlexMediaMapper.decadeToMediaItem(
+            decade(), ConstantsAA.DECADE_ID, bucket = 487234L
+        )!!
+
+        assertEquals(
+            AlbumArtContentProvider.decadeContentUri("1980", 487234L),
+            item.mediaMetadata.artworkUri
+        )
     }
 
     // ── window rows ───────────────────────────────────────────

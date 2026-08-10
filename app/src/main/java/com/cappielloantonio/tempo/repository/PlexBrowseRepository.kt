@@ -24,6 +24,7 @@ import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Metadata
+import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -161,8 +162,11 @@ class PlexBrowseRepository {
      */
     fun getDecades(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
+        // Read once per browse, not once per row, so every decade in one listing
+        // shares a bucket and the eight tiles roll together rather than drifting.
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         return fetch({ libraryClient.getDecades(key) }) { body ->
-            directoriesOf(body).mapNotNull { PlexMediaMapper.decadeToMediaItem(it, prefix) }
+            directoriesOf(body).mapNotNull { PlexMediaMapper.decadeToMediaItem(it, prefix, bucket) }
         }
     }
 
