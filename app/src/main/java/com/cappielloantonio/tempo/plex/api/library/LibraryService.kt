@@ -11,9 +11,14 @@ import retrofit2.http.Query
  *
  * Paging is expressed through X-Plex-Container-Start / -Size headers rather than
  * query parameters, on the endpoints that return a list: getSectionContent and
- * getChildren. media3 calls onGetChildren(page, pageSize) for every browsable
- * node, so both need it. getSections, getMetadata and getSectionHubs return
- * bounded results and take no paging.
+ * getChildren. Not for media3's benefit -- measured on the AAOS API 33 emulator,
+ * onGetChildren always arrives as page=0, pageSize=Integer.MAX_VALUE, even
+ * scrolled to a list's true end, so the car never actually pages a node (see
+ * docs/decisions/2026-08-09-browse-list-windowing-design.md). These headers
+ * exist for the windowed browse tree instead: PlexBrowseRepository's windowed
+ * browse nodes fetch one WINDOW_SIZE-item slice per window and one single-item
+ * slice per boundary label, and both ride Start/Size. getSections, getMetadata
+ * and getSectionHubs return bounded results and take no paging.
  *
  * The OpenAPI spec does not document these headers on these operations -- container
  * paging is a general Plex mechanism rather than a per-endpoint one -- so they were

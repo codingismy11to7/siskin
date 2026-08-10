@@ -154,10 +154,10 @@ class PlexBrowseWindowTest {
         // points every window at the wrong slice.
         //
         // Asserted via the parsed query parameter rather than a substring check:
-        // SORT_TITLE is "titleSort", and "sort=titleSort".contains("sort=title")
-        // is true, so a plain `path.contains("sort=title")` cannot fail if the
-        // production code is switched to the wrong constant. queryParameter
-        // reads the whole value, so "title" and "titleSort" cannot be confused.
+        // Plex's own "titleSort" value contains "sort=title" as a substring, so
+        // a plain `path.contains("sort=title")` cannot fail if the production
+        // code is switched to the wrong sort. queryParameter reads the whole
+        // value, so "title" and "titleSort" cannot be confused.
         fixture.server.enqueue(ok(listing(totalSize = 120, "Fifty")))
 
         PlexBrowseRepository().getArtistWindow(50, ConstantsAA.ARTIST_ID).get()

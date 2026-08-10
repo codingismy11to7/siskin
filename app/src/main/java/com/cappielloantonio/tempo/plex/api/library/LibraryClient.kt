@@ -90,17 +90,6 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         private const val MUSIC_SECTION_TYPE = "artist"
 
         /**
-         * Sorts an album listing by album title, for the Albums tab.
-         *
-         * Passed explicitly rather than left to the server default, which is
-         * artist order -- and artist order is illegible in the car, because the
-         * album tile's large text is the album title and the artist is only its
-         * subtitle, so the grid reads as unsorted. That mismatch is why the
-         * "view by albums" entry this used to be contrasted with was deleted.
-         */
-        const val SORT_TITLE = "titleSort"
-
-        /**
          * Sorts by the name actually shown, rather than by Plex's sort title.
          *
          * `titleSort` is what [SORT_TITLE] and the server default order by, and

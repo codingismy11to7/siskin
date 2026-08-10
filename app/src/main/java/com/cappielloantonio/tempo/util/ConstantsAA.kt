@@ -12,10 +12,6 @@ object ConstantsAA {
     const val ARTISTS_ID = "[artistsID]"
     const val PLAYLIST_ID = "[playlistID]"
 
-    // More tab
-    const val MORE_ID = "[moreID]"
-    const val SELECT_LIBRARY_ID = "[selectLibraryID]"
-
     /**
      * How many items a browse window holds.
      *
@@ -32,6 +28,10 @@ object ConstantsAA {
 
     /** Prefix; the remainder is the window's first index, e.g. "50". */
     const val ALBUM_WINDOW_ID = "[albumWindowID]"
+
+    // More tab
+    const val MORE_ID = "[moreID]"
+    const val SELECT_LIBRARY_ID = "[selectLibraryID]"
 
     const val DECADES_ID = "[decadesID]"
 

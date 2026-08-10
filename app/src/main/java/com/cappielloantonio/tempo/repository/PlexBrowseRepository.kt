@@ -362,6 +362,11 @@ class PlexBrowseRepository {
      * One request decides the shape: it asks for the first window and reads
      * `totalSize` off the same response, so a library that fits costs exactly
      * what it costs today and never pays for the window machinery.
+     *
+     * The HTTP/Unreachable handling below is the second decider of what a
+     * browse outcome means to media3, alongside [resultFor] -- see that
+     * function's KDoc for why this one cannot just call it and hand-copies the
+     * same routing instead. Keep the two in step.
      */
     private fun windowed(
         type: Int,
@@ -677,6 +682,12 @@ class PlexBrowseRepository {
          * reachability problem is not a rejection. That distinction used to be
          * held by a narrow catch clause and a comment warning not to widen it;
          * it is a `when` over a sealed type now.
+         *
+         * [windowed] is the second decider: it cannot call this function --
+         * it needs the head response itself for `totalSize`, not just its
+         * Left/Right -- so it hand-copies the same HTTP/Unreachable routing
+         * inline. The two must be kept in step; a change here to what an HTTP
+         * failure or an Unreachable failure means has to be mirrored there too.
          */
         internal suspend fun resultFor(
             request: suspend () -> Either<PlexTransportFailure, PlexResponse>,

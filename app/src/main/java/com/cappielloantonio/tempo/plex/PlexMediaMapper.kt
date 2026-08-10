@@ -386,6 +386,10 @@ object PlexMediaMapper {
      *
      * Its children *are* artists or albums, so unlike [decadeToMediaItem] this
      * sets the browsable content style -- those children render as a grid.
+     *
+     * Otherwise this largely re-implements [browsableItem]; the one deliberate
+     * difference from it is that EXTRAS_KEY_CONTENT_STYLE_PLAYABLE is not set
+     * here, because a window row has no playable children of its own.
      */
     @JvmStatic
     fun windowRowToMediaItem(mediaId: String, title: String, icon: Int): MediaItem {
