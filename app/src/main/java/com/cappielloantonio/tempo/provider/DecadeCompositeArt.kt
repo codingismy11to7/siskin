@@ -41,6 +41,7 @@ object DecadeCompositeArt {
 
     private const val CACHE_DIR = "decade-art"
     private const val CACHE_SUFFIX = ".jpg"
+    private const val PARTIAL_SUFFIX = ".partial"
 
     /** Composites live under cacheDir, so the system may evict them; losing one
      * costs a single rebuild. */
@@ -128,16 +129,32 @@ object DecadeCompositeArt {
         val session = api.session ?: return null
         val section = session.musicSectionKey
 
-        val response = runBlocking {
-            LibraryClient(api).getSectionContent(
-                sectionKey = section,
-                type = PlexItemType.ALBUM,
-                start = 0,
-                size = CompositeGrid.OVER_FETCH,
-                sort = LibraryClient.SORT_RANDOM,
-                albumDecade = decade
-            )
-        }.getOrNull() ?: return null
+        val response = try {
+            runBlocking {
+                // Pinned to the session snapshot above, not the one-argument
+                // LibraryClient(api) convenience constructor: that reads
+                // api.serverUri/serverToken fresh from preferences, which can
+                // race a library switch on More -> Server Select and pair this
+                // section key with a different server's address mid-build.
+                LibraryClient(api, session.serverUri, session.serverToken).getSectionContent(
+                    sectionKey = section,
+                    type = PlexItemType.ALBUM,
+                    start = 0,
+                    size = CompositeGrid.OVER_FETCH,
+                    sort = LibraryClient.SORT_RANDOM,
+                    albumDecade = decade
+                )
+            }.getOrNull()
+        } catch (e: Exception) {
+            // plexCall catches only IOException/HttpException; a malformed
+            // response body (Gson JsonSyntaxException) or a mapping bug is a
+            // RuntimeException that would otherwise escape build() and break
+            // its contract that every failure is a null, never a throw.
+            // Outside any either { } block, so there is no Arrow raise here
+            // to swallow.
+            Log.w(TAG, "could not fetch section content for $decade", e)
+            null
+        } ?: return null
 
         val thumbs = coverThumbs(response, CompositeGrid.COVERS)
         val cells = CompositeGrid.cells(thumbs.size, CompositeGrid.SIZE)
@@ -158,6 +175,13 @@ object DecadeCompositeArt {
             CompositeGrid.SIZE, CompositeGrid.SIZE, Bitmap.Config.RGB_565
         )
         val file = cacheFile(context, section.value, decade, bucket)
+        // Hoisted above the try so the catch below can clean it up too: with
+        // the declaration inside the try, an exception thrown before a
+        // successful rename -- including from createTempFile itself -- left
+        // that attempt's partial on disk forever, since evictStale only
+        // recognises names ending CACHE_SUFFIX and each attempt's partial is
+        // uniquely named.
+        var partial: File? = null
         return try {
             // Drawing sits inside the same try as the write so that a draw that
             // throws -- a cover Glide has since recycled is the way that happens
@@ -187,25 +211,35 @@ object DecadeCompositeArt {
             // named, so a corrupt-but-correctly-named composite is invisible
             // to it. A unique partial turns that race into last-writer-wins
             // between two *complete* files instead of a race over one buffer.
-            val partial = File.createTempFile(file.name, ".partial", file.parentFile)
-            partial.outputStream().use {
+            val target = File.createTempFile(file.name, PARTIAL_SUFFIX, file.parentFile)
+            partial = target
+            // Bitmap.compress reports a write failure -- a full disk mid-encode
+            // is the way that happens -- by returning false rather than
+            // throwing: the native encoder's Java-stream adaptor absorbs the
+            // IOException, and FileOutputStream.close() does not throw on a
+            // full disk either. Without checking it, a truncated or zero-byte
+            // partial renames cleanly and is served as the composite for the
+            // rest of the bucket's hour, since cached() only stats the file.
+            val wrote = target.outputStream().use {
                 composite.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
             }
-            if (partial.renameTo(file)) {
+            if (!wrote || !target.renameTo(file)) {
+                // A failed compress or a failed rename must not orphan the
+                // partial: evictStale never sweeps it, correctly, since the
+                // sweep only touches files it named itself. Delete it
+                // explicitly and fail the build like every other failure
+                // path here.
+                target.delete()
+                null
+            } else {
                 evictStale(context, System.currentTimeMillis())
                 file.takeIf { it.isFile }
-            } else {
-                // A failed rename must not orphan the partial: evictStale
-                // never sweeps it, correctly, since the sweep only touches
-                // files it named itself. Delete it explicitly and fail the
-                // build like every other failure path here.
-                partial.delete()
-                null
             }
         } catch (e: Exception) {
             // Outside any either { } block, so there is no Arrow raise for this
             // to swallow.
             Log.w(TAG, "could not cache the composite for $decade", e)
+            partial?.delete()
             null
         } finally {
             composite.recycle()
@@ -214,7 +248,15 @@ object DecadeCompositeArt {
 
     /** Data-saving mode is honoured exactly as the album path honours it: a
      * cover that is not already cached fails the build, and the row falls back
-     * to the car's placeholder rather than spending the driver's data. */
+     * to the car's placeholder rather than spending the driver's data.
+     *
+     * In practice that means this composite essentially never builds under
+     * data-saving mode: [MediaUrlBuilder.artworkUrl] bakes width and height
+     * into the transcode URL, so the cell-sized cover this requests is a
+     * different Glide cache key from the 512px cover the album grid
+     * populates. Nothing else on the device ever requests this size, so
+     * `onlyRetrieveFromCache(true)` almost always misses rather than
+     * occasionally falling back. */
     private fun loadCover(context: Context, url: String, edge: Int): Bitmap? = try {
         var request = Glide.with(context)
             .asBitmap()
