@@ -23,8 +23,6 @@
     <string name="exo_controls_repeat_all_description">Mode actuel : tout répéter. Changer le mode de répétition.</string>
     <string name="exo_controls_repeat_off_description">Mode actuel : aucune répétition. Changer le mode de répétition.</string>
     <string name="exo_controls_repeat_one_description">Mode actuel : répéter le titre. Changer le mode de répétition.</string>
-    <string name="exo_controls_shuffle_off_description">Activer la lecture aléatoire</string>
-    <string name="exo_controls_shuffle_on_description">Désactiver la lecture aléatoire</string>
 
     <string name="plex_sign_in_choose_library">Choisissez une bibliothèque musicale</string>
     <string name="plex_sign_in_choose_server">Choisissez un serveur Plex</string>
@@ -41,4 +39,7 @@
     <string name="plex_sign_in_instructions_no_qr">Allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_qr_description">QR code pour se connecter à Plex</string>
     <string name="plex_sign_in_retry">Réessayer</string>
+
+    <string name="shuffle_enable_description">Activer la lecture aléatoire</string>
+    <string name="shuffle_disable_description">Désactiver la lecture aléatoire</string>
 </resources>

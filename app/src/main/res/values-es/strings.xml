@@ -23,8 +23,6 @@
     <string name="exo_controls_repeat_all_description">Modo actual: repetir todo. Cambiar modo de repetición.</string>
     <string name="exo_controls_repeat_off_description">Modo actual: sin repetición. Cambiar modo de repetición.</string>
     <string name="exo_controls_repeat_one_description">Modo actual: repetir una. Cambiar modo de repetición.</string>
-    <string name="exo_controls_shuffle_off_description">Activar reproducción aleatoria</string>
-    <string name="exo_controls_shuffle_on_description">Desactivar reproducción aleatoria</string>
 
     <string name="plex_sign_in_choose_library">Elige una biblioteca de música</string>
     <string name="plex_sign_in_choose_server">Elige un servidor Plex</string>
@@ -41,4 +39,7 @@
     <string name="plex_sign_in_instructions_no_qr">Ve a plex.tv/link e introduce:</string>
     <string name="plex_sign_in_qr_description">Código QR para iniciar sesión en Plex</string>
     <string name="plex_sign_in_retry">Reintentar</string>
+
+    <string name="shuffle_enable_description">Activar reproducción aleatoria</string>
+    <string name="shuffle_disable_description">Desactivar reproducción aleatoria</string>
 </resources>
