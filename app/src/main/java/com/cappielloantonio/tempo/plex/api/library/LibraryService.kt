@@ -151,4 +151,70 @@ interface LibraryService {
         @Path("sectionId") sectionId: String,
         @Query("type") type: Int
     ): PlexResponse
+
+    /**
+     * The first-character buckets this section's artists fall into -- Plex's own
+     * "By First Letter" index.
+     *
+     * Returns `Directory` entries carrying only `size`, `key` and `title`: no
+     * `type`, no artwork, and -- unlike the decade index -- **no `fastKey`**, so
+     * there is no server-supplied query to reproduce and the bucket has to be
+     * addressed by [getFirstCharacterContent]'s path instead.
+     *
+     * `title` is already display-ready ("A", "#", "∆") and needs no localising.
+     * `key` is what addresses the bucket and is *not* the same string: it is
+     * "%23" where the title is "#".
+     *
+     * Measured against PMS 1.43.3 on a 1204-artist library: 27 buckets in 1303
+     * bytes, and the counts sum to exactly the section's totalSize. **Empty
+     * letters are omitted** -- that library has no `X` bucket -- so nothing may
+     * assume 27, index by letter, or expect a fixed set. `∆` gets a bucket of
+     * its own, so the set is not "`#` plus the alphabet" either.
+     *
+     * Takes no paging, for the reason [getDecades] takes none: the response is
+     * bounded by the number of distinct initials a library can have.
+     */
+    @GET("library/sections/{sectionId}/firstCharacter")
+    suspend fun getFirstCharacters(
+        @Path("sectionId") sectionId: String,
+        @Query("type") type: Int
+    ): PlexResponse
+
+    /**
+     * One first-character bucket's items.
+     *
+     * **The bucket is a path segment, not a query, and getting that wrong is
+     * silent.** Measured against PMS 1.43.3:
+     * `/library/sections/4/all?type=8&firstCharacter=D` answers **200 with
+     * totalSize=1204** -- the entire library, 5.19 MB -- while
+     * `/library/sections/4/firstCharacter/D` answers 200 with totalSize=76,
+     * matching the index's count for D. A caller reaching for the query form
+     * sees a full, correctly-formed artist list under a heading reading "D" and
+     * no error anywhere.
+     *
+     * [key] is spliced in with `encoded = true` because it arrives already
+     * percent-encoded: the symbol bucket's key is "%23", and letting Retrofit
+     * encode it again sends "%2523" -- a bucket that does not exist, answered as
+     * an empty list. Non-ASCII keys like "∆" arrive raw and OkHttp encodes them.
+     *
+     * **No `sort` parameter, deliberately.** Membership is decided by
+     * `titleSort`, so ordering the contents by anything else scrambles them:
+     * measured on bucket D, `sort=title` opens on "Arne Domnérus, Bob Dylan,
+     * Brigitte DeMeyer, Carl Craig" -- a list labelled D running A, B, B, C.
+     * This is the opposite call from the windowed browse nodes, which must force
+     * `sort=title` because a window is named after the item at its edge; see
+     * docs/decisions/2026-08-10-artists-by-initial-design.md.
+     *
+     * `type` is honoured here and changes the answer -- on key "Q", `type=9`
+     * returns 3 albums where no type returns 4 artists -- so it is always passed
+     * rather than left to a music section's default.
+     */
+    @GET("library/sections/{sectionId}/firstCharacter/{key}")
+    suspend fun getFirstCharacterContent(
+        @Path("sectionId") sectionId: String,
+        @Path("key", encoded = true) key: String,
+        @Query("type") type: Int,
+        @Header("X-Plex-Container-Start") start: Int,
+        @Header("X-Plex-Container-Size") size: Int
+    ): PlexResponse
 }

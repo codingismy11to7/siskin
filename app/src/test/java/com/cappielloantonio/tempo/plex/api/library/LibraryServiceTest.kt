@@ -6,6 +6,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -190,6 +191,80 @@ class LibraryServiceTest {
     }
 
     @Test
+    fun getFirstCharactersAsksForArtistsAndTakesNoPaging() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"size":0}}"""))
+
+        service().getFirstCharacters(sectionId = "4", type = 8)
+
+        val request = server.takeRequest()
+        assertEquals("/library/sections/4/firstCharacter", request.requestUrl?.encodedPath)
+        assertEquals("8", request.requestUrl?.queryParameter("type"))
+        // Bounded by the number of distinct initials in a library, like the
+        // decade index -- so no Start/Size, and their absence is asserted rather
+        // than assumed.
+        assertNull(request.getHeader("X-Plex-Container-Start"))
+        assertNull(request.getHeader("X-Plex-Container-Size"))
+    }
+
+    @Test
+    fun aBucketKeyThatArrivedPercentEncodedIsNotEncodedASecondTime() = runTest {
+        // The server hands back key="%23" for the symbol bucket. Re-encoding it
+        // yields %2523, which is a different bucket that does not exist -- and
+        // the failure is a silently empty list, not an error. pathSegments
+        // decodes, so this asserts the server sees a segment meaning "#".
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"size":0}}"""))
+
+        service().getFirstCharacterContent(sectionId = "4", key = "%23", type = 8, start = 0, size = 500)
+
+        val request = server.takeRequest()
+        assertEquals("#", request.requestUrl!!.pathSegments.last())
+        assertFalse(request.path!!.contains("%2523"))
+    }
+
+    @Test
+    fun aNonAsciiBucketKeySurvivesTheRoundTrip() = runTest {
+        // A real library produces these: the reference library has a "∆" bucket
+        // holding one artist. It arrives unencoded, unlike "%23".
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"size":0}}"""))
+
+        service().getFirstCharacterContent(sectionId = "4", key = "∆", type = 8, start = 0, size = 500)
+
+        assertEquals("∆", server.takeRequest().requestUrl!!.pathSegments.last())
+    }
+
+    @Test
+    fun aBucketListingCarriesPagingAndNoSort() = runTest {
+        // No sort on purpose. Bucket membership is decided by titleSort, so
+        // sort=title opens bucket D on "Arne Domnérus, Bob Dylan, Brigitte
+        // DeMeyer" -- a list under a heading reading D that starts A, B, B.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"size":0}}"""))
+
+        service().getFirstCharacterContent(sectionId = "4", key = "D", type = 8, start = 0, size = 500)
+
+        val request = server.takeRequest()
+        assertEquals("8", request.requestUrl!!.queryParameter("type"))
+        assertNull(request.requestUrl!!.queryParameter("sort"))
+        assertEquals("0", request.getHeader("X-Plex-Container-Start"))
+        assertEquals("500", request.getHeader("X-Plex-Container-Size"))
+    }
+
+    @Test
+    fun getFirstCharactersReportsEachBucketsCount() = runTest {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """{"MediaContainer":{"size":2,"Directory":[
+                   {"size":12,"key":"%23","title":"#"},{"size":79,"key":"A","title":"A"}]}}"""
+            )
+        )
+
+        val response = service().getFirstCharacters(sectionId = "4", type = 8)
+
+        val buckets = response.mediaContainer!!.directory!!
+        assertEquals(listOf("#", "A"), buckets.map { it.title })
+        assertEquals(listOf(12, 79), buckets.map { it.size })
+    }
+
+    @Test
     fun everyEndpointIsCovered() {
         // Fails when an endpoint is added to LibraryService without a test
         // above. The gap this file closes formed exactly that way.
@@ -201,7 +276,9 @@ class LibraryServiceTest {
                 "getNearest",
                 "getMetadata",
                 "getSectionHubs",
-                "getDecades"
+                "getDecades",
+                "getFirstCharacters",
+                "getFirstCharacterContent"
             ),
             annotatedEndpoints(LibraryService::class.java)
         )
