@@ -25,8 +25,19 @@ class CompositeBuildLocksTest {
 
     private val threads = 4
 
+    /** Exclusivity is guaranteed for threads that arrive before the first one
+     * exits the key -- see CompositeBuildLocks.exclusively's KDoc: removal
+     * runs on the first exit, not the last, so once that removal has
+     * happened a fresh arrival can install a new lock for the same key and
+     * run alongside a straggler still finishing under the old one. This
+     * test's four threads all start together off one latch and each holds
+     * its slot for 50ms, far longer than four threads need to queue through
+     * a single `synchronized`, so it never reaches that window -- it is not
+     * a fuzz test for it, and a worker whose wake-up slipped past that sleep
+     * on a badly loaded machine could in principle observe an overlap this
+     * assertion was never meant to rule out. */
     @Test
-    fun runsOneBodyAtATimeForOneKey() {
+    fun arrivingTogetherForOneKeyRunsOneAtATime() {
         val inside = AtomicInteger(0)
         val overlapped = AtomicBoolean(false)
 

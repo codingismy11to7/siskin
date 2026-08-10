@@ -286,17 +286,26 @@ the same pool. Only the first browse in an hour pays that; every browse after it
 is a file handle. The pool is deliberately not resized — that would be tuning
 for a cost that lasts one browse per hour.
 
-**Concurrent opens of one tile collapse to one build.** A miss is not idempotent
-in cost: until a build renames its file into place, every concurrent open of the
-same tile is another cache miss, and so another Plex metadata query plus four
-cover transcodes made with the user's token. Builds are therefore serialised on
-the `(section, decade, bucket)` triple that names the cache file, with the cache
-re-checked after the lock is acquired, so N concurrent opens become one build and
-N−1 hits. Per key rather than globally, because the case that matters is eight
-distinct tiles missing at once on the first browse of an hour — one lock would
-turn that burst into eight sequential round trips. The album artwork path never
-needed any of this: Glide's engine already dedups identical in-flight requests
-underneath it, and the metadata query is the part Glide knows nothing about.
+**Concurrent opens of one tile collapse to one build — when the build succeeds.**
+A miss is not idempotent in cost: until a build renames its file into place,
+every concurrent open of the same tile is another cache miss, and so another
+Plex metadata query plus four cover transcodes made with the user's token.
+Builds are therefore serialised on the `(section, decade, bucket)` triple that
+names the cache file, with the cache re-checked after the lock is acquired
+against the same session snapshot the key was built from. When that build
+succeeds, N concurrent opens become one build and N−1 hits: whoever waited was
+waiting for exactly the file the winner wrote. A decade that yields no albums
+builds nothing — `build()` returns null before a file is ever written — so
+there is no hit to collapse onto: each waiter still runs its own metadata
+query, now serialised behind the lock rather than run in parallel. That is not
+a new cost; it is the same one-query-per-open the exported-boundary section
+above already concedes for a well-formed but absent decade, just paid one
+waiter at a time instead of all at once. Per key rather than globally, because
+the case that matters is eight distinct tiles missing at once on the first
+browse of an hour — one lock would turn that burst into eight sequential round
+trips. The album artwork path never needed any of this: Glide's engine already
+dedups identical in-flight requests underneath it, and the metadata query is
+the part Glide knows nothing about.
 
 The lock is a cost fix, not a correctness one. Overlapping builds of one tile
 were already safe — each writes a uniquely named partial and renames — and that

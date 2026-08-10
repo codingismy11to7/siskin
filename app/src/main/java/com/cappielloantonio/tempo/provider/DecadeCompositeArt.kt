@@ -139,10 +139,19 @@ object DecadeCompositeArt {
         return CompositeBuildLocks.exclusively(
             "${session.musicSectionKey.value}-$decade-$bucket"
         ) {
-            // Re-checked after acquiring, which is what turns N concurrent
+            // Re-checked after acquiring, against the same session snapshot
+            // the lock key and buildLocked's write use -- not cached(), which
+            // re-reads PlexApi().session fresh and would check a different
+            // section's filename than the winner wrote if More -> Server
+            // Select switched libraries while this thread waited on the
+            // lock. When the build succeeds, this is what turns N concurrent
             // opens into one build and N-1 hits: whoever waited here was
-            // waiting for exactly the file the winner has now written.
-            cached(context, decade, bucket)
+            // waiting for exactly the file the winner has now written. A
+            // decade with no albums caches nothing, though, so a miss here
+            // still costs each waiter its own metadata query, just serialised
+            // behind the lock rather than run in parallel.
+            cacheFile(context, session.musicSectionKey.value, decade, bucket)
+                .takeIf { it.isFile }
                 ?: buildLocked(context, api, session, decade, bucket)
         }
     }
@@ -285,7 +294,7 @@ object DecadeCompositeArt {
      * is gone -- so the branch is unreachable today and is kept only so the two
      * artwork paths cannot drift apart.
      *
-     * centerCrop because the draw below passes a null source rect, which maps
+     * centerCrop because canvas.drawBitmap passes a null source rect, which maps
      * whatever arrives onto the whole cell: submit(edge, edge) only downsamples
      * and preserves aspect ratio, so an oblong cover would be squashed square
      * rather than cropped. Plex covers are square in practice, so this removes
