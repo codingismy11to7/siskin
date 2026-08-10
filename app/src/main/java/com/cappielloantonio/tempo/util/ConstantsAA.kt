@@ -35,7 +35,15 @@ object ConstantsAA {
 
     const val DECADES_ID = "[decadesID]"
 
-    /** Prefix; the remainder is the decade's first year, e.g. "1980". */
+    /**
+     * Prefix; the remainder is a [DecadeKey] -- "<scope>|<decade>", e.g.
+     * "abc123def456-4|1980".
+     *
+     * The library is in there and the decade's first year alone is not, because
+     * a decade key is the same string on every server. That made a decade row
+     * the one row whose id survived a server switch unchanged, which crashed
+     * `com.android.car.media`'s browse adapter; [DecadeKey] tells that story.
+     */
     const val DECADE_ID = "[decadeID]"
 
     /** Prefix; the remainder is the server's machine identifier. */
@@ -64,8 +72,11 @@ object ConstantsAA {
 
     /**
      * Prefixes of the synthetic shuffle rows, each carrying the ratingKey of the
-     * thing to shuffle after it -- or, for [SHUFFLE_DECADE_ID], the decade's
-     * first year. Nothing on the server answers to these ids: they are playable
+     * thing to shuffle after it -- or, for [SHUFFLE_DECADE_ID], the same
+     * [DecadeKey] payload [DECADE_ID] carries, whole and unsplit. That is what
+     * lets `MediaLibraryServiceCallback.cachedDecadeTracks` rebuild the row's id
+     * from what the car sends back and match it against the browse list it
+     * cached. Nothing on the server answers to these ids: they are playable
      * rows with no stream, and MediaLibrarySessionCallback swaps one for its
      * subject's tracks when it is tapped.
      *

@@ -141,34 +141,30 @@ class PlexMediaMapperTest {
     // ── decade rows ───────────────────────────────────────────
 
     @Test
-    fun aDecadeBecomesABrowsableRowCarryingItsKey() {
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID)!!
-
-        assertEquals(ConstantsAA.DECADE_ID + "1980", item.mediaId)
-        assertEquals("1980s", item.mediaMetadata.title)
-        assertTrue(item.mediaMetadata.isBrowsable!!)
-        // Never playable: a playable row opens Now Playing on tap, and a decade
-        // has no single track to point at.
-        assertFalse(item.mediaMetadata.isPlayable!!)
-    }
-
-    @Test
-    fun aDecadeCarriesNoArtworkSoTheCarSuppliesItsOwn() {
-        // Plex offers no composite for a filter value -- see issue #84. Passing
-        // no artworkUri hands the row to the car's own placeholder rather than
-        // to a repeated glyph that would carry no more information.
-        assertNull(PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID)!!
-            .mediaMetadata.artworkUri)
-    }
-
-    @Test
     fun aDecadeWithoutAKeyOrTitleIsDropped() {
         // A row whose id carries no decade would fetch nothing on tap. Filtered
         // on key and title rather than on `type`, because a decade Directory has
         // no type field at all -- unlike the section Directory that
         // LibraryClient.musicSections narrows.
-        assertNull(PlexMediaMapper.decadeToMediaItem(decade(key = null), ConstantsAA.DECADE_ID))
-        assertNull(PlexMediaMapper.decadeToMediaItem(decade(key = "  "), ConstantsAA.DECADE_ID))
-        assertNull(PlexMediaMapper.decadeToMediaItem(decade(title = null), ConstantsAA.DECADE_ID))
+        //
+        // Plain JUnit is enough for these three only because each returns
+        // before an artwork Uri is built; anything asserting on the Uri itself
+        // belongs in PlexMediaMapperAssemblyTest, where Robolectric supplies a
+        // real Uri.Builder. Under returnDefaultValues this one hands back null
+        // and the assertion would compare null to null.
+        val dropped = listOf(
+            decade(key = null),
+            decade(key = "  "),
+            decade(title = null)
+        ).map {
+            PlexMediaMapper.decadeToMediaItem(it, ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)
+        }
+
+        dropped.forEach { assertNull(it) }
+    }
+
+    private companion object {
+        /** Any library scope; these rows never reach the artwork URI. */
+        const val SCOPE = "abc123def456-4"
     }
 }

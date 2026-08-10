@@ -17,6 +17,7 @@ import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.ResourceUris
 
 /**
@@ -324,14 +325,19 @@ object PlexMediaMapper {
      * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getDecades]
      * returns.
      *
-     * Deliberately not built through [browsableItem]: that helper always sets an
-     * artworkUri, falling back to an icon when there is no thumb, and a decade
-     * has neither. Plex exposes no composite for a filter value (issue #84), so
-     * this row carries no artwork at all and the car draws its own placeholder --
-     * a music note on a per-row colour. That colour means nothing, which
-     * `LibraryPickerRepository.browsableRow` rightly calls noisy; it is accepted
-     * here because the alternative is a single repeated glyph carrying just as
-     * little, and because a composite is meant to replace it.
+     * Deliberately not built through [browsableItem], which falls back to an
+     * icon when there is no thumb. A decade wants no artwork at all rather than
+     * a shared glyph when its composite cannot be built: eight rows wearing the
+     * same icon carry less than the car's own per-row placeholder does.
+     *
+     * The artwork is ours rather than Plex's -- there is no composite for a
+     * filter value, see the 2026-08-09 decade composite artwork design.
+     * [bucket] is the hour window it belongs to and [scope] is the library it
+     * was drawn from; both ride in the URI for one reason, which is that the
+     * car's image cache keys on the URI and will otherwise pin a tile for the
+     * life of the process. An hour's roll has to change the URI, and so does a
+     * switch to another server. Both are passed in rather than read from a
+     * clock or a session here, so this stays a pure function.
      *
      * Filtered on key and title rather than on `type`: a decade Directory has no
      * `type` field, unlike the section Directory `LibraryClient.musicSections`
@@ -339,10 +345,18 @@ object PlexMediaMapper {
      *
      * [Directory.title] arrives already formatted for display ("1980s") and
      * [Directory.key] is the first year ("1980"). The key rides in the media id
-     * because that is all the car sends back on a tap.
+     * because that is all the car sends back on a tap -- and so does [scope],
+     * via [DecadeKey], because a decade is the one row type whose key means the
+     * same thing on every server. See [DecadeKey] for what the car does with
+     * two servers' rows that share an id.
      */
     @JvmStatic
-    fun decadeToMediaItem(directory: Directory, idPrefix: String): MediaItem? {
+    fun decadeToMediaItem(
+        directory: Directory,
+        idPrefix: String,
+        scope: String,
+        bucket: Long
+    ): MediaItem? {
         val key = directory.key?.takeIf { it.isNotBlank() } ?: return null
         val title = directory.title?.takeIf { it.isNotBlank() } ?: return null
 
@@ -359,13 +373,14 @@ object PlexMediaMapper {
         }
 
         return MediaItem.Builder()
-            .setMediaId(idPrefix + key)
+            .setMediaId(idPrefix + DecadeKey.of(scope, key))
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)
                     .setIsBrowsable(true)
                     .setIsPlayable(false)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                    .setArtworkUri(AlbumArtContentProvider.decadeContentUri(scope, key, bucket))
                     .setExtras(extras)
                     .build()
             )

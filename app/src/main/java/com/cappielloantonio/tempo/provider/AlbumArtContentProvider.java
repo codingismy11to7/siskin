@@ -25,13 +25,42 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 public class AlbumArtContentProvider extends ContentProvider {
     public static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".albumart.provider";
     public static final String ALBUM_ART = "albumArt";
+    public static final String DECADE_ART = "decadeArt";
+
+    private static final int MATCH_ALBUM_ART = 1;
+    private static final int MATCH_DECADE_ART = 2;
+
+    /** A decade key must be four digits. It becomes part of a cache filename,
+     * and what the guard buys is exactly two properties: the segment is
+     * digits only, so no decoded `/`, no `..` and no separator of any kind
+     * reaches the filename DecadeCompositeArt.cacheFile interpolates; and it
+     * is a fixed-width run, so there is no length to play with either.
+     * matches() anchors the whole segment rather than a prefix, which is what
+     * makes both properties hold of the segment and not merely of a prefix
+     * of it.
+     *
+     * Deliberately not narrowed to `(19|20)\d{2}`. The smaller filename space
+     * that buys does no work: nothing is ever cached for a decade that yields
+     * no albums, so the bogus names are never written, and a caller wanting to
+     * burn Plex queries can loop the 200 allowed-but-absent values as happily
+     * as 10,000. Meanwhile it refuses a genuine pre-1900 key -- an 1890s
+     * classical or historical album -- which a real library can produce.
+     *
+     * The residual is the same either way, and is named here rather than
+     * oversold: a well-formed but absent decade still costs one Plex query per
+     * open, because DecadeCompositeArt.build() returns null before writing
+     * anything and so leaves nothing cached to answer the next request. */
+    private static final Pattern DECADE = Pattern.compile("\\d{4}");
 
     // Plex's photo transcoder requires both dimensions. The image-size preference
     // this used to read is frozen at its "-1" sentinel -- the settings screen that
@@ -44,7 +73,11 @@ public class AlbumArtContentProvider extends ContentProvider {
     private static final UriMatcher uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
 
     static {
-        uriMatcher.addURI(AUTHORITY, "albumArt/*", 1);
+        uriMatcher.addURI(AUTHORITY, ALBUM_ART + "/*", MATCH_ALBUM_ART);
+        // scope / decade / bucket. The arity is the guard: openDecadeArt reads
+        // each of the three by index, so a URI of any other shape must not
+        // reach it at all.
+        uriMatcher.addURI(AUTHORITY, DECADE_ART + "/*/*/#", MATCH_DECADE_ART);
     }
 
     public static Uri contentUri(String artworkId) {
@@ -56,9 +89,48 @@ public class AlbumArtContentProvider extends ContentProvider {
                 .build();
     }
 
+    /**
+     * The composite for one decade, in one library, for one hour.
+     *
+     * All three parts are in the URI for a single reason: the car caches
+     * artwork by URI, so anything that has to invalidate a tile has to be
+     * visible here. The bucket covers time. {@code scope} --
+     * {@link DecadeCompositeArt#scopeOf} -- covers *which library*, and it was
+     * the missing one: "1980s" on two servers minted byte-identical URIs, so
+     * after a switch under More -&gt; Server Select the car re-served the old
+     * server's mosaic out of its own cache and this provider was never opened
+     * at all. Keying the cache file by server, which is where that bug was
+     * first chased, cannot fix what never reaches the file.
+     */
+    public static Uri decadeContentUri(String scope, String decade, long bucket) {
+        return new Uri.Builder()
+                .scheme(ContentResolver.SCHEME_CONTENT)
+                .authority(AUTHORITY)
+                .appendPath(DECADE_ART)
+                .appendPath(scope)
+                .appendPath(decade)
+                .appendPath(Long.toString(bucket))
+                .build();
+    }
+
     @Nullable
     @Override
     public ParcelFileDescriptor openFile(@NonNull Uri uri, @NonNull String mode) throws FileNotFoundException {
+        // uriMatcher was declared and never consulted while there was only one
+        // path: openFile read getLastPathSegment() and assumed the album shape.
+        // A second path is what makes it load-bearing -- reading the decade off
+        // the last segment would silently pick up the bucket instead.
+        switch (uriMatcher.match(uri)) {
+            case MATCH_ALBUM_ART:
+                return openAlbumArt(uri);
+            case MATCH_DECADE_ART:
+                return openDecadeArt(uri);
+            default:
+                throw new FileNotFoundException("Unrecognised artwork URI");
+        }
+    }
+
+    private ParcelFileDescriptor openAlbumArt(Uri uri) throws FileNotFoundException {
         Context context = getContext();
 
         // The last path segment is a Plex thumb path such as
@@ -102,36 +174,119 @@ public class AlbumArtContentProvider extends ContentProvider {
 
         final Uri artworkUriFinal = Uri.parse(artworkUrl);
 
+        return pipeFrom(thumbPath, () -> {
+            var fileRequest = Glide.with(context)
+                    .asFile()
+                    .load(artworkUriFinal)
+                    .diskCacheStrategy(DiskCacheStrategy.DATA);
+            if (Preferences.isDataSavingMode()) {
+                fileRequest = fileRequest.onlyRetrieveFromCache(true);
+            }
+            return fileRequest.submit().get();
+        });
+    }
+
+    /**
+     * The decade composite. Its validation differs from openAlbumArt's, and
+     * deliberately: no caller-supplied path reaches MediaUrlBuilder here -- the
+     * four thumbs come from our own Plex response -- so the open-proxy hazard
+     * that path guards against cannot arise. What this path needs instead is a
+     * bound on how much work a caller can ask for, because every cache miss is a
+     * Plex request made with the user's token, and an answer to "is this URI
+     * even about the library we are pointed at now".
+     */
+    private ParcelFileDescriptor openDecadeArt(Uri uri) throws FileNotFoundException {
+        Context context = getContext();
+        List<String> segments = uri.getPathSegments();
+        String decade = segments.get(2);
+
+        if (!DECADE.matcher(decade).matches()) {
+            throw new FileNotFoundException("Not a decade");
+        }
+
+        long bucket;
         try {
-            // use pipe to communicate between background thread and caller of openFile()
+            bucket = Long.parseLong(segments.get(3));
+        } catch (NumberFormatException e) {
+            throw new FileNotFoundException("Not a bucket");
+        }
+        if (!CompositeArtBucket.isLive(bucket, System.currentTimeMillis())) {
+            throw new FileNotFoundException("Stale composite bucket");
+        }
+
+        // A URI minted for a server the user has since left. Serving it would
+        // hand back the previous library's mosaic -- the bug this segment
+        // exists to fix, arriving from the other direction -- and the tile it
+        // actually asks for is one we can no longer build. Signed out is the
+        // same answer for the same reason: no session, nothing to honour a
+        // scope against and nothing to draw.
+        //
+        // Unlike the decade above, this segment never reaches a filename: it is
+        // compared for equality against a locally computed string and used for
+        // nothing else, and the composite below is still named from the session
+        // rather than from anything the caller sent. That is what makes a
+        // charset guard unnecessary here rather than merely absent.
+        //
+        // Known window, named rather than closed: currentScope() reads the
+        // session here and DecadeCompositeArt.cached() reads it again below, so
+        // a library switch landing between the two lets a URI validated against
+        // the old scope be answered out of the new session's cache file. It is
+        // microseconds wide and costs one wrong tile until the browse list
+        // behind it is re-fetched, which a library switch provokes anyway.
+        // Closing it means threading one session snapshot through both, which
+        // is what build() already does for itself -- see the snapshot it pins
+        // for its lock key -- and is worth doing when this file becomes Kotlin
+        // (#86) rather than growing a second session-shaped Java parameter now.
+        String scope = DecadeCompositeArt.currentScope();
+        if (scope == null || !scope.equals(segments.get(1))) {
+            throw new FileNotFoundException("Not this library's composite");
+        }
+
+        // The hit path does no background work at all: no Glide, no Retrofit, no
+        // executor thread. Eight decades scroll into view at once against a pool
+        // sized max(2, cores / 2), and only the first browse in an hour should
+        // pay for a build.
+        File cached = DecadeCompositeArt.cached(context, decade, bucket);
+        if (cached != null) {
+            return ParcelFileDescriptor.open(cached, ParcelFileDescriptor.MODE_READ_ONLY);
+        }
+
+        return pipeFrom(decade, () -> DecadeCompositeArt.build(context, decade, bucket));
+    }
+
+    /**
+     * The read end of a pipe that {@code source} fills on the background
+     * executor.
+     *
+     * Shared by both artwork paths: one resolves a Glide-cached cover, the other
+     * builds a composite, and everything after "which file" is identical. The
+     * caller gets its descriptor immediately -- openFile runs on a binder
+     * thread, and neither a Plex round trip nor a Glide fetch may happen there.
+     *
+     * A source returning null, or throwing, closes the write side with an error,
+     * which the car renders as the placeholder icon.
+     */
+    private ParcelFileDescriptor pipeFrom(String label, Callable<File> source)
+            throws FileNotFoundException {
+        try {
             ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createPipe();
             ParcelFileDescriptor readSide = pipe[0];
             ParcelFileDescriptor writeSide = pipe[1];
 
-            // perform loading in background thread to avoid blocking UI
             executor.execute(() -> {
                 try (OutputStream out = new ParcelFileDescriptor.AutoCloseOutputStream(writeSide)) {
-
-                    var fileRequest = Glide.with(context)
-                            .asFile()
-                            .load(artworkUriFinal)
-                            .diskCacheStrategy(DiskCacheStrategy.DATA);
-                    if (Preferences.isDataSavingMode()) {
-                        fileRequest = fileRequest.onlyRetrieveFromCache(true);
+                    File file = source.call();
+                    if (file == null) {
+                        writeSide.closeWithError("No artwork for " + label);
+                        return;
                     }
-                    File file = fileRequest.submit().get();
-
-                    // copy artwork down pipe returned by ContentProvider
                     try (InputStream in = new FileInputStream(file)) {
                         byte[] buffer = new byte[8192];
                         int bytesRead;
                         while ((bytesRead = in.read(buffer)) != -1) {
                             out.write(buffer, 0, bytesRead);
                         }
-                    } catch (Exception e) {
-                        writeSide.closeWithError("Failed to load image: " + e.getMessage());
                     }
-
                 } catch (Exception e) {
                     try {
                         writeSide.closeWithError("Failed to load image: " + e.getMessage());
@@ -140,7 +295,6 @@ public class AlbumArtContentProvider extends ContentProvider {
             });
 
             return readSide;
-
         } catch (IOException e) {
             throw new FileNotFoundException("Could not create pipe: " + e.getMessage());
         }

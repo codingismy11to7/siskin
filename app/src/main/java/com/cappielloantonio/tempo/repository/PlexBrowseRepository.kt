@@ -24,7 +24,10 @@ import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Metadata
+import com.cappielloantonio.tempo.provider.CompositeArtBucket
+import com.cappielloantonio.tempo.provider.DecadeCompositeArt
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.DecadeKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -160,13 +163,35 @@ class PlexBrowseRepository {
      * returns them.
      */
     fun getDecades(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val key = sectionKey ?: return errorFuture()
-        return fetch({ libraryClient.getDecades(key) }) { body ->
-            directoriesOf(body).mapNotNull { PlexMediaMapper.decadeToMediaItem(it, prefix) }
+        // The whole session rather than sectionKey, because the composite URIs
+        // below need the machine identifier too. Still the one way this fails,
+        // not a second: sectionKey reads this same session, so a null here is
+        // the same signed-out case every other browse node returns an error
+        // future for.
+        val session = api.session ?: return errorFuture()
+        // Both read once per browse rather than once per row, so every decade
+        // in one listing agrees: the eight tiles roll together on the hour
+        // rather than drifting, and they all name the library this listing was
+        // actually fetched from.
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        val scope = DecadeCompositeArt.scopeOf(session)
+        return fetch({ libraryClient.getDecades(session.musicSectionKey) }) { body ->
+            directoriesOf(body).mapNotNull {
+                PlexMediaMapper.decadeToMediaItem(it, prefix, scope, bucket)
+            }
         }
     }
 
-    /** The browse list: the shuffle row, then a random sample of the decade. */
+    /**
+     * The browse list: the shuffle row, then a random sample of the decade.
+     *
+     * [decadeKey] is the whole [DecadeKey] payload -- library and decade -- as
+     * it came off the tapped row's media id, and it stays whole here. The
+     * shuffle row is built from it unsplit so that the guard in
+     * `MediaLibraryServiceCallback.cachedDecadeTracks`, which reconstructs
+     * `SHUFFLE_DECADE_ID + key` from what the car sends back, matches by
+     * construction.
+     */
     fun getDecadeTracks(decadeKey: String) = decadeTracks(decadeKey) { tracks ->
         listOf(shuffleDecadeRow(decadeKey)) + tracks
     }
@@ -199,6 +224,12 @@ class PlexBrowseRepository {
      * sampling the first 500 of the decade in library order, leaving the rest
      * unreachable by any sequence of taps. Random is the honest description of
      * what the server was asked for.
+     *
+     * **The one place a decade row's id is taken apart.** [decadeKey] arrives as
+     * the whole `<scope>|<decade>` payload and is opaque to every other caller;
+     * only the Plex filter needs the bare decade, and only here. Splitting it
+     * anywhere else would put the shuffle row and the browse-cache guard at risk
+     * of disagreeing about which string names a decade -- see [DecadeKey].
      */
     private fun decadeTracks(
         decadeKey: String,
@@ -212,7 +243,11 @@ class PlexBrowseRepository {
                 0,
                 ConstantsAA.MAX_ITEMS,
                 sort = LibraryClient.SORT_RANDOM,
-                decade = decadeKey
+                // The bare decade, never the composite key: Plex answers an
+                // unrecognised filter value with 200 and an empty container,
+                // so the whole key here would render as an empty decade rather
+                // than as an error.
+                trackDecade = DecadeKey.decadeIn(decadeKey)
             )
         }, decorate)
     }

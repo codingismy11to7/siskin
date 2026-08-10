@@ -186,11 +186,10 @@ object MediaBrowserTree {
         treeNodes[ConstantsAA.DECADES_ID] =
             MediaItemNode(
                 buildMediaItem(
-                    // A list, not a grid: these rows carry no artwork of their
-                    // own -- Plex has no composite for a filter value, see
-                    // issue #84 -- and a grid of placeholders is worse than a
-                    // list of labels. Flip to true when composites land.
-                    browsableChildrenAsGrid = false,
+                    // A grid: each row wears a composite of four covers drawn
+                    // from that decade, so there is artwork worth the space.
+                    // See the 2026-08-09 decade composite artwork design.
+                    browsableChildrenAsGrid = true,
                     title = appContext.getString(R.string.aa_decades),
                     mediaId = ConstantsAA.DECADES_ID,
                     isPlayable = false,
@@ -340,6 +339,10 @@ object MediaBrowserTree {
                     )
                 }
                 if (id.startsWith(ConstantsAA.DECADE_ID)) {
+                    // The DecadeKey payload -- library and decade -- handed over
+                    // whole. Nothing here needs to know its shape, and the
+                    // shuffle row the repository builds from it has to carry the
+                    // same string the callback's cache guard rebuilds.
                     return browseRepository.getDecadeTracks(
                         id.removePrefix(ConstantsAA.DECADE_ID)
                     )

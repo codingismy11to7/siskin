@@ -194,11 +194,14 @@ class MediaLibrarySessionCallback(
             }
 
             id.startsWith(ConstantsAA.SHUFFLE_DECADE_ID) -> {
-                val decade = id.removePrefix(ConstantsAA.SHUFFLE_DECADE_ID)
-                cachedDecadeTracks(decade)
+                // The whole DecadeKey payload -- library and decade -- passed
+                // on unsplit. Only PlexBrowseRepository.decadeTracks takes it
+                // apart, and only to build the Plex filter.
+                val decadeKey = id.removePrefix(ConstantsAA.SHUFFLE_DECADE_ID)
+                cachedDecadeTracks(decadeKey)
                     ?: run {
-                        Log.d(TAG, "Fetching a random sample of the ${decade}s to shuffle")
-                        browseRepository.getDecadeTracksForShuffle(decade)
+                        Log.d(TAG, "Fetching a random sample of decade $decadeKey to shuffle")
+                        browseRepository.getDecadeTracksForShuffle(decadeKey)
                     }
             }
 
@@ -228,6 +231,13 @@ class MediaLibrarySessionCallback(
      * absence (empty cache, cold after a process restart, or a different node's
      * list) is the signal to fall back rather than guess.
      *
+     * [decadeKey] is compared whole, as the
+     * [com.cappielloantonio.tempo.util.DecadeKey] payload that came off the
+     * tapped row, which is the same string `getDecadeTracks` built its row from.
+     * Neither side splits it, so neither side can split it differently -- and
+     * the library being *in* it is what makes a row cached before a server
+     * switch fail this guard rather than replay another library's tracks.
+     *
      * `drop(1)` rather than filtering by [isShuffleRow]: index 0 is the row by
      * construction, and dropping exactly the item the guard just matched is
      * narrower than a predicate that could also drop something else. The queue
@@ -235,12 +245,12 @@ class MediaLibrarySessionCallback(
      * queue holding it would "play" a track that does not exist.
      */
     private fun cachedDecadeTracks(
-        decade: String
+        decadeKey: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
         val cached = queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE]
-        if (cached?.firstOrNull()?.mediaId != ConstantsAA.SHUFFLE_DECADE_ID + decade) return null
+        if (cached?.firstOrNull()?.mediaId != ConstantsAA.SHUFFLE_DECADE_ID + decadeKey) return null
 
-        Log.d(TAG, "Serving decade $decade shuffle from the cached browse list")
+        Log.d(TAG, "Serving decade $decadeKey shuffle from the cached browse list")
         return Futures.immediateFuture(
             LibraryResult.ofItemList(ImmutableList.copyOf(cached.drop(1)), null)
         )
