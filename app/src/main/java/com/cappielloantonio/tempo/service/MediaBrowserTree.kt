@@ -16,6 +16,7 @@ import com.cappielloantonio.tempo.repository.LibraryPickerRepository
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.ResourceUris
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -289,10 +290,20 @@ object MediaBrowserTree {
 
             ConstantsAA.PLAYLIST_ID -> browseRepository.getPlaylists(ConstantsAA.PLAYLIST_ID)
 
-            ConstantsAA.ARTISTS_ID -> browseRepository.getArtistWindows(
-                ConstantsAA.ARTIST_WINDOW_ID,
-                ConstantsAA.ARTIST_ID
-            )
+            // The one place the by-initial preference is read. The tab's own
+            // style does not depend on it -- see buildTree -- so nothing about
+            // the root has to change when it is toggled; only this list does.
+            ConstantsAA.ARTISTS_ID -> if (Preferences.isArtistsByInitialEnabled()) {
+                browseRepository.getArtistLetters(
+                    ConstantsAA.ARTIST_LETTER_ID,
+                    ConstantsAA.ARTIST_ID
+                )
+            } else {
+                browseRepository.getArtistWindows(
+                    ConstantsAA.ARTIST_WINDOW_ID,
+                    ConstantsAA.ARTIST_ID
+                )
+            }
 
             ConstantsAA.ALBUMS_ID -> browseRepository.getAlbumWindows(
                 ConstantsAA.ALBUM_WINDOW_ID,
@@ -311,9 +322,9 @@ object MediaBrowserTree {
                         id.removePrefix(ConstantsAA.PLAYLIST_ID)
                     )
                 }
-                // Before the ARTIST_ID/ALBUM_ID tests below: no window id is a
-                // prefix of an item id, but keeping the narrower match first
-                // means that stays true by construction rather than by
+                // Before the ARTIST_ID/ALBUM_ID tests below: no window or letter
+                // id is a prefix of an item id, but keeping the narrower matches
+                // first means that stays true by construction rather than by
                 // coincidence of spelling.
                 if (id.startsWith(ConstantsAA.ARTIST_WINDOW_ID)) {
                     return browseRepository.getArtistWindow(
@@ -325,6 +336,12 @@ object MediaBrowserTree {
                     return browseRepository.getAlbumWindow(
                         id.removePrefix(ConstantsAA.ALBUM_WINDOW_ID).toIntOrNull() ?: 0,
                         ConstantsAA.ALBUM_ID
+                    )
+                }
+                if (id.startsWith(ConstantsAA.ARTIST_LETTER_ID)) {
+                    return browseRepository.getArtistLetter(
+                        id.removePrefix(ConstantsAA.ARTIST_LETTER_ID),
+                        ConstantsAA.ARTIST_ID
                     )
                 }
                 if (id.startsWith(ConstantsAA.ALBUM_ID)) {
