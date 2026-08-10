@@ -458,17 +458,66 @@ fork, so a test assuming absence otherwise reads whatever ran before it.
 
 ## Verification in the car
 
-Not yet done, and the design is not finished until it is:
+Done on 2026-08-10, on the landscape AVD — API 33, `automotive_1024p_landscape`,
+1024×768 — against the same PMS 1.43.3 library every measurement above came from.
+All four checks passed.
 
-- The letter list renders as 27 list rows with the artists icon, and the second
-  line shows the count. The second line is the part most worth checking — it is
-  taken on the signed-out row's precedent, which is a *different* node.
-- Tapping a letter opens a grid of that letter's artists.
-- `#` and `∆` both open correctly, which is the percent-encoding path end to end.
-- Toggling the setting while sitting on the Artists tab redraws it, which is what
-  `invalidateNode` is there for and the one part of this that depends on the car's
-  subscription behaviour rather than on our code.
+**The count renders on the second line.** This was the one thing no unit test
+could reach, and the reason it was in doubt is that the pattern was borrowed from
+the signed-out row, which is a *plain* browsable row, while a letter row also
+carries `EXTRAS_KEY_CONTENT_STYLE_BROWSABLE`. It renders regardless: the view
+hierarchy shows `com.android.car.media:id/title` and
+`com.android.car.media:id/subtitle` as separate `TextView`s on each row.
 
-Landscape only, on whatever AVD is already running. Each variant is its own AVD
-and switching tears down whatever is on it, so portrait is left for when it is
-asked for.
+| row | title | subtitle |
+|---|---|---|
+| 1 | `#` | 12 artists |
+| 2 | `A` | 79 artists |
+| 3 | `B` | 95 artists |
+| … | … | … |
+| last | `∆` | **1 artist** |
+
+Every count matches what the server reported. `∆` exercising the **singular** is
+worth its own note: it is the only bucket in this library that does, so the
+`plurals` resource's `one` quantity is verified by real data rather than only by
+a test fixture.
+
+That matters more than a cosmetic check, because the count is the sole mitigation
+this design accepts in place of a guard against silent truncation. Had it not
+rendered, an oversized bucket would have shown a short list with no count, no
+error and nothing in logcat — indistinguishable from a bucket that really is that
+size, which is precisely the [#83](https://github.com/codingismy11to7/siskin/issues/83)-class
+wall with its one diagnosable signal removed.
+
+**A bucket opens as a grid of real artwork**, from `groupRowToMediaItem`'s
+browsable-child style. `#` opened on The Hilliard Ensemble, `$uicideboy$` and
+3epkano — the same first three the server returns — with the toolbar reading `#`.
+
+**Both encoded keys survive the round trip.** `#` (server key `%23`) and `∆`
+(sent raw, encoded by OkHttp) each opened their bucket; `∆` showed ∆AIMON with the
+toolbar reading `∆`. This is the path that would have failed silently as an empty
+bucket, and it is now confirmed at both layers: the recorded request in tests and
+the rendered result here.
+
+**Toggling redraws the tab in place, in both directions.** Sitting on the Artists
+tab, the gear's row was tapped off and the tab came back as window rows
+(`$uicideboy$  -  Anders Osborne`, `Anders Osborne  -  Balmorhea`) without backing
+out; tapping it on returned the letters the same way. So
+`invalidateNode(ARTISTS_ID, 0)` does reach a live subscription from the settings
+activity — the one part of this feature that depends on the car's subscription
+behaviour rather than on our own code. Tapping the row's *label* is what toggled
+it, which also confirms the non-clickable switch lets the touch fall through to
+the row.
+
+**An incidental confirmation of the filing rule.** Bucket `D` renders "Deco", "Dee
+Nasty", "Deep Dish" and **"Max Graham"** together. Max Graham's `titleSort` is
+`Deep Funk Project`, so this is the arbitrary-alias case from the filing section
+above, seen in the car: an artist displayed under M, filed under D, and reachable
+by initial only if you already know that. It is the cost this design accepts, and
+turning the setting off is what reaches him under M.
+
+**Portrait remains unverified.** Each variant is its own AVD and switching tears
+down whatever is running on the other, so it is not a step to take unprompted.
+Portrait is 800×1280 at ldpi — a different pitch entirely — so nothing above
+transfers to it. The subtitle is the part most worth re-checking there, since a
+narrower row is where a two-line item is likeliest to lose its second line.
