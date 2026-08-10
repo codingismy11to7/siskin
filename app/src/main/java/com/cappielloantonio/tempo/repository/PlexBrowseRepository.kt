@@ -36,6 +36,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 private const val TAG = "PlexBrowseRepository"
 
@@ -393,7 +394,22 @@ class PlexBrowseRepository {
                     }
                 }
 
-                val total = head.mediaContainer?.totalSize ?: 0
+                // Not observed against PMS, which always returns totalSize once
+                // Start/Size were sent -- but silent is the wrong failure mode
+                // for a response that omits it anyway: falling back to 0 renders
+                // a flat, truncated first WINDOW_SIZE items with no sign
+                // anything went wrong, which is strictly worse than the bug this
+                // branch exists to fix. Logged so it is at least diagnosable
+                // from logcat if it ever happens.
+                val total = head.mediaContainer?.totalSize ?: run {
+                    Log.w(
+                        TAG,
+                        "windowed browse response carried no totalSize -- " +
+                            "falling back to a flat, possibly-truncated first " +
+                            "${ConstantsAA.WINDOW_SIZE} items"
+                    )
+                    0
+                }
                 val items = if (total <= ConstantsAA.WINDOW_SIZE) {
                     map(head)
                 } else {
@@ -418,6 +434,19 @@ class PlexBrowseRepository {
      * `async`, and a `raise` crossing a coroutine-builder boundary is exactly
      * what this codebase forbids. A window whose label could not be fetched
      * falls back to its position, which is worth more than failing the tab.
+     *
+     * Each `titleAt` call is also capped at [BOUNDARY_TITLE_TIMEOUT_MS] via
+     * `withTimeoutOrNull`. `awaitAll` below has no deadline of its own tighter
+     * than the shared OkHttp client's one-minute call timeout, so one stalled
+     * boundary request would otherwise hold the whole tab at a spinner for up to
+     * a minute on a car's connection -- where the flat list this design replaced
+     * rendered in a single round trip. A timeout is just another way for
+     * `titleAt` to come back null, so it degrades to the same positional
+     * fallback ("1 - 50") rather than hanging. Wrapping it here is safe only
+     * because `titleAt` already returns `String?` and never raises -- wrapping
+     * something that could `raise` in `withTimeoutOrNull` would reintroduce the
+     * coroutine-builder hazard this codebase forbids, since a timeout cancels by
+     * throwing into the block.
      */
     private suspend fun windowRows(
         key: SectionKey,
@@ -438,7 +467,9 @@ class PlexBrowseRepository {
                     if (index == 0) {
                         head.mediaContainer?.metadata?.firstOrNull()?.title
                     } else {
-                        titleAt(key, type, sort, index)
+                        withTimeoutOrNull(BOUNDARY_TITLE_TIMEOUT_MS) {
+                            titleAt(key, type, sort, index)
+                        }
                     }
                 }
             }.awaitAll()
@@ -641,6 +672,14 @@ class PlexBrowseRepository {
 
         /** Characters per side of a window label; see [shortened]. */
         private const val LABEL_TITLE_MAX = 16
+
+        /**
+         * Ceiling on one boundary-title request within [windowRows]. Well under
+         * the shared OkHttp client's one-minute call timeout, so a slow label
+         * degrades to a positional fallback instead of holding the whole tab at
+         * a spinner.
+         */
+        private const val BOUNDARY_TITLE_TIMEOUT_MS = 3_000L
 
         private const val TYPE_TRACK = "track"
         private const val TYPE_ALBUM = "album"
