@@ -212,7 +212,7 @@ class PlexBrowseRepository {
                 0,
                 ConstantsAA.MAX_ITEMS,
                 sort = LibraryClient.SORT_RANDOM,
-                decade = decadeKey
+                trackDecade = decadeKey
             )
         }, decorate)
     }

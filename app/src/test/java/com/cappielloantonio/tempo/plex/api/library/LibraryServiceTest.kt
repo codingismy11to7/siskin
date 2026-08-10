@@ -61,7 +61,8 @@ class LibraryServiceTest {
             size = 50,
             sort = "titleSort",
             artistId = "15100",
-            decade = null
+            trackDecade = null,
+            albumDecade = null
         )
 
         val request = server.takeRequest()
@@ -147,7 +148,8 @@ class LibraryServiceTest {
             size = 500,
             sort = "random",
             artistId = null,
-            decade = "1980"
+            trackDecade = "1980",
+            albumDecade = null
         )
 
         val request = server.takeRequest()
@@ -158,6 +160,33 @@ class LibraryServiceTest {
         assertEquals("1980", request.requestUrl?.queryParameter("album.decade"))
         assertNull(request.requestUrl?.queryParameter("decade"))
         assertEquals("random", request.requestUrl?.queryParameter("sort"))
+    }
+
+    @Test
+    fun getSectionContentFiltersAlbumsOnDecadeNotAlbumDecade() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+        service().getSectionContent(
+            sectionId = "4",
+            type = 9,
+            start = 0,
+            size = 8,
+            sort = "random",
+            artistId = null,
+            trackDecade = null,
+            albumDecade = "1980"
+        )
+
+        val request = server.takeRequest()
+        // A bare `decade`, no dot. An album's decade is its own field, unlike a
+        // track's, which belongs to the parent album -- the server says so itself
+        // in the fastKey it returns on every decade entry:
+        // /library/sections/4/all?decade=1980&type=9
+        assertEquals("1980", request.requestUrl?.queryParameter("decade"))
+        assertNull(request.requestUrl?.queryParameter("album.decade"))
+        assertEquals("9", request.requestUrl?.queryParameter("type"))
+        assertEquals("random", request.requestUrl?.queryParameter("sort"))
+        assertEquals("8", request.getHeader("X-Plex-Container-Size"))
     }
 
     @Test

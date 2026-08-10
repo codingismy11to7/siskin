@@ -47,14 +47,22 @@ interface LibraryService {
      * app asks for an artist's albums -- see [getChildren] for why the obvious
      * endpoint is not used.
      *
-     * `decade` narrows a *track* listing to one decade, and is spelled
-     * `album.decade` rather than `decade` for the same reason `artistId` is
-     * spelled `artist.id`: it filters on a related item's field, not on the
-     * track's own. Getting it wrong is silent. Measured against PMS 1.43.3,
+     * There are **two** decade parameters and they are not interchangeable.
+     *
+     * [trackDecade] narrows a *track* listing and is spelled `album.decade`,
+     * for the same reason `artistId` is spelled `artist.id`: it filters on a
+     * related item's field, not the track's own. [albumDecade] narrows an
+     * *album* listing and is spelled plain `decade`, because an album's decade
+     * is its own field. The server states that spelling itself, in the
+     * `fastKey` it returns on every entry of the decade index:
+     * `/library/sections/4/all?decade=1980&type=9`.
+     *
+     * Getting either wrong is silent. Measured against PMS 1.43.3,
      * `type=10&decade=1980` answers 200 with an empty container, as does
-     * `type=10&year=1985`; only `type=10&album.decade=1980` returns tracks. What
-     * a caller sees is an empty browse list, which reads as an empty library
-     * rather than as a malformed request.
+     * `type=10&year=1985`; only `type=10&album.decade=1980` returns tracks.
+     * What a caller sees is an empty list, which reads as an empty library
+     * rather than as a malformed request -- and for the composite artwork that
+     * feeds off the album form, as artwork that quietly never appears.
      */
     @GET("library/sections/{sectionId}/all")
     suspend fun getSectionContent(
@@ -64,7 +72,8 @@ interface LibraryService {
         @Header("X-Plex-Container-Size") size: Int,
         @Query("sort") sort: String?,
         @Query("artist.id") artistId: String?,
-        @Query("album.decade") decade: String?
+        @Query("album.decade") trackDecade: String?,
+        @Query("decade") albumDecade: String?
     ): PlexResponse
 
     /**
