@@ -25,6 +25,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -102,36 +103,51 @@ public class AlbumArtContentProvider extends ContentProvider {
 
         final Uri artworkUriFinal = Uri.parse(artworkUrl);
 
+        return pipeFrom(thumbPath, () -> {
+            var fileRequest = Glide.with(context)
+                    .asFile()
+                    .load(artworkUriFinal)
+                    .diskCacheStrategy(DiskCacheStrategy.DATA);
+            if (Preferences.isDataSavingMode()) {
+                fileRequest = fileRequest.onlyRetrieveFromCache(true);
+            }
+            return fileRequest.submit().get();
+        });
+    }
+
+    /**
+     * The read end of a pipe that {@code source} fills on the background
+     * executor.
+     *
+     * Shared by both artwork paths: one resolves a Glide-cached cover, the other
+     * builds a composite, and everything after "which file" is identical. The
+     * caller gets its descriptor immediately -- openFile runs on a binder
+     * thread, and neither a Plex round trip nor a Glide fetch may happen there.
+     *
+     * A source returning null, or throwing, closes the write side with an error,
+     * which the car renders as the placeholder icon.
+     */
+    private ParcelFileDescriptor pipeFrom(String label, Callable<File> source)
+            throws FileNotFoundException {
         try {
-            // use pipe to communicate between background thread and caller of openFile()
             ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createPipe();
             ParcelFileDescriptor readSide = pipe[0];
             ParcelFileDescriptor writeSide = pipe[1];
 
-            // perform loading in background thread to avoid blocking UI
             executor.execute(() -> {
                 try (OutputStream out = new ParcelFileDescriptor.AutoCloseOutputStream(writeSide)) {
-
-                    var fileRequest = Glide.with(context)
-                            .asFile()
-                            .load(artworkUriFinal)
-                            .diskCacheStrategy(DiskCacheStrategy.DATA);
-                    if (Preferences.isDataSavingMode()) {
-                        fileRequest = fileRequest.onlyRetrieveFromCache(true);
+                    File file = source.call();
+                    if (file == null) {
+                        writeSide.closeWithError("No artwork for " + label);
+                        return;
                     }
-                    File file = fileRequest.submit().get();
-
-                    // copy artwork down pipe returned by ContentProvider
                     try (InputStream in = new FileInputStream(file)) {
                         byte[] buffer = new byte[8192];
                         int bytesRead;
                         while ((bytesRead = in.read(buffer)) != -1) {
                             out.write(buffer, 0, bytesRead);
                         }
-                    } catch (Exception e) {
-                        writeSide.closeWithError("Failed to load image: " + e.getMessage());
                     }
-
                 } catch (Exception e) {
                     try {
                         writeSide.closeWithError("Failed to load image: " + e.getMessage());
@@ -140,7 +156,6 @@ public class AlbumArtContentProvider extends ContentProvider {
             });
 
             return readSide;
-
         } catch (IOException e) {
             throw new FileNotFoundException("Could not create pipe: " + e.getMessage());
         }
