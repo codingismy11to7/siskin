@@ -16,6 +16,7 @@ import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.util.StreamingCacheKeyFactory
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
@@ -51,10 +52,19 @@ object DecadeCompositeArt {
      * tolerance. Also the fallback for an identifier that fails
      * [isSafeCacheIdentifier].
      *
-     * Cannot collide with a real identifier: `ConstantsAA.PICK_LIBRARY_ID`
-     * documents that a machine identifier is always hex, and this string
-     * contains 'n', 'o', 'm', 'h' and 'i' -- none of them hex digits -- so no
-     * real identifier can ever equal it.
+     * Cannot collide with a real identifier: [cacheIdentifier] only ever
+     * returns this sentinel or a string [isSafeCacheIdentifier] has already
+     * restricted to letters and digits, and this is the only one of the two
+     * that contains a hyphen -- no all-alphanumeric string can equal it. That
+     * holds unconditionally, with no assumption about what a real identifier
+     * looks like, and it is only [isSafeCacheIdentifier] being widened to
+     * admit `-` itself that could ever put it at risk.
+     *
+     * Real machine identifiers are also hex (`ConstantsAA.PICK_LIBRARY_ID`
+     * documents it), and this string contains 'n', 'o', 'm', 'h' and 'i' --
+     * none of them hex digits -- which is a second, independent reason the
+     * two can never match, and the one to fall back on if the structural
+     * argument above ever stops holding.
      */
     private const val NO_MACHINE_ID = "no-machine-id"
 
@@ -69,8 +79,24 @@ object DecadeCompositeArt {
     private fun isSafeCacheIdentifier(id: String): Boolean =
         id.isNotEmpty() && id.all(Char::isLetterOrDigit)
 
-    /** [machineIdentifier], normalised for use in a filename: [NO_MACHINE_ID]
-     * when it is null or fails [isSafeCacheIdentifier]. */
+    /**
+     * [machineIdentifier], normalised for use in a filename: [NO_MACHINE_ID]
+     * when it is null or fails [isSafeCacheIdentifier].
+     *
+     * Every identifier that fails the safety check collapses onto the same
+     * sentinel as a null one, so two servers that both happened to hand out
+     * an unsafe identifier would share composites -- the bug this file exists
+     * to fix, recurring in a corner. Theoretical for real Plex: identifiers
+     * are hex, as `ConstantsAA.PICK_LIBRARY_ID` documents.
+     * [StreamingCacheKeyFactory] makes the opposite call for its own
+     * machine-identifier-keyed cache, falling back to the request origin so a
+     * legacy session does not collapse onto every other one -- that fallback
+     * is not available here, because a `serverUri` is not filename-safe. The
+     * section key still splits most of the space a collision here could
+     * cross, and the cost of one is a wrong tile for at most an hour, not a
+     * wrong stream, which is why the simpler, coarser fallback is the right
+     * call in this file even though it was not in that one.
+     */
     private fun cacheIdentifier(machineIdentifier: String?): String =
         machineIdentifier?.takeIf(::isSafeCacheIdentifier) ?: NO_MACHINE_ID
 
@@ -177,16 +203,17 @@ object DecadeCompositeArt {
         // Deduplicated per tile. The car can open one decade concurrently, and
         // until a build renames its file into place every concurrent open is a
         // fresh miss -- N metadata queries and 4N cover transcodes for one
-        // image, all made with the user's token. The key is the same
-        // quadruple that names the cache file, so the eight tiles of a first
-        // browse still build in parallel, and so do two different servers'
-        // builds of what happens to be the same section key; see
-        // CompositeBuildLocks for why that matters and why its map does not
-        // grow.
-        return CompositeBuildLocks.exclusively(
-            "${cacheIdentifier(session.machineIdentifier)}-${session.musicSectionKey.value}" +
-                "-$decade-$bucket"
-        ) {
+        // image, all made with the user's token. Keyed on the cache file's
+        // own name rather than re-interpolating the quadruple that produced
+        // it, so the lock key and the filename cannot drift apart. The eight
+        // tiles of a first browse still build in parallel, and so do two
+        // different servers' builds of what happens to be the same section
+        // key; see CompositeBuildLocks for why that matters and why its map
+        // does not grow.
+        val file = cacheFile(
+            context, session.machineIdentifier, session.musicSectionKey.value, decade, bucket
+        )
+        return CompositeBuildLocks.exclusively(file.name) {
             // Re-checked after acquiring, against the same session snapshot
             // the lock key and buildLocked's write use -- not cached(), which
             // re-reads PlexApi().session fresh and would check a different
@@ -198,11 +225,7 @@ object DecadeCompositeArt {
             // written. A decade with no albums caches nothing, though, so a
             // miss here still costs each waiter its own metadata query, just
             // serialised behind the lock rather than run in parallel.
-            cacheFile(
-                context, session.machineIdentifier, session.musicSectionKey.value, decade, bucket
-            )
-                .takeIf { it.isFile }
-                ?: buildLocked(context, api, session, decade, bucket)
+            file.takeIf { it.isFile } ?: buildLocked(context, api, session, decade, bucket)
         }
     }
 

@@ -48,15 +48,20 @@ class DecadeCompositeArtCacheTest {
     }
 
     @Test
-    fun aNullMachineIdentifierFallsBackToASharedSentinel() {
+    fun aNullMachineIdentifierAndAnUnsafeOneFallBackToTheSameSentinel() {
         // PlexSession.machineIdentifier's KDoc requires every reader to
         // tolerate its absence rather than treat it as a different server --
         // two identifier-less sessions must therefore share one cache key,
-        // which is exactly today's (pre-fix) behaviour and no worse.
-        val first = DecadeCompositeArt.cacheFile(context, null, "4", "1980", 100)
-        val second = DecadeCompositeArt.cacheFile(context, null, "4", "1980", 100)
+        // which is exactly today's (pre-fix) behaviour and no worse. An
+        // identifier that fails the safety predicate (here, one containing a
+        // path separator) is documented to collapse onto that same sentinel
+        // rather than being passed through raw, so it must land on the exact
+        // same filename as a null identifier -- not merely a different one.
+        val noIdentifier = DecadeCompositeArt.cacheFile(context, null, "4", "1980", 100)
+        val unsafeIdentifier =
+            DecadeCompositeArt.cacheFile(context, "../evil", "4", "1980", 100)
 
-        assertTrue(first.name == second.name)
+        assertTrue(noIdentifier.name == unsafeIdentifier.name)
     }
 
     @Test
