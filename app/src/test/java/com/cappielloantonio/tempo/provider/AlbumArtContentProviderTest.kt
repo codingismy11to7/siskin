@@ -33,12 +33,17 @@ class AlbumArtContentProviderTest {
         // Signed in, so that a missing server or token cannot be what rejects a
         // request -- the artwork URL would come back null for that reason too,
         // and then a provider with no validation would still throw and pass.
+        // plex_machine_identifier is written here too, not assumed absent --
+        // Robolectric caches SharedPreferences statically across test methods,
+        // so writeCachedComposite's cache files have to agree with whatever
+        // this method last wrote.
         val context = App.getContext()
         context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
             .edit()
             .putString("plex_server_uri", "https://plex.example")
             .putString("plex_token", "tok123")
             .putString("plex_music_section_key", "4")
+            .putString("plex_machine_identifier", MACHINE_IDENTIFIER)
             .commit()
 
         // Robolectric's cacheDir is real and persists across test methods within
@@ -251,10 +256,18 @@ class AlbumArtContentProviderTest {
     }
 
     /** A composite already on disk for [decade], of exactly [bytes] length --
-     * the length being what the assertions read back off the descriptor. */
+     * the length being what the assertions read back off the descriptor. Keyed
+     * with [MACHINE_IDENTIFIER], matching what setUp() wrote as the signed-in
+     * session's, so the provider's read of the session resolves to the same
+     * cache file this writes. */
     private fun writeCachedComposite(decade: String, bucket: Long, bytes: Int) {
-        val file = DecadeCompositeArt.cacheFile(App.getContext(), "4", decade, bucket)
+        val file = DecadeCompositeArt.cacheFile(App.getContext(), MACHINE_IDENTIFIER, "4", decade, bucket)
         file.parentFile!!.mkdirs()
         file.writeBytes(ByteArray(bytes))
+    }
+
+    private companion object {
+        /** The signed-in session's machine identifier, per setUp(). */
+        const val MACHINE_IDENTIFIER = "abc123def456"
     }
 }

@@ -11,8 +11,9 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * Robolectric for a real cacheDir. The filenames are the whole contract here:
- * they are what keeps one library's composites from being served for another,
- * and what eviction reads back to decide staleness.
+ * they are what keeps one library's composites from being served for
+ * another -- on the same server (the section key) and across servers (the
+ * machine identifier) -- and what eviction reads back to decide staleness.
  */
 @RunWith(RobolectricTestRunner::class)
 class DecadeCompositeArtCacheTest {
@@ -25,18 +26,53 @@ class DecadeCompositeArtCacheTest {
     }
 
     @Test
-    fun theSectionKeyIsInTheNameSoLibrariesDoNotShareComposites() {
+    fun theSectionKeyIsInTheNameSoLibrariesOnOneServerDoNotShareComposites() {
         // More -> Server Select can switch libraries underneath a cached tile.
-        val four = DecadeCompositeArt.cacheFile(context, "4", "1980", 100)
-        val nine = DecadeCompositeArt.cacheFile(context, "9", "1980", 100)
+        val four = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1980", 100)
+        val nine = DecadeCompositeArt.cacheFile(context, "machinea", "9", "1980", 100)
 
         assertFalse(four.name == nine.name)
     }
 
     @Test
+    fun theMachineIdentifierIsInTheNameSoDifferentServersDoNotShareComposites() {
+        // The section key alone is not enough: it is a small integer, and two
+        // different servers can each have a section "4". This is the case the
+        // bug report was about -- switching servers under More -> Server
+        // Select must not serve the previous server's mosaic for a decade
+        // that happens to share a section key.
+        val serverA = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1980", 100)
+        val serverB = DecadeCompositeArt.cacheFile(context, "machineb", "4", "1980", 100)
+
+        assertFalse(serverA.name == serverB.name)
+    }
+
+    @Test
+    fun aNullMachineIdentifierFallsBackToASharedSentinel() {
+        // PlexSession.machineIdentifier's KDoc requires every reader to
+        // tolerate its absence rather than treat it as a different server --
+        // two identifier-less sessions must therefore share one cache key,
+        // which is exactly today's (pre-fix) behaviour and no worse.
+        val first = DecadeCompositeArt.cacheFile(context, null, "4", "1980", 100)
+        val second = DecadeCompositeArt.cacheFile(context, null, "4", "1980", 100)
+
+        assertTrue(first.name == second.name)
+    }
+
+    @Test
+    fun aNullMachineIdentifierDoesNotCollideWithARealOne() {
+        // The sentinel a null identifier maps to must not be reachable by a
+        // real (hex) machine identifier.
+        val noIdentifier = DecadeCompositeArt.cacheFile(context, null, "4", "1980", 100)
+        val realIdentifier = DecadeCompositeArt.cacheFile(context, "abc123def456", "4", "1980", 100)
+
+        assertFalse(noIdentifier.name == realIdentifier.name)
+    }
+
+    @Test
     fun theBucketIsInTheNameSoAnHourRollIsAMiss() {
-        val now = DecadeCompositeArt.cacheFile(context, "4", "1980", 100)
-        val next = DecadeCompositeArt.cacheFile(context, "4", "1980", 101)
+        val now = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1980", 100)
+        val next = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1980", 101)
 
         assertFalse(now.name == next.name)
     }
@@ -47,10 +83,10 @@ class DecadeCompositeArtCacheTest {
         val nowMs = 100 * hour
         val current = CompositeArtBucket.current(nowMs)
 
-        val live = DecadeCompositeArt.cacheFile(context, "4", "1980", current)
-        val previous = DecadeCompositeArt.cacheFile(context, "4", "1980", current - 1)
-        val stale = DecadeCompositeArt.cacheFile(context, "4", "1980", current - 2)
-        val ancient = DecadeCompositeArt.cacheFile(context, "4", "1970", 0)
+        val live = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1980", current)
+        val previous = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1980", current - 1)
+        val stale = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1980", current - 2)
+        val ancient = DecadeCompositeArt.cacheFile(context, "machinea", "4", "1970", 0)
         listOf(live, previous, stale, ancient).forEach {
             it.parentFile!!.mkdirs()
             it.writeBytes(byteArrayOf(1))

@@ -124,7 +124,7 @@ PlexBrowseRepository.getDecades(prefix)          one request, unchanged
 the car opens that URI
    └─ AlbumArtContentProvider.openFile          Java, thin: validate + delegate
          └─ DecadeCompositeArt                  new, Kotlin
-              ├─ cacheDir/decade-art/{section}-{decade}-{bucket}.jpg exists?
+              ├─ cacheDir/decade-art/{machineId}-{section}-{decade}-{bucket}.jpg exists?
               │     └─ ParcelFileDescriptor.open(file, MODE_READ_ONLY)
               └─ miss:
                    GET /library/sections/{k}/all?type=9&decade=1980&sort=random
@@ -274,7 +274,29 @@ bucket.
 
 ## The cache
 
-`cacheDir/decade-art/{sectionKey}-{decade}-{bucket}.jpg`.
+`cacheDir/decade-art/{machineIdentifier}-{sectionKey}-{decade}-{bucket}.jpg`.
+
+Both identifiers are load-bearing, and for different reasons. A section key
+alone is not enough to keep libraries apart: it is a small integer — "1", "4"
+— so two *different servers* can each have a music section "4", and keying
+on the section key alone let switching servers under More → Server Select
+serve the previous server's mosaic for a decade that happened to share a
+section key with the new one. `machineIdentifier` is what says *which*
+server — see `PlexSession`'s KDoc — so it is what actually keeps two servers'
+composites apart; the section key is what keeps two libraries *on the same
+server* apart, which the identifier alone cannot do. Neither one subsumes the
+other.
+
+`machineIdentifier` is nullable — a session written before the field existed
+carries none — and every reader of it has to tolerate that absence rather
+than treat it as a different server, per the field's own KDoc. A null one
+therefore maps to a fixed sentinel rather than refusing to cache, so every
+identifier-less session shares one cache key — the pre-fix behaviour, and no
+worse. The sentinel contains a letter no hex digit uses, so no real (hex)
+identifier can ever collide with it. The identifier is also restricted to a
+safe filename charset before use — it is a value that arrived over the
+network, even if from our own authenticated plex.tv session rather than a
+caller — falling back to the same sentinel if it does not qualify.
 
 **A cache hit does no background work at all.** The file check happens before
 Glide and before Retrofit, and a hit returns
@@ -290,9 +312,10 @@ for a cost that lasts one browse per hour.
 A miss is not idempotent in cost: until a build renames its file into place,
 every concurrent open of the same tile is another cache miss, and so another
 Plex metadata query plus four cover transcodes made with the user's token.
-Builds are therefore serialised on the `(section, decade, bucket)` triple that
-names the cache file, with the cache re-checked after the lock is acquired
-against the same session snapshot the key was built from. When that build
+Builds are therefore serialised on the `(machineIdentifier, section, decade,
+bucket)` quadruple that names the cache file, with the cache re-checked after
+the lock is acquired against the same session snapshot the key was built
+from. When that build
 succeeds, N concurrent opens become one build and N−1 hits: whoever waited was
 waiting for exactly the file the winner wrote. A decade that yields no albums
 builds nothing — `build()` returns null before a file is ever written — so
@@ -314,11 +337,12 @@ briefly hold different locks for the same key. That window is the price of
 removing map entries on the way out, which is what keeps a per-hour key space
 from growing for the life of the process.
 
-The section key is in the filename so composites do not survive a library switch
-under More → Server Select. Eviction is a sweep on successful build: delete
-anything in the directory outside the two live buckets. Steady state is on the
-order of sixteen small JPEGs. `cacheDir` is system-evictable, and losing a file
-costs one rebuild.
+Both identifiers are in the filename so composites do not survive a library
+switch under More → Server Select, on either axis — a different library on the
+same server, or the same section key on a different server. Eviction is a sweep
+on successful build: delete anything in the directory outside the two live
+buckets. Steady state is on the order of sixteen small JPEGs. `cacheDir` is
+system-evictable, and losing a file costs one rebuild.
 
 Data-saving mode is honoured exactly as the existing path honours it —
 `onlyRetrieveFromCache(true)` on the Glide requests, so a cover that is not

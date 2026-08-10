@@ -44,22 +44,65 @@ object DecadeCompositeArt {
     private const val CACHE_SUFFIX = ".jpg"
     private const val PARTIAL_SUFFIX = ".partial"
 
+    /**
+     * Stands in for [PlexSession.machineIdentifier] when it is absent, so that
+     * every identifier-less session shares one cache key instead of being
+     * refused -- [PlexSession.machineIdentifier]'s KDoc requires exactly that
+     * tolerance. Also the fallback for an identifier that fails
+     * [isSafeCacheIdentifier].
+     *
+     * Cannot collide with a real identifier: `ConstantsAA.PICK_LIBRARY_ID`
+     * documents that a machine identifier is always hex, and this string
+     * contains 'n', 'o', 'm', 'h' and 'i' -- none of them hex digits -- so no
+     * real identifier can ever equal it.
+     */
+    private const val NO_MACHINE_ID = "no-machine-id"
+
+    /**
+     * The machine identifier becomes a path component, and it is a value that
+     * arrived over the network -- from our own authenticated plex.tv session
+     * rather than a caller, but still not a value to trust blind in a
+     * filename. Restricted to letters and digits, which is everything a real
+     * (hex) identifier ever needs and excludes every path separator and `..`
+     * segment a hostile one could try.
+     */
+    private fun isSafeCacheIdentifier(id: String): Boolean =
+        id.isNotEmpty() && id.all(Char::isLetterOrDigit)
+
+    /** [machineIdentifier], normalised for use in a filename: [NO_MACHINE_ID]
+     * when it is null or fails [isSafeCacheIdentifier]. */
+    private fun cacheIdentifier(machineIdentifier: String?): String =
+        machineIdentifier?.takeIf(::isSafeCacheIdentifier) ?: NO_MACHINE_ID
+
     /** Composites live under cacheDir, so the system may evict them; losing one
      * costs a single rebuild. */
     @JvmStatic
     fun cacheDir(context: Context): File = File(context.cacheDir, CACHE_DIR)
 
     /**
-     * `{sectionKey}-{decade}-{bucket}.jpg`.
+     * `{machineIdentifier}-{sectionKey}-{decade}-{bucket}.jpg`.
      *
-     * The section key is in the name because More -> Server Select can switch
-     * libraries underneath a cached tile, and the 1980s of one library is not
-     * the 1980s of another. The bucket is in the name because that is what makes
-     * an hour roll a miss.
+     * The machine identifier is in the name because the section key alone does
+     * not say which *server* a tile belongs to: a Plex section key is a small
+     * integer -- "1", "4" -- so two different servers each having a music
+     * section "4" would otherwise share one cache file. `machineIdentifier` is
+     * what says *which* server; see [PlexSession]'s KDoc. The section key stays
+     * in the name too, because it is what keeps two libraries *on the same
+     * server* apart when More -> Server Select switches between them. The
+     * bucket is in the name because that is what makes an hour roll a miss.
      */
     @JvmStatic
-    fun cacheFile(context: Context, sectionKey: String, decade: String, bucket: Long): File =
-        File(cacheDir(context), "$sectionKey-$decade-$bucket$CACHE_SUFFIX")
+    fun cacheFile(
+        context: Context,
+        machineIdentifier: String?,
+        sectionKey: String,
+        decade: String,
+        bucket: Long
+    ): File =
+        File(
+            cacheDir(context),
+            "${cacheIdentifier(machineIdentifier)}-$sectionKey-$decade-$bucket$CACHE_SUFFIX"
+        )
 
     /**
      * Drops composites outside the two live buckets.
@@ -103,8 +146,10 @@ object DecadeCompositeArt {
      * when it hits, so the common case never occupies a worker at all. */
     @JvmStatic
     fun cached(context: Context, decade: String, bucket: Long): File? {
-        val section = PlexApi().session?.musicSectionKey?.value ?: return null
-        return cacheFile(context, section, decade, bucket).takeIf { it.isFile }
+        val session = PlexApi().session ?: return null
+        return cacheFile(
+            context, session.machineIdentifier, session.musicSectionKey.value, decade, bucket
+        ).takeIf { it.isFile }
     }
 
     /**
@@ -132,25 +177,30 @@ object DecadeCompositeArt {
         // Deduplicated per tile. The car can open one decade concurrently, and
         // until a build renames its file into place every concurrent open is a
         // fresh miss -- N metadata queries and 4N cover transcodes for one
-        // image, all made with the user's token. The key is the same triple
-        // that names the cache file, so the eight tiles of a first browse still
-        // build in parallel; see CompositeBuildLocks for why that matters and
-        // why its map does not grow.
+        // image, all made with the user's token. The key is the same
+        // quadruple that names the cache file, so the eight tiles of a first
+        // browse still build in parallel, and so do two different servers'
+        // builds of what happens to be the same section key; see
+        // CompositeBuildLocks for why that matters and why its map does not
+        // grow.
         return CompositeBuildLocks.exclusively(
-            "${session.musicSectionKey.value}-$decade-$bucket"
+            "${cacheIdentifier(session.machineIdentifier)}-${session.musicSectionKey.value}" +
+                "-$decade-$bucket"
         ) {
             // Re-checked after acquiring, against the same session snapshot
             // the lock key and buildLocked's write use -- not cached(), which
             // re-reads PlexApi().session fresh and would check a different
-            // section's filename than the winner wrote if More -> Server
-            // Select switched libraries while this thread waited on the
-            // lock. When the build succeeds, this is what turns N concurrent
-            // opens into one build and N-1 hits: whoever waited here was
-            // waiting for exactly the file the winner has now written. A
-            // decade with no albums caches nothing, though, so a miss here
-            // still costs each waiter its own metadata query, just serialised
-            // behind the lock rather than run in parallel.
-            cacheFile(context, session.musicSectionKey.value, decade, bucket)
+            // server's or section's filename than the winner wrote if More ->
+            // Server Select switched libraries while this thread waited on
+            // the lock. When the build succeeds, this is what turns N
+            // concurrent opens into one build and N-1 hits: whoever waited
+            // here was waiting for exactly the file the winner has now
+            // written. A decade with no albums caches nothing, though, so a
+            // miss here still costs each waiter its own metadata query, just
+            // serialised behind the lock rather than run in parallel.
+            cacheFile(
+                context, session.machineIdentifier, session.musicSectionKey.value, decade, bucket
+            )
                 .takeIf { it.isFile }
                 ?: buildLocked(context, api, session, decade, bucket)
         }
@@ -217,7 +267,7 @@ object DecadeCompositeArt {
         val composite = Bitmap.createBitmap(
             CompositeGrid.SIZE, CompositeGrid.SIZE, Bitmap.Config.RGB_565
         )
-        val file = cacheFile(context, section.value, decade, bucket)
+        val file = cacheFile(context, session.machineIdentifier, section.value, decade, bucket)
         // Hoisted above the try so the catch below can clean it up too: with
         // the declaration inside the try, an exception thrown before a
         // successful rename -- including from createTempFile itself -- left
