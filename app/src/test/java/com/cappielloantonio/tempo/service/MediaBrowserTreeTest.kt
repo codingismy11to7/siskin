@@ -221,6 +221,18 @@ class MediaBrowserTreeTest {
     }
 
     @Test
+    fun theDecadesNodeAsksForAGridNowThatItsRowsHaveArtwork() {
+        val item = MediaBrowserTree.getItem(ConstantsAA.DECADES_ID)!!
+
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(true),
+            item.mediaMetadata.extras!!.getInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE
+            )
+        )
+    }
+
+    @Test
     fun aWindowIdRoutesToItsOwnSliceRatherThanToAnItem() {
         // "[artistWindowID]50" must not be mistaken for "[artistID]..." -- the
         // window tests run first for exactly that reason.
@@ -245,8 +257,13 @@ class MediaBrowserTreeTest {
     @Test
     fun theArtistsAndAlbumsTabsRenderTheirChildrenAsLists() {
         // Their children are window rows carrying no artwork of their own; a grid
-        // of placeholders is worse than a list, the same call decadeToMediaItem
-        // already makes.
+        // of placeholders is worse than a list.
+        //
+        // The Decades node next door asks for the opposite, and the two do not
+        // contradict each other: a decade row wears a composite tiled from four
+        // real covers, so a grid there shows something. A window row has nothing
+        // but the range it spans ("Beck  -  Cake"), which is text, and text reads
+        // better in a list.
         MediaBrowserTree.buildTree()
         val artists = MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!
         assertEquals(
