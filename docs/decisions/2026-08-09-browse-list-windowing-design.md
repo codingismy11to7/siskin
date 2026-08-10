@@ -191,6 +191,17 @@ libraries up to roughly **24,750 artists or albums**. Beyond that the window lis
 truncates and windows need to nest. That is not built; it is recorded so the
 next person meets a documented bound rather than the same silent wall.
 
+**A library small enough never to window still pays for windowing, in styling.**
+A tab's browsable content style is fixed in `MediaBrowserTree.buildTree`, which
+runs on `onGetLibraryRoot` — before any library has been queried — so it cannot
+depend on the item count. It had to become "list" so a window row's range label
+gets the full width of the row. A library of `WINDOW_SIZE` items or fewer
+returns its artists or albums flat, and those now render as list rows with a
+thumbnail rather than as a grid of tiles. Accepted rather than fixed: the
+alternative is learning the count on first browse and re-rendering the root
+through `BrowseTreeInvalidator`, which is real machinery and a visible re-render
+for a case that only libraries under fifty items ever reach.
+
 Untouched, still capped by `MAX_ITEMS` and still able to truncate silently:
 
 - playlist tracks, artist tracks, album tracks
