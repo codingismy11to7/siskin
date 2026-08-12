@@ -288,3 +288,53 @@ throwaway and must never be committed.
 Existing comments that explain *why* are load-bearing and frequently document a
 real hazard. When a type removes the hazard, delete the comment with it; when it
 does not, keep it.
+
+## Landing work
+
+**`main` takes pull requests only.** Every change lands through one, including a
+release cut and including a one-line documentation fix.
+
+Two signals will tell you otherwise, and both are lying:
+
+- **`gh api repos/.../branches/main/protection` answers `404 Branch not
+  protected`.** It is protected — by a repository *ruleset*, which that endpoint
+  does not report. `gh api repos/.../rulesets` is the one that sees it. A direct
+  push is rejected either way; the 404 only wastes the attempt.
+- **A rebase-merged PR leaves no `(#NN)` in its subject.** GitHub appends that
+  suffix only when squashing, so a single-commit PR that was rebase-merged reads
+  in `git log` exactly like a direct push. Several commits on `main` look that
+  way and none of them were. `gh pr list --search` is what answers the question.
+
+A single-commit PR is rebase-merged; a multi-commit one is squashed.
+
+## Cutting a release
+
+A release is a `Cut 0.99.x` commit and a `v0.99.x` tag. The tag is the trigger —
+pushing it fires `release.yml`, which re-runs the tests, decodes the upload
+keystore and runs `publishBundle`, landing a **draft** on Play's internal track
+for manual confirmation in the Console. See
+`docs/decisions/2026-07-31-play-release-pipeline-design.md`.
+
+The cut commit does three things:
+
+1. Bumps `versionCode` and `versionName` in `app/build.gradle`, both by hand
+   until #53 automates them. **1.0.0 stays unclaimed** — releases patch upward
+   from 0.99.0 and 1.0.0 will be cut by that tool.
+2. Renames `## [Unreleased] — Siskin` in `CHANGELOG.md` to `## [0.99.x] (date)`
+   and opens a fresh empty `[Unreleased]` above it.
+3. Nothing else. It is a version bump and a heading rename.
+
+`release.yml` refuses a tag whose name disagrees with `versionName`, so the tag
+follows the merge rather than racing it.
+
+**The changelog entry itself belongs to the PR that changes the behaviour**, not
+to the cut — a bullet under `[Unreleased]`, written where the change is
+understood. Only user-visible behaviour in the car earns one; documentation,
+comments, tests and refactors earn nothing. Entries state what the app does now,
+with the reason attached where the behaviour alone does not explain it, and the
+file uses flat bullets rather than Keep a Changelog's category headings.
+
+This is written down because it lapsed. `Cut 0.99.1` carried its entry and the
+next two cuts silently did not, which is what
+`docs/decisions/2026-08-12-changelog-workflow-design.md` exists to prevent
+happening a third time.
