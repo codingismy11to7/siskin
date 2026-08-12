@@ -12,6 +12,47 @@
 
 ## [Unreleased] — Siskin
 
+## [0.99.3] (2026-08-12)
+
+- A server address that has gone stale is re-resolved instead of retried. Signing
+  in at home and then driving away used to leave every browse tab dead and
+  playback hammering an internal IP that had stopped existing, with no recovery
+  short of parking; the addresses a server advertises are now kept beside the one
+  in use and re-raced when the network changes or the current one goes
+  unreachable.
+- Continuous play is off unless it is asked for, and there is somewhere to ask.
+  Its preference had no writer anywhere in the app, so the `true` default was not
+  a default but the value, and an eight-track album became a queue of about
+  fifty-six.
+- Whether a shuffle row hands over an already-shuffled queue or defers to the
+  car's own shuffle toggle is now a setting, defaulting to the existing
+  behaviour.
+- ReplayGain is reachable. The pipeline had been complete and unreachable since
+  the fork, its mode fixed at `disabled` by the same absent-writer shape as
+  continuous play.
+- The More tab has a Decades entry, listing the decades the library reports and
+  drilling into a shuffle row and a sample of tracks from that decade. Each
+  decade wears a mosaic of four covers drawn from it, because Plex has no
+  composite artwork for a filter value and returns a section-wide image that is
+  byte-identical for every decade.
+- The Artists and Albums tabs reach their full length. Both truncated at roughly
+  227 KB of response — the last artist reachable was the 293rd — which is a size
+  budget rather than an item cap, and is now handled by serving the tabs in
+  windows.
+- The Artists tab groups by first character, using the buckets the server itself
+  reports. A setting turns it back to numeric windows.
+- The two shuffle entries in the media overflow are labelled with what they do,
+  having been given each other's descriptions. This head unit draws those entries
+  as icons without labels, so the correction is currently invisible on it.
+
+## [0.99.2] (2026-08-02)
+
+- Tapping a track turns shuffle off. The tapped row decides the shuffle mode now,
+  so a track means "play this and what follows it" again, rather than inheriting
+  whatever a shuffle row left behind several taps earlier.
+- Settings shows the running build under Sign out, which is the only way to tell
+  one internal-testing build from another once it is on the car.
+
 ## [0.99.1] (2026-08-02)
 
 - The car draws the star rating again, replacing Siskin's own heart button.
