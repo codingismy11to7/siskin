@@ -16,7 +16,6 @@ import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.ResourceUris
 
@@ -266,7 +265,7 @@ object PlexMediaMapper {
             subtitle = metadata.parentTitle,
             thumb = artworkThumb(metadata),
             mediaType = MediaMetadata.MEDIA_TYPE_ALBUM,
-            fallbackIcon = R.drawable.ic_aa_albums,
+            fallbackIcon = R.drawable.ic_browse_albums,
             browsableChildrenAsGrid = true
         )
     }
@@ -281,7 +280,7 @@ object PlexMediaMapper {
             subtitle = null,
             thumb = artworkThumb(metadata),
             mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
-            fallbackIcon = R.drawable.ic_aa_artists,
+            fallbackIcon = R.drawable.ic_browse_artists,
             browsableChildrenAsGrid = true
         )
     }
@@ -290,7 +289,7 @@ object PlexMediaMapper {
      * A "shuffle this <thing>" row, at the head of the list of what it shuffles:
      * an artist's albums, a playlist's tracks, or a decade's tracks.
      *
-     * [mediaId] is one of ConstantsAA's shuffle prefixes plus the subject's
+     * [mediaId] is one of Constants's shuffle prefixes plus the subject's
      * ratingKey, and carrying it in the id is the whole mechanism --
      * MediaLibrarySessionCallback dispatches on the prefix to decide which
      * tracks to fetch.
@@ -458,7 +457,7 @@ object PlexMediaMapper {
             subtitle = null,
             thumb = thumb,
             mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
-            fallbackIcon = R.drawable.ic_aa_playlist,
+            fallbackIcon = R.drawable.ic_browse_playlist,
             browsableChildrenAsGrid = false
         )
     }

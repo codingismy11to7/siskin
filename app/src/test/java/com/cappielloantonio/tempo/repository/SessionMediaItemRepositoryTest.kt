@@ -3,7 +3,7 @@ package com.cappielloantonio.tempo.repository
 import com.cappielloantonio.tempo.database.AppDatabase
 import com.cappielloantonio.tempo.model.SessionMediaItem
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -49,7 +49,7 @@ class SessionMediaItemRepositoryTest {
         year = null,
         grandparentRatingKey = null,
         isHearted = false,
-        parentId = ConstantsAA.QUEUE_CACHED_SOURCE,
+        parentId = Constants.QUEUE_CACHED_SOURCE,
         serverUri = "https://plex.example",
         token = "tok"
     )

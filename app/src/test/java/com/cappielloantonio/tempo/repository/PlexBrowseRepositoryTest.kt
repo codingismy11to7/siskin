@@ -19,7 +19,7 @@ import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.provider.DecadeCompositeArt
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -239,14 +239,14 @@ class PlexBrowseRepositoryTest {
         // artist -- the two screens were asking different indexes.
         server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77")))
 
-        val result = await(PlexBrowseRepository().getArtistAlbums(ConstantsAA.ALBUM_ID, "15100"))
+        val result = await(PlexBrowseRepository().getArtistAlbums(Constants.ALBUM_ID, "15100"))
 
         val request = server.takeRequest()
         assertEquals("/library/sections/1/all", request.requestUrl?.encodedPath)
         assertEquals("15100", request.requestUrl?.queryParameter("artist.id"))
         assertEquals(PlexItemType.ALBUM, request.requestUrl?.queryParameter("type")?.toInt())
         assertEquals(
-            listOf(ConstantsAA.MIX_ARTIST_ID + "15100", ConstantsAA.ALBUM_ID + "77"),
+            listOf(Constants.MIX_ARTIST_ID + "15100", Constants.ALBUM_ID + "77"),
             result.value!!.map { it.mediaId }
         )
     }
@@ -258,10 +258,10 @@ class PlexBrowseRepositoryTest {
         // lets the session callback fetch that artist's tracks on the tap.
         server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77", "88")))
 
-        val result = await(PlexBrowseRepository().getArtistAlbums(ConstantsAA.ALBUM_ID, "15100"))
+        val result = await(PlexBrowseRepository().getArtistAlbums(Constants.ALBUM_ID, "15100"))
 
         val row = result.value!!.first()
-        assertEquals(ConstantsAA.MIX_ARTIST_ID + "15100", row.mediaId)
+        assertEquals(Constants.MIX_ARTIST_ID + "15100", row.mediaId)
         assertEquals(true, row.mediaMetadata.isPlayable)
         assertEquals(false, row.mediaMetadata.isBrowsable)
         // A non-null localConfiguration would make resolveQueueForItem treat the
@@ -276,7 +276,7 @@ class PlexBrowseRepositoryTest {
         val result = await(PlexBrowseRepository().getPlaylistTracks("169077"))
 
         val row = result.value!!.first()
-        assertEquals(ConstantsAA.MIX_PLAYLIST_ID + "169077", row.mediaId)
+        assertEquals(Constants.MIX_PLAYLIST_ID + "169077", row.mediaId)
         assertEquals(true, row.mediaMetadata.isPlayable)
         assertNull(row.localConfiguration)
         assertEquals(listOf("11", "22"), result.value!!.drop(1).map { it.mediaId })
@@ -627,7 +627,7 @@ class PlexBrowseRepositoryTest {
     fun decadesComeFromTheSectionsDecadeIndexInServerOrder() {
         server.enqueue(MockResponse().setResponseCode(200).setBody(decadesBody("2000", "1990")))
 
-        val result = await(PlexBrowseRepository().getDecades(ConstantsAA.DECADE_ID))
+        val result = await(PlexBrowseRepository().getDecades(Constants.DECADE_ID))
 
         val request = server.takeRequest()
         assertEquals("/library/sections/1/decade", request.requestUrl?.encodedPath)
@@ -639,8 +639,8 @@ class PlexBrowseRepositoryTest {
         // libraries' rows as one changed row and crash. See DecadeKey.
         assertEquals(
             listOf(
-                ConstantsAA.DECADE_ID + DecadeKey.of(scope(), "2000"),
-                ConstantsAA.DECADE_ID + DecadeKey.of(scope(), "1990")
+                Constants.DECADE_ID + DecadeKey.of(scope(), "2000"),
+                Constants.DECADE_ID + DecadeKey.of(scope(), "1990")
             ),
             result.value!!.map { it.mediaId }
         )
@@ -666,7 +666,7 @@ class PlexBrowseRepositoryTest {
     fun aDecadeRowsArtworkUriNamesTheSessionsLibrary() {
         server.enqueue(MockResponse().setResponseCode(200).setBody(decadesBody("2000")))
 
-        val result = await(PlexBrowseRepository().getDecades(ConstantsAA.DECADE_ID))
+        val result = await(PlexBrowseRepository().getDecades(Constants.DECADE_ID))
 
         val artwork = result.value!!.single().mediaMetadata.artworkUri!!
         assertEquals(AlbumArtContentProvider.AUTHORITY, artwork.authority)
@@ -716,7 +716,7 @@ class PlexBrowseRepositoryTest {
         // string from what the car sends back and compares it against index 0
         // of the cached browse list, so the two agree only if neither splits it.
         val row = result.value!!.first()
-        assertEquals(ConstantsAA.MIX_DECADE_ID + DECADE_KEY, row.mediaId)
+        assertEquals(Constants.MIX_DECADE_ID + DECADE_KEY, row.mediaId)
         assertEquals(true, row.mediaMetadata.isPlayable)
         assertEquals(false, row.mediaMetadata.isBrowsable)
         // A non-null localConfiguration would make resolveQueueForItem treat the

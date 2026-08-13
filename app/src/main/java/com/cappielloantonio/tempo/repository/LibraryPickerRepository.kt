@@ -25,7 +25,7 @@ import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.CarSignInResolution
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -116,18 +116,18 @@ class LibraryPickerRepository {
                         // an empty account, and the stored session is deliberately
                         // left alone -- the current library keeps working.
                         Log.d(TAG, "could not list servers: $failure")
-                        future.set(messageResult(R.string.aa_library_picker_offline))
+                        future.set(messageResult(R.string.browse_library_picker_offline))
                     },
                     { resources ->
                         val session = api.session
                         val items = serverRows(resources).map { row ->
                             browsableRow(
-                                mediaId = ConstantsAA.PICK_SERVER_ID + row.machineIdentifier,
+                                mediaId = Constants.PICK_SERVER_ID + row.machineIdentifier,
                                 title = rowTitle(
                                     row.name,
                                     LibrarySelection.isCurrentServer(session, row.machineIdentifier)
                                 ),
-                                iconRes = R.drawable.ic_aa_server
+                                iconRes = R.drawable.ic_browse_server
                             )
                         }
                         future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), null))
@@ -154,14 +154,14 @@ class LibraryPickerRepository {
                 // land on the car's generic failure screen.
                 val resources = authClient.getResources().getOrElse { failure ->
                     Log.d(TAG, "could not re-list servers: $failure")
-                    future.set(messageResult(R.string.aa_library_picker_offline))
+                    future.set(messageResult(R.string.browse_library_picker_offline))
                     return@launch
                 }
                 val resource = AuthClient.mediaServers(resources)
                     .firstOrNull { it.clientIdentifier == machineIdentifier }
                 if (resource == null) {
                     Log.d(TAG, "server $machineIdentifier is no longer on the account")
-                    future.set(messageResult(R.string.aa_library_picker_server_gone))
+                    future.set(messageResult(R.string.browse_library_picker_server_gone))
                     return@launch
                 }
 
@@ -171,7 +171,7 @@ class LibraryPickerRepository {
                 val uri = probe.bestConnectionUri(resource)
                 if (uri == null) {
                     Log.d(TAG, "no advertised connection answered for ${resource.name}")
-                    future.set(messageResult(R.string.aa_library_picker_server_unreachable))
+                    future.set(messageResult(R.string.browse_library_picker_server_unreachable))
                     return@launch
                 }
 
@@ -184,7 +184,7 @@ class LibraryPickerRepository {
                         // server going away mid-navigation rather than a wrong
                         // address -- the same sentence either way.
                         Log.d(TAG, "could not list sections for ${resource.name}: $failure")
-                        future.set(messageResult(R.string.aa_library_picker_server_unreachable))
+                        future.set(messageResult(R.string.browse_library_picker_server_unreachable))
                         return@launch
                     }
                 val musicSections = LibraryClient.musicSections(sections)
@@ -192,7 +192,7 @@ class LibraryPickerRepository {
                     // A photo-and-video-only server is a real answer rather than
                     // a failure, but an empty list renders as a blank screen.
                     Log.d(TAG, "${resource.name} has no music sections")
-                    future.set(messageResult(R.string.aa_library_picker_no_music))
+                    future.set(messageResult(R.string.browse_library_picker_no_music))
                     return@launch
                 }
                 val session = api.session
@@ -204,12 +204,12 @@ class LibraryPickerRepository {
                     // strip the tick back off later.
                     libraryNames[payload] = plainName
                     browsableRow(
-                        mediaId = ConstantsAA.PICK_LIBRARY_ID + payload,
+                        mediaId = Constants.PICK_LIBRARY_ID + payload,
                         title = rowTitle(
                             plainName,
                             LibrarySelection.isCurrent(session, machineIdentifier, uri, key)
                         ),
-                        iconRes = R.drawable.ic_aa_library
+                        iconRes = R.drawable.ic_browse_library
                     )
                 }
                 future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), null))
@@ -303,7 +303,7 @@ class LibraryPickerRepository {
         // invalidateRoot() as well.
         BrowseTreeInvalidator.invalidateRoot()
         BrowseTreeInvalidator.invalidateNode(
-            ConstantsAA.PICK_SERVER_ID + machineIdentifier,
+            Constants.PICK_SERVER_ID + machineIdentifier,
             0
         )
 
@@ -334,18 +334,18 @@ class LibraryPickerRepository {
         val serverName = candidates[payload.substringBefore('|')]?.second?.name
         val context = App.getContext()
         return browsableRow(
-            mediaId = ConstantsAA.PICK_LIBRARY_ID + payload + CONFIRMED_SUFFIX,
+            mediaId = Constants.PICK_LIBRARY_ID + payload + CONFIRMED_SUFFIX,
             // Browsable purely so the car draws it: an item with neither
             // isBrowsable nor isPlayable set is dropped from the list entirely.
             title = if (serverName.isNullOrBlank()) {
                 // Reachable after a process restart between listing the
                 // libraries and tapping one, when the candidate is gone.
-                context.getString(R.string.aa_now_browsing_no_server, name)
+                context.getString(R.string.browse_now_browsing_no_server, name)
             } else {
-                context.getString(R.string.aa_now_browsing, name, serverName)
+                context.getString(R.string.browse_now_browsing, name, serverName)
             },
             // Info, not warning: this row reports a selection that succeeded.
-            iconRes = R.drawable.ic_aa_info
+            iconRes = R.drawable.ic_browse_info
         )
     }
 
@@ -431,7 +431,7 @@ class LibraryPickerRepository {
         @JvmStatic
         fun messageRow(message: String): MediaItem =
             browsableRow(
-                mediaId = ConstantsAA.PICK_MESSAGE_ID + message,
+                mediaId = Constants.PICK_MESSAGE_ID + message,
                 title = message,
                 // Warning rather than info for all four of these: every one is a
                 // dead end -- plex.tv unreachable, server gone, server
@@ -442,7 +442,7 @@ class LibraryPickerRepository {
                 // round trip above honest: MediaBrowserTree rebuilds this row
                 // from the id alone when it is tapped, so a per-message severity
                 // would have to be encoded into the id to survive that.
-                iconRes = R.drawable.ic_aa_warning
+                iconRes = R.drawable.ic_browse_warning
             )
 
         /**

@@ -382,7 +382,7 @@ class LibraryPickerCommitTest {
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         val row = requireNotNull(result.value).single()
         assertEquals(
-            App.getContext().getString(R.string.aa_library_picker_offline),
+            App.getContext().getString(R.string.browse_library_picker_offline),
             row.mediaMetadata.title?.toString()
         )
         assertEquals(true, row.mediaMetadata.isBrowsable)
@@ -400,7 +400,7 @@ class LibraryPickerCommitTest {
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(
-            App.getContext().getString(R.string.aa_library_picker_offline),
+            App.getContext().getString(R.string.browse_library_picker_offline),
             requireNotNull(result.value).single().mediaMetadata.title?.toString()
         )
     }
@@ -411,9 +411,9 @@ class LibraryPickerCommitTest {
         // Three causes the car would otherwise render identically. If two of
         // these ever collapse into one string, the picker is back to a generic
         // failure screen.
-        val offline = context.getString(R.string.aa_library_picker_offline)
-        val gone = context.getString(R.string.aa_library_picker_server_gone)
-        val unreachable = context.getString(R.string.aa_library_picker_server_unreachable)
+        val offline = context.getString(R.string.browse_library_picker_offline)
+        val gone = context.getString(R.string.browse_library_picker_server_gone)
+        val unreachable = context.getString(R.string.browse_library_picker_server_unreachable)
         assertNotEquals(offline, gone)
         assertNotEquals(offline, unreachable)
         assertNotEquals(gone, unreachable)
@@ -438,7 +438,7 @@ class LibraryPickerCommitTest {
         // Names the server too: a library called "Music" is ambiguous across an
         // account, and "Basement" is the candidate's server name.
         val expectedTitle = App.getContext()
-            .getString(R.string.aa_now_browsing, "Big Music Library", "Basement")
+            .getString(R.string.browse_now_browsing, "Big Music Library", "Basement")
         assertEquals(expectedTitle, item.mediaMetadata.title?.toString())
         assertEquals("Now browsing: Big Music Library (Basement)", expectedTitle)
     }

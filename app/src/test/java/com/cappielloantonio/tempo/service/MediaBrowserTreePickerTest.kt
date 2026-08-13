@@ -5,7 +5,7 @@ import androidx.media3.session.LibraryResult
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.LibraryPickerRepository
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,7 +23,7 @@ class MediaBrowserTreePickerTest {
 
     @Test
     fun tappingTheConfirmationRowReturnsTheRow() {
-        val id = ConstantsAA.PICK_LIBRARY_ID + "abc123|7" +
+        val id = Constants.PICK_LIBRARY_ID + "abc123|7" +
             LibraryPickerRepository.CONFIRMED_SUFFIX
 
         val result = MediaBrowserTree.getChildren(id).get()
@@ -37,7 +37,7 @@ class MediaBrowserTreePickerTest {
             // No getLibraries has run in this process, so both the library name
             // and the candidate's server name are gone -- the state a tap after a
             // process restart arrives in, and why the no-server string exists.
-            App.getContext().getString(R.string.aa_now_browsing_no_server, "Library 7"),
+            App.getContext().getString(R.string.browse_now_browsing_no_server, "Library 7"),
             row.mediaMetadata.title?.toString()
         )
         assertEquals(true, row.mediaMetadata.isBrowsable)
@@ -46,8 +46,8 @@ class MediaBrowserTreePickerTest {
 
     @Test
     fun tappingAMessageRowReturnsTheRow() {
-        val message = App.getContext().getString(R.string.aa_library_picker_offline)
-        val id = ConstantsAA.PICK_MESSAGE_ID + message
+        val message = App.getContext().getString(R.string.browse_library_picker_offline)
+        val id = Constants.PICK_MESSAGE_ID + message
 
         val result = MediaBrowserTree.getChildren(id).get()
 

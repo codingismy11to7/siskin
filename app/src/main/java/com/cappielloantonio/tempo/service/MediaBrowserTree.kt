@@ -15,7 +15,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.LibraryPickerRepository
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.BrowseContentStyle
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.ResourceUris
 import com.google.common.collect.ImmutableList
@@ -125,111 +125,111 @@ object MediaBrowserTree {
     fun buildTree() {
         treeNodes.clear()
 
-        treeNodes[ConstantsAA.ROOT_ID] =
+        treeNodes[Constants.ROOT_ID] =
             MediaItemNode(
                 buildMediaItem(
                     browsableChildrenAsGrid = true,
                     title = "Root Folder",
-                    mediaId = ConstantsAA.ROOT_ID,
+                    mediaId = Constants.ROOT_ID,
                     isPlayable = false,
                     isBrowsable = true,
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
                 )
             )
 
-        treeNodes[ConstantsAA.PLAYLIST_ID] =
+        treeNodes[Constants.PLAYLIST_ID] =
             MediaItemNode(
                 buildMediaItem(
                     browsableChildrenAsGrid = false,
-                    title = appContext.getString(R.string.aa_playlists),
-                    mediaId = ConstantsAA.PLAYLIST_ID,
+                    title = appContext.getString(R.string.browse_playlists),
+                    mediaId = Constants.PLAYLIST_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_aa_playlist),
+                    imageUri = iconUri(R.drawable.ic_browse_playlist),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS
                 )
             )
 
-        treeNodes[ConstantsAA.ARTISTS_ID] =
+        treeNodes[Constants.ARTISTS_ID] =
             MediaItemNode(
                 buildMediaItem(
                     browsableChildrenAsGrid = false,
-                    title = appContext.getString(R.string.aa_artists),
-                    mediaId = ConstantsAA.ARTISTS_ID,
+                    title = appContext.getString(R.string.browse_artists),
+                    mediaId = Constants.ARTISTS_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_aa_artists),
+                    imageUri = iconUri(R.drawable.ic_browse_artists),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS
                 )
             )
 
-        treeNodes[ConstantsAA.ALBUMS_ID] =
+        treeNodes[Constants.ALBUMS_ID] =
             MediaItemNode(
                 buildMediaItem(
                     browsableChildrenAsGrid = false,
-                    title = appContext.getString(R.string.aa_albums),
-                    mediaId = ConstantsAA.ALBUMS_ID,
+                    title = appContext.getString(R.string.browse_albums),
+                    mediaId = Constants.ALBUMS_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_aa_albums),
+                    imageUri = iconUri(R.drawable.ic_browse_albums),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS
                 )
             )
 
-        treeNodes[ConstantsAA.MORE_ID] =
+        treeNodes[Constants.MORE_ID] =
             MediaItemNode(
                 buildMediaItem(
                     browsableChildrenAsGrid = false,
-                    title = appContext.getString(R.string.aa_more),
-                    mediaId = ConstantsAA.MORE_ID,
+                    title = appContext.getString(R.string.browse_more),
+                    mediaId = Constants.MORE_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_aa_more),
+                    imageUri = iconUri(R.drawable.ic_browse_more),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
                 )
             )
 
-        treeNodes[ConstantsAA.DECADES_ID] =
+        treeNodes[Constants.DECADES_ID] =
             MediaItemNode(
                 buildMediaItem(
                     // A grid: each row wears a composite of four covers drawn
                     // from that decade, so there is artwork worth the space.
                     // See the 2026-08-09 decade composite artwork design.
                     browsableChildrenAsGrid = true,
-                    title = appContext.getString(R.string.aa_decades),
-                    mediaId = ConstantsAA.DECADES_ID,
+                    title = appContext.getString(R.string.browse_decades),
+                    mediaId = Constants.DECADES_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_aa_decades),
+                    imageUri = iconUri(R.drawable.ic_browse_decades),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
                 )
             )
 
-        treeNodes[ConstantsAA.SELECT_LIBRARY_ID] =
+        treeNodes[Constants.SELECT_LIBRARY_ID] =
             MediaItemNode(
                 buildMediaItem(
                     browsableChildrenAsGrid = false,
-                    title = appContext.getString(R.string.aa_select_library),
-                    mediaId = ConstantsAA.SELECT_LIBRARY_ID,
+                    title = appContext.getString(R.string.browse_select_library),
+                    mediaId = Constants.SELECT_LIBRARY_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_aa_library),
+                    imageUri = iconUri(R.drawable.ic_browse_library),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
                 )
             )
 
-        treeNodes[ConstantsAA.MORE_ID]!!.addChild(ConstantsAA.DECADES_ID)
-        treeNodes[ConstantsAA.MORE_ID]!!.addChild(ConstantsAA.SELECT_LIBRARY_ID)
+        treeNodes[Constants.MORE_ID]!!.addChild(Constants.DECADES_ID)
+        treeNodes[Constants.MORE_ID]!!.addChild(Constants.SELECT_LIBRARY_ID)
 
-        val root = treeNodes[ConstantsAA.ROOT_ID]!!
-        root.addChild(ConstantsAA.PLAYLIST_ID)
-        root.addChild(ConstantsAA.ARTISTS_ID)
-        root.addChild(ConstantsAA.ALBUMS_ID)
-        root.addChild(ConstantsAA.MORE_ID)
+        val root = treeNodes[Constants.ROOT_ID]!!
+        root.addChild(Constants.PLAYLIST_ID)
+        root.addChild(Constants.ARTISTS_ID)
+        root.addChild(Constants.ALBUMS_ID)
+        root.addChild(Constants.MORE_ID)
     }
 
     fun getRootItem(): MediaItem {
-        return treeNodes[ConstantsAA.ROOT_ID]!!.item
+        return treeNodes[Constants.ROOT_ID]!!.item
     }
 
     /**
@@ -256,12 +256,12 @@ object MediaBrowserTree {
         //
         // The placeholder is never drawn: the car renders these lists from
         // onGetChildren. It looks pointless for that reason. It is not.
-        if (mediaId.startsWith(ConstantsAA.PICK_SERVER_ID) ||
-            mediaId.startsWith(ConstantsAA.PICK_LIBRARY_ID)
+        if (mediaId.startsWith(Constants.PICK_SERVER_ID) ||
+            mediaId.startsWith(Constants.PICK_LIBRARY_ID)
         ) {
             return LibraryPickerRepository.browsableRow(
                 mediaId = mediaId,
-                title = appContext.getString(R.string.aa_select_library)
+                title = appContext.getString(R.string.browse_select_library)
             )
         }
 
@@ -291,86 +291,86 @@ object MediaBrowserTree {
 
     fun getChildren(id: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return when (id) {
-            ConstantsAA.ROOT_ID -> treeNodes[ConstantsAA.ROOT_ID]!!.getChildren()
+            Constants.ROOT_ID -> treeNodes[Constants.ROOT_ID]!!.getChildren()
 
-            ConstantsAA.PLAYLIST_ID -> browseRepository.getPlaylists(ConstantsAA.PLAYLIST_ID)
+            Constants.PLAYLIST_ID -> browseRepository.getPlaylists(Constants.PLAYLIST_ID)
 
             // The one place the by-initial preference is read. The tab's own
             // style does not depend on it -- see buildTree -- so nothing about
             // the root has to change when it is toggled; only this list does.
-            ConstantsAA.ARTISTS_ID -> if (Preferences.isArtistsByInitialEnabled()) {
+            Constants.ARTISTS_ID -> if (Preferences.isArtistsByInitialEnabled()) {
                 browseRepository.getArtistLetters(
-                    ConstantsAA.ARTIST_LETTER_ID,
-                    ConstantsAA.ARTIST_ID
+                    Constants.ARTIST_LETTER_ID,
+                    Constants.ARTIST_ID
                 )
             } else {
                 browseRepository.getArtistWindows(
-                    ConstantsAA.ARTIST_WINDOW_ID,
-                    ConstantsAA.ARTIST_ID
+                    Constants.ARTIST_WINDOW_ID,
+                    Constants.ARTIST_ID
                 )
             }
 
-            ConstantsAA.ALBUMS_ID -> browseRepository.getAlbumWindows(
-                ConstantsAA.ALBUM_WINDOW_ID,
-                ConstantsAA.ALBUM_ID
+            Constants.ALBUMS_ID -> browseRepository.getAlbumWindows(
+                Constants.ALBUM_WINDOW_ID,
+                Constants.ALBUM_ID
             )
 
-            ConstantsAA.MORE_ID -> treeNodes[ConstantsAA.MORE_ID]!!.getChildren()
+            Constants.MORE_ID -> treeNodes[Constants.MORE_ID]!!.getChildren()
 
-            ConstantsAA.SELECT_LIBRARY_ID -> pickerRepository.getServers()
+            Constants.SELECT_LIBRARY_ID -> pickerRepository.getServers()
 
-            ConstantsAA.DECADES_ID -> browseRepository.getDecades(ConstantsAA.DECADE_ID)
+            Constants.DECADES_ID -> browseRepository.getDecades(Constants.DECADE_ID)
 
             else -> {
-                if (id.startsWith(ConstantsAA.PLAYLIST_ID)) {
+                if (id.startsWith(Constants.PLAYLIST_ID)) {
                     return browseRepository.getPlaylistTracks(
-                        id.removePrefix(ConstantsAA.PLAYLIST_ID)
+                        id.removePrefix(Constants.PLAYLIST_ID)
                     )
                 }
                 // Before the ARTIST_ID/ALBUM_ID tests below: no window or letter
                 // id is a prefix of an item id, but keeping the narrower matches
                 // first means that stays true by construction rather than by
                 // coincidence of spelling.
-                if (id.startsWith(ConstantsAA.ARTIST_WINDOW_ID)) {
+                if (id.startsWith(Constants.ARTIST_WINDOW_ID)) {
                     return browseRepository.getArtistWindow(
-                        id.removePrefix(ConstantsAA.ARTIST_WINDOW_ID).toIntOrNull() ?: 0,
-                        ConstantsAA.ARTIST_ID
+                        id.removePrefix(Constants.ARTIST_WINDOW_ID).toIntOrNull() ?: 0,
+                        Constants.ARTIST_ID
                     )
                 }
-                if (id.startsWith(ConstantsAA.ALBUM_WINDOW_ID)) {
+                if (id.startsWith(Constants.ALBUM_WINDOW_ID)) {
                     return browseRepository.getAlbumWindow(
-                        id.removePrefix(ConstantsAA.ALBUM_WINDOW_ID).toIntOrNull() ?: 0,
-                        ConstantsAA.ALBUM_ID
+                        id.removePrefix(Constants.ALBUM_WINDOW_ID).toIntOrNull() ?: 0,
+                        Constants.ALBUM_ID
                     )
                 }
-                if (id.startsWith(ConstantsAA.ARTIST_LETTER_ID)) {
+                if (id.startsWith(Constants.ARTIST_LETTER_ID)) {
                     return browseRepository.getArtistLetter(
-                        id.removePrefix(ConstantsAA.ARTIST_LETTER_ID),
-                        ConstantsAA.ARTIST_ID
+                        id.removePrefix(Constants.ARTIST_LETTER_ID),
+                        Constants.ARTIST_ID
                     )
                 }
-                if (id.startsWith(ConstantsAA.ALBUM_ID)) {
+                if (id.startsWith(Constants.ALBUM_ID)) {
                     return browseRepository.getAlbumTracks(
-                        id.removePrefix(ConstantsAA.ALBUM_ID)
+                        id.removePrefix(Constants.ALBUM_ID)
                     )
                 }
-                if (id.startsWith(ConstantsAA.ARTIST_ID)) {
+                if (id.startsWith(Constants.ARTIST_ID)) {
                     return browseRepository.getArtistAlbums(
-                        ConstantsAA.ALBUM_ID,
-                        id.removePrefix(ConstantsAA.ARTIST_ID)
+                        Constants.ALBUM_ID,
+                        id.removePrefix(Constants.ARTIST_ID)
                     )
                 }
-                if (id.startsWith(ConstantsAA.DECADE_ID)) {
+                if (id.startsWith(Constants.DECADE_ID)) {
                     // The DecadeKey payload -- library and decade -- handed over
                     // whole. Nothing here needs to know its shape, and the
                     // shuffle row the repository builds from it has to carry the
                     // same string the callback's cache guard rebuilds.
                     return browseRepository.getDecadeTracks(
-                        id.removePrefix(ConstantsAA.DECADE_ID)
+                        id.removePrefix(Constants.DECADE_ID)
                     )
                 }
-                if (id.startsWith(ConstantsAA.PICK_LIBRARY_ID)) {
-                    val payload = id.removePrefix(ConstantsAA.PICK_LIBRARY_ID)
+                if (id.startsWith(Constants.PICK_LIBRARY_ID)) {
+                    val payload = id.removePrefix(Constants.PICK_LIBRARY_ID)
                     if (payload.endsWith(LibraryPickerRepository.CONFIRMED_SUFFIX)) {
                         // Tapping the confirmation row returns the row. Committing
                         // again would be wrong and an empty list is the blank
@@ -390,19 +390,19 @@ object MediaBrowserTree {
                     }
                     return pickerRepository.selectLibrary(payload)
                 }
-                if (id.startsWith(ConstantsAA.PICK_SERVER_ID)) {
+                if (id.startsWith(Constants.PICK_SERVER_ID)) {
                     return pickerRepository.getLibraries(
-                        id.removePrefix(ConstantsAA.PICK_SERVER_ID)
+                        id.removePrefix(Constants.PICK_SERVER_ID)
                     )
                 }
-                if (id.startsWith(ConstantsAA.PICK_MESSAGE_ID)) {
+                if (id.startsWith(Constants.PICK_MESSAGE_ID)) {
                     // Same rule as the confirmation row: a row that explains a
                     // failure must not become a blank screen when it is tapped.
                     return Futures.immediateFuture(
                         LibraryResult.ofItemList(
                             ImmutableList.of(
                                 LibraryPickerRepository.messageRow(
-                                    id.removePrefix(ConstantsAA.PICK_MESSAGE_ID)
+                                    id.removePrefix(Constants.PICK_MESSAGE_ID)
                                 )
                             ),
                             null
@@ -533,8 +533,8 @@ object MediaBrowserTree {
     fun search(query: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return browseRepository.search(
             query,
-            ConstantsAA.ALBUM_ID,
-            ConstantsAA.ARTIST_ID
+            Constants.ALBUM_ID,
+            Constants.ARTIST_ID
         )
     }
 }

@@ -3,7 +3,7 @@ package com.cappielloantonio.tempo.plex
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -157,7 +157,7 @@ class PlexMediaMapperTest {
             decade(key = "  "),
             decade(title = null)
         ).map {
-            PlexMediaMapper.decadeToMediaItem(it, ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)
+            PlexMediaMapper.decadeToMediaItem(it, Constants.DECADE_ID, SCOPE, bucket = 487234L)
         }
 
         dropped.forEach { assertNull(it) }

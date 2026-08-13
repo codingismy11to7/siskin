@@ -7,7 +7,7 @@
     measured from 0,0. The group's translateY of 960 supplies the
     missing offset.
 
-    The other ic_aa_* icons instead carry coordinates rewritten into
+    The other ic_browse_* icons instead carry coordinates rewritten into
     positive space. That is the same picture arrived at by editing every
     number in the path, which is worth avoiding when a transform does it
     exactly and leaves the glyph diffable against upstream.

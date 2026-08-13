@@ -3,7 +3,7 @@ package com.cappielloantonio.tempo.repository
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.ResourceUris
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
@@ -56,7 +56,7 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(ok(index(Triple("%23", "#", 12), Triple("A", "A", 79))))
 
         val result = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(
@@ -76,7 +76,7 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(ok(index(Triple("A", "A", 79), Triple("B", "B", 1))))
 
         val rows = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get().value!!
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get().value!!
 
         // The singular is a real case, not a hypothetical: the reference library
         // has a "∆" bucket of one.
@@ -89,7 +89,7 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(ok(index(Triple("A", "A", null), Triple("B", "B", 60))))
 
         val rows = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get().value!!
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get().value!!
 
         assertNull(rows[0].mediaMetadata.artist)
     }
@@ -99,9 +99,9 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(ok(index(Triple("A", "A", 79), Triple("B", "B", 1))))
 
         val rows = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get().value!!
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get().value!!
 
-        val expected = ResourceUris.forResource(R.drawable.ic_aa_artists)
+        val expected = ResourceUris.forResource(R.drawable.ic_browse_artists)
         rows.forEach { assertEquals(expected, it.mediaMetadata.artworkUri) }
     }
 
@@ -115,7 +115,7 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(ok(index(Triple("A", "A", null), Triple("B", "B", null))))
 
         val result = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(
@@ -134,7 +134,7 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(ok(listing("Aa", "Ab", "Ac", "Ba", "Bb")))
 
         val result = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get()
 
         assertEquals(
             listOf("[artistID]0", "[artistID]1", "[artistID]2", "[artistID]3", "[artistID]4"),
@@ -158,7 +158,7 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(MockResponse().setResponseCode(500))
 
         val result = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(
@@ -178,7 +178,7 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(ok(listing()))
 
         val result = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(
@@ -192,7 +192,7 @@ class PlexBrowseLetterTest {
         fixture.server.enqueue(MockResponse().setResponseCode(401))
 
         val result = PlexBrowseRepository()
-            .getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID).get()
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
@@ -201,7 +201,7 @@ class PlexBrowseLetterTest {
     fun aBucketIsFetchedByPathWithItsEncodingIntact() = runTest {
         fixture.server.enqueue(ok(listing("$" + "uicideboy$", "3epkano")))
 
-        PlexBrowseRepository().getArtistLetter("%23", ConstantsAA.ARTIST_ID).get()
+        PlexBrowseRepository().getArtistLetter("%23", Constants.ARTIST_ID).get()
 
         val request = fixture.server.takeRequest()
         // pathSegments decodes, so this pins that the server sees a segment
@@ -214,7 +214,7 @@ class PlexBrowseLetterTest {
         assertFalse(request.path!!.contains("firstCharacter="))
         assertNull(request.requestUrl!!.queryParameter("sort"))
         assertEquals("0", request.getHeader("X-Plex-Container-Start"))
-        assertEquals(ConstantsAA.MAX_ITEMS.toString(), request.getHeader("X-Plex-Container-Size"))
+        assertEquals(Constants.MAX_ITEMS.toString(), request.getHeader("X-Plex-Container-Size"))
         // type=8 is honoured by the server and changes the answer -- on bucket
         // "Q", type=9 returns 3 albums where no type returns 4 artists. This is
         // the first test anywhere that drives LibraryClient's hardcoded
@@ -227,7 +227,7 @@ class PlexBrowseLetterTest {
     fun aBucketReturnsItsArtistsAsItems() = runTest {
         fixture.server.enqueue(ok(listing("Daft Punk", "Bob Dylan")))
 
-        val result = PlexBrowseRepository().getArtistLetter("D", ConstantsAA.ARTIST_ID).get()
+        val result = PlexBrowseRepository().getArtistLetter("D", Constants.ARTIST_ID).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(listOf("[artistID]0", "[artistID]1"), result.value!!.map { it.mediaId })

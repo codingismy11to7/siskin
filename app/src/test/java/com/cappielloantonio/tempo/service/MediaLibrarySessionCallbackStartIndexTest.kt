@@ -14,7 +14,7 @@ import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import org.junit.Assert.assertEquals
@@ -123,7 +123,7 @@ class MediaLibrarySessionCallbackStartIndexTest {
         whenever(browseRepository.getArtistTracks(ARTIST)).thenReturn(itemList(tracks))
 
         val row = MediaItem.Builder()
-            .setMediaId(ConstantsAA.MIX_ARTIST_ID + ARTIST)
+            .setMediaId(Constants.MIX_ARTIST_ID + ARTIST)
             .build()
         val result = setMediaItems(row)
 
@@ -181,9 +181,9 @@ class MediaLibrarySessionCallbackStartIndexTest {
         val children = callback.onGetChildren(
             mock<MediaLibraryService.MediaLibrarySession>(),
             controller,
-            ConstantsAA.ALBUM_ID + ALBUM,
+            Constants.ALBUM_ID + ALBUM,
             0,
-            ConstantsAA.MAX_ITEMS,
+            Constants.MAX_ITEMS,
             null
         ).get()
 
@@ -226,7 +226,7 @@ class MediaLibrarySessionCallbackStartIndexTest {
             year = null,
             grandparentRatingKey = ARTIST,
             isHearted = false,
-            parentId = ConstantsAA.QUEUE_CACHED_SOURCE,
+            parentId = Constants.QUEUE_CACHED_SOURCE,
             serverUri = SERVER,
             token = "server-token"
         )

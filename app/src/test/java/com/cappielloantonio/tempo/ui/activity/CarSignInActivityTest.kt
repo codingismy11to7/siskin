@@ -9,7 +9,7 @@ import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -74,11 +74,11 @@ class CarSignInActivityTest {
         activity.onLoginSuccess()
         idleMainLooper()
 
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ROOT_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.PLAYLIST_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ARTISTS_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ALBUMS_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.MORE_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.PLAYLIST_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))
     }
 
     @Test
@@ -89,11 +89,11 @@ class CarSignInActivityTest {
 
         verify(player).stop()
         verify(player).clearMediaItems()
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ROOT_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.PLAYLIST_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ARTISTS_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ALBUMS_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.MORE_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.PLAYLIST_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))
     }
 
     /**

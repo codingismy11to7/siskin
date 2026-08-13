@@ -1,6 +1,6 @@
 <!--
     Material Symbols "more_horiz", on the same 960 viewport as the other
-    ic_aa_* browse icons so the four car tabs share one grid and weight.
+    ic_browse_* browse icons so the four car tabs share one grid and weight.
 
     Three r=80 dots centred at y=480 and x=240/480/720, drawn as exact arcs
     rather than the four-quadratic circle approximation the Symbols exporter

@@ -2,7 +2,7 @@ package com.cappielloantonio.tempo.repository
 
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -67,7 +67,7 @@ class PlexBrowseWindowTest {
         fixture.server.enqueue(ok(listing(totalSize = 3, "Aa", "Bb", "Cc")))
 
         val result = PlexBrowseRepository()
-            .getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistWindows(Constants.ARTIST_WINDOW_ID, Constants.ARTIST_ID).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(listOf("[artistID]0", "[artistID]1", "[artistID]2"), result.value!!.map { it.mediaId })
@@ -81,7 +81,7 @@ class PlexBrowseWindowTest {
         repeat(3) { fixture.server.enqueue(ok(listing(totalSize = 120, "Boundary$it"))) }
 
         val result = PlexBrowseRepository()
-            .getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistWindows(Constants.ARTIST_WINDOW_ID, Constants.ARTIST_ID).get()
 
         assertEquals(
             listOf("[artistWindowID]0", "[artistWindowID]50", "[artistWindowID]100"),
@@ -113,7 +113,7 @@ class PlexBrowseWindowTest {
         repeat(2) { fixture.server.enqueue(ok(listing(totalSize = 100, "Boundary$it"))) }
 
         val result = PlexBrowseRepository()
-            .getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistWindows(Constants.ARTIST_WINDOW_ID, Constants.ARTIST_ID).get()
 
         assertEquals(
             listOf("[artistWindowID]0", "[artistWindowID]50"),
@@ -148,7 +148,7 @@ class PlexBrowseWindowTest {
         }
 
         val result = PlexBrowseRepository()
-            .getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistWindows(Constants.ARTIST_WINDOW_ID, Constants.ARTIST_ID).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(3, result.value!!.size)
@@ -169,7 +169,7 @@ class PlexBrowseWindowTest {
         // value, so "title" and "titleSort" cannot be confused.
         fixture.server.enqueue(ok(listing(totalSize = 120, "Fifty")))
 
-        PlexBrowseRepository().getArtistWindow(50, ConstantsAA.ARTIST_ID).get()
+        PlexBrowseRepository().getArtistWindow(50, Constants.ARTIST_ID).get()
 
         val request = fixture.server.takeRequest()
         assertEquals("50", request.getHeader("X-Plex-Container-Start"))
@@ -185,7 +185,7 @@ class PlexBrowseWindowTest {
         // above.
         fixture.server.enqueue(ok(listing(totalSize = 120, "Fifty", type = "album")))
 
-        PlexBrowseRepository().getAlbumWindow(50, ConstantsAA.ALBUM_ID).get()
+        PlexBrowseRepository().getAlbumWindow(50, Constants.ALBUM_ID).get()
 
         val request = fixture.server.takeRequest()
         assertEquals("50", request.getHeader("X-Plex-Container-Start"))
@@ -203,7 +203,7 @@ class PlexBrowseWindowTest {
         fixture.server.enqueue(MockResponse().setResponseCode(401))
 
         val result = PlexBrowseRepository()
-            .getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistWindows(Constants.ARTIST_WINDOW_ID, Constants.ARTIST_ID).get()
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
@@ -217,7 +217,7 @@ class PlexBrowseWindowTest {
         repeat(3) { fixture.server.enqueue(MockResponse().setResponseCode(500)) }
 
         val result = PlexBrowseRepository()
-            .getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID).get()
+            .getArtistWindows(Constants.ARTIST_WINDOW_ID, Constants.ARTIST_ID).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(3, result.value!!.size)

@@ -3,7 +3,7 @@
 
     Upstream path verbatim, on the "0 -960 960 960" viewBox Material Symbols
     exports. VectorDrawable has no viewBox origin, so the group supplies the
-    960 offset. Same arrangement as ic_aa_library, and the reasoning is
+    960 offset. Same arrangement as ic_browse_library, and the reasoning is
     written up there.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"

@@ -3,7 +3,7 @@
 
     The path is upstream's verbatim, on Material Symbols' "0 -960 960 960"
     viewBox; the group's translateY of 960 supplies the origin offset
-    VectorDrawable cannot express. See ic_aa_library.xml, which explains why
+    VectorDrawable cannot express. See ic_browse_library.xml, which explains why
     this is preferred over rewriting every coordinate into positive space.
 
     Only the More row wears this. The decade rows underneath carry no
