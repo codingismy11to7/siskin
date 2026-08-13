@@ -53,7 +53,6 @@ class PlexSignInSettingsTest {
         // methods, and the session and all three toggles are read out of it.
         App.getInstance().preferences.edit()
             .remove("continuous_play")
-            .remove("car_shuffle")
             .remove("replay_gain_mode")
             .remove("artists_by_initial")
             .commit()
@@ -110,9 +109,6 @@ class PlexSignInSettingsTest {
     private fun continuousPlaySwitch(view: View) =
         switchLabelled(view, App.getInstance().getString(R.string.car_settings_continuous_play))
 
-    private fun carShuffleSwitch(view: View) =
-        switchLabelled(view, App.getInstance().getString(R.string.car_settings_car_shuffle))
-
     private fun replayGainSwitch(view: View) =
         switchLabelled(view, App.getInstance().getString(R.string.car_settings_replay_gain))
 
@@ -123,14 +119,12 @@ class PlexSignInSettingsTest {
     fun `settings offers every toggle at its default`() {
         val screen = settingsScreen()
 
-        assertEquals(4, switchesIn(screen).size)
+        assertEquals(3, switchesIn(screen).size)
         // The defaults differ, and each is a decision: continuous play is off
         // because reaching the end of a queue is not a request for more music,
-        // the car's shuffle is deferred to because that is what the app already
-        // did, and replay gain is off because a library carrying no ReplayGain
-        // tags would pay the whole cost of the feature for none of its benefit.
+        // and replay gain is off because a library carrying no ReplayGain tags
+        // would pay the whole cost of the feature for none of its benefit.
         assertFalse(continuousPlaySwitch(screen).isChecked)
-        assertTrue(carShuffleSwitch(screen).isChecked)
         assertFalse(replayGainSwitch(screen).isChecked)
         // On, unlike its neighbours: #87 is unreleased, so there is no install
         // whose behaviour the default has to preserve.
@@ -142,13 +136,6 @@ class PlexSignInSettingsTest {
         Preferences.setContinuousPlayEnabled(true)
 
         assertTrue(continuousPlaySwitch(settingsScreen()).isChecked)
-    }
-
-    @Test
-    fun `the car shuffle switch reflects a preference that has been turned off`() {
-        Preferences.setCarShuffleEnabled(false)
-
-        assertFalse(carShuffleSwitch(settingsScreen()).isChecked)
     }
 
     @Test
@@ -192,21 +179,6 @@ class PlexSignInSettingsTest {
         assertFalse(toggle.isChecked)
     }
 
-    /**
-     * The car-shuffle row starts on, so its interesting direction is off -- which
-     * is the tap that opts into a queue this app shuffles.
-     */
-    @Test
-    fun `tapping the car shuffle row turns it off`() {
-        val toggle = carShuffleSwitch(settingsScreen())
-
-        (toggle.parent as View).performClick()
-
-        assertFalse(Preferences.isCarShuffleEnabled())
-        assertFalse(toggle.isChecked)
-        assertFalse(toggle.isClickable)
-    }
-
     @Test
     fun `tapping the replay gain row turns it on`() {
         val toggle = replayGainSwitch(settingsScreen())
@@ -243,7 +215,7 @@ class PlexSignInSettingsTest {
 
         assertTrue(Preferences.isReplayGainEnabled())
         assertFalse(Preferences.isContinuousPlayEnabled())
-        assertTrue(Preferences.isCarShuffleEnabled())
+        assertTrue(Preferences.isArtistsByInitialEnabled())
     }
 
     @Test

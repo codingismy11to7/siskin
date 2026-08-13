@@ -1,8 +1,8 @@
 <resources>
     <string name="aa_albums">Albums</string>
     <string name="aa_artists">Artists</string>
-    <string name="aa_shuffle_artist">Shuffle this artist</string>
-    <string name="aa_shuffle_playlist">Shuffle this playlist</string>
+    <string name="aa_mix_artist">Artist Mix</string>
+    <string name="aa_mix_playlist">Playlist Mix</string>
     <string name="aa_library_picker_no_music">No music libraries on this server</string>
     <string name="aa_library_picker_offline">Can\'t reach plex.tv to list your servers</string>
     <string name="aa_library_picker_server_gone">That server is no longer on your Plex account</string>
@@ -13,7 +13,7 @@
     <string name="aa_playlists">Playlists</string>
     <string name="aa_select_library">Select Library</string>
     <string name="aa_decades">Decades</string>
-    <string name="aa_shuffle_decade">Shuffle this decade</string>
+    <string name="aa_mix_decade">Decade Mix</string>
 
     <!-- A proper noun. Marked non-translatable because every locale file used to
          carry an identical copy of it, which is what a translator does when handed
@@ -24,7 +24,6 @@
         <item quantity="other">%d artists</item>
     </plurals>
     <string name="car_settings_continuous_play">Keep the music playing</string>
-    <string name="car_settings_car_shuffle">Use the car\'s shuffle</string>
     <string name="car_settings_replay_gain">Volume leveling</string>
     <string name="car_settings_artists_by_initial">Show artists by initial</string>
     <string name="car_settings_sign_out">Sign out</string>

@@ -1,8 +1,8 @@
 <resources>
     <string name="aa_albums">Albums</string>
     <string name="aa_artists">Artistes</string>
-    <string name="aa_shuffle_artist">Lire cet artiste en aléatoire</string>
-    <string name="aa_shuffle_playlist">Lire cette playlist en aléatoire</string>
+    <string name="aa_mix_artist">Mix de l\'artiste</string>
+    <string name="aa_mix_playlist">Mix de la playlist</string>
     <string name="aa_library_picker_no_music">Aucune bibliothèque musicale sur ce serveur</string>
     <string name="aa_library_picker_offline">Impossible de joindre plex.tv pour lister vos serveurs</string>
     <string name="aa_library_picker_server_gone">Ce serveur n\'est plus associé à votre compte Plex</string>
@@ -13,7 +13,7 @@
     <string name="aa_playlists">Playlists</string>
     <string name="aa_select_library">Choisir une bibliothèque</string>
     <string name="aa_decades">Décennies</string>
-    <string name="aa_shuffle_decade">Lire cette décennie en aléatoire</string>
+    <string name="aa_mix_decade">Mix de la décennie</string>
 
     <plurals name="car_artist_count">
         <item quantity="one">%d artiste</item>
@@ -21,7 +21,6 @@
         <item quantity="other">%d artistes</item>
     </plurals>
     <string name="car_settings_continuous_play">Continuer la musique</string>
-    <string name="car_settings_car_shuffle">Utiliser la lecture aléatoire de la voiture</string>
     <string name="car_settings_replay_gain">Égalisation du volume</string>
     <string name="car_settings_artists_by_initial">Afficher les artistes par initiale</string>
     <string name="car_settings_sign_out">Se déconnecter</string>

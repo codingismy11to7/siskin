@@ -153,9 +153,9 @@ class PlexBrowseRepository {
     )
 
     private fun shufflePlaylistRow(playlistId: String): MediaItem =
-        PlexMediaMapper.shuffleRowToMediaItem(
-            ConstantsAA.SHUFFLE_PLAYLIST_ID + playlistId,
-            App.getContext().getString(R.string.aa_shuffle_playlist)
+        PlexMediaMapper.mixRowToMediaItem(
+            ConstantsAA.MIX_PLAYLIST_ID + playlistId,
+            App.getContext().getString(R.string.aa_mix_playlist)
         )
 
     /**
@@ -189,7 +189,7 @@ class PlexBrowseRepository {
      * it came off the tapped row's media id, and it stays whole here. The
      * shuffle row is built from it unsplit so that the guard in
      * `MediaLibraryServiceCallback.cachedDecadeTracks`, which reconstructs
-     * `SHUFFLE_DECADE_ID + key` from what the car sends back, matches by
+     * `MIX_DECADE_ID + key` from what the car sends back, matches by
      * construction.
      */
     fun getDecadeTracks(decadeKey: String) = decadeTracks(decadeKey) { tracks ->
@@ -253,9 +253,9 @@ class PlexBrowseRepository {
     }
 
     private fun shuffleDecadeRow(decadeKey: String): MediaItem =
-        PlexMediaMapper.shuffleRowToMediaItem(
-            ConstantsAA.SHUFFLE_DECADE_ID + decadeKey,
-            App.getContext().getString(R.string.aa_shuffle_decade)
+        PlexMediaMapper.mixRowToMediaItem(
+            ConstantsAA.MIX_DECADE_ID + decadeKey,
+            App.getContext().getString(R.string.aa_mix_decade)
         )
 
     /**
@@ -286,9 +286,9 @@ class PlexBrowseRepository {
     }
 
     private fun shuffleArtistRow(artistRatingKey: String): MediaItem =
-        PlexMediaMapper.shuffleRowToMediaItem(
-            ConstantsAA.SHUFFLE_ARTIST_ID + artistRatingKey,
-            App.getContext().getString(R.string.aa_shuffle_artist)
+        PlexMediaMapper.mixRowToMediaItem(
+            ConstantsAA.MIX_ARTIST_ID + artistRatingKey,
+            App.getContext().getString(R.string.aa_mix_artist)
         )
 
     /**

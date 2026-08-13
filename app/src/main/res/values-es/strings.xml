@@ -1,8 +1,8 @@
 <resources>
     <string name="aa_albums">Álbumes</string>
     <string name="aa_artists">Artistas</string>
-    <string name="aa_shuffle_artist">Reproducir este artista al azar</string>
-    <string name="aa_shuffle_playlist">Reproducir esta lista al azar</string>
+    <string name="aa_mix_artist">Mix del artista</string>
+    <string name="aa_mix_playlist">Mix de la lista</string>
     <string name="aa_library_picker_no_music">No hay bibliotecas de música en este servidor</string>
     <string name="aa_library_picker_offline">No se puede conectar con plex.tv para listar tus servidores</string>
     <string name="aa_library_picker_server_gone">Ese servidor ya no está en tu cuenta de Plex</string>
@@ -13,7 +13,7 @@
     <string name="aa_playlists">Listas de reproducción</string>
     <string name="aa_select_library">Seleccionar biblioteca</string>
     <string name="aa_decades">Décadas</string>
-    <string name="aa_shuffle_decade">Reproducir esta década al azar</string>
+    <string name="aa_mix_decade">Mix de la década</string>
 
     <plurals name="car_artist_count">
         <item quantity="one">%d artista</item>
@@ -21,7 +21,6 @@
         <item quantity="other">%d artistas</item>
     </plurals>
     <string name="car_settings_continuous_play">Seguir reproduciendo música</string>
-    <string name="car_settings_car_shuffle">Usar la reproducción aleatoria del coche</string>
     <string name="car_settings_replay_gain">Nivelación de volumen</string>
     <string name="car_settings_artists_by_initial">Mostrar artistas por inicial</string>
     <string name="car_settings_sign_out">Cerrar sesión</string>
