@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.play.publisher)
 }
@@ -145,9 +144,12 @@ android {
 // testDebugUnitTest and assembleDebug, so this makes both of them the gate.
 //
 // Scope worth knowing: this is a kotlinc option, so it covers compilation
-// diagnostics only. Configuration-time warnings from Gradle plugins -- the
-// deprecated `org.jetbrains.kotlin.android` plugin id among them -- are emitted
-// before any of this applies and are unaffected. See #26.
+// diagnostics only. Configuration-time warnings from Gradle plugins are emitted
+// before any of this applies and are unaffected.
+//
+// The `kotlin` extension still exists under AGP's built-in Kotlin, and this
+// block still takes effect there -- verified by reintroducing a warning and
+// watching the build fail with "warnings found and -Werror specified".
 kotlin {
     compilerOptions {
         allWarningsAsErrors = true

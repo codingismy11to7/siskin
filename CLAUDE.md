@@ -19,22 +19,28 @@ deleted rather than ported.
     ./gradlew testDebugUnitTest          # unit tests (what CI gates on)
     ./gradlew assembleDebug              # debug APK
     ./gradlew assembleRelease            # R8 + ABI splits; use to check size deltas
-    ./gradlew lintDebug                  # see the caveat below
+    ./gradlew lintDebug                  # also gates CI
 
 Single test class or method:
 
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest*'
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
-**`lintDebug` fails on `main` with 9 pre-existing errors.** CI does not run it
-— only `testDebugUnitTest` and `assembleDebug` — so a red lint is not
-necessarily yours. The baseline breaks down as:
+**There is no lint baseline any more: `lintDebug` is clean on `main` and CI runs
+it.** It used to fail with 9 pre-existing errors that nothing executed — 8 ×
+`UnsafeOptInUsageError` in the two DAOs and 1 × `UseAppTint` — and #26 cleared
+them. A red lint is now yours.
 
-- **8 × `UnsafeOptInUsageError`** across `database/dao/QueueDao.java` and
-  `SessionMediaItemDao.java`
-- **1 × `UseAppTint`** in `res/layout/fragment_plex_sign_in.xml`
+Errors are fatal, warnings are not. Twenty-seven warnings remain, so
+`warningsAsErrors` is not on; clearing them is its own piece of work. Four
+dependency-freshness checks are disabled in `app/build.gradle` —
+`NewerVersionAvailable`, `GradleDependency`, `UseTomlInstead`,
+`AndroidGradlePluginVersion` — because they report on other people's release
+schedules rather than on this repository, and they were 31 of the 58 warnings.
 
-Check the delta against that baseline rather than the absolute count.
+**Kotlin compiles with `-Werror`.** `allWarningsAsErrors` is set in
+`app/build.gradle` and covers test sources too, so a new compiler warning is a
+failed build. It does not cover configuration-time Gradle warnings.
 
 **`MissingTranslation` is not in that baseline, and a new one is a real defect.**
 Siskin ships five locales — English, German, Spanish, French, Italian — and all
