@@ -3,7 +3,6 @@ package com.cappielloantonio.tempo.service
 import android.content.Context
 import android.util.Log
 import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
@@ -16,13 +15,11 @@ import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.CredentialGate
-import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.random.Random
 
 private const val TAG = "MediaLibrarySessionCallback"
 private val queueSourceCache = ConcurrentHashMap<String, List<MediaItem>>()
@@ -146,29 +143,29 @@ class MediaLibrarySessionCallback(
      * toMediaItem() as an unplayable track if they ever were.
      */
     private fun rememberTracks(items: List<MediaItem>) {
-        // The shuffle row is playable but is not a track: it has no ratingKey and
+        // The Mix row is playable but is not a track: it has no ratingKey and
         // no stream, so caching it would put a row in session_media_item that
         // round-trips into an unplayable MediaItem -- the same reason browsable
         // rows are excluded here.
         val tracks = items.filter {
-            it.mediaMetadata.isPlayable == true && !isShuffleRow(it)
+            it.mediaMetadata.isPlayable == true && !isMixRow(it)
         }
         if (tracks.isNotEmpty()) sessionMediaItemRepository.cache(tracks)
     }
 
     /**
-     * Pure prefix test, deliberately not "does [shuffleTracksFor] return
+     * Pure prefix test, deliberately not "does [mixTracksFor] return
      * something": that issues a request, and this runs against every row of
      * every browse list from [rememberTracks].
      */
-    private fun isShuffleRow(item: MediaItem) =
-        item.mediaId.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID) ||
-            item.mediaId.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID) ||
-            item.mediaId.startsWith(ConstantsAA.SHUFFLE_DECADE_ID)
+    private fun isMixRow(item: MediaItem) =
+        item.mediaId.startsWith(ConstantsAA.MIX_ARTIST_ID) ||
+            item.mediaId.startsWith(ConstantsAA.MIX_PLAYLIST_ID) ||
+            item.mediaId.startsWith(ConstantsAA.MIX_DECADE_ID)
 
     /**
-     * Fetches the tracks a tapped shuffle row stands for, or null if the item is
-     * not a shuffle row. **Issues a network request** -- call it once per tap --
+     * Fetches the tracks a tapped Mix row stands for, or null if the item is
+     * not a Mix row. **Issues a network request** -- call it once per tap --
      * except for the decade branch's cache hit, which is already-complete and
      * issues none; see [cachedDecadeTracks].
      *
@@ -176,28 +173,28 @@ class MediaLibrarySessionCallback(
      * it rebuilds the item from the media id alone, so the extras the row was
      * built with are gone by the time it arrives here.
      */
-    private fun shuffleTracksFor(
+    private fun mixTracksFor(
         item: MediaItem
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
         val id = item.mediaId
         return when {
-            id.startsWith(ConstantsAA.SHUFFLE_ARTIST_ID) -> {
-                val artist = id.removePrefix(ConstantsAA.SHUFFLE_ARTIST_ID)
+            id.startsWith(ConstantsAA.MIX_ARTIST_ID) -> {
+                val artist = id.removePrefix(ConstantsAA.MIX_ARTIST_ID)
                 Log.d(TAG, "Fetching every track by artist $artist to shuffle")
                 browseRepository.getArtistTracks(artist)
             }
 
-            id.startsWith(ConstantsAA.SHUFFLE_PLAYLIST_ID) -> {
-                val playlist = id.removePrefix(ConstantsAA.SHUFFLE_PLAYLIST_ID)
+            id.startsWith(ConstantsAA.MIX_PLAYLIST_ID) -> {
+                val playlist = id.removePrefix(ConstantsAA.MIX_PLAYLIST_ID)
                 Log.d(TAG, "Fetching every track in playlist $playlist to shuffle")
                 browseRepository.getPlaylistTracksForShuffle(playlist)
             }
 
-            id.startsWith(ConstantsAA.SHUFFLE_DECADE_ID) -> {
+            id.startsWith(ConstantsAA.MIX_DECADE_ID) -> {
                 // The whole DecadeKey payload -- library and decade -- passed
                 // on unsplit. Only PlexBrowseRepository.decadeTracks takes it
                 // apart, and only to build the Plex filter.
-                val decadeKey = id.removePrefix(ConstantsAA.SHUFFLE_DECADE_ID)
+                val decadeKey = id.removePrefix(ConstantsAA.MIX_DECADE_ID)
                 cachedDecadeTracks(decadeKey)
                     ?: run {
                         Log.d(TAG, "Fetching a random sample of decade $decadeKey to shuffle")
@@ -226,7 +223,7 @@ class MediaLibrarySessionCallback(
      * [queueSourceCache] is a single slot keyed by one constant, so it can hold
      * any node's most recent list -- a stale or unrelated one would queue the
      * wrong decade's tracks entirely. [PlexBrowseRepository.getDecadeTracks]
-     * always puts the decade's own shuffle row at index 0, so the cached list
+     * always puts the decade's own Mix row at index 0, so the cached list
      * identifies itself: a match there is certain enough to trust, and its
      * absence (empty cache, cold after a process restart, or a different node's
      * list) is the signal to fall back rather than guess.
@@ -238,17 +235,17 @@ class MediaLibrarySessionCallback(
      * the library being *in* it is what makes a row cached before a server
      * switch fail this guard rather than replay another library's tracks.
      *
-     * `drop(1)` rather than filtering by [isShuffleRow]: index 0 is the row by
+     * `drop(1)` rather than filtering by [isMixRow]: index 0 is the row by
      * construction, and dropping exactly the item the guard just matched is
      * narrower than a predicate that could also drop something else. The queue
-     * must not contain the shuffle row -- it is playable with no stream, and a
+     * must not contain the Mix row -- it is playable with no stream, and a
      * queue holding it would "play" a track that does not exist.
      */
     private fun cachedDecadeTracks(
         decadeKey: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
         val cached = queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE]
-        if (cached?.firstOrNull()?.mediaId != ConstantsAA.SHUFFLE_DECADE_ID + decadeKey) return null
+        if (cached?.firstOrNull()?.mediaId != ConstantsAA.MIX_DECADE_ID + decadeKey) return null
 
         Log.d(TAG, "Serving decade $decadeKey shuffle from the cached browse list")
         return Futures.immediateFuture(
@@ -302,20 +299,17 @@ class MediaLibrarySessionCallback(
 
         Log.d(TAG, "mediaId = ${firstItem.mediaId}, startIndex = $startIndex, startPositionMs = $startPositionMs")
 
-        val shuffleRow = isShuffleRow(firstItem)
-        // Read once and threaded through: the queue's order, the player's toggle
-        // and the opening position are three answers that have to agree, and
-        // re-reading for each would let a Settings write land between them.
-        val carShuffle = Preferences.isCarShuffleEnabled()
-        setShuffleForTap(shuffleRow && carShuffle, mediaSession.player)
-
-        val futureQueue = resolveQueueForItem(firstItem, mediaItems, carShuffle)
+        val mixRow = isMixRow(firstItem)
+        // Nothing here writes shuffleModeEnabled -- see the note on
+        // [resolveQueueForItem]. The player's mode is the driver's to set with
+        // the car's own control, and a browse tap is not a statement about it.
+        val futureQueue = resolveQueueForItem(firstItem, mediaItems)
 
         return Futures.transform(
             futureQueue,
             { resolvedItems ->
                 val items = resolvedItems ?: emptyList()
-                val opening = openingPositionIn(items, firstItem, shuffleRow, carShuffle, startIndex)
+                val opening = openingPositionIn(items, firstItem, mixRow, startIndex)
                 Log.d(TAG, "Opening at $opening of ${items.size} for ${firstItem.mediaId}")
 
                 if (items.isNotEmpty()) {
@@ -353,15 +347,10 @@ class MediaLibrarySessionCallback(
         val extras = firstItem.requestMetadata.extras ?: firstItem.mediaMetadata.extras
         Log.d(TAG, "extras: ${extras?.keySet()?.joinToString { key -> "$key=${extras.getString(key)}" } ?: "null"}")
 
-        // This path cannot choose a start index -- it returns a bare list -- so a
-        // car that adds rather than sets gets shuffled continuation from track
-        // one instead of a random opener. With the car's shuffle off that costs
-        // nothing: the list it returns is already shuffled, so track one is a
-        // random draw.
-        val carShuffle = Preferences.isCarShuffleEnabled()
-        setShuffleForAddedRow(firstItem, mediaSession.player, carShuffle)
-
-        return resolveQueueForItem(firstItem, mediaItems, carShuffle)
+        // This path cannot choose a start index -- it returns a bare list -- and
+        // does not need to: the list it returns is already shuffled, so track
+        // one is a random draw.
+        return resolveQueueForItem(firstItem, mediaItems)
     }
 
     /**
@@ -382,33 +371,26 @@ class MediaLibrarySessionCallback(
      * item the player happened to open on, and under shuffle that was some other
      * track -- which it would then have yanked playback away from mid-listen.
      *
-     * A shuffle row is the one tap whose opener is ours to choose: shuffle mode
-     * orders what comes *after* the current item, so a row that opened at item 0
-     * would shuffle the same artist from the same song every time.
-     *
-     * That paragraph describes the deferring branch. With "use the car's
-     * shuffle" off the queue arrived shuffled and the player walks it in order,
-     * so the opener is 0 -- the head of a shuffled list is already a random
-     * draw, and drawing again would skip a prefix of the queue for nothing.
+     * A Mix opens at 0. The queue arrived shuffled, so its head is already a
+     * random draw, and drawing again would skip a prefix of the queue for
+     * nothing.
      *
      * That 0 is explicit rather than left to the `else` branch, which would
-     * otherwise be reached: the tapped shuffle row is deliberately absent from
+     * otherwise be reached: the tapped Mix row is deliberately absent from
      * the queue it builds, so `indexOfFirst` returns -1 and the fallback is
      * `carStartIndex` -- `C.INDEX_UNSET` for a browse tap. media3 reads that as
-     * "the player's default position", which with shuffle off is item 0. The
-     * right answer, arrived at by accident; this chooses it.
+     * "the player's default position", which is item 0 unless the driver has
+     * shuffle on. The right answer, arrived at by accident; this chooses it.
      */
     private fun openingPositionIn(
         items: List<MediaItem>,
         tapped: MediaItem,
-        shuffleRow: Boolean,
-        carShuffle: Boolean,
+        mixRow: Boolean,
         carStartIndex: Int
     ): Int = when {
         items.isEmpty() -> carStartIndex
-        shuffleRow && carShuffle -> Random.nextInt(items.size)
         // The queue arrived shuffled, so its head is already a random draw.
-        shuffleRow -> 0
+        mixRow -> 0
         // Absent means the queue this resolved to is not the list the row was
         // tapped in -- a stale browse cache is how that happens. The player's
         // default position is a better answer than a made-up one.
@@ -417,73 +399,31 @@ class MediaLibrarySessionCallback(
     }
 
     /**
-     * Sets the player's shuffle from the tap: on only for a shuffle row that
-     * "use the car's shuffle" says to defer to, off for anything else.
+     * Resolves what a tapped row actually plays, shuffling a Mix row's tracks on
+     * the way through.
      *
-     * With that setting off the caller passes false for a shuffle row too. That
-     * is what makes the pre-shuffled queue play in the order it was handed over
-     * instead of being shuffled a second time by the player.
+     * **Nothing in this class writes `shuffleModeEnabled`, and nothing should be
+     * added that does.** A Mix is a queue handed over already shuffled; shuffle
+     * is a mode the player is in. Those are separate, which is the whole reason
+     * the rows are named "Mix" rather than "Shuffle this artist" -- tapping one
+     * says nothing about what the transport control should be doing, so it
+     * leaves the driver's toggle alone. See
+     * `docs/decisions/2026-08-13-mix-rows-design.md`.
      *
-     * Total rather than enable-only, and that is the whole point -- shuffle used
-     * to stick, because the only thing that ever wrote it turned it on. There is
-     * no third case to handle: tracks and the three shuffle rows are the only
-     * items in the browse tree with `isPlayable` set, so every other row
-     * navigates and never reaches here.
+     * Two writers used to live here and both are gone. One turned shuffle *off*
+     * on every track tap, to clear a shuffle a row had turned on; with no row
+     * turning it on, that only ever stomped a shuffle the driver had set by
+     * hand. The other set it from the retired `car_shuffle` preference.
      *
-     * Called from [onSetMediaItems] rather than from [resolveQueueForItem],
-     * because that override runs on the session's application thread while the
-     * queue future completes on whichever thread the coroutine finished on --
-     * and the player may only be touched from the former.
+     * The consequence worth knowing: with the car's shuffle already on, a Mix
+     * plays a shuffled queue in shuffle order -- random either way, but the
+     * visible queue will not match the play order. That is the driver's own
+     * control doing exactly what it says, and taking it back would be the
+     * behaviour this design removed.
      */
-    private fun setShuffleForTap(shuffling: Boolean, player: Player) {
-        Log.d(TAG, "tap resolved: shuffle -> $shuffling")
-        player.shuffleModeEnabled = shuffling
-    }
-
-    /**
-     * Sets the player's shuffle from an added shuffle row, and writes nothing
-     * for anything else.
-     *
-     * **Only a shuffle row ever reaches the write**, and that early return is
-     * the guarantee this function is shaped around. [onAddMediaItems] is not
-     * only a browse-tap path: MediaManager's continuous play appends
-     * instant-mix tracks through `browser.addMediaItems`, which arrives here
-     * too. A setter that wrote on every call would clear shuffle *mid-listen*
-     * every time the queue topped itself up -- and that top-up fires precisely
-     * when a queue is running low, which is the long shuffle-this-artist
-     * session it would ruin. A mix track is never a shuffle row, so continuous
-     * play returns before touching the player, exactly as it did when this was
-     * enable-only.
-     *
-     * Enable-only was the older way of guaranteeing that, and it is no longer
-     * enough. `shuffleModeEnabled` outlives the process -- BaseMediaService
-     * persists it in `onShuffleModeEnabledChanged` and restores it when the
-     * player is built -- so declining to write leaves whatever the last listen
-     * left, which is routinely `true`. Tap the row with "use the car's shuffle"
-     * on, turn the setting off, tap the row again: [resolveQueueForItem] hands
-     * over a shuffled queue and the player shuffles it a second time. That
-     * double shuffle is the jumping-around the setting exists to remove, so for
-     * a shuffle row the write has to be total.
-     *
-     * Called from [onAddMediaItems] rather than from [resolveQueueForItem],
-     * because that override runs on the session's application thread while the
-     * queue future completes on whichever thread the coroutine finished on --
-     * and the player may only be touched from the former.
-     */
-    private fun setShuffleForAddedRow(
-        firstItem: MediaItem,
-        player: Player,
-        carShuffle: Boolean
-    ) {
-        if (!isShuffleRow(firstItem)) return
-        Log.d(TAG, "shuffle row added: shuffle -> $carShuffle")
-        player.shuffleModeEnabled = carShuffle
-    }
-
     private fun resolveQueueForItem(
         firstItem: MediaItem,
-        mediaItems: List<MediaItem>,
-        carShuffle: Boolean
+        mediaItems: List<MediaItem>
     ): ListenableFuture<List<MediaItem>> {
         Log.d(TAG, "Resolve queue for item")
 
@@ -491,23 +431,20 @@ class MediaLibrarySessionCallback(
         val parentId = extras?.getString(PlexMediaMapper.EXTRA_PARENT_ID)
 
         // Resolved once: this issues the request.
-        val shuffleTracks = shuffleTracksFor(firstItem)
+        val mixTracks = mixTracksFor(firstItem)
 
         val futureQueue: ListenableFuture<List<MediaItem>> = when {
-            // Before the parent-tag branches: a shuffle row carries no parent tag
+            // Before the parent-tag branches: a Mix row carries no parent tag
             // and is not in any cache, so it would otherwise fall through to the
             // fallback below and "play" itself -- a row with no stream.
             //
             // The one place the artist row and the playlist row meet, which is
             // why the shuffle lives here rather than in either repository call.
-            // With the setting off the player is not shuffling, so the order
-            // handed over is the order heard.
-            shuffleTracks != null -> Futures.transform(
-                shuffleTracks,
-                { result ->
-                    val tracks = result?.value ?: emptyList()
-                    if (carShuffle) tracks else tracks.shuffled()
-                },
+            // The order handed over is the order heard, and it is the order the
+            // car will show in the queue.
+            mixTracks != null -> Futures.transform(
+                mixTracks,
+                { result -> (result?.value ?: emptyList()).shuffled() },
                 MoreExecutors.directExecutor()
             )
 

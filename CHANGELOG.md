@@ -12,6 +12,19 @@
 
 ## [Unreleased] — Siskin
 
+- The three shuffle rows are now Artist Mix, Playlist Mix and Decade Mix, and
+  each hands over a queue this app has already shuffled. The queue you see is
+  the queue that plays, and tapping one no longer flips the car's own shuffle
+  control — a Mix is a queue you were handed, where shuffle is a mode the player
+  is in, and only the shared word ever made those look like the same thing.
+- Nothing but the car's own shuffle button changes shuffle mode now. Tapping a
+  track used to turn it off, which was right while a row could turn it on and is
+  not right any more: the only shuffle left to cancel is one you switched on
+  yourself.
+- "Use the car's shuffle" is gone from Settings. With the rows renamed, its on
+  position would have made tapping a Mix do the one thing the row's name says it
+  does not.
+
 ## [0.99.3] (2026-08-12)
 
 - A server address that has gone stale is re-resolved instead of retried. Signing

@@ -246,7 +246,7 @@ class PlexBrowseRepositoryTest {
         assertEquals("15100", request.requestUrl?.queryParameter("artist.id"))
         assertEquals(PlexItemType.ALBUM, request.requestUrl?.queryParameter("type")?.toInt())
         assertEquals(
-            listOf(ConstantsAA.SHUFFLE_ARTIST_ID + "15100", ConstantsAA.ALBUM_ID + "77"),
+            listOf(ConstantsAA.MIX_ARTIST_ID + "15100", ConstantsAA.ALBUM_ID + "77"),
             result.value!!.map { it.mediaId }
         )
     }
@@ -261,7 +261,7 @@ class PlexBrowseRepositoryTest {
         val result = await(PlexBrowseRepository().getArtistAlbums(ConstantsAA.ALBUM_ID, "15100"))
 
         val row = result.value!!.first()
-        assertEquals(ConstantsAA.SHUFFLE_ARTIST_ID + "15100", row.mediaId)
+        assertEquals(ConstantsAA.MIX_ARTIST_ID + "15100", row.mediaId)
         assertEquals(true, row.mediaMetadata.isPlayable)
         assertEquals(false, row.mediaMetadata.isBrowsable)
         // A non-null localConfiguration would make resolveQueueForItem treat the
@@ -276,7 +276,7 @@ class PlexBrowseRepositoryTest {
         val result = await(PlexBrowseRepository().getPlaylistTracks("169077"))
 
         val row = result.value!!.first()
-        assertEquals(ConstantsAA.SHUFFLE_PLAYLIST_ID + "169077", row.mediaId)
+        assertEquals(ConstantsAA.MIX_PLAYLIST_ID + "169077", row.mediaId)
         assertEquals(true, row.mediaMetadata.isPlayable)
         assertNull(row.localConfiguration)
         assertEquals(listOf("11", "22"), result.value!!.drop(1).map { it.mediaId })
@@ -716,7 +716,7 @@ class PlexBrowseRepositoryTest {
         // string from what the car sends back and compares it against index 0
         // of the cached browse list, so the two agree only if neither splits it.
         val row = result.value!!.first()
-        assertEquals(ConstantsAA.SHUFFLE_DECADE_ID + DECADE_KEY, row.mediaId)
+        assertEquals(ConstantsAA.MIX_DECADE_ID + DECADE_KEY, row.mediaId)
         assertEquals(true, row.mediaMetadata.isPlayable)
         assertEquals(false, row.mediaMetadata.isBrowsable)
         // A non-null localConfiguration would make resolveQueueForItem treat the

@@ -57,12 +57,6 @@ class MediaLibrarySessionCallbackStartIndexTest {
 
     @Before
     fun setUp() {
-        // Robolectric shares one SharedPreferences instance across test classes,
-        // so this clears "use the car's shuffle" back to its true default rather
-        // than inheriting a false another class wrote. These tests are all
-        // written against the on branch.
-        App.getInstance().preferences.edit().remove("car_shuffle").commit()
-
         // Robolectric keeps these preferences in a static field between methods,
         // so every field the gate reads is written here rather than assumed
         // absent. onGetChildren refuses to browse without a session.
@@ -114,26 +108,27 @@ class MediaLibrarySessionCallbackStartIndexTest {
     }
 
     /**
-     * The shuffle row is the one tap whose opening track is ours to choose:
-     * shuffle mode orders what comes *after* the current item, so a row that
-     * opened at item 0 would shuffle the same artist from the same song every
-     * time. Guards that opener against honouring the tap everywhere else.
+     * A Mix opens at the head of the queue it was handed, which is already a
+     * random draw because the queue arrived shuffled. It used to open at a
+     * random index instead, because the player was doing the shuffling and a
+     * row that opened at item 0 would have started the same artist from the same
+     * song every time.
+     *
+     * The whole list still has to be there -- an opener of 0 would also be
+     * satisfied by a queue of one.
      */
     @Test
-    fun tappingAShuffleRowOpensSomewhereInsideTheList() {
+    fun aMixOpensAtTheHeadOfTheWholeList() {
         val tracks = albumTracks("1", "2", "3", "4")
         whenever(browseRepository.getArtistTracks(ARTIST)).thenReturn(itemList(tracks))
 
         val row = MediaItem.Builder()
-            .setMediaId(ConstantsAA.SHUFFLE_ARTIST_ID + ARTIST)
+            .setMediaId(ConstantsAA.MIX_ARTIST_ID + ARTIST)
             .build()
         val result = setMediaItems(row)
 
         assertEquals(tracks.size, result.mediaItems.size)
-        assertTrue(
-            "start index ${result.startIndex} is not a position in the queue",
-            result.startIndex in tracks.indices
-        )
+        assertEquals(0, result.startIndex)
     }
 
     /**

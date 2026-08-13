@@ -306,7 +306,7 @@ object PlexMediaMapper {
      * it is acceptable.
      */
     @JvmStatic
-    fun shuffleRowToMediaItem(mediaId: String, title: String?): MediaItem =
+    fun mixRowToMediaItem(mediaId: String, title: String?): MediaItem =
         MediaItem.Builder()
             .setMediaId(mediaId)
             .setMediaMetadata(

@@ -159,11 +159,6 @@ class PlexSignInFragment : Fragment() {
                 ) { Preferences.setContinuousPlayEnabled(it) }
 
                 addToggle(
-                    getString(R.string.car_settings_car_shuffle),
-                    Preferences.isCarShuffleEnabled()
-                ) { Preferences.setCarShuffleEnabled(it) }
-
-                addToggle(
                     getString(R.string.car_settings_replay_gain),
                     Preferences.isReplayGainEnabled()
                 ) { Preferences.setReplayGainEnabled(it) }

@@ -7,7 +7,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.model.SessionMediaItem
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
@@ -16,7 +15,6 @@ import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
 import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.DecadeKey
-import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import org.junit.Assert.assertEquals
@@ -34,16 +32,22 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
 /**
- * What shuffle mode a browse tap leaves the player in.
+ * That a browse tap never touches shuffle mode, and that a Mix row is served
+ * pre-shuffled instead.
  *
- * The two paths that write it follow different rules. On the set path every
- * tap writes the toggle: a shuffle row writes whatever "use the car's
- * shuffle" is set to, every other tap writes false. Before this, nothing ever
- * turned it off, so one tap on "Shuffle this artist" left every later tap
- * shuffled. On the add path the tapped row decides *whether* the toggle is
- * written at all -- only a shuffle row reaches the write, because that path
- * doubles as how continuous play tops up a running queue with mix tracks, and
- * those must never touch shuffle mid-listen.
+ * **The invariant is a negative one**, which is why it is asserted on every
+ * path rather than once: no tap, of any row, on either the set or the add
+ * path, may write `shuffleModeEnabled`. The mode belongs to the driver and the
+ * car's own control. A Mix is a queue handed over already shuffled, which is a
+ * different thing from a mode -- see
+ * `docs/decisions/2026-08-13-mix-rows-design.md`.
+ *
+ * Two writers used to live here and both are gone: one turned shuffle off on
+ * every track tap, and one set it from the retired `car_shuffle` preference.
+ * The tests for those were deleted with them. What is left pins the absence,
+ * because the absence is the behaviour -- a future edit that "helpfully" clears
+ * shuffle when starting a Mix would stomp a toggle the driver set by hand, and
+ * nothing else in the suite would notice.
  *
  * Robolectric for the same reasons as the start-index tests: the fixtures are
  * real MediaItems built with a Uri and a Bundle, and the callback's constructor
@@ -67,14 +71,6 @@ class MediaLibrarySessionCallbackShuffleTest {
 
     @Before
     fun setUp() {
-        // Defaults to true. Robolectric shares one SharedPreferences instance
-        // across test classes, so without this reset another class writing
-        // this key would decide this class's starting state instead. The
-        // tests below that rely on the default are written against the on
-        // branch, so a leaked false would make them fail, not pass for the
-        // wrong reason.
-        App.getInstance().preferences.edit().remove("car_shuffle").commit()
-
         // Robolectric keeps these preferences in a static field between methods,
         // so every field the gate reads is written here rather than assumed
         // absent.
@@ -94,101 +90,105 @@ class MediaLibrarySessionCallbackShuffleTest {
     }
 
     /**
-     * The tap this whole change exists for: a plain track, which means "play
-     * this one and then what follows it", and under shuffle neither half of
-     * that is true.
+     * A plain track tap. This used to write `false`, to clear a shuffle that a
+     * row had turned on; with no row turning it on, that write could only ever
+     * cancel a shuffle the driver had switched on with the car's own control,
+     * mid-drive, for tapping a song.
      */
     @Test
-    fun tappingATrackTurnsShuffleOff() {
+    fun tappingATrackLeavesShuffleAlone() {
         val tracks = albumTracks("1", "2", "3", "4")
         rememberAsSiblings(tracks)
 
         setMediaItems(MediaItem.Builder().setMediaId("3").build())
 
-        verify(player).shuffleModeEnabled = false
+        assertShuffleUntouched()
     }
 
-    /** The one row that is allowed to turn it on. */
+    /** The artist Mix, which used to be the row that turned shuffle on. */
     @Test
-    fun tappingAShuffleRowTurnsShuffleOn() {
-        val tracks = albumTracks("1", "2", "3", "4")
-        whenever(browseRepository.getArtistTracks(ARTIST)).thenReturn(itemList(tracks))
+    fun tappingAnArtistMixLeavesShuffleAlone() {
+        whenever(browseRepository.getArtistTracks(ARTIST))
+            .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
 
-        val row = MediaItem.Builder()
-            .setMediaId(ConstantsAA.SHUFFLE_ARTIST_ID + ARTIST)
-            .build()
-        setMediaItems(row)
+        setMediaItems(mixArtistRow())
 
-        verify(player).shuffleModeEnabled = true
+        assertShuffleUntouched()
     }
 
-    /** The playlist row is the other one, and dispatches on its own prefix. */
+    /** The playlist Mix is the second, and dispatches on its own prefix. */
     @Test
-    fun tappingAPlaylistShuffleRowTurnsShuffleOn() {
-        val tracks = albumTracks("1", "2", "3", "4")
+    fun tappingAPlaylistMixLeavesShuffleAlone() {
         whenever(browseRepository.getPlaylistTracksForShuffle(PLAYLIST))
-            .thenReturn(itemList(tracks))
+            .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
 
-        val row = MediaItem.Builder()
-            .setMediaId(ConstantsAA.SHUFFLE_PLAYLIST_ID + PLAYLIST)
-            .build()
-        setMediaItems(row)
+        setMediaItems(
+            MediaItem.Builder()
+                .setMediaId(ConstantsAA.MIX_PLAYLIST_ID + PLAYLIST)
+                .build()
+        )
 
-        verify(player).shuffleModeEnabled = true
+        assertShuffleUntouched()
     }
 
-    /** The decade row is the third, and dispatches on its own prefix. */
+    /** The decade Mix is the third, and dispatches on its own prefix. */
     @Test
-    fun tappingADecadeShuffleRowTurnsShuffleOn() {
-        val tracks = albumTracks("1", "2", "3", "4")
+    fun tappingADecadeMixLeavesShuffleAlone() {
         whenever(browseRepository.getDecadeTracksForShuffle(DECADE))
-            .thenReturn(itemList(tracks))
+            .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
 
-        val row = MediaItem.Builder()
-            .setMediaId(ConstantsAA.SHUFFLE_DECADE_ID + DECADE)
-            .build()
-        setMediaItems(row)
+        setMediaItems(
+            MediaItem.Builder()
+                .setMediaId(ConstantsAA.MIX_DECADE_ID + DECADE)
+                .build()
+        )
 
-        verify(player).shuffleModeEnabled = true
+        assertShuffleUntouched()
     }
 
     /**
      * The redundant-fetch fix: the list on screen was already served through
      * `onGetChildren`, which cached it under `QUEUE_CACHED_SOURCE`. Tapping
-     * "Shuffle this decade" right after browsing it must replay that list
+     * the decade Mix right after browsing it must replay that list
      * rather than draw a second uniform random 500 -- statistically identical
      * for the tap, but ~300ms of dead air and a queue that does not match what
      * was on screen.
+     *
+     * Compared as a multiset, not a sequence: the cache hit feeds the same
+     * `.shuffled()` every Mix goes through, so the queue is those tracks in a
+     * different order. Which tracks is the claim here; that they are reordered
+     * is pinned over thirty of them elsewhere in this class, where `.shuffled()`
+     * returning the identity permutation is not a one-in-24 flake.
      */
     @Test
-    fun `tapping a decade shuffle row after browsing it serves the cached list`() {
+    fun `tapping a decade Mix row after browsing it serves the cached list`() {
         val tracks = albumTracks("1", "2", "3", "4")
         browseDecade(DECADE, tracks)
 
-        val result = setMediaItems(decadeShuffleRow(DECADE))
+        val result = setMediaItems(decadeMixRow(DECADE))
 
         assertEquals(
-            tracks.map { it.mediaId },
-            result.mediaItems.map { it.mediaId }
+            tracks.map { it.mediaId }.sorted(),
+            result.mediaItems.map { it.mediaId }.sorted()
         )
         verify(browseRepository, never()).getDecadeTracksForShuffle(DECADE)
     }
 
     /**
-     * The shuffle row itself is playable but has no stream -- it exists to be
+     * The Mix row itself is playable but has no stream -- it exists to be
      * tapped, not to be queued. A queue that kept it would "play" a track that
      * does not exist. `drop(1)` on the cache hit path has to remove exactly it.
      */
     @Test
-    fun `the cached decade shuffle queue excludes the shuffle row`() {
+    fun `the cached decade Mix queue excludes the Mix row`() {
         val tracks = albumTracks("1", "2", "3", "4")
         browseDecade(DECADE, tracks)
 
-        val result = setMediaItems(decadeShuffleRow(DECADE))
+        val result = setMediaItems(decadeMixRow(DECADE))
 
         assertTrue(
-            "queue must not contain the shuffle row: ${result.mediaItems.map { it.mediaId }}",
-            result.mediaItems.none { it.mediaId == ConstantsAA.SHUFFLE_DECADE_ID + DECADE }
+            "queue must not contain the Mix row: ${result.mediaItems.map { it.mediaId }}",
+            result.mediaItems.none { it.mediaId == ConstantsAA.MIX_DECADE_ID + DECADE }
         )
     }
 
@@ -201,37 +201,20 @@ class MediaLibrarySessionCallbackShuffleTest {
      * cache directly.
      */
     @Test
-    fun `tapping a decade shuffle row with a mismatched cache falls back to the repository`() {
+    fun `tapping a decade Mix row with a mismatched cache falls back to the repository`() {
         browseDecade(OTHER_DECADE, albumTracks("9"))
         val freshTracks = albumTracks("1", "2", "3", "4")
         whenever(browseRepository.getDecadeTracksForShuffle(DECADE))
             .thenReturn(itemList(freshTracks))
 
-        val result = setMediaItems(decadeShuffleRow(DECADE))
+        val result = setMediaItems(decadeMixRow(DECADE))
 
         verify(browseRepository).getDecadeTracksForShuffle(DECADE)
+        // A multiset, for the same reason as the cache-hit test above.
         assertEquals(
-            freshTracks.map { it.mediaId },
-            result.mediaItems.map { it.mediaId }
+            freshTracks.map { it.mediaId }.sorted(),
+            result.mediaItems.map { it.mediaId }.sorted()
         )
-    }
-
-    /**
-     * With the setting off the queue is ours to order, so the player must be
-     * told *not* to shuffle -- and told rather than left alone, because a toggle
-     * left on from an earlier listen would shuffle a shuffled queue and undo the
-     * point of the setting.
-     */
-    @Test
-    fun `with the car's shuffle off a shuffle row leaves the player unshuffled`() {
-        Preferences.setCarShuffleEnabled(false)
-        whenever(browseRepository.getArtistTracks(ARTIST))
-            .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
-
-        setMediaItems(shuffleArtistRow())
-
-        verify(player).shuffleModeEnabled = false
-        verify(player, never()).shuffleModeEnabled = true
     }
 
     /**
@@ -249,52 +232,17 @@ class MediaLibrarySessionCallbackShuffleTest {
      * tracks went missing.
      */
     @Test
-    fun `with the car's shuffle off the queue is a reordering of the fetched tracks`() {
-        Preferences.setCarShuffleEnabled(false)
+    fun `a Mix queue is a reordering of the fetched tracks`() {
         val tracks = albumTracks(*(1..30).map { "$it" }.toTypedArray())
         whenever(browseRepository.getArtistTracks(ARTIST)).thenReturn(itemList(tracks))
 
-        val result = setMediaItems(shuffleArtistRow())
+        val result = setMediaItems(mixArtistRow())
 
         assertEquals(
             tracks.map { it.mediaId }.sorted(),
             result.mediaItems.map { it.mediaId }.sorted()
         )
         assertNotEquals(
-            tracks.map { it.mediaId },
-            result.mediaItems.map { it.mediaId }
-        )
-    }
-
-    /**
-     * The mirror of the test above, and the branch every existing install takes:
-     * with the setting left at its default the queue is handed over in exactly
-     * the order the repository returned it, because under "use the car's
-     * shuffle" the shuffling belongs to the player and the queue is the artist's
-     * real running order.
-     *
-     * Without this, `if (carShuffle) tracks else tracks.shuffled()` collapsing to
-     * an unconditional `tracks.shuffled()` passes the whole suite -- the
-     * off-branch tests still see a shuffled queue, and nothing else looks at the
-     * order. That regression would silently ship the opt-in behaviour to
-     * everyone who never opens Settings, which is the one thing the default is
-     * there to prevent.
-     *
-     * Thirty tracks for the same reason as its sibling: the assertion has to be
-     * able to tell library order from a shuffle, and `.shuffled()` may return the
-     * identity permutation of four.
-     *
-     * The preference is deliberately not written here. `@Before` clears the key,
-     * and reading the default is the thing under test.
-     */
-    @Test
-    fun `with the car's shuffle on the queue keeps the order it was fetched in`() {
-        val tracks = albumTracks(*(1..30).map { "$it" }.toTypedArray())
-        whenever(browseRepository.getArtistTracks(ARTIST)).thenReturn(itemList(tracks))
-
-        val result = setMediaItems(shuffleArtistRow())
-
-        assertEquals(
             tracks.map { it.mediaId },
             result.mediaItems.map { it.mediaId }
         )
@@ -310,29 +258,27 @@ class MediaLibrarySessionCallbackShuffleTest {
      * accident. This pins the chosen one.
      */
     @Test
-    fun `with the car's shuffle off a shuffle row opens at the top of the queue`() {
-        Preferences.setCarShuffleEnabled(false)
+    fun `a Mix opens at the top of the queue`() {
         whenever(browseRepository.getArtistTracks(ARTIST))
             .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
 
-        assertEquals(0, setMediaItems(shuffleArtistRow()).startIndex)
+        assertEquals(0, setMediaItems(mixArtistRow()).startIndex)
     }
 
-    /** The playlist row is the other one, and gets the same treatment. */
+    /** The playlist Mix is the other one, and gets the same treatment. */
     @Test
-    fun `with the car's shuffle off the playlist row is shuffled here too`() {
-        Preferences.setCarShuffleEnabled(false)
+    fun `the playlist Mix is shuffled here too`() {
         val tracks = albumTracks(*(1..30).map { "$it" }.toTypedArray())
         whenever(browseRepository.getPlaylistTracksForShuffle(PLAYLIST))
             .thenReturn(itemList(tracks))
 
         val result = setMediaItems(
             MediaItem.Builder()
-                .setMediaId(ConstantsAA.SHUFFLE_PLAYLIST_ID + PLAYLIST)
+                .setMediaId(ConstantsAA.MIX_PLAYLIST_ID + PLAYLIST)
                 .build()
         )
 
-        verify(player).shuffleModeEnabled = false
+        assertShuffleUntouched()
         assertEquals(0, result.startIndex)
         assertEquals(
             tracks.map { it.mediaId }.sorted(),
@@ -345,16 +291,17 @@ class MediaLibrarySessionCallbackShuffleTest {
     }
 
     /**
-     * The add path must not write the toggle for every item the way the set
-     * path does.
+     * `onAddMediaItems` is not only a browse-tap path: MediaManager's continuous
+     * play appends instant-mix tracks to a running queue through
+     * `browser.addMediaItems`. This is the case that made a shuffle write here
+     * dangerous even when the rows still owned the toggle -- a write on every
+     * call would have cleared shuffle *mid-listen* every time the queue topped
+     * itself up, which is exactly during the long session it would ruin.
      *
-     * `onAddMediaItems` is also how MediaManager.continuousPlay appends
-     * instant-mix tracks to a running queue -- see MediaManager's
-     * `browser.addMediaItems` calls -- so clearing shuffle here would turn it
-     * off mid-listen every time the queue topped itself up, which is precisely
-     * during the long shuffle-this-artist session it would ruin. The
-     * `isShuffleRow` early return in setShuffleForAddedRow is what rules that
-     * out, and it is safe by construction: a mix track is never a shuffle row.
+     * Now nothing writes it on any path, so this is a much cheaper guarantee
+     * than it used to be. It is kept because the top-up is the case where a
+     * reintroduced write would be least visible in review and most annoying in
+     * the car.
      */
     @Test
     fun addingTracksToARunningQueueLeavesShuffleAlone() {
@@ -362,67 +309,22 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         callback.onAddMediaItems(session, controller, listOf(mixTrack)).get()
 
-        verify(player, never()).shuffleModeEnabled = false
-        verify(player, never()).shuffleModeEnabled = true
+        assertShuffleUntouched()
     }
 
     /**
-     * The same mid-drive top-up, under the setting that makes it matter most:
-     * with "use the car's shuffle" off the app is doing the shuffling, and a
-     * mix track topping up a running queue still must not touch the toggle.
-     *
-     * This pins a guarantee rather than a live bug. `setShuffleForAddedRow`'s
-     * early return tests `isShuffleRow(firstItem)`, not `carShuffle` -- the
-     * guard cannot see the setting at all, so today it is structurally
-     * impossible for this case to differ from the on-setting sibling above.
-     * The test exists so a future edit that folds `carShuffle` into that guard
-     * gets caught here instead of on the road.
+     * The add path is a browse tap too, on cars that add rather than set. The
+     * queue it received from resolveQueueForItem is already shuffled, and the
+     * toggle stays exactly where the driver left it.
      */
     @Test
-    fun `with the car's shuffle off adding tracks to a running queue leaves shuffle alone`() {
-        Preferences.setCarShuffleEnabled(false)
-        val mixTrack = albumTracks("9").single()
-
-        callback.onAddMediaItems(session, controller, listOf(mixTrack)).get()
-
-        verify(player, never()).shuffleModeEnabled = false
-        verify(player, never()).shuffleModeEnabled = true
-    }
-
-    /**
-     * The add path is a browse tap too on cars that add rather than set, and
-     * with the setting off the queue it just received from resolveQueueForItem
-     * was already shuffled. Enabling the toggle would shuffle it a second time.
-     *
-     * The toggle must be *written* false, not merely left alone. It persists
-     * across process death -- BaseMediaService saves it in
-     * `onShuffleModeEnabledChanged` and restores it when the player is built --
-     * so a row tapped while the setting was on leaves it true for good. Turn the
-     * setting off afterwards and a path that only declines to enable would hand
-     * over a shuffled queue to a still-shuffling player: the double shuffle the
-     * setting exists to stop.
-     */
-    @Test
-    fun `with the car's shuffle off an added shuffle row clears the toggle`() {
-        Preferences.setCarShuffleEnabled(false)
+    fun `an added Mix row leaves shuffle alone`() {
         whenever(browseRepository.getArtistTracks(ARTIST))
             .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
 
-        callback.onAddMediaItems(session, controller, listOf(shuffleArtistRow())).get()
+        callback.onAddMediaItems(session, controller, listOf(mixArtistRow())).get()
 
-        verify(player).shuffleModeEnabled = false
-        verify(player, never()).shuffleModeEnabled = true
-    }
-
-    /** And with the setting on, the add path still defers the way it always did. */
-    @Test
-    fun `an added shuffle row still enables the toggle when the car's shuffle is on`() {
-        whenever(browseRepository.getArtistTracks(ARTIST))
-            .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
-
-        callback.onAddMediaItems(session, controller, listOf(shuffleArtistRow())).get()
-
-        verify(player).shuffleModeEnabled = true
+        assertShuffleUntouched()
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -440,18 +342,28 @@ class MediaLibrarySessionCallbackShuffleTest {
             ).get()
         }
 
-    private fun shuffleArtistRow() = MediaItem.Builder()
-        .setMediaId(ConstantsAA.SHUFFLE_ARTIST_ID + ARTIST)
+    /**
+     * Exhaustive for a Boolean: verifying both values never happen says the
+     * setter was not called at all, without depending on an argument matcher
+     * against a synthetic property setter.
+     */
+    private fun assertShuffleUntouched() {
+        verify(player, never()).shuffleModeEnabled = true
+        verify(player, never()).shuffleModeEnabled = false
+    }
+
+    private fun mixArtistRow() = MediaItem.Builder()
+        .setMediaId(ConstantsAA.MIX_ARTIST_ID + ARTIST)
         .build()
 
     /**
-     * Built with the same [PlexMediaMapper.shuffleRowToMediaItem] the real row
+     * Built with the same [PlexMediaMapper.mixRowToMediaItem] the real row
      * uses, not a bare `MediaItem.Builder()`: [browseDecade] runs the row
      * through `LibraryResult.ofItemList`, which requires `isBrowsable` to be
      * set on every item, and a bare builder trips that check.
      */
-    private fun decadeShuffleRow(decade: String) =
-        PlexMediaMapper.shuffleRowToMediaItem(ConstantsAA.SHUFFLE_DECADE_ID + decade, "Shuffle this decade")
+    private fun decadeMixRow(decade: String) =
+        PlexMediaMapper.mixRowToMediaItem(ConstantsAA.MIX_DECADE_ID + decade, "Decade Mix")
 
     /**
      * What a real browse of a decade leaves in `queueSourceCache`: the shuffle
@@ -463,7 +375,7 @@ class MediaLibrarySessionCallbackShuffleTest {
      */
     private fun browseDecade(decade: String, tracks: List<MediaItem>) {
         whenever(browseRepository.getDecadeTracks(decade))
-            .thenReturn(itemList(listOf(decadeShuffleRow(decade)) + tracks))
+            .thenReturn(itemList(listOf(decadeMixRow(decade)) + tracks))
 
         val children = callback.onGetChildren(
             mock<MediaLibraryService.MediaLibrarySession>(),

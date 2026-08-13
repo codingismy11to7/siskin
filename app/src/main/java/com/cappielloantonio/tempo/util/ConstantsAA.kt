@@ -82,8 +82,8 @@ object ConstantsAA {
     const val ARTIST_ID = "[artistID]"
 
     /**
-     * Prefixes of the synthetic shuffle rows, each carrying the ratingKey of the
-     * thing to shuffle after it -- or, for [SHUFFLE_DECADE_ID], the same
+     * Prefixes of the synthetic Mix rows, each carrying the ratingKey of the
+     * thing to mix after it -- or, for [MIX_DECADE_ID], the same
      * [DecadeKey] payload [DECADE_ID] carries, whole and unsplit. That is what
      * lets `MediaLibraryServiceCallback.cachedDecadeTracks` rebuild the row's id
      * from what the car sends back and match it against the browse list it
@@ -94,10 +94,17 @@ object ConstantsAA {
      * Three prefixes rather than one plus an embedded kind, because the prefix is
      * what the callback dispatches on -- it decides which repository call
      * supplies the tracks.
+     *
+     * **The values still read "shuffle" while the rows are called Mix, and that
+     * is deliberate.** An id is a wire format, not a label. The car caches a
+     * browse node and echoes its ids back on a tap, so an installed build holds
+     * these exact strings -- changing them would leave every cached row
+     * unrecognised until the car re-fetched, and a row the callback cannot
+     * dispatch on is a playable row with no stream.
      */
-    const val SHUFFLE_ARTIST_ID = "[shuffleArtistID]"
-    const val SHUFFLE_PLAYLIST_ID = "[shufflePlaylistID]"
-    const val SHUFFLE_DECADE_ID = "[shuffleDecadeID]"
+    const val MIX_ARTIST_ID = "[shuffleArtistID]"
+    const val MIX_PLAYLIST_ID = "[shufflePlaylistID]"
+    const val MIX_DECADE_ID = "[shuffleDecadeID]"
 
     // Android Auto Source tag
     const val QUEUE_CACHED_SOURCE = "[aaQueueCachedSource]"
