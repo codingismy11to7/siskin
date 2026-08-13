@@ -44,6 +44,32 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
+      # room.schemaLocation writes the exported schema into the *source* tree,
+      # so the builds above regenerate app/schemas in the runner's workspace and
+      # nothing compares it against what is committed. Changing an entity
+      # without committing the regenerated JSON is therefore a green build.
+      #
+      # Most of the damage that could do is already caught earlier and louder:
+      # AppDatabase deliberately has no fallbackToDestructiveMigration, so a
+      # device holding a mismatched database throws on open, on the developer's
+      # own device, the first time they run the change. What stays quiet is a
+      # committed schema that has *drifted* -- present, so nothing errors on its
+      # absence, but wrong, so the first real migration is generated against a
+      # bad baseline.
+      #
+      # --porcelain rather than `git diff --exit-code`: a new version's JSON
+      # arrives as an untracked file, which a diff does not see.
+      - name: Check the exported Room schema is committed
+        run: |
+          changed=$(git status --porcelain -- app/schemas)
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            git diff -- app/schemas
+            echo "::error::app/schemas does not match the entities. Run ./gradlew assembleDebug and commit what changes under app/schemas." >&2
+            exit 1
+          fi
+          echo "app/schemas matches the entities."
+
       - name: Upload test report
         if: failure()
         uses: actions/upload-artifact@v7
