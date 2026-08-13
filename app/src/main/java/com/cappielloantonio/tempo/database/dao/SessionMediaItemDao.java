@@ -1,5 +1,7 @@
 package com.cappielloantonio.tempo.database.dao;
 
+import androidx.annotation.OptIn;
+import androidx.media3.common.util.UnstableApi;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
@@ -9,6 +11,8 @@ import com.cappielloantonio.tempo.model.SessionMediaItem;
 
 import java.util.List;
 
+/** Same opt-in, and for the same reason, as {@link QueueDao}. */
+@OptIn(markerClass = UnstableApi.class)
 @Dao
 public interface SessionMediaItemDao {
     // Newest row wins. Rows accumulate across browse nodes -- every onGetChildren

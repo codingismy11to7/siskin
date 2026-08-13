@@ -112,6 +112,32 @@ android {
         viewBinding = true
         buildConfig = true
     }
+
+    lint {
+        // CI runs lintDebug, so an error here stops a merge. Errors only:
+        // there are ~58 warnings left and turning those fatal would mean
+        // clearing all of them first, which is a bigger and much less
+        // interesting change than this one.
+        abortOnError = true
+
+        // These four check whether a *newer version* exists, which makes them a
+        // function of other people's release schedules rather than of anything
+        // in this repository. They are only warnings, so they would not fail the
+        // build today -- they are disabled because they are noise in the report
+        // that makes the warnings worth reading harder to find, and because
+        // leaving them armed is what would make `warningsAsErrors` unadoptable
+        // later.
+        //
+        // Dependency freshness is a thing to go looking for deliberately, with
+        // `./gradlew dependencyUpdates` or by reading the report; it is not a
+        // thing to be told on every build.
+        disable += [
+            'NewerVersionAvailable',
+            'GradleDependency',
+            'UseTomlInstead',
+            'AndroidGradlePluginVersion',
+        ]
+    }
 }
 
 // The point of clearing the Kotlin warnings is that the next one is visible, and
