@@ -1,19 +1,19 @@
 <resources>
-    <string name="aa_albums">Alben</string>
-    <string name="aa_artists">Interpreten</string>
-    <string name="aa_mix_artist">Interpreten-Mix</string>
-    <string name="aa_mix_playlist">Wiedergabelisten-Mix</string>
-    <string name="aa_library_picker_no_music">Keine Musikbibliotheken auf diesem Server</string>
-    <string name="aa_library_picker_offline">plex.tv nicht erreichbar, um deine Server aufzulisten</string>
-    <string name="aa_library_picker_server_gone">Dieser Server gehört nicht mehr zu deinem Plex-Konto</string>
-    <string name="aa_library_picker_server_unreachable">Dieser Plex-Server ist nicht erreichbar</string>
-    <string name="aa_more">Mehr</string>
-    <string name="aa_now_browsing">Aktuell geöffnet: %1$s (%2$s)</string>
-    <string name="aa_now_browsing_no_server">Aktuell geöffnet: %1$s</string>
-    <string name="aa_playlists">Wiedergabelisten</string>
-    <string name="aa_select_library">Bibliothek auswählen</string>
-    <string name="aa_decades">Jahrzehnte</string>
-    <string name="aa_mix_decade">Jahrzehnt-Mix</string>
+    <string name="browse_albums">Alben</string>
+    <string name="browse_artists">Interpreten</string>
+    <string name="browse_mix_artist">Interpreten-Mix</string>
+    <string name="browse_mix_playlist">Wiedergabelisten-Mix</string>
+    <string name="browse_library_picker_no_music">Keine Musikbibliotheken auf diesem Server</string>
+    <string name="browse_library_picker_offline">plex.tv nicht erreichbar, um deine Server aufzulisten</string>
+    <string name="browse_library_picker_server_gone">Dieser Server gehört nicht mehr zu deinem Plex-Konto</string>
+    <string name="browse_library_picker_server_unreachable">Dieser Plex-Server ist nicht erreichbar</string>
+    <string name="browse_more">Mehr</string>
+    <string name="browse_now_browsing">Aktuell geöffnet: %1$s (%2$s)</string>
+    <string name="browse_now_browsing_no_server">Aktuell geöffnet: %1$s</string>
+    <string name="browse_playlists">Wiedergabelisten</string>
+    <string name="browse_select_library">Bibliothek auswählen</string>
+    <string name="browse_decades">Jahrzehnte</string>
+    <string name="browse_mix_decade">Jahrzehnt-Mix</string>
 
     <plurals name="car_artist_count">
         <item quantity="one">%d Interpret</item>

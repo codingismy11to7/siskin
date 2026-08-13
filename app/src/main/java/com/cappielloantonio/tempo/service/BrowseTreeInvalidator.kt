@@ -7,7 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
@@ -76,11 +76,11 @@ object BrowseTreeInvalidator {
         // notifyChildrenChanged on the caller's thread, which is where the session
         // expects it.
         Futures.addCallback(
-            MediaBrowserTree.getChildren(ConstantsAA.ROOT_ID),
+            MediaBrowserTree.getChildren(Constants.ROOT_ID),
             object : FutureCallback<LibraryResult<ImmutableList<MediaItem>>> {
                 override fun onSuccess(result: LibraryResult<ImmutableList<MediaItem>>?) {
                     val childCount = result?.value?.size ?: 0
-                    current.notifyChildrenChanged(ConstantsAA.ROOT_ID, childCount, null)
+                    current.notifyChildrenChanged(Constants.ROOT_ID, childCount, null)
                     // This confirms the call was made, not that any subscribed controller
                     // received it -- notifyChildrenChanged doesn't report delivery.
                     Log.d(TAG, "called notifyChildrenChanged(rootID) with $childCount children")
@@ -88,7 +88,7 @@ object BrowseTreeInvalidator {
 
                 override fun onFailure(t: Throwable) {
                     Log.d(TAG, "could not count root children; calling notifyChildrenChanged anyway", t)
-                    current.notifyChildrenChanged(ConstantsAA.ROOT_ID, 0, null)
+                    current.notifyChildrenChanged(Constants.ROOT_ID, 0, null)
                 }
             },
             MoreExecutors.directExecutor()
@@ -149,10 +149,10 @@ object BrowseTreeInvalidator {
      */
     fun invalidateTree() {
         invalidateRoot()
-        invalidateNode(ConstantsAA.PLAYLIST_ID, 0)
-        invalidateNode(ConstantsAA.ARTISTS_ID, 0)
-        invalidateNode(ConstantsAA.ALBUMS_ID, 0)
-        invalidateNode(ConstantsAA.MORE_ID, 0)
+        invalidateNode(Constants.PLAYLIST_ID, 0)
+        invalidateNode(Constants.ARTISTS_ID, 0)
+        invalidateNode(Constants.ALBUMS_ID, 0)
+        invalidateNode(Constants.MORE_ID, 0)
     }
 
     /**

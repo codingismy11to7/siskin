@@ -8,7 +8,7 @@ import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.BrowseContentStyle
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -53,15 +53,15 @@ class MediaBrowserTreeTest {
 
     @Test
     fun rootHasExactlyFourTabsInOrder() {
-        val children = MediaBrowserTree.getChildren(ConstantsAA.ROOT_ID)
+        val children = MediaBrowserTree.getChildren(Constants.ROOT_ID)
             .get().value!!.map { it.mediaId }
 
         assertEquals(
             listOf(
-                ConstantsAA.PLAYLIST_ID,
-                ConstantsAA.ARTISTS_ID,
-                ConstantsAA.ALBUMS_ID,
-                ConstantsAA.MORE_ID
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.MORE_ID
             ),
             children
         )
@@ -69,7 +69,7 @@ class MediaBrowserTreeTest {
 
     @Test
     fun rootHasExactlyFourChildrenBecauseTheCarDropsTheFifth() {
-        val children = MediaBrowserTree.getChildren(ConstantsAA.ROOT_ID).get().value!!
+        val children = MediaBrowserTree.getChildren(Constants.ROOT_ID).get().value!!
 
         assertEquals(4, children.size)
     }
@@ -98,8 +98,8 @@ class MediaBrowserTreeTest {
     @Test
     fun pickerNodesResolveSoTheirSubscriptionsCanStick() {
         listOf(
-            ConstantsAA.PICK_SERVER_ID + "abc123",
-            ConstantsAA.PICK_LIBRARY_ID + "abc123|7"
+            Constants.PICK_SERVER_ID + "abc123",
+            Constants.PICK_LIBRARY_ID + "abc123|7"
         ).forEach { id ->
             val item = MediaBrowserTree.getItem(id)
                 ?: throw AssertionError("$id must resolve or its subscription is dropped")
@@ -118,7 +118,7 @@ class MediaBrowserTreeTest {
 
     @Test
     fun artistsRootHasFolderArtistsMediaType() {
-        val artistsItem = MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!
+        val artistsItem = MediaBrowserTree.getItem(Constants.ARTISTS_ID)!!
 
         assertEquals(
             MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS,
@@ -212,18 +212,18 @@ class MediaBrowserTreeTest {
 
     @Test
     fun decadesLeadsTheMoreTabAheadOfSelectLibrary() {
-        val children = MediaBrowserTree.getChildren(ConstantsAA.MORE_ID)
+        val children = MediaBrowserTree.getChildren(Constants.MORE_ID)
             .get().value!!.map { it.mediaId }
 
         assertEquals(
-            listOf(ConstantsAA.DECADES_ID, ConstantsAA.SELECT_LIBRARY_ID),
+            listOf(Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
             children
         )
     }
 
     @Test
     fun theDecadesRowIsBrowsableAndNotPlayable() {
-        val item = MediaBrowserTree.getItem(ConstantsAA.DECADES_ID)!!
+        val item = MediaBrowserTree.getItem(Constants.DECADES_ID)!!
 
         assertEquals(true, item.mediaMetadata.isBrowsable)
         assertEquals(false, item.mediaMetadata.isPlayable)
@@ -231,7 +231,7 @@ class MediaBrowserTreeTest {
 
     @Test
     fun theDecadesNodeAsksForAGridNowThatItsRowsHaveArtwork() {
-        val item = MediaBrowserTree.getItem(ConstantsAA.DECADES_ID)!!
+        val item = MediaBrowserTree.getItem(Constants.DECADES_ID)!!
 
         assertEquals(
             BrowseContentStyle.browsableChildStyle(true),
@@ -245,9 +245,9 @@ class MediaBrowserTreeTest {
     fun aWindowIdRoutesToItsOwnSliceRatherThanToAnItem() {
         // "[artistWindowID]50" must not be mistaken for "[artistID]..." -- the
         // window tests run first for exactly that reason.
-        assertTrue(ConstantsAA.ARTIST_WINDOW_ID.startsWith("[artist"))
-        assertFalse(ConstantsAA.ARTIST_WINDOW_ID.startsWith(ConstantsAA.ARTIST_ID))
-        assertFalse(ConstantsAA.ALBUM_WINDOW_ID.startsWith(ConstantsAA.ALBUM_ID))
+        assertTrue(Constants.ARTIST_WINDOW_ID.startsWith("[artist"))
+        assertFalse(Constants.ARTIST_WINDOW_ID.startsWith(Constants.ARTIST_ID))
+        assertFalse(Constants.ALBUM_WINDOW_ID.startsWith(Constants.ALBUM_ID))
 
         // The assertions above only rule out a spelling collision between the
         // id constants; they never call getChildren, so a wrong branch ORDER
@@ -256,11 +256,11 @@ class MediaBrowserTreeTest {
         val repository = mock<PlexBrowseRepository>()
         MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
 
-        MediaBrowserTree.getChildren(ConstantsAA.ARTIST_WINDOW_ID + "50")
-        verify(repository).getArtistWindow(50, ConstantsAA.ARTIST_ID)
+        MediaBrowserTree.getChildren(Constants.ARTIST_WINDOW_ID + "50")
+        verify(repository).getArtistWindow(50, Constants.ARTIST_ID)
 
-        MediaBrowserTree.getChildren(ConstantsAA.ALBUM_WINDOW_ID + "50")
-        verify(repository).getAlbumWindow(50, ConstantsAA.ALBUM_ID)
+        MediaBrowserTree.getChildren(Constants.ALBUM_WINDOW_ID + "50")
+        verify(repository).getAlbumWindow(50, Constants.ALBUM_ID)
     }
 
     @Test
@@ -274,7 +274,7 @@ class MediaBrowserTreeTest {
         MediaBrowserTree.buildTree()
         assertEquals(
             BrowseContentStyle.browsableChildStyle(false),
-            MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!.mediaMetadata.extras!!
+            MediaBrowserTree.getItem(Constants.ARTISTS_ID)!!.mediaMetadata.extras!!
                 .getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
         )
 
@@ -293,12 +293,12 @@ class MediaBrowserTreeTest {
         // wired browsableChildrenAsGrid to the preference would pass unnoticed.
         Preferences.setArtistsByInitialEnabled(false)
         MediaBrowserTree.buildTree()
-        val artists = MediaBrowserTree.getItem(ConstantsAA.ARTISTS_ID)!!
+        val artists = MediaBrowserTree.getItem(Constants.ARTISTS_ID)!!
         assertEquals(
             BrowseContentStyle.browsableChildStyle(false),
             artists.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
         )
-        val albums = MediaBrowserTree.getItem(ConstantsAA.ALBUMS_ID)!!
+        val albums = MediaBrowserTree.getItem(Constants.ALBUMS_ID)!!
         assertEquals(
             BrowseContentStyle.browsableChildStyle(false),
             albums.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
@@ -311,12 +311,12 @@ class MediaBrowserTreeTest {
         MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
 
         Preferences.setArtistsByInitialEnabled(true)
-        MediaBrowserTree.getChildren(ConstantsAA.ARTISTS_ID)
-        verify(repository).getArtistLetters(ConstantsAA.ARTIST_LETTER_ID, ConstantsAA.ARTIST_ID)
+        MediaBrowserTree.getChildren(Constants.ARTISTS_ID)
+        verify(repository).getArtistLetters(Constants.ARTIST_LETTER_ID, Constants.ARTIST_ID)
 
         Preferences.setArtistsByInitialEnabled(false)
-        MediaBrowserTree.getChildren(ConstantsAA.ARTISTS_ID)
-        verify(repository).getArtistWindows(ConstantsAA.ARTIST_WINDOW_ID, ConstantsAA.ARTIST_ID)
+        MediaBrowserTree.getChildren(Constants.ARTISTS_ID)
+        verify(repository).getArtistWindows(Constants.ARTIST_WINDOW_ID, Constants.ARTIST_ID)
     }
 
     @Test
@@ -327,9 +327,9 @@ class MediaBrowserTreeTest {
         MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
 
         Preferences.setArtistsByInitialEnabled(true)
-        MediaBrowserTree.getChildren(ConstantsAA.ALBUMS_ID)
+        MediaBrowserTree.getChildren(Constants.ALBUMS_ID)
 
-        verify(repository).getAlbumWindows(ConstantsAA.ALBUM_WINDOW_ID, ConstantsAA.ALBUM_ID)
+        verify(repository).getAlbumWindows(Constants.ALBUM_WINDOW_ID, Constants.ALBUM_ID)
     }
 
     @Test
@@ -337,18 +337,18 @@ class MediaBrowserTreeTest {
         // "[artistLetterID]A" must not be mistaken for "[artistID]..." -- the
         // letter test has to come first in the routing for the same reason the
         // window test does.
-        assertFalse(ConstantsAA.ARTIST_LETTER_ID.startsWith(ConstantsAA.ARTIST_ID))
-        assertFalse(ConstantsAA.ARTIST_ID.startsWith(ConstantsAA.ARTIST_LETTER_ID))
+        assertFalse(Constants.ARTIST_LETTER_ID.startsWith(Constants.ARTIST_ID))
+        assertFalse(Constants.ARTIST_ID.startsWith(Constants.ARTIST_LETTER_ID))
 
         val repository = mock<PlexBrowseRepository>()
         MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
 
-        MediaBrowserTree.getChildren(ConstantsAA.ARTIST_LETTER_ID + "A")
-        verify(repository).getArtistLetter("A", ConstantsAA.ARTIST_ID)
+        MediaBrowserTree.getChildren(Constants.ARTIST_LETTER_ID + "A")
+        verify(repository).getArtistLetter("A", Constants.ARTIST_ID)
 
         // The encoded key reaches the repository untouched: decoding it here
         // would send "%2523" back to the server.
-        MediaBrowserTree.getChildren(ConstantsAA.ARTIST_LETTER_ID + "%23")
-        verify(repository).getArtistLetter("%23", ConstantsAA.ARTIST_ID)
+        MediaBrowserTree.getChildren(Constants.ARTIST_LETTER_ID + "%23")
+        verify(repository).getArtistLetter("%23", Constants.ARTIST_ID)
     }
 }

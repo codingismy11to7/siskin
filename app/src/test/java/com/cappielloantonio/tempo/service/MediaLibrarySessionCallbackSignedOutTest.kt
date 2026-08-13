@@ -7,7 +7,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -65,14 +65,14 @@ class MediaLibrarySessionCallbackSignedOutTest {
 
     @Test
     fun rootStillReturnsItsFourTabsWhileSignedOut() {
-        val children = getChildren(ConstantsAA.ROOT_ID).map { it.mediaId }
+        val children = getChildren(Constants.ROOT_ID).map { it.mediaId }
 
         assertEquals(
             listOf(
-                ConstantsAA.PLAYLIST_ID,
-                ConstantsAA.ARTISTS_ID,
-                ConstantsAA.ALBUMS_ID,
-                ConstantsAA.MORE_ID
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.MORE_ID
             ),
             children
         )
@@ -81,10 +81,10 @@ class MediaLibrarySessionCallbackSignedOutTest {
     @Test
     fun aNonRootParentReturnsTheInfoRowWhileSignedOut() {
         listOf(
-            ConstantsAA.PLAYLIST_ID,
-            ConstantsAA.ARTISTS_ID,
-            ConstantsAA.ALBUMS_ID,
-            ConstantsAA.MORE_ID
+            Constants.PLAYLIST_ID,
+            Constants.ARTISTS_ID,
+            Constants.ALBUMS_ID,
+            Constants.MORE_ID
         ).forEach { parentId ->
             val row = getChildren(parentId).single()
 
@@ -107,7 +107,7 @@ class MediaLibrarySessionCallbackSignedOutTest {
             controller,
             parentId,
             0,
-            ConstantsAA.MAX_ITEMS,
+            Constants.MAX_ITEMS,
             null
         ).get().value!!
 }

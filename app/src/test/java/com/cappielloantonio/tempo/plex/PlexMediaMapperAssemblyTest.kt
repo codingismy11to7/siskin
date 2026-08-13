@@ -12,7 +12,6 @@ import com.cappielloantonio.tempo.plex.models.Part
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.ConstantsAA
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
@@ -258,7 +257,7 @@ class PlexMediaMapperAssemblyTest {
         val artwork = item.mediaMetadata.artworkUri!!
         assertEquals("android.resource", artwork.scheme)
         assertEquals(
-            ResourceUris.forResource(R.drawable.ic_aa_playlist),
+            ResourceUris.forResource(R.drawable.ic_browse_playlist),
             artwork
         )
     }
@@ -284,9 +283,9 @@ class PlexMediaMapperAssemblyTest {
         // builds a content Uri for its artwork, and android.net.Uri.Builder's
         // chained setters return null under returnDefaultValues, NPEing before
         // the MediaItem is even built -- not just handing back an unset field.
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)!!
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), Constants.DECADE_ID, SCOPE, bucket = 487234L)!!
 
-        assertEquals(ConstantsAA.DECADE_ID + DecadeKey.of(SCOPE, "1980"), item.mediaId)
+        assertEquals(Constants.DECADE_ID + DecadeKey.of(SCOPE, "1980"), item.mediaId)
         assertEquals("1980s", item.mediaMetadata.title)
         assertTrue(item.mediaMetadata.isBrowsable!!)
         // Never playable: a playable row opens Now Playing on tap, and a decade
@@ -300,7 +299,7 @@ class PlexMediaMapperAssemblyTest {
         // all playable. Without this hint the car falls back to its own
         // default, which may be a grid of identical album art (see
         // BrowseContentStyle.PLAYABLE_CHILD_STYLE).
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)!!
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), Constants.DECADE_ID, SCOPE, bucket = 487234L)!!
         val extras = item.mediaMetadata.extras!!
 
         assertEquals(
@@ -315,7 +314,7 @@ class PlexMediaMapperAssemblyTest {
         // browsable -- so EXTRAS_KEY_CONTENT_STYLE_BROWSABLE is deliberately
         // left unset rather than set to some default; setting it would hint
         // at a grid of content that never renders.
-        val item = PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L)!!
+        val item = PlexMediaMapper.decadeToMediaItem(decade(), Constants.DECADE_ID, SCOPE, bucket = 487234L)!!
         val extras = item.mediaMetadata.extras!!
 
         assertFalse(extras.containsKey(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE))
@@ -330,7 +329,7 @@ class PlexMediaMapperAssemblyTest {
         // one so a mapper that ignored it fails here rather than coincidentally
         // agreeing.
         val item = PlexMediaMapper.decadeToMediaItem(
-            decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L
+            decade(), Constants.DECADE_ID, SCOPE, bucket = 487234L
         )!!
 
         assertEquals(
@@ -362,9 +361,9 @@ class PlexMediaMapperAssemblyTest {
     @Test
     fun twoLibrariesMintDifferentMediaIdsForTheSameDecade() {
         val onServerA =
-            PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, "serverA-4", 487234L)!!
+            PlexMediaMapper.decadeToMediaItem(decade(), Constants.DECADE_ID, "serverA-4", 487234L)!!
         val onServerB =
-            PlexMediaMapper.decadeToMediaItem(decade(), ConstantsAA.DECADE_ID, "serverB-4", 487234L)!!
+            PlexMediaMapper.decadeToMediaItem(decade(), Constants.DECADE_ID, "serverB-4", 487234L)!!
 
         assertNotEquals(onServerA.mediaId, onServerB.mediaId)
     }
@@ -377,12 +376,12 @@ class PlexMediaMapperAssemblyTest {
     @Test
     fun aDecadeRowsIdStillYieldsTheBareDecade() {
         val item = PlexMediaMapper.decadeToMediaItem(
-            decade(), ConstantsAA.DECADE_ID, SCOPE, bucket = 487234L
+            decade(), Constants.DECADE_ID, SCOPE, bucket = 487234L
         )!!
 
         assertEquals(
             "1980",
-            DecadeKey.decadeIn(item.mediaId.removePrefix(ConstantsAA.DECADE_ID))
+            DecadeKey.decadeIn(item.mediaId.removePrefix(Constants.DECADE_ID))
         )
     }
 
@@ -391,7 +390,7 @@ class PlexMediaMapperAssemblyTest {
     @Test
     fun windowRowIsBrowsableAndNotPlayable() {
         val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistWindowID]50", "Beck  -  Cake", R.drawable.ic_aa_artists
+            "[artistWindowID]50", "Beck  -  Cake", R.drawable.ic_browse_artists
         )
         assertEquals("[artistWindowID]50", row.mediaId)
         assertEquals("Beck  -  Cake", row.mediaMetadata.title)
@@ -407,7 +406,7 @@ class PlexMediaMapperAssemblyTest {
         // assertion in this file, which is why this needs its own test rather
         // than piggybacking on windowRowIsBrowsableAndNotPlayable.
         val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistWindowID]0", "A  -  B", R.drawable.ic_aa_artists
+            "[artistWindowID]0", "A  -  B", R.drawable.ic_browse_artists
         )
         val extras = row.mediaMetadata.extras!!
 
@@ -422,7 +421,7 @@ class PlexMediaMapperAssemblyTest {
         // An absent artworkUri makes the car draw a music note on a per-row
         // colour; at 25-56 rows a tab that is a column of unrelated colours.
         val row = PlexMediaMapper.groupRowToMediaItem(
-            "[albumWindowID]0", "A  -  B", R.drawable.ic_aa_albums
+            "[albumWindowID]0", "A  -  B", R.drawable.ic_browse_albums
         )
         assertNotNull(row.mediaMetadata.artworkUri)
     }
@@ -432,7 +431,7 @@ class PlexMediaMapperAssemblyTest {
         // A non-null localConfiguration would make resolveQueueForItem treat the
         // row as already resolved and "play" a row that has no stream.
         val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistWindowID]0", "A  -  B", R.drawable.ic_aa_artists
+            "[artistWindowID]0", "A  -  B", R.drawable.ic_browse_artists
         )
         assertNull(row.localConfiguration)
     }
@@ -444,7 +443,7 @@ class PlexMediaMapperAssemblyTest {
         // larger than the car's ~293-item ceiling is showing fewer artists than
         // it claims.
         val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistLetterID]A", "A", R.drawable.ic_aa_artists, "79 artists"
+            "[artistLetterID]A", "A", R.drawable.ic_browse_artists, "79 artists"
         )
 
         assertEquals("A", row.mediaMetadata.title)
@@ -456,7 +455,7 @@ class PlexMediaMapperAssemblyTest {
         // Window rows pass none: every window holds WINDOW_SIZE items except the
         // last, so a count would say nothing.
         val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistWindowID]0", "Beck  -  Cake", R.drawable.ic_aa_artists
+            "[artistWindowID]0", "Beck  -  Cake", R.drawable.ic_browse_artists
         )
 
         assertNull(row.mediaMetadata.artist)

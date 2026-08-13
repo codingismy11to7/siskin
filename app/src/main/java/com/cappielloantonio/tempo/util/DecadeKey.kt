@@ -1,7 +1,7 @@
 package com.cappielloantonio.tempo.util
 
 /**
- * The payload of a [ConstantsAA.DECADE_ID] row: which library, then which
+ * The payload of a [Constants.DECADE_ID] row: which library, then which
  * decade.
  *
  * A decade row is the one browsable row in this app whose identity is not
@@ -27,7 +27,7 @@ package com.cappielloantonio.tempo.util
  * artwork URI and the provider's guard compare against, so there is no second
  * encoding of it to drift.
  *
- * **Pipe rather than colon, following [ConstantsAA.PICK_LIBRARY_ID]'s
+ * **Pipe rather than colon, following [Constants.PICK_LIBRARY_ID]'s
  * convention**, and safe for the same kind of reason it is there: neither side
  * can contain one. A scope is a normalised machine identifier -- letters and
  * digits, or a hyphenated sentinel -- then `-`, then a section key, which is an

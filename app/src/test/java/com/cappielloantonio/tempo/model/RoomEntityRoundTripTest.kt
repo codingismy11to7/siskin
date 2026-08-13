@@ -6,7 +6,6 @@ import androidx.media3.common.MediaItem
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.ConstantsAA
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -59,7 +58,7 @@ class RoomEntityRoundTripTest {
         year = 2021,
         grandparentRatingKey = "77",
         isHearted = hearted,
-        parentId = ConstantsAA.QUEUE_CACHED_SOURCE,
+        parentId = Constants.QUEUE_CACHED_SOURCE,
         serverUri = server,
         token = token
     )

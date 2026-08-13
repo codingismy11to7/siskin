@@ -14,7 +14,7 @@ import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.google.android.material.materialswitch.MaterialSwitch
 import org.junit.After
@@ -237,6 +237,6 @@ class PlexSignInSettingsTest {
         // this must come after idling it or it races the post and fails
         // intermittently.
         shadowOf(Looper.getMainLooper()).idle()
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ARTISTS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
     }
 }

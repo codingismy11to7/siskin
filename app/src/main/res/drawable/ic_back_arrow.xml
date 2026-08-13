@@ -3,7 +3,7 @@
 
     Upstream path verbatim on the "0 -960 960 960" viewBox Material Symbols
     exports; the group supplies the offset VectorDrawable has no viewBox for.
-    See ic_aa_library for the longer write-up.
+    See ic_browse_library for the longer write-up.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:height="24dp"

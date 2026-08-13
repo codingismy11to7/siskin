@@ -26,7 +26,7 @@ import com.cappielloantonio.tempo.databinding.FragmentPlexSignInBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
@@ -173,7 +173,7 @@ class PlexSignInFragment : Fragment() {
                     Preferences.isArtistsByInitialEnabled()
                 ) {
                     Preferences.setArtistsByInitialEnabled(it)
-                    BrowseTreeInvalidator.invalidateNode(ConstantsAA.ARTISTS_ID, 0)
+                    BrowseTreeInvalidator.invalidateNode(Constants.ARTISTS_ID, 0)
                 }
 
                 addChoice(getString(R.string.car_settings_sign_out)) {

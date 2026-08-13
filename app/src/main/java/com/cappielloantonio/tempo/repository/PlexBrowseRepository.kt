@@ -26,7 +26,7 @@ import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.provider.DecadeCompositeArt
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -126,7 +126,7 @@ class PlexBrowseRepository {
         val key = sectionKey ?: return errorFuture()
         return fetch({ searchClient.getPlaylists(key) }) { body ->
             itemsOf(body, TYPE_PLAYLIST)
-                .take(ConstantsAA.MAX_ITEMS)
+                .take(Constants.MAX_ITEMS)
                 .mapNotNull { PlexMediaMapper.playlistToMediaItem(it, prefix) }
         }
     }
@@ -148,14 +148,14 @@ class PlexBrowseRepository {
         playlistId: String,
         decorate: (List<MediaItem>) -> List<MediaItem>
     ) = cachedTracks(
-        { searchClient.getPlaylistItems(RatingKey(playlistId), 0, ConstantsAA.MAX_ITEMS) },
+        { searchClient.getPlaylistItems(RatingKey(playlistId), 0, Constants.MAX_ITEMS) },
         decorate
     )
 
     private fun shufflePlaylistRow(playlistId: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(
-            ConstantsAA.MIX_PLAYLIST_ID + playlistId,
-            App.getContext().getString(R.string.aa_mix_playlist)
+            Constants.MIX_PLAYLIST_ID + playlistId,
+            App.getContext().getString(R.string.browse_mix_playlist)
         )
 
     /**
@@ -241,7 +241,7 @@ class PlexBrowseRepository {
                 key,
                 PlexItemType.TRACK,
                 0,
-                ConstantsAA.MAX_ITEMS,
+                Constants.MAX_ITEMS,
                 sort = LibraryClient.SORT_RANDOM,
                 // The bare decade, never the composite key: Plex answers an
                 // unrecognised filter value with 200 and an empty container,
@@ -254,8 +254,8 @@ class PlexBrowseRepository {
 
     private fun shuffleDecadeRow(decadeKey: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(
-            ConstantsAA.MIX_DECADE_ID + decadeKey,
-            App.getContext().getString(R.string.aa_mix_decade)
+            Constants.MIX_DECADE_ID + decadeKey,
+            App.getContext().getString(R.string.browse_mix_decade)
         )
 
     /**
@@ -275,7 +275,7 @@ class PlexBrowseRepository {
                 key,
                 PlexItemType.ALBUM,
                 0,
-                ConstantsAA.MAX_ITEMS,
+                Constants.MAX_ITEMS,
                 artistId = artistRatingKey
             )
         }) { body ->
@@ -287,8 +287,8 @@ class PlexBrowseRepository {
 
     private fun shuffleArtistRow(artistRatingKey: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(
-            ConstantsAA.MIX_ARTIST_ID + artistRatingKey,
-            App.getContext().getString(R.string.aa_mix_artist)
+            Constants.MIX_ARTIST_ID + artistRatingKey,
+            App.getContext().getString(R.string.browse_mix_artist)
         )
 
     /**
@@ -321,7 +321,7 @@ class PlexBrowseRepository {
                 key,
                 PlexItemType.TRACK,
                 0,
-                ConstantsAA.MAX_ITEMS,
+                Constants.MAX_ITEMS,
                 artistId = artistRatingKey
             )
         }) { body ->
@@ -332,7 +332,7 @@ class PlexBrowseRepository {
     }
 
     fun getAlbumTracks(albumRatingKey: String) =
-        cachedTracks({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, ConstantsAA.MAX_ITEMS) }) { it }
+        cachedTracks({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, Constants.MAX_ITEMS) }) { it }
 
     // ── windowed browse ────────────────────────────────────────
     //
@@ -353,7 +353,7 @@ class PlexBrowseRepository {
      * the wrong slice.
      */
     fun getArtistWindows(windowPrefix: String, artistPrefix: String) =
-        windowed(PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_aa_artists) { body ->
+        windowed(PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_browse_artists) { body ->
             itemsOf(body, TYPE_ARTIST).mapNotNull {
                 PlexMediaMapper.artistToMediaItem(it, artistPrefix)
             }
@@ -369,7 +369,7 @@ class PlexBrowseRepository {
 
     /** The Albums tab, ordered by displayed name for the same reason. */
     fun getAlbumWindows(windowPrefix: String, albumPrefix: String) =
-        windowed(PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_aa_albums) { body ->
+        windowed(PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_browse_albums) { body ->
             itemsOf(body, TYPE_ALBUM).mapNotNull {
                 PlexMediaMapper.albumToMediaItem(it, albumPrefix)
             }
@@ -391,7 +391,7 @@ class PlexBrowseRepository {
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch(
-            { libraryClient.getSectionContent(key, type, start, ConstantsAA.WINDOW_SIZE, sort) },
+            { libraryClient.getSectionContent(key, type, start, Constants.WINDOW_SIZE, sort) },
             map
         )
     }
@@ -410,7 +410,7 @@ class PlexBrowseRepository {
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch({
-            libraryClient.getSectionContent(key, type, 0, ConstantsAA.WINDOW_SIZE, sort)
+            libraryClient.getSectionContent(key, type, 0, Constants.WINDOW_SIZE, sort)
         }) { head ->
             // Not observed against PMS, which always returns totalSize once
             // Start/Size were sent -- but silent is the wrong failure mode for a
@@ -423,11 +423,11 @@ class PlexBrowseRepository {
                     TAG,
                     "windowed browse response carried no totalSize -- " +
                         "falling back to a flat, possibly-truncated first " +
-                        "${ConstantsAA.WINDOW_SIZE} items"
+                        "${Constants.WINDOW_SIZE} items"
                 )
                 0
             }
-            if (total <= ConstantsAA.WINDOW_SIZE) {
+            if (total <= Constants.WINDOW_SIZE) {
                 map(head)
             } else {
                 windowRows(key, type, sort, total, windowPrefix, icon, head)
@@ -472,7 +472,7 @@ class PlexBrowseRepository {
         icon: Int,
         head: PlexResponse
     ): List<MediaItem> {
-        val size = ConstantsAA.WINDOW_SIZE
+        val size = Constants.WINDOW_SIZE
         val count = (total + size - 1) / size
         val boundaries = (0 until count).map { it * size } + (total - 1)
 
@@ -521,7 +521,7 @@ class PlexBrowseRepository {
      *
      * One request decides the shape, the way [windowed] uses `totalSize`: the
      * bucket counts sum to the section's total, so a library at or under
-     * [ConstantsAA.WINDOW_SIZE] is recognised from the index alone.
+     * [Constants.WINDOW_SIZE] is recognised from the index alone.
      *
      * No boundary titles and no `titleAt`. A bucket's label arrives in the same
      * response as its count, so there is no fan-out to cap and no positional
@@ -552,7 +552,7 @@ class PlexBrowseRepository {
                 )
             }
 
-            if (total == 0 || total > ConstantsAA.WINDOW_SIZE) {
+            if (total == 0 || total > Constants.WINDOW_SIZE) {
                 rows
             } else {
                 // Small enough that buckets would be worse than a list. Falls
@@ -571,7 +571,7 @@ class PlexBrowseRepository {
      * [bucketKey] is the index's `key` verbatim, percent-encoding included --
      * see [com.cappielloantonio.tempo.plex.api.library.LibraryService.getFirstCharacterContent].
      *
-     * [ConstantsAA.MAX_ITEMS] rather than a bucket-sized fetch, like every other
+     * [Constants.MAX_ITEMS] rather than a bucket-sized fetch, like every other
      * uncapped node here. A bucket over the car's ~293-item ceiling truncates
      * silently; that is a documented, accepted bound, and the setting is the way
      * out of it.
@@ -582,7 +582,7 @@ class PlexBrowseRepository {
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch({
-            libraryClient.getFirstCharacterContent(key, bucketKey, 0, ConstantsAA.MAX_ITEMS)
+            libraryClient.getFirstCharacterContent(key, bucketKey, 0, Constants.MAX_ITEMS)
         }) { body ->
             itemsOf(body, TYPE_ARTIST).mapNotNull {
                 PlexMediaMapper.artistToMediaItem(it, artistPrefix)
@@ -607,7 +607,7 @@ class PlexBrowseRepository {
             key,
             PlexItemType.ARTIST,
             0,
-            ConstantsAA.WINDOW_SIZE,
+            Constants.WINDOW_SIZE,
             LibraryClient.SORT_DISPLAY_TITLE
         ).getOrNull()?.let { body ->
             itemsOf(body, TYPE_ARTIST).mapNotNull {
@@ -629,7 +629,7 @@ class PlexBrowseRepository {
         return PlexMediaMapper.groupRowToMediaItem(
             letterPrefix + key,
             title,
-            R.drawable.ic_aa_artists,
+            R.drawable.ic_browse_artists,
             bucket.size?.let { count ->
                 App.getContext().resources.getQuantityString(R.plurals.car_artist_count, count, count)
             }
@@ -736,7 +736,7 @@ class PlexBrowseRepository {
     /**
      * Tracks from one container, tagged as this browse node's queue source.
      *
-     * The [ConstantsAA.QUEUE_CACHED_SOURCE] tag is what lets a tap partway down
+     * The [Constants.QUEUE_CACHED_SOURCE] tag is what lets a tap partway down
      * the list open the queue at that position instead of playing one track
      * alone -- see MediaLibraryServiceCallback.resolveQueueForItem. It is
      * decided here, once, rather than at each node that wants that behaviour.
@@ -753,7 +753,7 @@ class PlexBrowseRepository {
             decorate(
                 tracksOf(body).mapNotNull {
                     PlexMediaMapper.trackToMediaItem(
-                        it, ConstantsAA.QUEUE_CACHED_SOURCE, serverUri, token
+                        it, Constants.QUEUE_CACHED_SOURCE, serverUri, token
                     )
                 }
             )

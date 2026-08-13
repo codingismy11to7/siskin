@@ -13,7 +13,7 @@ import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.CredentialGate
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -88,7 +88,7 @@ class MediaLibrarySessionCallback(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        if (!CredentialGate.isSignedIn() && parentId != ConstantsAA.ROOT_ID) {
+        if (!CredentialGate.isSignedIn() && parentId != Constants.ROOT_ID) {
             Log.d(TAG, "onGetChildren blocked for $parentId: no usable credentials")
             // A row, not an error, for every parentId except the root.
             // Signed out is a state, not a failure, and an error's Connect
@@ -117,7 +117,7 @@ class MediaLibrarySessionCallback(
         return Futures.transformAsync(future, { result ->
             if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
                 val items = result.value ?: emptyList()
-                queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE] = items
+                queueSourceCache[Constants.QUEUE_CACHED_SOURCE] = items
                 rememberTracks(items)
                 Futures.immediateFuture(result)
             } else {
@@ -159,9 +159,9 @@ class MediaLibrarySessionCallback(
      * every browse list from [rememberTracks].
      */
     private fun isMixRow(item: MediaItem) =
-        item.mediaId.startsWith(ConstantsAA.MIX_ARTIST_ID) ||
-            item.mediaId.startsWith(ConstantsAA.MIX_PLAYLIST_ID) ||
-            item.mediaId.startsWith(ConstantsAA.MIX_DECADE_ID)
+        item.mediaId.startsWith(Constants.MIX_ARTIST_ID) ||
+            item.mediaId.startsWith(Constants.MIX_PLAYLIST_ID) ||
+            item.mediaId.startsWith(Constants.MIX_DECADE_ID)
 
     /**
      * Fetches the tracks a tapped Mix row stands for, or null if the item is
@@ -178,23 +178,23 @@ class MediaLibrarySessionCallback(
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
         val id = item.mediaId
         return when {
-            id.startsWith(ConstantsAA.MIX_ARTIST_ID) -> {
-                val artist = id.removePrefix(ConstantsAA.MIX_ARTIST_ID)
+            id.startsWith(Constants.MIX_ARTIST_ID) -> {
+                val artist = id.removePrefix(Constants.MIX_ARTIST_ID)
                 Log.d(TAG, "Fetching every track by artist $artist to shuffle")
                 browseRepository.getArtistTracks(artist)
             }
 
-            id.startsWith(ConstantsAA.MIX_PLAYLIST_ID) -> {
-                val playlist = id.removePrefix(ConstantsAA.MIX_PLAYLIST_ID)
+            id.startsWith(Constants.MIX_PLAYLIST_ID) -> {
+                val playlist = id.removePrefix(Constants.MIX_PLAYLIST_ID)
                 Log.d(TAG, "Fetching every track in playlist $playlist to shuffle")
                 browseRepository.getPlaylistTracksForShuffle(playlist)
             }
 
-            id.startsWith(ConstantsAA.MIX_DECADE_ID) -> {
+            id.startsWith(Constants.MIX_DECADE_ID) -> {
                 // The whole DecadeKey payload -- library and decade -- passed
                 // on unsplit. Only PlexBrowseRepository.decadeTracks takes it
                 // apart, and only to build the Plex filter.
-                val decadeKey = id.removePrefix(ConstantsAA.MIX_DECADE_ID)
+                val decadeKey = id.removePrefix(Constants.MIX_DECADE_ID)
                 cachedDecadeTracks(decadeKey)
                     ?: run {
                         Log.d(TAG, "Fetching a random sample of decade $decadeKey to shuffle")
@@ -244,8 +244,8 @@ class MediaLibrarySessionCallback(
     private fun cachedDecadeTracks(
         decadeKey: String
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
-        val cached = queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE]
-        if (cached?.firstOrNull()?.mediaId != ConstantsAA.MIX_DECADE_ID + decadeKey) return null
+        val cached = queueSourceCache[Constants.QUEUE_CACHED_SOURCE]
+        if (cached?.firstOrNull()?.mediaId != Constants.MIX_DECADE_ID + decadeKey) return null
 
         Log.d(TAG, "Serving decade $decadeKey shuffle from the cached browse list")
         return Futures.immediateFuture(
@@ -448,9 +448,9 @@ class MediaLibrarySessionCallback(
                 MoreExecutors.directExecutor()
             )
 
-            parentId?.startsWith(ConstantsAA.QUEUE_CACHED_SOURCE) == true -> {
+            parentId?.startsWith(Constants.QUEUE_CACHED_SOURCE) == true -> {
                 Log.d(TAG, "Fetching AA list source tracks for $parentId")
-                val cachedItems = queueSourceCache[ConstantsAA.QUEUE_CACHED_SOURCE] ?: emptyList()
+                val cachedItems = queueSourceCache[Constants.QUEUE_CACHED_SOURCE] ?: emptyList()
                 Futures.immediateFuture(cachedItems)
             }
 

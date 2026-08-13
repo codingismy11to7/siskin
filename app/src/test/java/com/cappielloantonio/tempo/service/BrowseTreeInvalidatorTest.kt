@@ -4,7 +4,7 @@ import android.os.Looper
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.cappielloantonio.tempo.App
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -64,11 +64,11 @@ class BrowseTreeInvalidatorTest {
         // the same pattern LibraryPickerCommitTest uses for stopPlayback().
         idleMainLooper()
 
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ROOT_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.PLAYLIST_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ARTISTS_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ALBUMS_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.MORE_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.PLAYLIST_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))
     }
 
     @Test
@@ -80,11 +80,11 @@ class BrowseTreeInvalidatorTest {
         BrowseTreeInvalidator.invalidateRoot()
         idleMainLooper()
 
-        verify(session).notifyChildrenChanged(eq(ConstantsAA.ROOT_ID), any(), eq(null))
-        verify(session, never()).notifyChildrenChanged(eq(ConstantsAA.PLAYLIST_ID), any(), eq(null))
-        verify(session, never()).notifyChildrenChanged(eq(ConstantsAA.ARTISTS_ID), any(), eq(null))
-        verify(session, never()).notifyChildrenChanged(eq(ConstantsAA.ALBUMS_ID), any(), eq(null))
-        verify(session, never()).notifyChildrenChanged(eq(ConstantsAA.MORE_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
+        verify(session, never()).notifyChildrenChanged(eq(Constants.PLAYLIST_ID), any(), eq(null))
+        verify(session, never()).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
+        verify(session, never()).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
+        verify(session, never()).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))
     }
 
     @Test

@@ -13,7 +13,7 @@ import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
-import com.cappielloantonio.tempo.util.ConstantsAA
+import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -124,7 +124,7 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         setMediaItems(
             MediaItem.Builder()
-                .setMediaId(ConstantsAA.MIX_PLAYLIST_ID + PLAYLIST)
+                .setMediaId(Constants.MIX_PLAYLIST_ID + PLAYLIST)
                 .build()
         )
 
@@ -139,7 +139,7 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         setMediaItems(
             MediaItem.Builder()
-                .setMediaId(ConstantsAA.MIX_DECADE_ID + DECADE)
+                .setMediaId(Constants.MIX_DECADE_ID + DECADE)
                 .build()
         )
 
@@ -188,7 +188,7 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         assertTrue(
             "queue must not contain the Mix row: ${result.mediaItems.map { it.mediaId }}",
-            result.mediaItems.none { it.mediaId == ConstantsAA.MIX_DECADE_ID + DECADE }
+            result.mediaItems.none { it.mediaId == Constants.MIX_DECADE_ID + DECADE }
         )
     }
 
@@ -274,7 +274,7 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         val result = setMediaItems(
             MediaItem.Builder()
-                .setMediaId(ConstantsAA.MIX_PLAYLIST_ID + PLAYLIST)
+                .setMediaId(Constants.MIX_PLAYLIST_ID + PLAYLIST)
                 .build()
         )
 
@@ -353,7 +353,7 @@ class MediaLibrarySessionCallbackShuffleTest {
     }
 
     private fun mixArtistRow() = MediaItem.Builder()
-        .setMediaId(ConstantsAA.MIX_ARTIST_ID + ARTIST)
+        .setMediaId(Constants.MIX_ARTIST_ID + ARTIST)
         .build()
 
     /**
@@ -363,7 +363,7 @@ class MediaLibrarySessionCallbackShuffleTest {
      * set on every item, and a bare builder trips that check.
      */
     private fun decadeMixRow(decade: String) =
-        PlexMediaMapper.mixRowToMediaItem(ConstantsAA.MIX_DECADE_ID + decade, "Decade Mix")
+        PlexMediaMapper.mixRowToMediaItem(Constants.MIX_DECADE_ID + decade, "Decade Mix")
 
     /**
      * What a real browse of a decade leaves in `queueSourceCache`: the shuffle
@@ -380,9 +380,9 @@ class MediaLibrarySessionCallbackShuffleTest {
         val children = callback.onGetChildren(
             mock<MediaLibraryService.MediaLibrarySession>(),
             controller,
-            ConstantsAA.DECADE_ID + decade,
+            Constants.DECADE_ID + decade,
             0,
-            ConstantsAA.MAX_ITEMS,
+            Constants.MAX_ITEMS,
             null
         ).get()
 
@@ -418,7 +418,7 @@ class MediaLibrarySessionCallbackShuffleTest {
             year = null,
             grandparentRatingKey = ARTIST,
             isHearted = false,
-            parentId = ConstantsAA.QUEUE_CACHED_SOURCE,
+            parentId = Constants.QUEUE_CACHED_SOURCE,
             serverUri = SERVER,
             token = "server-token"
         )

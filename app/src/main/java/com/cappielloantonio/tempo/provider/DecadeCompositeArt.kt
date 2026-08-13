@@ -60,7 +60,7 @@ object DecadeCompositeArt {
      * looks like, and it is only [isSafeCacheIdentifier] being widened to
      * admit `-` itself that could ever put it at risk.
      *
-     * Real machine identifiers are also hex (`ConstantsAA.PICK_LIBRARY_ID`
+     * Real machine identifiers are also hex (`Constants.PICK_LIBRARY_ID`
      * documents it), and this string contains 'n', 'o', 'm', 'h' and 'i' --
      * none of them hex digits -- which is a second, independent reason the
      * two can never match, and the one to fall back on if the structural
@@ -87,7 +87,7 @@ object DecadeCompositeArt {
      * sentinel as a null one, so two servers that both happened to hand out
      * an unsafe identifier would share composites -- the bug this file exists
      * to fix, recurring in a corner. Theoretical for real Plex: identifiers
-     * are hex, as `ConstantsAA.PICK_LIBRARY_ID` documents.
+     * are hex, as `Constants.PICK_LIBRARY_ID` documents.
      * [StreamingCacheKeyFactory] makes the opposite call for its own
      * machine-identifier-keyed cache, falling back to the request origin so a
      * legacy session does not collapse onto every other one -- that fallback
