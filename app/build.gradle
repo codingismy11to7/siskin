@@ -114,6 +114,20 @@ android {
     }
 }
 
+// The point of clearing the Kotlin warnings is that the next one is visible, and
+// a warning nobody is forced to read goes back to being scenery. CI gates on
+// testDebugUnitTest and assembleDebug, so this makes both of them the gate.
+//
+// Scope worth knowing: this is a kotlinc option, so it covers compilation
+// diagnostics only. Configuration-time warnings from Gradle plugins -- the
+// deprecated `org.jetbrains.kotlin.android` plugin id among them -- are emitted
+// before any of this applies and are unaffected. See #26.
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors = true
+    }
+}
+
 // Uploads go to the internal track as a DRAFT, which needs a manual
 // confirmation in the Play Console before testers see it.
 //

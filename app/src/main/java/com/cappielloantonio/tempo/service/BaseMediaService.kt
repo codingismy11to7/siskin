@@ -498,7 +498,13 @@ open class BaseMediaService : MediaLibraryService() {
                 return DefaultAudioSink.Builder(context)
                     .setAudioProcessors(arrayOf(ReplayGainUtil.getAudioProcessor()))
                     .setEnableFloatOutput(enableFloatOutput)
-                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    // Renamed in media3, not re-specified: the deprecated
+                    // setEnableAudioTrackPlaybackParams writes the same
+                    // `enableAudioOutputPlaybackParameters` field this does. The
+                    // parameter this forwards is still named for the old API
+                    // because it is DefaultRenderersFactory.buildAudioSink's, and
+                    // that signature has not changed.
+                    .setEnableAudioOutputPlaybackParameters(enableAudioTrackPlaybackParams)
                     .build()
             }
         }
