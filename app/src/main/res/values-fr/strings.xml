@@ -14,6 +14,10 @@
     <string name="browse_select_library">Choisir une bibliothèque</string>
     <string name="browse_decades">Décennies</string>
     <string name="browse_mix_decade">Mix de la décennie</string>
+    <string name="browse_discover">Découvrir</string>
+    <string name="browse_mix_hub">Mix</string>
+    <string name="browse_discover_empty">Aucune suggestion pour l\'instant</string>
+    <string name="browse_discover_empty_hint">Écoutez de la musique et revenez plus tard</string>
 
     <plurals name="car_artist_count">
         <item quantity="one">%d artiste</item>
