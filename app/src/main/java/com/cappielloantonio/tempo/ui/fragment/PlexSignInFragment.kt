@@ -1,7 +1,6 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import android.graphics.drawable.Drawable
-import androidx.appcompat.app.AlertDialog
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
@@ -13,6 +12,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -386,6 +386,12 @@ class PlexSignInFragment : Fragment() {
                 append("\n").append(it).append("  <- ").append(getString(R.string.debug_addresses_in_use))
             }
         }
+
+        // Dismiss any previously-shown dialog to prevent orphaning it when
+        // showAddressPanel is called again before the prior dialog closes --
+        // e.g., if re-probe is still in flight and the user taps the version
+        // line again. The new dialog takes its place in addressDialog.
+        addressDialog?.dismiss()
 
         addressDialog = MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.debug_addresses_title)
