@@ -12,6 +12,8 @@
 
 ## [Unreleased] — Siskin
 
+## [0.99.4] (2026-08-14)
+
 - The three shuffle rows are now Artist Mix, Playlist Mix and Decade Mix, and
   each hands over a queue this app has already shuffled. The queue you see is
   the queue that plays, and tapping one no longer flips the car's own shuffle

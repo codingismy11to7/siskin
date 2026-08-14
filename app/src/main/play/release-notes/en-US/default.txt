@@ -1,6 +1,3 @@
-• Browsing and playback no longer die when you drive away from the network you signed in on — the server address re-resolves itself.
-• Continuous play is off by default now, and is a setting.
-• ReplayGain and "use the car's shuffle" are settings too.
-• Decades, in the More tab, with cover artwork.
-• Artists and Albums no longer stop partway — the whole library is reachable.
-• Artists are grouped by first letter.
+• The three shuffle rows are now Artist Mix, Playlist Mix and Decade Mix. Each hands over a queue that is already shuffled, so the queue you see is the queue that plays.
+• Tapping a Mix no longer flips the car's shuffle control, and tapping a track no longer switches it off. Only the car's own shuffle button changes shuffle mode.
+• "Use the car's shuffle" is gone from Settings — a Mix is now always a shuffled queue.
