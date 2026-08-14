@@ -332,7 +332,7 @@ class PlexSignInFragment : Fragment() {
 
         val gravity =
             if (isOpenEndedList) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
-        (bind.root as LinearLayout).gravity = gravity
+        bind.root.gravity = gravity
         bind.scrollContent.gravity = gravity
     }
 

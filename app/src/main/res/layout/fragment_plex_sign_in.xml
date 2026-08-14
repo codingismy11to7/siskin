@@ -120,7 +120,7 @@
                         android:layout_height="@dimen/plex_sign_in_qr_size"
                         android:contentDescription="@string/plex_sign_in_qr_description"
                         android:padding="16dp"
-                        android:tint="@android:color/black" />
+                        app:tint="@android:color/black" />
                 </com.google.android.material.card.MaterialCardView>
 
                 <LinearLayout

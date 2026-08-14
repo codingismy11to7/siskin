@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.play.publisher)
 }
@@ -111,6 +110,26 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+    }
+
+    // See docs/decisions/2026-08-13-build-hygiene-design.md.
+    lint {
+        abortOnError = true
+
+        // Dependency-freshness checks: not facts about this repository.
+        disable += [
+            'NewerVersionAvailable',
+            'GradleDependency',
+            'UseTomlInstead',
+            'AndroidGradlePluginVersion',
+        ]
+    }
+}
+
+// Covers test sources too. See docs/decisions/2026-08-13-build-hygiene-design.md.
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors = true
     }
 }
 

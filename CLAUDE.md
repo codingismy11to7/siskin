@@ -19,22 +19,21 @@ deleted rather than ported.
     ./gradlew testDebugUnitTest          # unit tests (what CI gates on)
     ./gradlew assembleDebug              # debug APK
     ./gradlew assembleRelease            # R8 + ABI splits; use to check size deltas
-    ./gradlew lintDebug                  # see the caveat below
+    ./gradlew lintDebug                  # also gates CI
 
 Single test class or method:
 
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest*'
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
-**`lintDebug` fails on `main` with 9 pre-existing errors.** CI does not run it
-— only `testDebugUnitTest` and `assembleDebug` — so a red lint is not
-necessarily yours. The baseline breaks down as:
+**`lintDebug` is clean and CI runs it, so a lint error is yours.** Errors are
+fatal; warnings are not, and 27 of those remain (#99). Four dependency-freshness
+checks are disabled — they report on other people's release schedules, not on
+this repository.
 
-- **8 × `UnsafeOptInUsageError`** across `database/dao/QueueDao.java` and
-  `SessionMediaItemDao.java`
-- **1 × `UseAppTint`** in `res/layout/fragment_plex_sign_in.xml`
-
-Check the delta against that baseline rather than the absolute count.
+**Kotlin compiles with `-Werror`**, test sources included. Configuration-time
+Gradle warnings are outside its reach. See
+`docs/decisions/2026-08-13-build-hygiene-design.md`.
 
 **`MissingTranslation` is not in that baseline, and a new one is a real defect.**
 Siskin ships five locales — English, German, Spanish, French, Italian — and all

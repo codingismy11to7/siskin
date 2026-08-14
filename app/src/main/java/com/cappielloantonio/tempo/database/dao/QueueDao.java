@@ -1,5 +1,7 @@
 package com.cappielloantonio.tempo.database.dao;
 
+import androidx.annotation.OptIn;
+import androidx.media3.common.util.UnstableApi;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
@@ -10,6 +12,14 @@ import com.cappielloantonio.tempo.model.Queue;
 
 import java.util.List;
 
+/**
+ * {@link Queue} is annotated {@code @UnstableApi} because it maps a media3
+ * MediaItem, so every signature here mentioning it needs the opt-in. Declared
+ * on the type rather than per method, matching SessionMediaItemRepository, and
+ * carrying no risk of hiding anything: this interface's whole surface is these
+ * queries.
+ */
+@OptIn(markerClass = UnstableApi.class)
 @Dao
 public interface QueueDao {
     @Query("SELECT * FROM queue ORDER BY track_order ASC")
