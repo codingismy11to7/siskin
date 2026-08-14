@@ -185,10 +185,15 @@
         out="$root/build/web"
         mkdir -p "$out"
 
+        # pagetitle, not `--metadata title`: the latter also emits a title block
+        # into the body, which duplicates the heading the markdown already
+        # starts with. This sets <title> alone and leaves the document's own h1
+        # as the only one -- which is also what docs/web/style.html's `h1+p`
+        # subtitle rule expects.
         render() {
           "${pkgs.pandoc}/bin/pandoc" "$root/docs/$1.md" \
             --from markdown --to html5 --standalone \
-            --metadata title="$2" \
+            --variable pagetitle="$2" \
             --include-in-header "$root/docs/web/style.html" \
             --output "$out/$3"
           echo "  $out/$3  ($(stat -c %s "$out/$3") bytes)"
