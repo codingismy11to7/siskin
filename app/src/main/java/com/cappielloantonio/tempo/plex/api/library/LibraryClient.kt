@@ -124,8 +124,8 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
      * One hub's contents, or null when its key is not safe to follow.
      *
      * Null rather than a Left: a rejected key is not a transport failure, it is
-     * a row that should never have been drawn, and [PlexBrowseRepository]
-     * drops it at listing time.
+     * a row that should never have been drawn. A null return is the refusal;
+     * the caller is responsible for not drawing a row it cannot open.
      */
     suspend fun getByHubKey(key: String): Either<PlexTransportFailure, PlexResponse>? {
         if (!isSafeHubKey(key)) {

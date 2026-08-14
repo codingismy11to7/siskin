@@ -7,6 +7,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -310,6 +311,23 @@ class LibraryServiceTest {
         // A backslash anywhere is rejected, not just leading -- a real Plex
         // key never contains one, so there is nothing to allow.
         assertFalse(LibraryClient.isSafeHubKey("/library/sections/7\\evil.example/all"))
+    }
+
+    @Test
+    fun okHttpResolvesABackslashKeyOffHostWhichIsWhyTheGuardRejectsIt() {
+        // isSafeHubKey's backslash rejection rests entirely on OkHttp's own
+        // resolution behaviour, not on anything this codebase controls. This
+        // pins that behaviour directly, against the same MockWebServer base
+        // URL the guard's own comment measures against, so an OkHttp upgrade
+        // that changed which characters take the authority branch fails this
+        // test loudly instead of leaving the guard quietly wrong.
+        val base = server.url("/")
+
+        listOf("/library/sections/7/all?type=9", "/hubs/sections/7/popular?monthsAgo=4")
+            .forEach { assertEquals(base.host, base.resolve(it)?.host) }
+
+        listOf("/\\evil.example/x", "\\\\evil.example/x", "//evil.example/x")
+            .forEach { assertNotEquals(base.host, base.resolve(it)?.host) }
     }
 
     @Test
