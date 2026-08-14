@@ -81,6 +81,25 @@ class ServerAddressBook private constructor(
     fun current(): String? = api.session?.serverUri
 
     /**
+     * Every address known for the session's server, beside the one in use.
+     *
+     * Reads only what [adopt] and [reprobe] already persisted and probes
+     * nothing, so it costs nothing to open. The stamp rule lives in
+     * [storedCandidates]: a list belonging to another server reports as no
+     * candidates rather than as this server's.
+     *
+     * See docs/decisions/2026-08-14-server-address-debug-design.md.
+     */
+    fun knownAddresses(): KnownAddresses {
+        val stored = storedCandidates(api.session?.machineIdentifier)
+        return KnownAddresses(
+            current = current(),
+            direct = stored?.direct.orEmpty(),
+            relay = stored?.relay.orEmpty()
+        )
+    }
+
+    /**
      * Records a server's full address list beside the address just chosen.
      *
      * Called from the two places that write a session -- sign-in and the More
@@ -363,6 +382,13 @@ class ServerAddressBook private constructor(
     /** The persisted shape. Separate from ServerProbe.Candidates so the stamp travels with it. */
     private data class StoredCandidates(
         val machineIdentifier: String,
+        val direct: List<String>,
+        val relay: List<String>
+    )
+
+    /** What [knownAddresses] reports. Public: the debug panel renders it. */
+    data class KnownAddresses(
+        val current: String?,
         val direct: List<String>,
         val relay: List<String>
     )

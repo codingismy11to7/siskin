@@ -654,4 +654,40 @@ class ServerAddressBookTest {
         assertEquals("a plex.tv failure must not trigger a server re-probe", 0, live.requestCount)
         live.shutdown()
     }
+
+    @Test
+    fun knownAddressesReportsTheStoredListAndTheAddressInUse() {
+        signedInAt("https://lan.example")
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(
+            resource(
+                "machine-a",
+                connection("https://lan.example"),
+                connection("https://relay.example", relay = true)
+            ),
+            "https://lan.example"
+        )
+
+        val known = book.knownAddresses()
+
+        assertEquals("https://lan.example", known.current)
+        assertEquals(listOf("https://lan.example"), known.direct)
+        assertEquals(listOf("https://relay.example"), known.relay)
+    }
+
+    @Test
+    fun knownAddressesReportsNoCandidatesWhenTheStampIsForAnotherServer() {
+        // The stamp rule storedCandidates already enforces, reachable through
+        // the new accessor: a list belonging to a server the user has left must
+        // never be shown as this server's addresses.
+        signedInAt("https://lan.example", machineIdentifier = "machine-a")
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(resource("machine-b", connection("https://other.example")), "https://other.example")
+
+        val known = book.knownAddresses()
+
+        assertEquals("https://lan.example", known.current)
+        assertTrue(known.direct.isEmpty())
+        assertTrue(known.relay.isEmpty())
+    }
 }
