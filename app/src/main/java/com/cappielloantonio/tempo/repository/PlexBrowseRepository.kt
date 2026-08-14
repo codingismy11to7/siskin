@@ -23,6 +23,7 @@ import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.models.Hub
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.provider.DecadeCompositeArt
@@ -179,6 +180,37 @@ class PlexBrowseRepository {
             directoriesOf(body).mapNotNull {
                 PlexMediaMapper.decadeToMediaItem(it, prefix, scope, bucket)
             }
+        }
+    }
+
+    /**
+     * The hubs this section's server chose to compute, in the order it returned
+     * them.
+     *
+     * Siskin mirrors rather than curates: there is no list of blessed hub
+     * identifiers here, so a hub Plex adds later appears with no code change.
+     * The three exclusions are structural rather than editorial -- an empty hub
+     * would open onto nothing, a `clip` hub is music videos this app cannot
+     * play, and a key that is not a relative path must never be followed at all
+     * (see [LibraryClient.isSafeHubKey]).
+     *
+     * Empty hubs are an ordinary outcome, not an error: measured against PMS
+     * 1.43.3, "Top Albums from 1993" is empty because that library has nothing
+     * rated from 1993, and "Artists on Tour" is empty because no artist carries
+     * a tour tag. Both answer 200. The hub set itself is derived from listening
+     * history rather than fixed -- a server with none emits six hubs, five of
+     * them empty, while one with history emits ten -- so this renders whatever
+     * arrives rather than a known list.
+     */
+    fun getHubs(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val session = api.session ?: return errorFuture()
+        val scope = DecadeCompositeArt.scopeOf(session)
+        return fetch({ libraryClient.getSectionHubs(session.musicSectionKey) }) { body ->
+            hubsOf(body)
+                .filter { (it.size ?: 0) > 0 }
+                .filter { it.type != TYPE_CLIP }
+                .filter { LibraryClient.isSafeHubKey(it.key) }
+                .mapNotNull { PlexMediaMapper.hubToMediaItem(it, prefix, scope) }
         }
     }
 
@@ -836,6 +868,7 @@ class PlexBrowseRepository {
         private const val TYPE_ALBUM = "album"
         private const val TYPE_ARTIST = "artist"
         private const val TYPE_PLAYLIST = "playlist"
+        private const val TYPE_CLIP = "clip"
 
         /**
          * Narrows a container to streamable tracks. An absent Metadata list is an
@@ -861,6 +894,11 @@ class PlexBrowseRepository {
         @JvmStatic
         fun directoriesOf(response: PlexResponse?): List<Directory> =
             response?.mediaContainer?.directory ?: emptyList()
+
+        /** A container's Hub rows; an absent list is an empty result. */
+        @JvmStatic
+        fun hubsOf(response: PlexResponse?): List<Hub> =
+            response?.mediaContainer?.hub ?: emptyList()
 
         /**
          * Decides what a browse outcome means to media3.

@@ -12,11 +12,13 @@ import androidx.media3.session.MediaConstants
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.models.Hub
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
+import com.cappielloantonio.tempo.util.HubKey
 import com.cappielloantonio.tempo.util.ResourceUris
 
 /**
@@ -380,6 +382,49 @@ object PlexMediaMapper {
                     .setIsPlayable(false)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                     .setArtworkUri(AlbumArtContentProvider.decadeContentUri(scope, key, bucket))
+                    .setExtras(extras)
+                    .build()
+            )
+            .build()
+    }
+
+    /**
+     * A Discover row, from one [Hub].
+     *
+     * Carries no artwork and takes none. A hub row is a proposition -- "Haven't
+     * played in 5 months" -- and four album covers cannot tell it apart from
+     * "Most Played in April"; the covers would be the answer to the row rather
+     * than a picture of it. Its children are browsable, and are listed rather
+     * than gridded for the same reason, permanently. See the 2026-08-14 hubs
+     * browse design.
+     *
+     * [Hub.title] arrives already localised, because the client sends
+     * X-Plex-Language, so nothing here formats or translates it.
+     */
+    @JvmStatic
+    fun hubToMediaItem(hub: Hub, idPrefix: String, scope: String): MediaItem? {
+        val key = hub.key?.takeIf { it.isNotBlank() } ?: return null
+        val title = hub.title?.takeIf { it.isNotBlank() } ?: return null
+
+        val extras = Bundle().apply {
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                BrowseContentStyle.browsableChildStyle(false)
+            )
+            putInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                BrowseContentStyle.PLAYABLE_CHILD_STYLE
+            )
+        }
+
+        return MediaItem.Builder()
+            .setMediaId(idPrefix + HubKey.of(scope, key))
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                     .setExtras(extras)
                     .build()
             )

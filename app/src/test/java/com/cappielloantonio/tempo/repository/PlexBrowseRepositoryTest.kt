@@ -21,6 +21,7 @@ import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.provider.DecadeCompositeArt
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
+import com.cappielloantonio.tempo.util.HubKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.test.runTest
@@ -753,6 +754,54 @@ class PlexBrowseRepositoryTest {
         val result = await(PlexBrowseRepository().getDecadeTracksForShuffle(DECADE_KEY))
 
         assertEquals(listOf("11", "22"), result.value!!.map { it.mediaId })
+    }
+
+    // ── getHubs ───────────────────────────────────────────────
+
+    @Test
+    fun listsOnlyHubsThatCanBeOpened() {
+        // Four hubs a real server can hand back, each excluded (or not) for a
+        // different reason: an ordinary populated hub survives, an empty one is
+        // dropped (measured against PMS 1.43.3 -- an empty hub is not an error,
+        // see PlexMediaMapper's KDoc), a `clip` hub is music videos this app
+        // cannot play, and a key that resolves off-host must never be followed
+        // regardless of what the row looks like (LibraryClient.isSafeHubKey).
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                {"MediaContainer":{"Hub":[
+                  {"hubIdentifier":"music.recent.added.7","title":"Recently Added",
+                   "type":"album","size":6,"key":"/library/sections/7/all?type=9"},
+                  {"hubIdentifier":"music.top.period.7","title":"Top Albums from 1993",
+                   "type":"album","size":0,"key":"/library/sections/7/all?year=1993"},
+                  {"hubIdentifier":"music.videos.new.7","title":"Music Videos",
+                   "type":"clip","size":6,"key":"/library/sections/7/extras/all"},
+                  {"hubIdentifier":"music.evil.7","title":"Elsewhere",
+                   "type":"album","size":6,"key":"https://elsewhere.example/x"}
+                ]}}
+                """.trimIndent()
+            )
+        )
+
+        val result = await(PlexBrowseRepository().getHubs(Constants.HUB_ID))
+
+        val request = server.takeRequest()
+        assertEquals("/hubs/sections/1", request.requestUrl?.encodedPath)
+        assertEquals(1, result.value!!.size)
+        assertEquals("Recently Added", result.value!!.single().mediaMetadata.title)
+        assertEquals(
+            Constants.HUB_ID + HubKey.of(scope(), "/library/sections/7/all?type=9"),
+            result.value!!.single().mediaId
+        )
+    }
+
+    @Test
+    fun getHubsWithNoSectionSelectedReturnsPermissionDenied() {
+        PlexApi().musicSectionKey = null
+
+        val result = PlexBrowseRepository().getHubs(Constants.HUB_ID).get(2, TimeUnit.SECONDS)
+
+        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
 
     private companion object {
