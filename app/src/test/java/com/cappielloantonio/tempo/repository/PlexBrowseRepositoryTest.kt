@@ -804,6 +804,160 @@ class PlexBrowseRepositoryTest {
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
 
+    // ── getHubContent / getHubTracksForShuffle / getHubTracksForIds ─────
+
+    private fun hubItemsBody(vararg items: Pair<String, String>) = """
+        {"MediaContainer":{"Metadata":[${
+        items.joinToString(",") { (ratingKey, type) ->
+            """{"ratingKey":"$ratingKey","type":"$type","title":"$ratingKey"}"""
+        }
+    }]}}
+    """.trimIndent()
+
+    @Test
+    fun opensAHubOnItsMixRowThenItsContainers() {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                hubItemsBody("111" to "album", "222" to "artist")
+            )
+        )
+
+        val result = await(PlexBrowseRepository().getHubContent(HUB_KEY))
+
+        val items = result.value!!
+        assertEquals(3, items.size)
+        assertTrue(items[0].mediaId.startsWith(Constants.MIX_HUB_ID))
+        assertEquals(Constants.ALBUM_ID + "111", items[1].mediaId)
+        assertEquals(Constants.ARTIST_ID + "222", items[2].mediaId)
+    }
+
+    @Test
+    fun followsOnlyTheKeyPartOfTheHubPayload() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(hubItemsBody()))
+
+        await(PlexBrowseRepository().getHubContent(HUB_KEY))
+
+        assertEquals("/library/sections/7/all", server.takeRequest().requestUrl?.encodedPath)
+    }
+
+    @Test
+    fun aHubKeyRejectedByTheSafetyGuardBecomesPermissionDeniedRatherThanReachingTheServer() {
+        // getByHubKey answers null for a key isSafeHubKey refuses -- getHubs is
+        // what normally keeps such a key from ever reaching a row, but a stale
+        // or tampered id must still fail safely rather than address whatever
+        // host the payload names.
+        val result = await(
+            PlexBrowseRepository().getHubContent("abc123-7|https://elsewhere.example/x")
+        )
+
+        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun explainsAHubThatCameBackEmptyInsteadOfOfferingAMixOfNothing() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(hubItemsBody()))
+
+        val result = await(PlexBrowseRepository().getHubContent(HUB_KEY))
+
+        val items = result.value!!
+        assertEquals(1, items.size)
+        assertTrue(items[0].mediaId.startsWith(Constants.PICK_MESSAGE_ID))
+        assertTrue(items.none { it.mediaId.startsWith(Constants.MIX_HUB_ID) })
+    }
+
+    @Test
+    fun theShuffleVariantCarriesNoMixRow() {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(hubItemsBody("111" to "album"))
+        )
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(tracksBody("900"))
+        )
+
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+
+        val items = result.value!!
+        assertTrue(items.none { it.mediaId.startsWith(Constants.MIX_HUB_ID) })
+        assertTrue(items.all { it.mediaMetadata.isPlayable == true })
+        assertEquals(listOf("900"), items.map { it.mediaId })
+    }
+
+    @Test
+    fun theShuffleVariantFiltersTheSecondRequestByTheFirstResponsesContainers() {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                hubItemsBody("111" to "album", "222" to "artist")
+            )
+        )
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("900")))
+
+        await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+
+        server.takeRequest() // the hub-key follow
+        val trackRequest = server.takeRequest()
+        assertEquals("111", trackRequest.requestUrl?.queryParameter("album.id"))
+        assertEquals("222", trackRequest.requestUrl?.queryParameter("artist.id"))
+        assertEquals(LibraryClient.SORT_RANDOM, trackRequest.requestUrl?.queryParameter("sort"))
+    }
+
+    @Test
+    fun theShuffleVariantCostsOnlyOneRequestWhenTheHubHoldsNoContainers() {
+        // cachedTracks finds no tracks in the head response and the node
+        // renders empty, which is the honest answer to a key that has already
+        // stopped matching anything -- and it costs no second request.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(hubItemsBody()))
+
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+
+        assertTrue(result.value!!.isEmpty())
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun theShuffleVariantsFirstRequestFailureReachesTheCaller() {
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+
+        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun theShuffleVariantsSecondRequestFailureReachesTheCaller() {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(hubItemsBody("111" to "album"))
+        )
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+
+        assertEquals(SessionError.ERROR_BAD_VALUE, result.resultCode)
+    }
+
+    @Test
+    fun mixesAlbumsAndArtistsWithTheirOwnFilters() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody()))
+
+        await(PlexBrowseRepository().getHubTracksForIds(listOf("1", "2"), listOf("3")))
+
+        val url = server.takeRequest().requestUrl
+        assertEquals("1,2", url?.queryParameter("album.id"))
+        assertEquals("3", url?.queryParameter("artist.id"))
+        assertEquals(LibraryClient.SORT_RANDOM, url?.queryParameter("sort"))
+    }
+
+    @Test
+    fun getHubTracksForIdsWithNoSectionSelectedReturnsPermissionDenied() {
+        PlexApi().musicSectionKey = null
+
+        val result = PlexBrowseRepository().getHubTracksForIds(listOf("1"), emptyList())
+            .get(2, TimeUnit.SECONDS)
+
+        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
+    }
+
     private companion object {
         /** What the car sends back on a decade tap: the whole DecadeKey
          * payload, library and decade, exactly as `getDecades` minted it. The
@@ -811,5 +965,9 @@ class PlexBrowseRepositoryTest {
          * repository that quietly recomputed the decade from its own session
          * instead of reading the key would be visible here. */
         val DECADE_KEY = DecadeKey.of("f00dcafe-9", "1980")
+
+        /** A HubKey payload; the scope side is opaque to `followHubKey`, which
+         * reads only the part after the pipe -- see [HubKey.keyIn]. */
+        const val HUB_KEY = "abc123-7|/library/sections/7/all?type=9"
     }
 }
