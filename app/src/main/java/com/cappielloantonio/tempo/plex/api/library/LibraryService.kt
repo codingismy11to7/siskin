@@ -66,6 +66,11 @@ interface LibraryService {
      * What a caller sees is an empty list, which reads as an empty library
      * rather than as a malformed request -- and for the composite artwork that
      * feeds off the album form, as artwork that quietly never appears.
+     *
+     * [albumId] and [artistId] both accept a comma-separated list, which is
+     * how a Discover Mix turns the containers on screen into tracks in one
+     * request. Measured against PMS 1.43.3: 500 album ids in a 3,499-character
+     * URL answered 200 with 4,801 tracks.
      */
     @GET("library/sections/{sectionId}/all")
     suspend fun getSectionContent(
@@ -76,7 +81,8 @@ interface LibraryService {
         @Query("sort") sort: String?,
         @Query("artist.id") artistId: String?,
         @Query("album.decade") trackDecade: String?,
-        @Query("decade") albumDecade: String?
+        @Query("decade") albumDecade: String?,
+        @Query("album.id") albumId: String?
     ): PlexResponse
 
     /**

@@ -44,17 +44,18 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         sort: String? = null,
         artistId: String? = null,
         trackDecade: String? = null,
-        albumDecade: String? = null
+        albumDecade: String? = null,
+        albumId: String? = null
     ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(
             TAG,
             "getSectionContent($sectionKey, type=$type, start=$start, size=$size, " +
                 "sort=$sort, artistId=$artistId, trackDecade=$trackDecade, " +
-                "albumDecade=$albumDecade)"
+                "albumDecade=$albumDecade, albumId=$albumId)"
         )
         return plexCall(PlexHost.Server) {
             service.getSectionContent(
-                sectionKey.value, type, start, size, sort, artistId, trackDecade, albumDecade
+                sectionKey.value, type, start, size, sort, artistId, trackDecade, albumDecade, albumId
             )
         }
     }

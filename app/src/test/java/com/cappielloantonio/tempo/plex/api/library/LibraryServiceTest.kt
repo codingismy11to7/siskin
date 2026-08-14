@@ -65,7 +65,8 @@ class LibraryServiceTest {
             sort = "titleSort",
             artistId = "15100",
             trackDecade = null,
-            albumDecade = null
+            albumDecade = null,
+            albumId = null
         )
 
         val request = server.takeRequest()
@@ -152,7 +153,8 @@ class LibraryServiceTest {
             sort = "random",
             artistId = null,
             trackDecade = "1980",
-            albumDecade = null
+            albumDecade = null,
+            albumId = null
         )
 
         val request = server.takeRequest()
@@ -177,7 +179,8 @@ class LibraryServiceTest {
             sort = "random",
             artistId = null,
             trackDecade = null,
-            albumDecade = "1980"
+            albumDecade = "1980",
+            albumId = null
         )
 
         val request = server.takeRequest()
@@ -264,6 +267,19 @@ class LibraryServiceTest {
         val buckets = response.mediaContainer!!.directory!!
         assertEquals(listOf("#", "A"), buckets.map { it.title })
         assertEquals(listOf(12, 79), buckets.map { it.size })
+    }
+
+    @Test
+    fun filtersTracksByTheAlbumsTheyBelongTo() = runTest {
+        server.enqueue(MockResponse().setBody("{\"MediaContainer\":{\"size\":0}}"))
+
+        service().getSectionContent(
+            "7", 10, 0, 500, null, null, null, null, "111,222,333"
+        )
+
+        val url = server.takeRequest().requestUrl
+        assertEquals("111,222,333", url?.queryParameter("album.id"))
+        assertEquals("10", url?.queryParameter("type"))
     }
 
     @Test
