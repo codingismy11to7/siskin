@@ -241,6 +241,22 @@ suspend fun getByPath(@Url path: String): PlexResponse
 and a hub whose key fails that check is dropped at listing time — a row that
 cannot be opened should not be drawn.
 
+**A leading slash is not the whole rule, and finding out why is the reason this
+guard has its own tests.** OkHttp normalises a backslash to a slash, following
+the WHATWG URL Standard, so `/\evil.example/x` passes a slash-only check and
+resolves to `https://evil.example/x` — a different host, with the account token
+attached. This was measured against the pinned OkHttp and Retrofit, not
+reasoned about, and again independently in review; 23 further candidates
+(`%5C`, `%2F`, tabs and newlines, `..` traversal, `@`, embedded `#`,
+leading-space-then-slashes) were swept and none escaped. So the guard also
+rejects any key containing a backslash. That over-reaches slightly — a
+mid-string backslash cannot escape the host — and the cost is one dropped row
+for a key Plex would percent-encode anyway.
+
+A test pins OkHttp's resolution behaviour itself, separately from the guard.
+Without it, a dependency bump that changed which characters take the authority
+branch would reopen the hole with the suite fully green.
+
 A second hazard on the same call, which measurement partly retires: keys contain
 `>`, `<`, `!` and `=` (`viewCount>=50`, `lastViewedAt<=-5mon`), and OkHttp
 canonicalises `>` and `<` in a query to `%3E` and `%3C` rather than passing them
