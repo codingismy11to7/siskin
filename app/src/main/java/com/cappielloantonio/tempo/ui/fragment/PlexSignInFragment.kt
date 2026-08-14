@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import android.graphics.drawable.Drawable
+import androidx.appcompat.app.AlertDialog
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
@@ -51,6 +52,7 @@ private const val TAG = "PlexSignInFragment"
 class PlexSignInFragment : Fragment() {
 
     private var bind: FragmentPlexSignInBinding? = null
+    private var addressDialog: AlertDialog? = null
     private lateinit var viewModel: PlexSignInViewModel
 
     override fun onCreateView(
@@ -94,6 +96,11 @@ class PlexSignInFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // Dismiss the address panel if it is open. CarSignInActivity recreates
+        // on uiMode changes, and a dialog left open would remain bound to the
+        // destroyed Activity's token, leaking its window.
+        addressDialog?.dismiss()
+        addressDialog = null
         bind = null
     }
 
@@ -380,7 +387,7 @@ class PlexSignInFragment : Fragment() {
             }
         }
 
-        MaterialAlertDialogBuilder(requireContext())
+        addressDialog = MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.debug_addresses_title)
             .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
