@@ -21,7 +21,8 @@ object PlexIdentity {
     fun headers(
         clientIdentifier: String,
         appVersion: String,
-        token: String?
+        token: String?,
+        language: String
     ): Map<String, String> {
         val headers = linkedMapOf(
             "X-Plex-Client-Identifier" to clientIdentifier,
@@ -32,6 +33,15 @@ object PlexIdentity {
             "X-Plex-Model" to MODEL,
             "Accept" to "application/json"
         )
+
+        // Plex builds hub titles server-side and translates them -- "Keine
+        // Wiedergabe seit 4 Monaten" -- so this is what keeps the Discover rows
+        // in the car's language without a string resource per hub. Measured
+        // against PMS 1.43.3: all five of Siskin's locales are covered, with
+        // correct plurals. It also re-rolls each locale's hubs independently,
+        // so the *content* differs between languages and not only the words;
+        // see the 2026-08-14 hubs browse design.
+        if (language.isNotBlank()) headers["X-Plex-Language"] = language
 
         // An empty X-Plex-Token reads to Plex as a failed auth, not an anonymous
         // call, so omit the header entirely when signed out.

@@ -48,7 +48,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
     private val authClient: AuthClient = AuthClient(api),
     /** The probe is unauthenticated; the identity headers are courtesy, not access. */
     private val probe: ServerProbe = ServerProbe(
-        headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null)
+        headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null, api.language)
     ),
     /** Records the server's other addresses when chooseLibrary commits a session. */
     private val addressBook: ServerAddressBook = ServerAddressBook.shared,

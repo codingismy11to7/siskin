@@ -9,7 +9,7 @@ class PlexIdentityTest {
 
     @Test
     fun includesEveryHeaderPlexRequires() {
-        val headers = PlexIdentity.headers("cid-1", "1.2.3", null)
+        val headers = PlexIdentity.headers("cid-1", "1.2.3", null, "")
         assertEquals("cid-1", headers["X-Plex-Client-Identifier"])
         assertEquals("Siskin", headers["X-Plex-Product"])
         assertEquals("1.2.3", headers["X-Plex-Version"])
@@ -22,19 +22,33 @@ class PlexIdentityTest {
     fun omitsTheTokenHeaderWhenSignedOut() {
         // Sending an empty X-Plex-Token is not the same as sending none; Plex
         // treats the empty value as a failed auth rather than an anonymous call.
-        assertFalse(PlexIdentity.headers("cid-1", "1.2.3", null).containsKey("X-Plex-Token"))
-        assertFalse(PlexIdentity.headers("cid-1", "1.2.3", "  ").containsKey("X-Plex-Token"))
+        assertFalse(PlexIdentity.headers("cid-1", "1.2.3", null, "").containsKey("X-Plex-Token"))
+        assertFalse(PlexIdentity.headers("cid-1", "1.2.3", "  ", "").containsKey("X-Plex-Token"))
     }
 
     @Test
     fun includesTheTokenHeaderWhenSignedIn() {
-        assertEquals("tok123", PlexIdentity.headers("cid-1", "1.2.3", "tok123")["X-Plex-Token"])
+        assertEquals("tok123", PlexIdentity.headers("cid-1", "1.2.3", "tok123", "")["X-Plex-Token"])
     }
 
     @Test
     fun declaresAutomotiveAsTheDevice() {
         // Plex surfaces this string in the account's device list; "Android" alone
         // would be indistinguishable from the phone app.
-        assertEquals("Automotive", PlexIdentity.headers("cid-1", "1.2.3", null)["X-Plex-Device"])
+        assertEquals("Automotive", PlexIdentity.headers("cid-1", "1.2.3", null, "")["X-Plex-Device"])
+    }
+
+    @Test
+    fun sendsTheLanguageSoServerBuiltTitlesArriveTranslated() {
+        val headers = PlexIdentity.headers("cid", "1.0", "token", "de")
+
+        assertEquals("de", headers["X-Plex-Language"])
+    }
+
+    @Test
+    fun omitsTheLanguageHeaderWhenThereIsNoLanguage() {
+        val headers = PlexIdentity.headers("cid", "1.0", "token", "")
+
+        assertFalse(headers.containsKey("X-Plex-Language"))
     }
 }

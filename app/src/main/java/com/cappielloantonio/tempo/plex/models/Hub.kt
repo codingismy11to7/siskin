@@ -19,6 +19,18 @@ class Hub {
     var size: Int? = null
     var more: Boolean? = null
 
+    /**
+     * The server's own query for this row, e.g.
+     * `/library/sections/7/all?type=9&genre=138884`.
+     *
+     * Not a preview link -- it is the full query behind the hub, and the only
+     * way to open one: the parameters are rolled server-side, so a typed client
+     * cannot rebuild them. `music.popular`'s key is a different endpoint
+     * entirely (`/hubs/sections/7/popular?monthsAgo=4`), which is why following
+     * the key is the only uniform way in.
+     */
+    var key: String? = null
+
     @SerializedName("Metadata")
     var metadata: List<Metadata>? = null
 }
