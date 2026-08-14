@@ -133,12 +133,29 @@ kotlin {
     }
 }
 
-// A tag now publishes straight to the internal track, with the "what's new" text
+// A tag now publishes straight to internal testing, with the "what's new" text
 // from src/main/play/release-notes/. Credentials come from
 // ANDROID_PUBLISHER_CREDENTIALS in the environment, as with the signing config.
 // See docs/decisions/2026-07-31-play-release-pipeline-design.md.
+//
+// The track is 'automotive:internal' and not 'internal'. Play gives each
+// alternative form factor its own track family, and an artifact requiring
+// android.hardware.type.automotive -- which this app's manifest does, as a hard
+// requirement -- is refused by the plain tracks, which are the phone ones:
+//
+//   Artifact with version code 6 requires features that are not allowed on
+//   this track: android.hardware.type.automotive.
+//
+// That refusal arrives when the edit is committed, which is why it stayed
+// invisible for four releases. A DRAFT release is never live on its track and so
+// is never validated against it, and 0.99.0 through 0.99.3 all landed here as
+// drafts on 'internal' and were moved onto the automotive track by hand in the
+// Console. That is what the "confirm the draft" step was really doing.
+//
+// GPP resolves release notes as <track>.txt falling back to default.txt, so the
+// colon in the track name costs nothing here -- default.txt is what exists.
 play {
-    track.set('internal')
+    track.set('automotive:internal')
     releaseStatus.set(com.github.triplet.gradle.androidpublisher.ReleaseStatus.COMPLETED)
 }
 
