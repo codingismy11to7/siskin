@@ -241,10 +241,19 @@ suspend fun getByPath(@Url path: String): PlexResponse
 and a hub whose key fails that check is dropped at listing time — a row that
 cannot be opened should not be drawn.
 
-A second hazard on the same call: keys contain `>`, `<`, `!` and `=`
-(`viewCount>=50`, `lastViewedAt<=-5mon`). Re-encoding those silently changes the
-query, which is the class of bug `getFirstCharacterContent` already documents,
-where `%23` became `%2523` and answered 200 with an empty list.
+A second hazard on the same call, which measurement partly retires: keys contain
+`>`, `<`, `!` and `=` (`viewCount>=50`, `lastViewedAt<=-5mon`), and OkHttp
+canonicalises `>` and `<` in a query to `%3E` and `%3C` rather than passing them
+through. That turns out to be safe — against PMS 1.43.3, the raw form, the fully
+percent-encoded form and OkHttp's actual mixed form all returned the same 128
+artists, so the server decodes them.
+
+What is *not* safe is encoding an already-encoded key a second time, which is
+exactly what `getFirstCharacterContent` documents: `%23` became `%2523` and
+answered 200 with an empty list. So the key is handed over whole rather than
+decomposed into `@Query` parameters, and a round-trip test guards the boundary —
+not because single encoding breaks it, but because nothing else would notice if
+double encoding crept in.
 
 `getSectionContent` gains `album.id` beside the `artist.id` it already has.
 
