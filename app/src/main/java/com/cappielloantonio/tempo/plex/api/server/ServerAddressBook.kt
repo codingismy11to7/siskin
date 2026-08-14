@@ -165,6 +165,9 @@ class ServerAddressBook private constructor(
      * instead, so it still collapses against whatever every other caller is
      * racing. There is no caller for which passing nothing is meaningful.
      *
+     * [force] bypasses the failure cooldown, allowing a single re-probe to
+     * complete immediately. Used by the debug panel's manual button.
+     *
      * Returns the address now in use, or null when nothing answered, when the
      * session changed out from under a race already in flight (see
      * [adoptAddress]), or when something unexpected went wrong partway
@@ -203,7 +206,7 @@ class ServerAddressBook private constructor(
      * total "nothing answered" is, so the cooldown arms instead of leaving
      * every subsequent call to throw again immediately.
      */
-    suspend fun reprobe(staleAddress: String): String? = mutex.withLock {
+    suspend fun reprobe(staleAddress: String, force: Boolean = false): String? = mutex.withLock {
         try {
             val current = current()
             if (current != staleAddress) {
@@ -214,9 +217,12 @@ class ServerAddressBook private constructor(
             val session = api.session ?: return@withLock null
 
             val lastFailure = lastFailureAt
-            if (lastFailure != null && clock() - lastFailure < FAILURE_COOLDOWN_MS) {
+            if (!force && lastFailure != null && clock() - lastFailure < FAILURE_COOLDOWN_MS) {
                 // A car with no usable network would otherwise pay a full race per
-                // browse tab, serially, for as long as it stayed offline.
+                // browse tab, serially, for as long as it stayed offline. A forced
+                // race is the debug panel's button: a parked human asking once,
+                // which is neither of those things and is most useful precisely
+                // when the cooldown is armed.
                 Log.d(TAG, "in cooldown; not re-probing")
                 return@withLock null
             }
