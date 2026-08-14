@@ -1,0 +1,6 @@
+• Browsing and playback no longer die when you drive away from the network you signed in on — the server address re-resolves itself.
+• Continuous play is off by default now, and is a setting.
+• ReplayGain and "use the car's shuffle" are settings too.
+• Decades, in the More tab, with cover artwork.
+• Artists and Albums no longer stop partway — the whole library is reachable.
+• Artists are grouped by first letter.

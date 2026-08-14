@@ -310,8 +310,8 @@ A single-commit PR is rebase-merged; a multi-commit one is squashed.
 
 A release is a `Cut 0.99.x` commit and a `v0.99.x` tag. The tag is the trigger —
 pushing it fires `release.yml`, which re-runs the tests, decodes the upload
-keystore and runs `publishBundle`, landing a **draft** on Play's internal track
-for manual confirmation in the Console. See
+keystore and runs `publishBundle`. **That publishes to Play's internal track
+outright**; there is no Console step. See
 `docs/decisions/2026-07-31-play-release-pipeline-design.md`.
 
 The cut commit does three things:
@@ -321,7 +321,16 @@ The cut commit does three things:
    from 0.99.0 and 1.0.0 will be cut by that tool.
 2. Renames `## [Unreleased] — Siskin` in `CHANGELOG.md` to `## [0.99.x] (date)`
    and opens a fresh empty `[Unreleased]` above it.
-3. Nothing else. It is a version bump and a heading rename.
+3. Rewrites `app/src/main/play/release-notes/en-US/default.txt` by condensing
+   that same `[Unreleased]` section. The store's "what's new", **capped at 500
+   characters**, en-US only — the listing is not translated.
+
+**The release note is not a second changelog.** It is written once, at the cut,
+from the changelog; between releases the file holds the text of the build
+currently on Play. Nothing updates it per PR. The two are different jobs — the
+changelog explains, at whatever length the reason needs, for someone reading the
+repository in a year; the note is terse and user-facing and fits in 500
+characters — which is why the cut condenses rather than copies.
 
 `release.yml` refuses a tag whose name disagrees with `versionName`, so the tag
 follows the merge rather than racing it.
