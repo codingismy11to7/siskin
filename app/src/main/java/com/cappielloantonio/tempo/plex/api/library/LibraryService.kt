@@ -5,6 +5,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 /**
  * Plex Media Server library endpoints. Every response is MediaContainer-wrapped.
@@ -219,4 +220,22 @@ interface LibraryService {
         @Header("X-Plex-Container-Start") start: Int,
         @Header("X-Plex-Container-Size") size: Int
     ): PlexResponse
+
+    /**
+     * Follows a server-supplied path verbatim -- a hub's `key`, which is the
+     * only way to open a hub whose parameters were rolled server-side.
+     *
+     * **Callers must pass [LibraryClient.isSafeHubKey] first.** `@Url` accepts
+     * an absolute URL and would happily send this client's `X-Plex-Token` to
+     * another host, because PlexRetrofitFactory's interceptor attaches it to
+     * every request without inspecting the target.
+     *
+     * Keys carry comparison operators -- `viewCount>=50`,
+     * `lastViewedAt<=-5mon` -- so the string is handed over whole rather than
+     * decomposed into @Query parameters, which would re-encode them. This is
+     * the same hazard [getFirstCharacterContent] documents, where "%23"
+     * re-encoded to "%2523" and answered 200 with an empty list.
+     */
+    @GET
+    suspend fun getByPath(@Url path: String): PlexResponse
 }

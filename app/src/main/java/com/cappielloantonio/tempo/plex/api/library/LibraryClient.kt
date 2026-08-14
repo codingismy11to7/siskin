@@ -120,9 +120,49 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         }
     }
 
+    /**
+     * One hub's contents, or null when its key is not safe to follow.
+     *
+     * Null rather than a Left: a rejected key is not a transport failure, it is
+     * a row that should never have been drawn, and [PlexBrowseRepository]
+     * drops it at listing time.
+     */
+    suspend fun getByHubKey(key: String): Either<PlexTransportFailure, PlexResponse>? {
+        if (!isSafeHubKey(key)) {
+            Log.w(TAG, "refusing to follow a hub key that is not a relative path")
+            return null
+        }
+        Log.d(TAG, "getByHubKey($key)")
+        return plexCall(PlexHost.Server) { service.getByPath(key) }
+    }
+
     companion object {
         /** Plex reports a music library section's type as "artist". */
         private const val MUSIC_SECTION_TYPE = "artist"
+
+        /**
+         * Whether a hub's key may be followed.
+         *
+         * The token rides on every request this client makes, so an absolute
+         * URL out of a response body would hand a full account credential to
+         * whatever host it named. A single leading slash is most of the rule:
+         * "//host/path" is protocol-relative and resolves off-host, so it is
+         * rejected along with "https://...".
+         *
+         * The backslash check is not decorative. OkHttp's `HttpUrl.resolve`
+         * follows the WHATWG URL Standard's backslash-as-slash normalisation,
+         * so a key starting "/\\" or "\\\\" resolves exactly like "//" --
+         * measured: resolving "/\\evil.example/x" against this server's base
+         * URL answers `http://evil.example/x`, a different host, even though
+         * that string passes `startsWith("/")` and fails `startsWith("//")`.
+         * A real Plex hub key is a server-generated section path and never
+         * contains a literal backslash, so any is rejected outright rather
+         * than trying to enumerate the positions where OkHttp treats one as
+         * a slash.
+         */
+        @JvmStatic
+        fun isSafeHubKey(key: String?): Boolean =
+            key != null && key.startsWith("/") && !key.startsWith("//") && !key.contains('\\')
 
         /**
          * Sorts by the name actually shown, rather than by Plex's sort title.

@@ -8,6 +8,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
@@ -265,6 +266,53 @@ class LibraryServiceTest {
     }
 
     @Test
+    fun followsAHubKeyAsGivenIncludingItsComparisonOperators() = runTest {
+        server.enqueue(MockResponse().setBody("{\"MediaContainer\":{\"size\":0}}"))
+
+        service().getByPath(
+            "/library/sections/7/all?type=8&viewCount>=50&lastViewedAt<=-5mon&sort=random"
+        )
+
+        val request = server.takeRequest()
+        assertEquals("/library/sections/7/all", request.requestUrl?.encodedPath)
+        assertEquals("50", request.requestUrl?.queryParameter("viewCount>"))
+        assertEquals("-5mon", request.requestUrl?.queryParameter("lastViewedAt<"))
+        assertEquals("random", request.requestUrl?.queryParameter("sort"))
+    }
+
+    @Test
+    fun rejectsAHubKeyThatIsNotARelativePath() {
+        assertFalse(LibraryClient.isSafeHubKey("https://elsewhere.example/library/sections/7/all"))
+        assertFalse(LibraryClient.isSafeHubKey("//elsewhere.example/library/sections/7/all"))
+        assertFalse(LibraryClient.isSafeHubKey("library/sections/7/all"))
+        assertFalse(LibraryClient.isSafeHubKey(null))
+        assertFalse(LibraryClient.isSafeHubKey("   "))
+    }
+
+    @Test
+    fun acceptsAnOrdinaryHubKey() {
+        assertTrue(LibraryClient.isSafeHubKey("/library/sections/7/all?type=9&genre=138884"))
+        assertTrue(LibraryClient.isSafeHubKey("/hubs/sections/7/popular?monthsAgo=4"))
+    }
+
+    @Test
+    fun rejectsAHubKeyThatWouldResolveOffHostViaABackslash() {
+        // A hole the brief's cases miss: "/\evil.example/x" passes both
+        // startsWith("/") and !startsWith("//") on its own, but OkHttp's
+        // HttpUrl.resolve follows the WHATWG URL Standard's
+        // backslash-as-slash normalisation, so a leading "/\" or "\\"
+        // resolves exactly like "//" -- measured against this test's own
+        // MockWebServer base URL, resolving "/\evil.example/x" answers
+        // http://evil.example/x, a different host, with the account token
+        // still attached by PlexRetrofitFactory's interceptor.
+        assertFalse(LibraryClient.isSafeHubKey("/\\evil.example/library/sections/7/all"))
+        assertFalse(LibraryClient.isSafeHubKey("\\\\evil.example/library/sections/7/all"))
+        // A backslash anywhere is rejected, not just leading -- a real Plex
+        // key never contains one, so there is nothing to allow.
+        assertFalse(LibraryClient.isSafeHubKey("/library/sections/7\\evil.example/all"))
+    }
+
+    @Test
     fun everyEndpointIsCovered() {
         // Fails when an endpoint is added to LibraryService without a test
         // above. The gap this file closes formed exactly that way.
@@ -278,7 +326,8 @@ class LibraryServiceTest {
                 "getSectionHubs",
                 "getDecades",
                 "getFirstCharacters",
-                "getFirstCharacterContent"
+                "getFirstCharacterContent",
+                "getByPath"
             ),
             annotatedEndpoints(LibraryService::class.java)
         )
