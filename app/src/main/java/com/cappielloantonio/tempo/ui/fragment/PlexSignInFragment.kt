@@ -14,6 +14,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -24,6 +25,7 @@ import com.cappielloantonio.tempo.BuildConfig
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentPlexSignInBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.Constants
@@ -31,7 +33,9 @@ import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
+import kotlinx.coroutines.launch
 
 private const val TAG = "PlexSignInFragment"
 
@@ -185,6 +189,10 @@ class PlexSignInFragment : Fragment() {
                 bind.versionText.text =
                     "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
                 bind.versionText.visibility = View.VISIBLE
+                // The version line is the debug panel's entry point. Settings
+                // itself holds only rows that change something, and debug
+                // information accumulates -- see the 2026-08-14 design.
+                bind.versionText.setOnClickListener { showAddressPanel() }
             }
 
             is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE
@@ -334,6 +342,75 @@ class PlexSignInFragment : Fragment() {
             if (isOpenEndedList) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
         bind.root.gravity = gravity
         bind.scrollContent.gravity = gravity
+    }
+
+    /**
+     * Diagnostics, reached by tapping the version line. Reports the addresses
+     * known for the current server and offers a re-probe; it cannot change
+     * which server or library is in use, only which address reaches this one.
+     *
+     * A dialog rather than a state of [PlexSignInState], which describes the
+     * steps of signing in -- a debug panel is not one of those. Readable at a
+     * standstill only: CarSignInActivity carries no distractionOptimized
+     * meta-data, so AAOS blocks this screen while the car is moving.
+     */
+    private fun showAddressPanel(outcome: String? = null) {
+        val known = ServerAddressBook.shared.knownAddresses()
+        val addresses = (known.direct + known.relay)
+
+        val body = buildString {
+            if (outcome != null) append(outcome).append("\n\n")
+            if (addresses.isEmpty()) {
+                append(getString(R.string.debug_addresses_none))
+            } else {
+                addresses.forEach { uri ->
+                    append(uri)
+                    if (uri == known.current) {
+                        append("  <- ").append(getString(R.string.debug_addresses_in_use))
+                    }
+                    append("\n")
+                }
+            }
+            // The address in use is normally one of the candidates. It is not
+            // after a session written before the list existed, and showing it
+            // separately is better than a panel that omits the one address the
+            // app is actually using.
+            known.current?.takeIf { it !in addresses }?.let {
+                append("\n").append(it).append("  <- ").append(getString(R.string.debug_addresses_in_use))
+            }
+        }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.debug_addresses_title)
+            .setMessage(body)
+            .setPositiveButton(android.R.string.ok, null)
+            .setNeutralButton(R.string.debug_addresses_reprobe) { _, _ -> reprobeAndReopen() }
+            .show()
+    }
+
+    /**
+     * Re-races the known addresses and reopens the panel with what happened.
+     *
+     * The outcome has to be reported: when the same address wins again the
+     * adopt is a no-op and the list redraws identically, so a silent button
+     * reads as broken exactly when it is working.
+     *
+     * force = true because the cooldown is aimed at automatic callers -- an
+     * offline car paying a full race per browse tab -- and a parked human
+     * pressing this once is neither, and is most likely to press it while the
+     * cooldown is armed.
+     */
+    private fun reprobeAndReopen() {
+        val before = ServerAddressBook.shared.current() ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val after = ServerAddressBook.shared.reprobe(before, force = true)
+            val outcome = when (after) {
+                null -> getString(R.string.debug_reprobe_failed)
+                before -> getString(R.string.debug_reprobe_unchanged, after)
+                else -> getString(R.string.debug_reprobe_moved, after)
+            }
+            showAddressPanel(outcome)
+        }
     }
 
     /**

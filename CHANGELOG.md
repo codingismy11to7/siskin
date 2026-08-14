@@ -12,6 +12,12 @@
 
 ## [Unreleased] — Siskin
 
+- Tapping the version in Settings lists the addresses known for the current
+  server, marks the one in use, and offers to re-race them. The app has always
+  held that list and never shown it, so "am I reaching the server over the LAN
+  or going out to the internet and back" had no answer from inside the car —
+  and a head unit has no adb to ask another way.
+
 ## [0.99.4] (2026-08-14)
 
 - The three shuffle rows are now Artist Mix, Playlist Mix and Decade Mix, and
