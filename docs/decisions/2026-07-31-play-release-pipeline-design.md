@@ -4,6 +4,15 @@
 **Status:** Approved
 **Issue:** #43
 
+> **Read `docs/decisions/2026-08-14-automotive-track-design.md` alongside this.**
+> Two things below are now known to be wrong, and both only became visible when
+> the draft-release step this document describes was finally removed: the
+> `internal` track named throughout is the *phone* track and never reached the
+> car, and the manual Console confirmation was not the redundant step the
+> "Releases go up as drafts, for now" section takes it for — it was what moved
+> each release onto the automotive track. The bootstrap list is also one step
+> short. Nothing here is edited; the later document records what was learned.
+
 ## Context
 
 There is no path — local or automated — to an artifact Play will accept.

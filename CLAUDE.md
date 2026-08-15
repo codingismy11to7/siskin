@@ -310,9 +310,18 @@ A single-commit PR is rebase-merged; a multi-commit one is squashed.
 
 A release is a `Cut 0.99.x` commit and a `v0.99.x` tag. The tag is the trigger —
 pushing it fires `release.yml`, which re-runs the tests, decodes the upload
-keystore and runs `publishBundle`. **That publishes to Play's internal track
-outright**; there is no Console step. See
-`docs/decisions/2026-07-31-play-release-pipeline-design.md`.
+keystore and runs `publishBundle`. **That publishes to the `automotive:internal`
+track outright**; there is no Console step. See
+`docs/decisions/2026-07-31-play-release-pipeline-design.md` and
+`docs/decisions/2026-08-14-automotive-track-design.md`.
+
+**The track is `automotive:internal`, not `internal`.** Play gives each
+alternative form factor its own track family, and the plain tracks are the phone
+ones — an artifact requiring `android.hardware.type.automotive`, as this app's
+manifest does, is refused by them at edit-commit time. Publishing to `internal`
+puts a build nowhere the car can see it. The Console does not show API track
+names; `edits.tracks.list` is what answers which tracks exist and what is on
+them, and Google's own naming table disagrees with what this app actually has.
 
 The cut commit does three things:
 
