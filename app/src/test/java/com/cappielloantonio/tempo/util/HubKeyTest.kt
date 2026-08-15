@@ -32,4 +32,16 @@ class HubKeyTest {
 
         assertEquals(key, HubKey.keyIn(HubKey.of("abc123-7", key)))
     }
+
+    @Test
+    fun scopeInReadsTheHalfBeforeTheFirstPipe() {
+        val key = "/library/sections/7/all?type=9&studio=A|B"
+
+        assertEquals("abc123-7", HubKey.scopeIn(HubKey.of("abc123-7", key)))
+    }
+
+    @Test
+    fun aPayloadWithNoSeparatorHasNoScope() {
+        assertEquals(null, HubKey.scopeIn("/hubs/sections/7/popular"))
+    }
 }

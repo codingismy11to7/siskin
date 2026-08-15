@@ -212,7 +212,14 @@ that paragraph describe three of its four constants.
 
 The payload mirrors `DecadeKey`: scoped by machine identifier so a stale id
 reached through the car's back stack cannot query a library that has since been
-switched away from.
+switched away from. The scope is not just carried, it is checked:
+`PlexBrowseRepository.followHubKey` compares `HubKey.scopeIn` against
+`DecadeCompositeArt.currentScope()` -- the same definition `getHubs` mints
+these ids from -- before ever issuing a request. A mismatch, reachable because
+`LibraryPickerRepository.selectLibrary` invalidates the root and the picker
+node but not Discover's rows underneath More, renders the empty-hub message
+row rather than querying whatever section that number now names on the new
+server, and issues no request at all.
 
 Hub *items* need no new ids. They are artists and albums, so they become the
 same `ARTIST_ID` and `ALBUM_ID` rows the Artists and Albums tabs produce, and
@@ -377,7 +384,18 @@ six items with real thumbs. What that issue may not do is change the layout.
 introduce no reason to change that.
 
 **No "load more" for `more=true`.** Following the key already returns up to
-`MAX_ITEMS`; the flag tells the app nothing it can act on beyond that.
+`MAX_ITEMS`; the flag tells the app nothing it can act on beyond that. That cap
+is enforced twice, not assumed: `LibraryClient.getByHubKey` sends
+`X-Plex-Container-Start: 0` / `X-Plex-Container-Size: MAX_ITEMS` on the
+followed request -- measured against PMS 1.43.3 to actually bound both key
+shapes a hub carries, a followed `/library/sections/...` key and a hub
+endpoint like `/hubs/sections/{key}/popular` alike -- and
+`PlexBrowseRepository.containersOf` caps the mapped list at `MAX_ITEMS`
+independently, for a server that does not honour the header. Before this, it
+was the one browse node in the app with no cap at either layer: "Recently
+Added in Music" measured at 1,322 albums in one response against a real
+library, well past what `Constants.WINDOW_SIZE`'s KDoc records the car
+actually keeps.
 
 **No caching of the hub listing.** The existing `queueSourceCache` covers the
 mix row's needs, and a re-fetch returns the same roll for the same request.
@@ -397,7 +415,14 @@ and "shuffle everything the server suggested" is not a request anyone makes.
   complete hub, not a truncated one, and needs no special handling.
 - **A library switch** leaves the Discover node stale exactly as it leaves the
   three music tabs stale; the scope in each id is what stops a stale row
-  querying the wrong library.
+  querying the wrong library. Unlike a decade row, this is a checked
+  comparison, not just a carried value: `PlexBrowseRepository.followHubKey`
+  reads the scope back out with `HubKey.scopeIn` and compares it against
+  `DecadeCompositeArt.currentScope()` before following the key part at all,
+  and a mismatch renders the empty-hub message row rather than reaching the
+  server. `More -> Server Select` is what actually leaves this reachable:
+  `LibraryPickerRepository.selectLibrary` invalidates the root and the picker
+  node but not Discover's rows underneath More.
 
 ## Testing
 
@@ -420,6 +445,14 @@ Reusing the existing MockWebServer and Robolectric fixtures:
   browsing a different hub falls back to `getHubTracksForShuffle`.
 - A hub mix never queues a browsable item — the regression that would follow
   from replaying the cached list the way the decade branch does.
+- **The library-switch guard**: a hub key payload scoped to a library other
+  than the live session's renders the message row and issues no request, for
+  both `getHubContent` and `getHubTracksForShuffle` — the two callers of
+  `followHubKey`.
+- **The container cap**: `LibraryClient.getByHubKey` sends
+  `X-Plex-Container-Size: MAX_ITEMS`, and `PlexBrowseRepository.containersOf`
+  caps its mapped list at `MAX_ITEMS` independently of whether the server
+  honoured the header.
 - `X-Plex-Language` is present on requests.
 - An empty listing renders the message row.
 - `lintDebug` reports no new `MissingTranslation`, which is what proves the

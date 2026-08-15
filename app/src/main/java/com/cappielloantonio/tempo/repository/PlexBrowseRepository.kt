@@ -327,6 +327,17 @@ class PlexBrowseRepository {
     /**
      * A hub's items as browse rows, dispatched on each item's own type. Not
      * [itemsOf], which narrows to a single type -- a hub may hold either.
+     *
+     * [Constants.MAX_ITEMS], like every other bounded node here.
+     * `LibraryClient.getByHubKey` already asks for at most that many with
+     * `X-Plex-Container-Size` -- see its KDoc for what an unbounded followed
+     * key measured at, 1,322 albums for one real "Recently Added" hub -- but
+     * this node was the one browse call with no cap of its own, so a server
+     * that ignored the header, or answered through some other path, could
+     * still hand back an unbounded list and, downstream, an oversized mix URL
+     * from `MediaLibraryServiceCallback.cachedHubTracks`. Capped again here
+     * independently, the same belt-and-suspenders every other bounded node
+     * applies to its own response.
      */
     private fun containersOf(body: PlexResponse?): List<MediaItem> =
         body?.mediaContainer?.metadata
@@ -338,16 +349,42 @@ class PlexBrowseRepository {
                     else -> null
                 }
             }
+            ?.take(Constants.MAX_ITEMS)
             ?: emptyList()
 
     /**
      * A key rejected by `LibraryClient.isSafeHubKey` reaches here only if a row
      * was somehow drawn for one, which `getHubs` prevents. Reported as a 403 so
      * it lands on an error the car can act on rather than throwing.
+     *
+     * A scope that no longer names the live session is a different kind of
+     * problem and is checked first, before the safety guard and before any
+     * request. [HubKey]'s own KDoc names the hazard: a hub key addresses a
+     * section *by number*, so a row cached before `More -> Server Select`
+     * switched libraries -- reachable, because
+     * `LibraryPickerRepository.selectLibrary` invalidates the root and the
+     * picker node but not Discover's rows underneath More -- would otherwise
+     * query whatever section that number happens to be on the *new* server,
+     * possibly a video library. [HubKey.scopeIn] and
+     * [DecadeCompositeArt.currentScope] are compared with the one definition
+     * [getHubs] already mints these ids from, so neither side can drift onto a
+     * second encoding of "which library".
+     *
+     * Unlike the safety guard, a mismatch is not reported as an error: the key
+     * itself may be perfectly safe, it simply belongs to a library the car has
+     * left. No request is issued -- there may not even be a reachable server
+     * for it to reach -- and an empty response is handed back instead of a
+     * Left, so the caller renders the same message row an ordinary empty hub
+     * does rather than an error screen for "you switched libraries".
      */
-    private suspend fun followHubKey(hubKey: String): Either<PlexTransportFailure, PlexResponse> =
-        libraryClient.getByHubKey(HubKey.keyIn(hubKey))
+    private suspend fun followHubKey(hubKey: String): Either<PlexTransportFailure, PlexResponse> {
+        if (HubKey.scopeIn(hubKey) != DecadeCompositeArt.currentScope()) {
+            Log.w(TAG, "not following a stale hub key from another library: $hubKey")
+            return PlexResponse().right()
+        }
+        return libraryClient.getByHubKey(HubKey.keyIn(hubKey))
             ?: PlexTransportFailure.Http(PlexHost.Server, HTTP_FORBIDDEN).left()
+    }
 
     private fun mixHubRow(hubKey: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(

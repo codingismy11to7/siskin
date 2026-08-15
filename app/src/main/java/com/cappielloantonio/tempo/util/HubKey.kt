@@ -11,6 +11,13 @@ package com.cappielloantonio.tempo.util
  * would address whatever section 7 happens to be on *that* machine, which may
  * not be music at all.
  *
+ * Naming the hazard is not the same as closing it: [scopeIn] is what
+ * `PlexBrowseRepository.followHubKey` compares against the live session
+ * before ever following [keyIn]'s half of the same payload, using the same
+ * [com.cappielloantonio.tempo.provider.DecadeCompositeArt.scopeOf] definition
+ * `getHubs` mints these ids with. A mismatch renders the empty-hub message
+ * row rather than reaching the server at all.
+ *
  * **Pipe rather than colon**, following [Constants.PICK_LIBRARY_ID] and
  * [DecadeKey]. A scope is a normalised machine identifier then `-` then an
  * integer section key, so it cannot contain one; [keyIn] takes the *first* pipe
@@ -35,4 +42,21 @@ object HubKey {
     @JvmStatic
     fun keyIn(payload: String): String =
         if (payload.contains(SEPARATOR)) payload.substringAfter(SEPARATOR) else payload
+
+    /**
+     * The scope half of the payload, or null when there is none to read.
+     *
+     * The mirror image of [keyIn]: that takes the part *after* the first
+     * pipe because the key side is a URL and may contain one of its own (a
+     * `studio=A|B` filter, for instance); this takes the part *before* it,
+     * for the same reason -- the scope itself is a normalised machine
+     * identifier then `-` then an integer section key, so it cannot contain
+     * a pipe, but the key that follows it might. Null for a payload with no
+     * separator at all, which [keyIn] treats as its own key with no scope to
+     * check -- there is nothing here to compare against a current session
+     * either, and no real minted id takes this shape today.
+     */
+    @JvmStatic
+    fun scopeIn(payload: String): String? =
+        if (payload.contains(SEPARATOR)) payload.substringBefore(SEPARATOR) else null
 }

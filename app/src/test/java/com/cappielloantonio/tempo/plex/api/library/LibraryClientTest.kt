@@ -4,7 +4,9 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.base.MediaContainer
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.util.Constants
 import kotlinx.coroutines.test.runTest
+import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -86,6 +88,23 @@ class LibraryClientTest {
         )
         assertEquals(1, sections.size)
         assertEquals("2", sections.single().key)
+    }
+
+    @Test
+    fun getByHubKeyCapsTheContainerAtMaxItems() = runTest {
+        // The one browse call in this app with no bound of its own -- a
+        // followed key answers with everything a matching library holds,
+        // measured at 1,322 albums for one real "Recently Added" hub. See
+        // LibraryService.getByPath's KDoc for the full measurement; this pins
+        // that LibraryClient actually asks for the cap rather than leaving it
+        // to callers.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+        clientAgainstServer().getByHubKey("/library/sections/7/all?type=9")
+
+        val request = server.takeRequest()
+        assertEquals("0", request.getHeader("X-Plex-Container-Start"))
+        assertEquals(Constants.MAX_ITEMS.toString(), request.getHeader("X-Plex-Container-Size"))
     }
 
     @Test

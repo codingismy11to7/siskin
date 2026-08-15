@@ -287,7 +287,9 @@ class LibraryServiceTest {
         server.enqueue(MockResponse().setBody("{\"MediaContainer\":{\"size\":0}}"))
 
         service().getByPath(
-            "/library/sections/7/all?type=8&viewCount>=50&lastViewedAt<=-5mon&sort=random"
+            "/library/sections/7/all?type=8&viewCount>=50&lastViewedAt<=-5mon&sort=random",
+            start = 0,
+            size = 500
         )
 
         val request = server.takeRequest()
@@ -295,6 +297,25 @@ class LibraryServiceTest {
         assertEquals("50", request.requestUrl?.queryParameter("viewCount>"))
         assertEquals("-5mon", request.requestUrl?.queryParameter("lastViewedAt<"))
         assertEquals("random", request.requestUrl?.queryParameter("sort"))
+    }
+
+    @Test
+    fun getByPathCarriesContainerPagingHeaders() = runTest {
+        // Was the one node in the browse tree that sent no cap at all -- a
+        // followed key answered with everything a library holds, 1,322 albums
+        // for one real "Recently Added" hub. See LibraryService.getByPath's
+        // KDoc for the full measurement.
+        server.enqueue(MockResponse().setBody("{\"MediaContainer\":{\"size\":0}}"))
+
+        service().getByPath(
+            "/library/sections/7/all?type=9&sort=addedAt:desc",
+            start = 0,
+            size = 500
+        )
+
+        val request = server.takeRequest()
+        assertEquals("0", request.getHeader("X-Plex-Container-Start"))
+        assertEquals("500", request.getHeader("X-Plex-Container-Size"))
     }
 
     @Test

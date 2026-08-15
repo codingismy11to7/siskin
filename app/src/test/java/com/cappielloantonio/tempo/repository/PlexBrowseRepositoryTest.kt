@@ -690,6 +690,16 @@ class PlexBrowseRepositoryTest {
      * so this cannot pin a format the minting side has moved off. */
     private fun scope(): String = DecadeCompositeArt.currentScope()!!
 
+    /**
+     * A HubKey payload scoped to the live session, so `followHubKey`'s
+     * library-switch guard lets it through and the request underneath is
+     * what each of these tests is actually about. The mismatch guard itself
+     * -- a payload scoped to some *other* library -- has its own tests below,
+     * where a foreign scope is the point rather than an accident.
+     */
+    private fun hubKey(rawKey: String = "/library/sections/7/all?type=9"): String =
+        HubKey.of(scope(), rawKey)
+
     @Test
     fun directoriesOfReturnsEmptyForAnAbsentOrEmptyContainer() {
         assertTrue(PlexBrowseRepository.directoriesOf(null).isEmpty())
@@ -855,7 +865,7 @@ class PlexBrowseRepositoryTest {
             )
         )
 
-        val result = await(PlexBrowseRepository().getHubContent(HUB_KEY))
+        val result = await(PlexBrowseRepository().getHubContent(hubKey()))
 
         val items = result.value!!
         assertEquals(3, items.size)
@@ -868,7 +878,7 @@ class PlexBrowseRepositoryTest {
     fun followsOnlyTheKeyPartOfTheHubPayload() {
         server.enqueue(MockResponse().setResponseCode(200).setBody(hubItemsBody()))
 
-        await(PlexBrowseRepository().getHubContent(HUB_KEY))
+        await(PlexBrowseRepository().getHubContent(hubKey()))
 
         assertEquals("/library/sections/7/all", server.takeRequest().requestUrl?.encodedPath)
     }
@@ -878,12 +888,55 @@ class PlexBrowseRepositoryTest {
         // getByHubKey answers null for a key isSafeHubKey refuses -- getHubs is
         // what normally keeps such a key from ever reaching a row, but a stale
         // or tampered id must still fail safely rather than address whatever
-        // host the payload names.
+        // host the payload names. Scoped to the live session so this hits the
+        // safety guard rather than the library-switch guard tested below --
+        // the two are different failures with different renderings, and this
+        // test is about the one that has always errored.
         val result = await(
-            PlexBrowseRepository().getHubContent("abc123-7|https://elsewhere.example/x")
+            PlexBrowseRepository().getHubContent(hubKey("https://elsewhere.example/x"))
         )
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
+        assertEquals(0, server.requestCount)
+    }
+
+    // ── the library-switch guard: HubKey's scope checked against the session ──
+    //
+    // LibraryPickerRepository.selectLibrary invalidates the root and the
+    // picker node but not More's children, so Discover's rows survive a
+    // library switch on screen. HubKey's own KDoc names the hazard a stale tap
+    // would otherwise hit: a hub key addresses a section by number, so the
+    // same id against the new server would query whatever section that number
+    // happens to be there.
+
+    @Test
+    fun aHubKeyFromALibraryTheSessionHasLeftRendersTheMessageRowRatherThanQueryingTheNewServer() {
+        val staleHubKey = HubKey.of("some-other-scope-9", "/library/sections/7/all?type=9")
+
+        val result = await(PlexBrowseRepository().getHubContent(staleHubKey))
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        val items = result.value!!
+        assertEquals(1, items.size)
+        assertTrue(items[0].mediaId.startsWith(Constants.PICK_MESSAGE_ID))
+        assertEquals(
+            "a stale scope must never reach the server -- it may not even own this section",
+            0,
+            server.requestCount
+        )
+    }
+
+    @Test
+    fun theShuffleVariantAlsoRefusesAStaleHubKeyRatherThanQueryingTheNewServer() {
+        // followHubKey backs getHubTracksForShuffle too, and a mix tap that
+        // fell through the browse cache after a library switch must not query
+        // the new server's section 7 either.
+        val staleHubKey = HubKey.of("some-other-scope-9", "/library/sections/7/all?type=9")
+
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(staleHubKey))
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        assertTrue(result.value!!.isEmpty())
         assertEquals(0, server.requestCount)
     }
 
@@ -891,7 +944,7 @@ class PlexBrowseRepositoryTest {
     fun explainsAHubThatCameBackEmptyInsteadOfOfferingAMixOfNothing() {
         server.enqueue(MockResponse().setResponseCode(200).setBody(hubItemsBody()))
 
-        val result = await(PlexBrowseRepository().getHubContent(HUB_KEY))
+        val result = await(PlexBrowseRepository().getHubContent(hubKey()))
 
         val items = result.value!!
         assertEquals(1, items.size)
@@ -908,7 +961,7 @@ class PlexBrowseRepositoryTest {
             MockResponse().setResponseCode(200).setBody(tracksBody("900"))
         )
 
-        val result = await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(hubKey()))
 
         val items = result.value!!
         assertTrue(items.none { it.mediaId.startsWith(Constants.MIX_HUB_ID) })
@@ -925,7 +978,7 @@ class PlexBrowseRepositoryTest {
         )
         server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("900")))
 
-        await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+        await(PlexBrowseRepository().getHubTracksForShuffle(hubKey()))
 
         server.takeRequest() // the hub-key follow
         val trackRequest = server.takeRequest()
@@ -941,7 +994,7 @@ class PlexBrowseRepositoryTest {
         // stopped matching anything -- and it costs no second request.
         server.enqueue(MockResponse().setResponseCode(200).setBody(hubItemsBody()))
 
-        val result = await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(hubKey()))
 
         assertTrue(result.value!!.isEmpty())
         assertEquals(1, server.requestCount)
@@ -951,7 +1004,7 @@ class PlexBrowseRepositoryTest {
     fun theShuffleVariantsFirstRequestFailureReachesTheCaller() {
         server.enqueue(MockResponse().setResponseCode(401))
 
-        val result = await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(hubKey()))
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
         assertEquals(1, server.requestCount)
@@ -964,7 +1017,7 @@ class PlexBrowseRepositoryTest {
         )
         server.enqueue(MockResponse().setResponseCode(500))
 
-        val result = await(PlexBrowseRepository().getHubTracksForShuffle(HUB_KEY))
+        val result = await(PlexBrowseRepository().getHubTracksForShuffle(hubKey()))
 
         assertEquals(SessionError.ERROR_BAD_VALUE, result.resultCode)
     }
@@ -991,6 +1044,23 @@ class PlexBrowseRepositoryTest {
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
 
+    @Test
+    fun aHubsContainersAreCappedAtMaxItemsEvenIfTheServerIgnoresTheSizeHeader() {
+        // getByHubKey already asks for at most MAX_ITEMS via
+        // X-Plex-Container-Size -- measured against PMS 1.43.3 at 1,322 albums
+        // for one real "Recently Added" hub, see LibraryService.getByPath's
+        // KDoc -- but containersOf must not simply trust that header was
+        // honoured. A server that ignored it, or answered through some other
+        // path, must still hand back a bounded list here.
+        val items = (1..Constants.MAX_ITEMS + 50).map { it.toString() to "album" }.toTypedArray()
+        server.enqueue(MockResponse().setResponseCode(200).setBody(hubItemsBody(*items)))
+
+        val result = await(PlexBrowseRepository().getHubContent(hubKey()))
+
+        // The Mix row plus exactly MAX_ITEMS containers, not MAX_ITEMS + 50.
+        assertEquals(Constants.MAX_ITEMS + 1, result.value!!.size)
+    }
+
     private companion object {
         /** What the car sends back on a decade tap: the whole DecadeKey
          * payload, library and decade, exactly as `getDecades` minted it. The
@@ -998,9 +1068,5 @@ class PlexBrowseRepositoryTest {
          * repository that quietly recomputed the decade from its own session
          * instead of reading the key would be visible here. */
         val DECADE_KEY = DecadeKey.of("f00dcafe-9", "1980")
-
-        /** A HubKey payload; the scope side is opaque to `followHubKey`, which
-         * reads only the part after the pipe -- see [HubKey.keyIn]. */
-        const val HUB_KEY = "abc123-7|/library/sections/7/all?type=9"
     }
 }

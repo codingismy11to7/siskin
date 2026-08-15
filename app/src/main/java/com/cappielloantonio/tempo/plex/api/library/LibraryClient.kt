@@ -12,6 +12,7 @@ import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.plexCall
+import com.cappielloantonio.tempo.util.Constants
 
 private const val TAG = "LibraryClient"
 
@@ -127,14 +128,20 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
      * Null rather than a Left: a rejected key is not a transport failure, it is
      * a row that should never have been drawn. A null return is the refusal;
      * the caller is responsible for not drawing a row it cannot open.
+     *
+     * Capped at [Constants.MAX_ITEMS], the one bound every other browse node
+     * in this app carries and this endpoint was missing -- see
+     * [LibraryService.getByPath] for what an uncapped follow measured at on a
+     * real library. `PlexBrowseRepository.containersOf` caps again
+     * independently, for a server that does not honour the header.
      */
     suspend fun getByHubKey(key: String): Either<PlexTransportFailure, PlexResponse>? {
         if (!isSafeHubKey(key)) {
-            Log.w(TAG, "refusing to follow a hub key that is not a relative path")
+            Log.w(TAG, "refusing to follow a hub key that is not a relative path: $key")
             return null
         }
         Log.d(TAG, "getByHubKey($key)")
-        return plexCall(PlexHost.Server) { service.getByPath(key) }
+        return plexCall(PlexHost.Server) { service.getByPath(key, 0, Constants.MAX_ITEMS) }
     }
 
     companion object {
