@@ -122,10 +122,12 @@ output, read by the app's author, in vocabulary — probe, candidate, address �
 that is not user-facing copy. Addresses themselves are data and were never
 translatable.
 
-The prefix is what keeps the exemption auditable. Every `translatable="false"`
-string should be a `debug_` one and every `debug_` string should be
-untranslatable, so the check is a grep and a `car_settings_` string wearing the
-attribute stands out as the thing to question.
+The prefix is what keeps the exemption auditable. Every `debug_` string should
+be untranslatable, so the check is a grep and a `car_settings_` string wearing
+the attribute stands out as the thing to question. The reverse does not hold —
+`app_name` is `translatable="false"` too, and legitimately so, as the proper
+noun it is rather than diagnostic output — so the grep is one-directional by
+design, not a round trip.
 
 Kotlin literals in the dialog were the alternative, sidestepping
 `MissingTranslation` entirely since it only inspects resources. Rejected: it
