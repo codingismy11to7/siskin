@@ -47,6 +47,25 @@ opens on.
 
 Select Library is not in the list.
 
+### The activity is misnamed, and this makes it worse
+
+`CarSignInActivity` is already the `APPLICATION_PREFERENCES` target and the
+sign-in `PendingIntent` target; this adds a third screen to it. `PlexSignInFragment`
+is likewise 466 lines rendering both the PIN flow and the settings screen — its
+own KDoc concedes it, and `PlexSignInSettingsTest.kt` shows the test names split
+before the source did.
+
+Renaming the activity and splitting that fragment is
+[#110](https://github.com/codingismy11to7/siskin/issues/110), deliberately not
+done here so this PR's diff stays the feature. The cost is real and is being
+accepted knowingly: the third screen lands under the wrong name.
+
+What must survive that cleanup is the *reason* the screen lives in this
+activity, which is not convenience. The activity has no `distractionOptimized`
+metadata, so the platform blocks it while the car is moving, and a reorder
+screen inherits that. A restructuring that preserved the class name but moved
+this screen elsewhere would silently make a drag gesture available in motion.
+
 ## The model
 
 One ordered list of every music destination. The first three become root tabs,
