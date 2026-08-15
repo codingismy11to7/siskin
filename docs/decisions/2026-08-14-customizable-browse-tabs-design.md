@@ -47,6 +47,33 @@ opens on.
 
 Select Library is not in the list.
 
+### The list is a RecyclerView, which is a dependency decision
+
+`PlexSignInFragment` builds its rows as `MaterialButton`s in a `LinearLayout`,
+and says why: "Buttons in a LinearLayout rather than a RecyclerView: there are
+one to five of them, and skipping the RecyclerView is what lets that dependency
+go." This screen breaks that rule deliberately.
+
+`androidx.recyclerview` is already on the classpath transitively via Material,
+at 1.1.0, but nothing uses it — so R8 strips it from release builds today. Using
+it here stops that, which is a real size cost on a release APK rather than a
+free reuse of something already present. It gets declared explicitly in the
+version catalog rather than leaned on transitively, because a transitive
+dependency that Material could drop is not one to build a screen on.
+
+What it buys is `ItemTouchHelper`: long-press-to-drag, the reorder animation,
+and auto-scroll at the list edges. Auto-scroll is the reason this is worth
+paying for rather than hand-rolling — the pool is five or six rows against
+roughly four visible, so a drag must scroll, and that is the fussiest part of a
+hand-written implementation.
+
+The size delta is to be measured with `assembleRelease` before and after, not
+estimated, and recorded in the implementing PR.
+
+That comment in `PlexSignInFragment` becomes wrong once this lands and must be
+narrowed to the screen it actually describes rather than left as a
+project-wide rule.
+
 ### The activity is misnamed, and this makes it worse
 
 `CarSignInActivity` is already the `APPLICATION_PREFERENCES` target and the
@@ -266,11 +293,17 @@ that is recorded above so the gap is a decision rather than an oversight.
 
 **Chevrons instead of drag.** Up/down buttons per row avoid the auto-scroll
 problem — the settings screen fits roughly four rows at the browse list's 116px
-pitch, and the pool is five or six — and stay operable by a rotary controller,
-which a drag gesture fundamentally is not. Drag was chosen anyway: it is the
-directly manipulable thing, and the screen is blocked while moving, so the
-gesture is only ever performed parked. Because the auto-scroll case is real
-rather than hypothetical, it is specified rather than left to the default.
+pitch, and the pool is five or six — stay operable by a rotary controller, which
+a drag gesture fundamentally is not, and need no RecyclerView, so R8 would go on
+stripping it. Drag was chosen anyway, with that cost known: it is the directly
+manipulable thing, and the screen is blocked while moving, so the gesture is
+only ever performed parked.
+
+**Hand-rolled drag on the existing `LinearLayout`.** Adds no dependency and
+keeps R8 stripping RecyclerView, at the cost of writing and owning long-press
+detection, the drag shadow, drop-target hit-testing, and `ScrollView`
+auto-scrolling near the edges. `ItemTouchHelper` gives all four away, and
+auto-scroll here is a certainty rather than an edge case.
 
 **A show-as-tab checkbox plus a separate order.** Makes "is this a tab" explicit
 instead of implied by position, at the cost of two concepts and of states the
