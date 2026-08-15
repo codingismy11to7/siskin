@@ -336,17 +336,24 @@ class MediaLibrarySessionCallbackShuffleTest {
      * see `MediaLibraryServiceCallback.cachedHubTracks`'s KDoc for why a hub's
      * browse list (albums and artists) cannot be replayed the way a decade's
      * (tracks) can.
+     *
+     * Both container kinds on screen at once, not just albums: Plex's
+     * `music.vault` and `music.recent.played` hubs are `type=artist`, so the
+     * artist branch of `cachedHubTracks` is a primary path in the car, not an
+     * edge case. Asserting the exact call pins the KDoc's claim that "a hub
+     * mixing albums and artists sends both filters" -- albums first, artists
+     * second, matching `getHubTracksForIds(albumIds, artistIds)`.
      */
     @Test
     fun aHubMixExpandsTheIdsAlreadyOnScreen() {
         val hubKey = "abc123-7|/library/sections/7/all?type=9"
-        browseHub(hubKey, albumIds = listOf("111", "222"))
-        whenever(browseRepository.getHubTracksForIds(listOf("111", "222"), emptyList()))
+        browseHub(hubKey, albumIds = listOf("111", "222"), artistIds = listOf("333", "444"))
+        whenever(browseRepository.getHubTracksForIds(listOf("111", "222"), listOf("333", "444")))
             .thenReturn(itemList(albumTracks("50", "51")))
 
         callback.onAddMediaItems(session, controller, listOf(mixRow(Constants.MIX_HUB_ID + hubKey)))
 
-        verify(browseRepository).getHubTracksForIds(listOf("111", "222"), emptyList())
+        verify(browseRepository).getHubTracksForIds(listOf("111", "222"), listOf("333", "444"))
         verify(browseRepository, never()).getHubTracksForShuffle(any())
     }
 
@@ -354,19 +361,33 @@ class MediaLibrarySessionCallbackShuffleTest {
      * The hub's browse list holds albums and artists -- browsable, with no
      * stream -- so the queue a hub Mix produces must be exclusively tracks
      * expanded from those ids, never the browsable rows themselves.
+     *
+     * The browsable check alone passes even with dispatch broken entirely: the
+     * fallback path that queues the bare tapped row produces a `MediaItem`
+     * with no `isBrowsable` set, so a build that never reaches
+     * `getHubTracksForIds` at all would still satisfy it. The multiset
+     * assertion closes that gap by pinning what the queue *does* contain --
+     * exactly the expanded tracks, none invented, none missing. Compared as a
+     * multiset rather than a sequence because `resolveQueueForItem` shuffles a
+     * Mix's queue, same as every other Mix in this file.
      */
     @Test
     fun aHubMixNeverQueuesABrowsableItem() {
         val hubKey = "abc123-7|/library/sections/7/all?type=9"
         browseHub(hubKey, albumIds = listOf("111"))
+        val tracks = albumTracks("50", "51")
         whenever(browseRepository.getHubTracksForIds(listOf("111"), emptyList()))
-            .thenReturn(itemList(albumTracks("50", "51")))
+            .thenReturn(itemList(tracks))
 
         val queued = callback
             .onAddMediaItems(session, controller, listOf(mixRow(Constants.MIX_HUB_ID + hubKey)))
             .get()
 
         assertTrue(queued.none { it.mediaMetadata.isBrowsable == true })
+        assertEquals(
+            tracks.map { it.mediaId }.sorted(),
+            queued.map { it.mediaId }.sorted()
+        )
     }
 
     /**
