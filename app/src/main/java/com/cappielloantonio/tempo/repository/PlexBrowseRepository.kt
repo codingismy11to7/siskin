@@ -210,11 +210,25 @@ class PlexBrowseRepository {
         val session = api.session ?: return errorFuture()
         val scope = DecadeCompositeArt.scopeOf(session)
         return fetch({ libraryClient.getSectionHubs(session.musicSectionKey) }) { body ->
-            hubsOf(body)
+            val rows = hubsOf(body)
                 .filter { (it.size ?: 0) > 0 }
                 .filter { it.type != TYPE_CLIP }
                 .filter { LibraryClient.isSafeHubKey(it.key) }
                 .mapNotNull { PlexMediaMapper.hubToMediaItem(it, prefix, scope) }
+
+            // A server with no play history emits hubs it cannot fill -- five of
+            // six were empty on one measured server -- so an empty Discover is
+            // an ordinary state, not a failure. A row rather than a blank
+            // screen, the same rule signedOutRow and the picker's message row
+            // follow.
+            rows.ifEmpty {
+                listOf(
+                    LibraryPickerRepository.messageRow(
+                        App.getContext().getString(R.string.browse_discover_empty),
+                        App.getContext().getString(R.string.browse_discover_empty_hint)
+                    )
+                )
+            }
         }
     }
 

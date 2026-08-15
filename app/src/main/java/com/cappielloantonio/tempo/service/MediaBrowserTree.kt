@@ -432,6 +432,15 @@ object MediaBrowserTree {
                 if (id.startsWith(Constants.PICK_MESSAGE_ID)) {
                     // Same rule as the confirmation row: a row that explains a
                     // failure must not become a blank screen when it is tapped.
+                    //
+                    // Rebuilt from the id alone, so a message row carrying a
+                    // subtitle (see LibraryPickerRepository.messageRow) comes
+                    // back here without it -- only the message itself rides in
+                    // the id. Accepted rather than worked around: this row is a
+                    // dead end whichever way it is reached, the subtitle is a
+                    // hint rather than information the user needs back, and
+                    // encoding a second string into the id to survive this round
+                    // trip would cost more than the hint is worth.
                     return Futures.immediateFuture(
                         LibraryResult.ofItemList(
                             ImmutableList.of(

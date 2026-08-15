@@ -427,9 +427,19 @@ class LibraryPickerRepository {
          * Browsable, never playable, like every other row here. The message
          * rides in the media id so a tap can return the same row (see
          * `MediaBrowserTree.getChildren`) without a map to keep in sync.
+         *
+         * [subtitle] is optional and, unlike [message], does **not** ride in
+         * the media id -- `MediaBrowserTree.getChildren`'s `PICK_MESSAGE_ID`
+         * branch rebuilds this row from the id alone when it is tapped, so a
+         * subtitle passed here is lost on that round trip. Accepted rather than
+         * worked around: the row is a dead end however it is reached, the
+         * subtitle is a hint rather than information the user needs back, and
+         * encoding a second string into the media id to survive a tap on a row
+         * that goes nowhere would cost more than the hint is worth.
          */
         @JvmStatic
-        fun messageRow(message: String): MediaItem =
+        @JvmOverloads
+        fun messageRow(message: String, subtitle: String? = null): MediaItem =
             browsableRow(
                 mediaId = Constants.PICK_MESSAGE_ID + message,
                 title = message,
@@ -442,7 +452,8 @@ class LibraryPickerRepository {
                 // round trip above honest: MediaBrowserTree rebuilds this row
                 // from the id alone when it is tapped, so a per-message severity
                 // would have to be encoded into the id to survive that.
-                iconRes = R.drawable.ic_browse_warning
+                iconRes = R.drawable.ic_browse_warning,
+                subtitle = subtitle
             )
 
         /**
@@ -451,15 +462,25 @@ class LibraryPickerRepository {
          * note on a colour picked per row -- fine for a music library, wrong for
          * a Plex server, and noisy either way since the colour carries no
          * meaning.
+         *
+         * [subtitle] is the browse list's second line, the same one an album
+         * uses for its artist -- see `MediaBrowserTree.signedOutRow`, which uses
+         * it the same way. Absent by default: most rows here are a single line.
          */
         @JvmStatic
         @JvmOverloads
-        fun browsableRow(mediaId: String, title: String, iconRes: Int? = null): MediaItem =
+        fun browsableRow(
+            mediaId: String,
+            title: String,
+            iconRes: Int? = null,
+            subtitle: String? = null
+        ): MediaItem =
             MediaItem.Builder()
                 .setMediaId(mediaId)
                 .setMediaMetadata(
                     MediaMetadata.Builder()
                         .setTitle(title)
+                        .setArtist(subtitle)
                         .setIsBrowsable(true)
                         // Never playable: a playable row opens Now Playing on tap
                         // and nothing the app returns can suppress that.

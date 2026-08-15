@@ -5,6 +5,8 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
 import arrow.core.left
 import arrow.core.right
+import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
@@ -802,6 +804,37 @@ class PlexBrowseRepositoryTest {
         val result = PlexBrowseRepository().getHubs(Constants.HUB_ID).get(2, TimeUnit.SECONDS)
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
+    }
+
+    @Test
+    fun explainsItselfWhenTheServerOffersNoUsableHubs() {
+        // A server with no play history: the one hub in this response is
+        // filtered out by getHubs' own size==0 rule, leaving nothing to show --
+        // the same ordinary, non-error shape a fresh account actually hits.
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                {"MediaContainer":{"Hub":[
+                  {"hubIdentifier":"music.touring.7","title":"Artists on Tour",
+                   "type":"artist","size":0,"key":"/library/sections/7/all?type=8"}
+                ]}}
+                """.trimIndent()
+            )
+        )
+
+        val result = await(PlexBrowseRepository().getHubs(Constants.HUB_ID))
+
+        val items = result.value!!
+        assertEquals(1, items.size)
+        assertTrue(items[0].mediaId.startsWith(Constants.PICK_MESSAGE_ID))
+        assertEquals(
+            App.getContext().getString(R.string.browse_discover_empty),
+            items[0].mediaMetadata.title
+        )
+        assertEquals(
+            App.getContext().getString(R.string.browse_discover_empty_hint),
+            items[0].mediaMetadata.artist
+        )
     }
 
     // ── getHubContent / getHubTracksForShuffle / getHubTracksForIds ─────
