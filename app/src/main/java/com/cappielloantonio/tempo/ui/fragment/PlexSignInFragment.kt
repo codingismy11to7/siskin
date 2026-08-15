@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Log
@@ -12,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -200,6 +202,15 @@ class PlexSignInFragment : Fragment() {
                 // itself holds only rows that change something, and debug
                 // information accumulates -- see the 2026-08-14 design.
                 bind.versionText.setOnClickListener { showAddressPanel() }
+                // setOnClickListener makes a view clickable but not focusable, and
+                // a rotary controller stops only on focusable views -- addToggle's
+                // row documents the same hazard, because a TextView starts out
+                // exactly as unfocusable as a bare LinearLayout does. Without this
+                // a rotary-only head unit skips the version line on its way from
+                // the toggles to Sign out, and the panel becomes unreachable, not
+                // merely undiscoverable.
+                bind.versionText.isFocusable = true
+                applyPressFeedback(requireContext(), bind.versionText)
             }
 
             is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE
@@ -363,29 +374,14 @@ class PlexSignInFragment : Fragment() {
      */
     private fun showAddressPanel(outcome: String? = null) {
         val known = ServerAddressBook.shared.knownAddresses()
-        val addresses = (known.direct + known.relay)
-
-        val body = buildString {
-            if (outcome != null) append(outcome).append("\n\n")
-            if (addresses.isEmpty()) {
-                append(getString(R.string.debug_addresses_none))
-            } else {
-                addresses.forEach { uri ->
-                    append(uri)
-                    if (uri == known.current) {
-                        append("  <- ").append(getString(R.string.debug_addresses_in_use))
-                    }
-                    append("\n")
-                }
-            }
-            // The address in use is normally one of the candidates. It is not
-            // after a session written before the list existed, and showing it
-            // separately is better than a panel that omits the one address the
-            // app is actually using.
-            known.current?.takeIf { it !in addresses }?.let {
-                append("\n").append(it).append("  <- ").append(getString(R.string.debug_addresses_in_use))
-            }
-        }
+        val body = buildAddressPanelBody(
+            known = known,
+            outcome = outcome,
+            noneLabel = getString(R.string.debug_addresses_none),
+            inUseLabel = getString(R.string.debug_addresses_in_use),
+            directLabel = getString(R.string.debug_addresses_direct),
+            relayLabel = getString(R.string.debug_addresses_relay)
+        )
 
         // Dismiss any previously-shown dialog to prevent orphaning it when
         // showAddressPanel is called again before the prior dialog closes --
@@ -397,8 +393,21 @@ class PlexSignInFragment : Fragment() {
             .setTitle(R.string.debug_addresses_title)
             .setMessage(body)
             .setPositiveButton(android.R.string.ok, null)
-            .setNeutralButton(R.string.debug_addresses_reprobe) { _, _ -> reprobeAndReopen() }
+            .setNeutralButton(R.string.debug_addresses_reprobe, null)
             .show()
+
+        // AlertDialog's own contract for setNeutralButton is dismiss-then-run,
+        // and that is wrong for this button specifically: the worst-case race
+        // (two ~6s probe timeouts, up to 10s asking plex.tv, two more against
+        // the refreshed list) would leave Settings blank for tens of seconds,
+        // reading as a crash rather than a button working. Replacing the
+        // button View's own click listener after show() -- rather than the
+        // listener passed to setNeutralButton above, which only the builder's
+        // dismiss-then-run wrapper would have called -- keeps the dialog on
+        // screen so reprobeAndReopen can show progress on it directly.
+        addressDialog?.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
+            reprobeAndReopen()
+        }
     }
 
     /**
@@ -414,7 +423,25 @@ class PlexSignInFragment : Fragment() {
      * cooldown is armed.
      */
     private fun reprobeAndReopen() {
-        val before = ServerAddressBook.shared.current() ?: return
+        val dialog = addressDialog
+        val before = ServerAddressBook.shared.current()
+        if (before == null) {
+            // The session cleared out from under an open panel -- sign-out is
+            // reachable from this same screen. A bare return here would leave
+            // the dialog exactly as it was, with no way to tell that pressing
+            // the button did anything at all; reopening with the same wording
+            // reprobe() itself uses for "nothing answered" at least reports
+            // that the press was seen.
+            showAddressPanel(getString(R.string.debug_reprobe_failed))
+            return
+        }
+
+        // Disabling the button and swapping the message is the visible half
+        // of keeping the dialog up for the whole race -- see showAddressPanel
+        // for why the button no longer auto-dismisses.
+        dialog?.getButton(AlertDialog.BUTTON_NEUTRAL)?.isEnabled = false
+        dialog?.setMessage(getString(R.string.debug_reprobe_running))
+
         viewLifecycleOwner.lifecycleScope.launch {
             val after = ServerAddressBook.shared.reprobe(before, force = true)
             val outcome = when (after) {
@@ -424,6 +451,20 @@ class PlexSignInFragment : Fragment() {
             }
             showAddressPanel(outcome)
         }
+    }
+
+    /**
+     * Resolves the theme's ripple for `selectableItemBackground` and applies it
+     * as [view]'s background. Shared by the version line and the toggle rows in
+     * [addToggle]: both are views a click makes clickable but that draw nothing
+     * of their own when pressed, which at arm's length reads as a dead control.
+     */
+    private fun applyPressFeedback(context: Context, view: View) {
+        val ripple = TypedValue()
+        context.theme.resolveAttribute(
+            com.google.android.material.R.attr.selectableItemBackground, ripple, true
+        )
+        view.setBackgroundResource(ripple.resourceId)
     }
 
     /**
@@ -507,11 +548,7 @@ class PlexSignInFragment : Fragment() {
             // 72dp target that does not acknowledge the press reads as a dead
             // control -- and addChoice's filled button ripples right beneath
             // this one, so the row has to as well.
-            val ripple = TypedValue()
-            context.theme.resolveAttribute(
-                com.google.android.material.R.attr.selectableItemBackground, ripple, true
-            )
-            setBackgroundResource(ripple.resourceId)
+            applyPressFeedback(context, this)
 
             // setOnClickListener makes a view clickable but not focusable, and a
             // rotary controller stops only on focusable views -- without this it
@@ -552,5 +589,69 @@ class PlexSignInFragment : Fragment() {
                 bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
             }
         )
+    }
+
+    companion object {
+        /**
+         * Builds the address panel's body text out of already-resolved data --
+         * no [Context], no resource lookup, no Android framework class at all.
+         * That is what lets [PlexSignInAddressPanelBodyTest] assert on it
+         * directly: `unitTests.returnDefaultValues = true` stubs `android.jar`,
+         * so a test that only touches framework classes can pass while
+         * asserting nothing, and keeping this function framework-free is what
+         * keeps that failure mode out of reach here.
+         *
+         * [outcome], when present, is the previous re-probe's result and is
+         * shown as its own paragraph ahead of the address list.
+         */
+        @VisibleForTesting
+        internal fun buildAddressPanelBody(
+            known: ServerAddressBook.KnownAddresses,
+            outcome: String?,
+            noneLabel: String,
+            inUseLabel: String,
+            directLabel: String,
+            relayLabel: String
+        ): String = buildString {
+            if (outcome != null) append(outcome).append("\n\n")
+
+            fun appendAddress(uri: String) {
+                append(uri)
+                if (uri == known.current) append("  <- ").append(inUseLabel)
+                append("\n")
+            }
+
+            fun appendGroup(label: String, addresses: List<String>) {
+                if (addresses.isEmpty()) return
+                append(label).append("\n")
+                addresses.forEach(::appendAddress)
+            }
+
+            // known.current is live for a session written before the address
+            // book existed (see knownAddresses' own KDoc), which has no
+            // direct/relay candidates at all -- so "no addresses stored" has
+            // to be gated on current too, or it prints directly above the one
+            // address actually in use.
+            if (known.direct.isEmpty() && known.relay.isEmpty() && known.current == null) {
+                append(noneLabel)
+            } else {
+                // Direct and relay are kept apart rather than concatenated: a
+                // relay URI and a direct-but-remote one are both
+                // *.plex.direct-shaped and differ only by port, so flattening
+                // them throws away the one distinction this panel exists to
+                // show -- LAN, or out to the internet and back.
+                appendGroup(directLabel, known.direct)
+                appendGroup(relayLabel, known.relay)
+
+                // Normally current is one of the candidates just printed above.
+                // It is not for that same pre-address-book session, and
+                // showing it separately beats a panel that omits the one
+                // address actually in use.
+                known.current?.takeIf { it !in known.direct && it !in known.relay }?.let {
+                    append("\n")
+                    appendAddress(it)
+                }
+            }
+        }
     }
 }
