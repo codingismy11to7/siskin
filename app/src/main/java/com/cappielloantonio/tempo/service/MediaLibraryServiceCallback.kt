@@ -161,13 +161,17 @@ class MediaLibrarySessionCallback(
     private fun isMixRow(item: MediaItem) =
         item.mediaId.startsWith(Constants.MIX_ARTIST_ID) ||
             item.mediaId.startsWith(Constants.MIX_PLAYLIST_ID) ||
-            item.mediaId.startsWith(Constants.MIX_DECADE_ID)
+            item.mediaId.startsWith(Constants.MIX_DECADE_ID) ||
+            item.mediaId.startsWith(Constants.MIX_HUB_ID)
 
     /**
      * Fetches the tracks a tapped Mix row stands for, or null if the item is
      * not a Mix row. **Issues a network request** -- call it once per tap --
      * except for the decade branch's cache hit, which is already-complete and
-     * issues none; see [cachedDecadeTracks].
+     * issues none; see [cachedDecadeTracks]. The hub branch's cache hit is
+     * different: it still issues one, because it saves following the hub's
+     * key a second time, not the round trip that expands containers to
+     * tracks; see [cachedHubTracks].
      *
      * Dispatch is on the id prefix, which is the only thing the car sends back:
      * it rebuilds the item from the media id alone, so the extras the row was
@@ -199,6 +203,15 @@ class MediaLibrarySessionCallback(
                     ?: run {
                         Log.d(TAG, "Fetching a random sample of decade $decadeKey to shuffle")
                         browseRepository.getDecadeTracksForShuffle(decadeKey)
+                    }
+            }
+
+            id.startsWith(Constants.MIX_HUB_ID) -> {
+                val hubKey = id.removePrefix(Constants.MIX_HUB_ID)
+                cachedHubTracks(hubKey)
+                    ?: run {
+                        Log.d(TAG, "Following hub $hubKey again to shuffle it")
+                        browseRepository.getHubTracksForShuffle(hubKey)
                     }
             }
 
@@ -251,6 +264,50 @@ class MediaLibrarySessionCallback(
         return Futures.immediateFuture(
             LibraryResult.ofItemList(ImmutableList.copyOf(cached.drop(1)), null)
         )
+    }
+
+    /**
+     * Expands the container ids already on screen instead of following the
+     * hub's key a second time, or null when the cache cannot be trusted for
+     * this hub.
+     *
+     * **Unlike [cachedDecadeTracks] this still issues a request, and it must.**
+     * A decade's browse list is tracks, so a hit replays it directly. A hub's
+     * browse list is albums and artists -- browsable, with no stream -- so
+     * replaying it would hand media3 a queue of items it cannot play. What the
+     * cache saves is the round trip that re-fetches the containers, and for a
+     * hub whose key carries `sort=random` it saves more than time: following
+     * the key again returns a *different* set, so the mix would stop matching
+     * what the driver is looking at.
+     *
+     * The guard is [cachedDecadeTracks]'s, unchanged in shape:
+     * `PlexBrowseRepository.getHubContent` always writes this hub's own Mix row
+     * at index 0, so a cached list identifies itself and anything else -- a
+     * cold cache, another node's list -- falls back.
+     *
+     * The ids are read off each row's own prefix rather than from the hub's
+     * declared type, so a hub mixing albums and artists sends both filters.
+     *
+     * Both lists coming out empty (a cache hit whose containers expanded to
+     * nothing) also falls back, deliberately: an empty-empty call to
+     * [PlexBrowseRepository.getHubTracksForIds] sends neither filter, which
+     * Plex answers by shuffling the whole library rather than the hub.
+     */
+    private fun cachedHubTracks(
+        hubKey: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
+        val cached = queueSourceCache[Constants.QUEUE_CACHED_SOURCE]
+        if (cached?.firstOrNull()?.mediaId != Constants.MIX_HUB_ID + hubKey) return null
+
+        val rows = cached.drop(1)
+        val albums = rows.filter { it.mediaId.startsWith(Constants.ALBUM_ID) }
+            .map { it.mediaId.removePrefix(Constants.ALBUM_ID) }
+        val artists = rows.filter { it.mediaId.startsWith(Constants.ARTIST_ID) }
+            .map { it.mediaId.removePrefix(Constants.ARTIST_ID) }
+        if (albums.isEmpty() && artists.isEmpty()) return null
+
+        Log.d(TAG, "Mixing hub $hubKey from the ${rows.size} rows already browsed")
+        return browseRepository.getHubTracksForIds(albums, artists)
     }
 
     /**

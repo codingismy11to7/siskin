@@ -189,6 +189,24 @@ object MediaBrowserTree {
                 )
             )
 
+        treeNodes[Constants.DISCOVER_ID] =
+            MediaItemNode(
+                buildMediaItem(
+                    // A list, permanently. A hub row's meaning is its sentence
+                    // -- "Haven't played in 5 months" -- and a grid gives a
+                    // caption that truncates, in five locales whose lengths
+                    // differ. This must not become a grid when hub artwork
+                    // lands; see the 2026-08-14 hubs browse design.
+                    browsableChildrenAsGrid = false,
+                    title = appContext.getString(R.string.browse_discover),
+                    mediaId = Constants.DISCOVER_ID,
+                    isPlayable = false,
+                    isBrowsable = true,
+                    imageUri = iconUri(R.drawable.ic_browse_discover),
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
+                )
+            )
+
         treeNodes[Constants.DECADES_ID] =
             MediaItemNode(
                 buildMediaItem(
@@ -218,6 +236,7 @@ object MediaBrowserTree {
                 )
             )
 
+        treeNodes[Constants.MORE_ID]!!.addChild(Constants.DISCOVER_ID)
         treeNodes[Constants.MORE_ID]!!.addChild(Constants.DECADES_ID)
         treeNodes[Constants.MORE_ID]!!.addChild(Constants.SELECT_LIBRARY_ID)
 
@@ -276,11 +295,11 @@ object MediaBrowserTree {
             return signedOutRow(appContext).single()
         }
 
-        // No branch for DECADE_ID rows, deliberately: unlike the picker and
-        // signed-out rows above, nothing calls BrowseTreeInvalidator on a
-        // decade, so there's no live subscription that a null here would
-        // drop. Artist and album rows already navigate correctly with no
-        // branch here either.
+        // No branch for DECADE_ID or HUB_ID rows, deliberately: unlike the
+        // picker and signed-out rows above, nothing calls BrowseTreeInvalidator
+        // on a decade or a hub, so there's no live subscription that a null
+        // here would drop. Artist and album rows already navigate correctly
+        // with no branch here either.
         //
         // That is a different question from the DECADES_ID node itself: like
         // the three music tabs, it is a registered tree node left stale on a
@@ -321,6 +340,8 @@ object MediaBrowserTree {
 
             Constants.DECADES_ID -> browseRepository.getDecades(Constants.DECADE_ID)
 
+            Constants.DISCOVER_ID -> browseRepository.getHubs(Constants.HUB_ID)
+
             else -> {
                 if (id.startsWith(Constants.PLAYLIST_ID)) {
                     return browseRepository.getPlaylistTracks(
@@ -347,6 +368,19 @@ object MediaBrowserTree {
                     return browseRepository.getArtistLetter(
                         id.removePrefix(Constants.ARTIST_LETTER_ID),
                         Constants.ARTIST_ID
+                    )
+                }
+                // Before the ALBUM_ID/ARTIST_ID tests below, for the same
+                // reason the window and letter tests precede them: a hub id
+                // must not be mistaken for either.
+                if (id.startsWith(Constants.HUB_ID)) {
+                    // The whole HubKey payload -- library and the server's own
+                    // query -- handed over unsplit, for the reason the decade
+                    // branch hands its key over whole: the Mix row the
+                    // repository builds must carry the same string the
+                    // callback's cache guard rebuilds.
+                    return browseRepository.getHubContent(
+                        id.removePrefix(Constants.HUB_ID)
                     )
                 }
                 if (id.startsWith(Constants.ALBUM_ID)) {
