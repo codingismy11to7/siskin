@@ -354,6 +354,21 @@ comments, tests and refactors earn nothing. Entries state what the app does now,
 with the reason attached where the behaviour alone does not explain it, and the
 file uses flat bullets rather than Keep a Changelog's category headings.
 
+**A new entry goes at the *top* of `[Unreleased]`, directly under the heading —
+never appended at the bottom.** Newest first, matching how the releases below it
+already read.
+
+That ordering is also what keeps a rebase honest. Appending puts a new bullet
+adjacent to whatever line currently ends the section, and after a release cut
+that line belongs to the release that just shipped — so a branch written before
+the cut and rebased after it lands its entry inside a released version, which is
+both wrong and easy to miss in a diff. A bullet inserted directly beneath
+`## [Unreleased] — Siskin` has no such ambiguity: the anchor is a heading that
+the cut rewrites wholesale rather than a bullet the cut leaves behind.
+
+Existing entries are not reordered to match. The rule governs what is added from
+now on.
+
 This is written down because it lapsed. `Cut 0.99.1` carried its entry and the
 next two cuts silently did not, which is what
 `docs/decisions/2026-08-12-changelog-workflow-design.md` exists to prevent

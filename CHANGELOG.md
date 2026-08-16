@@ -12,6 +12,10 @@
 
 ## [Unreleased] — Siskin
 
+- Settings has a Customize tabs screen: drag the browse destinations into the
+  order you want, and the top three become the car's tabs. The first one is
+  the tab the car opens on, since it always opens on the leftmost. Anything
+  below the line moves under More, and Select Library stays where it is.
 - Tapping the version in Settings lists the addresses known for the current
   server, marks the one in use, and offers to re-race them. The app has always
   held that list and never shown it, so "am I reaching the server over the LAN
@@ -23,10 +27,6 @@
   hub opens onto its full contents and can be mixed, and the rows are named by
   the server, so they arrive in the car's own language. A server with no
   listening history yet says so, plainly, rather than showing an empty screen.
-- Settings has a Customize tabs screen: drag the browse destinations into the
-  order you want, and the top three become the car's tabs. The first one is
-  the tab the car opens on, since it always opens on the leftmost. Anything
-  below the line moves under More, and Select Library stays where it is.
 
 ## [0.99.4] (2026-08-14)
 
