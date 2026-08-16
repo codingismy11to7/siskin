@@ -40,10 +40,13 @@ rather than convenient: that activity is deliberately not marked
 reorder screen inherits that for free, and a drag gesture is therefore never
 performed in motion. Back returns to Settings rather than leaving the activity.
 
-The screen is one drag-reorderable list with a non-draggable divider row after
-position 3, labelled **More**. Rows above the divider are the root tabs, in the
-order they appear; rows below live under More. The first row is the tab the car
-opens on.
+The screen is one drag-reorderable list. Each row carries a badge reading
+**Tab** or **More**, depending on whether it currently sits above or below
+position 3, rather than a separate divider row between them: a divider row
+would have to reposition itself mid-drag, exactly when the user is watching
+it, where a per-row badge just re-labels in place. Rows above the line are
+the root tabs, in the order they appear; rows below live under More. The
+first row is the tab the car opens on.
 
 Select Library is not in the list.
 
@@ -255,7 +258,7 @@ re-measured signed in.
 
 ## Strings
 
-Four new strings, each needing four translations in
+Five new strings, each needing four translations in
 `res/values-{de,es,fr,it}/strings.xml`. `MissingTranslation` is clean, so an
 omission is a lint failure rather than noise.
 
@@ -265,13 +268,16 @@ omission is a lint failure rather than noise.
 - `car_tab_order_drag_handle` — content description on the handle, so a row is
   reachable without the gesture
 - `car_tab_order_hint` — "Drag to reorder — the top three become tabs"
+- `car_tab_order_tab_badge` — "Tab", the per-row badge for a root tab; a
+  demoted or promoted row's badge is what shows the model taking effect
 
-The hint is the one of the four that could be cut. The divider may well explain
-the model on its own, but this is a novel interaction on a screen reached
+The hint is the one of the five that could be cut. The badges may well explain
+the model on their own, but this is a novel interaction on a screen reached
 rarely, and one line is cheap.
 
 Row labels reuse `browse_playlists`, `browse_artists`, `browse_albums` and
-`browse_decades`; the divider reuses `browse_more`, since it names the same tab.
+`browse_decades`; a More row's badge reuses `browse_more`, since it names the
+same tab.
 Nothing here wants `translatable="false"`.
 
 ## Testing

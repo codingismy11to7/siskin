@@ -59,8 +59,9 @@ class BrowseTabOrderFragment : Fragment() {
          * be tested without a RecyclerView -- the callback below does nothing
          * but delegate here and tell the adapter.
          *
-         * Persists on every drop rather than on the way out: a force-quit
-         * mid-session then cannot lose the change.
+         * Persists on every swap rather than on the way out: `onMove` fires
+         * once per adjacent swap during the drag, not once at the drop, so a
+         * force-quit mid-drag still cannot lose the change.
          */
         fun moveAndPersist(order: MutableList<String>, from: Int, to: Int) {
             order.add(to, order.removeAt(from))

@@ -527,15 +527,16 @@ object MediaBrowserTree {
      * -- there is no way to place list content at the root at all. The fix
      * is not a different row shape but a different node: stop returning
      * this row (or rows) as a root child. Signed out, the root now returns
-     * its normal four tabs -- Playlists, Artists, Albums, More, built by
-     * [buildTree] exactly as when signed in, since that tree is static and
-     * needs no credentials -- and the car auto-opens the first tab, landing
-     * the user on this row immediately with the toolbar correctly reading
-     * "Siskin". Every *non-root* `parentId` returns this single row, which
-     * is what the two-line split above was solving for in the first place,
-     * so it collapses back into one row using both lines the browse list
-     * already gives every item: `car_sign_in_required` as the title,
-     * `car_sign_in_hint` as the subtitle. That costs nothing *further*: both
+     * its normal four tabs -- the user's three chosen tabs, then More --
+     * built by [buildTree] exactly as when signed in, since that tree is
+     * static and needs no credentials -- and the car auto-opens the first
+     * tab, landing the user on this row immediately with the toolbar
+     * correctly reading "Siskin". Every *non-root* `parentId` returns this
+     * single row, which is what the two-line split above was solving for
+     * in the first place, so it collapses back into one row using both
+     * lines the browse list already gives every item: `car_sign_in_required`
+     * as the title, `car_sign_in_hint` as the subtitle. That costs nothing
+     * *further*: both
      * lines were already in place by the two-row split, which is what first
      * introduced `car_sign_in_hint` as a second row's title. But
      * `car_sign_in_hint` is not a pre-existing string overall -- it is new to

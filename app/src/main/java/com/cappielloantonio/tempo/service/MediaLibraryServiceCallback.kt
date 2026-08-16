@@ -96,7 +96,8 @@ class MediaLibrarySessionCallback(
             // show one. The root is exempted because the browse root is a
             // tab bar, not a list -- measured on an AAOS API 33 emulator, see
             // MediaBrowserTree.signedOutRow's KDoc -- so it falls through
-            // below to the same four static tabs a signed-in car gets;
+            // below to the same four tabs a signed-in car gets -- which three
+            // precede More is the user's saved order, not a static set;
             // MediaBrowserTree.buildTree is static and needs no credentials.
             // The car auto-opens the first tab, landing the user on this row
             // immediately. classifyFailure still returns an error for
