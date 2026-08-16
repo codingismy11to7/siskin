@@ -6,13 +6,17 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
+import androidx.annotation.OptIn
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
+import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SimpleItemAnimator
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.BrowseTabOrder
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
@@ -80,6 +84,10 @@ class BrowseTabOrderFragment : Fragment() {
         }
     }
 
+    // BrowseTreeInvalidator's calls in the back callback below are the only
+    // media3-unstable surface this fragment touches, matching the pattern
+    // PlexSignInFragment.render() uses for the same call.
+    @OptIn(UnstableApi::class)
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -147,6 +155,33 @@ class BrowseTabOrderFragment : Fragment() {
                 override fun isItemViewSwipeEnabled(): Boolean = false
             }
         ).attachToRecyclerView(list)
+
+        // On the way out rather than per drop: one invalidation instead of one
+        // per drag, and the browse UI is not foreground during the drag anyway.
+        //
+        // Both calls, and the second is not optional -- measured on the
+        // emulator, invalidateRoot() alone redraws the tab bar while More goes
+        // on serving a cached list missing the demoted destination.
+        //
+        // Not invalidateTree(): it also invalidates Playlists, Artists and
+        // Albums, forcing re-fetches of large lists whose contents did not
+        // change, and it hardcodes the four ids this feature makes
+        // non-constant. A reordered destination always moves between root and
+        // More, so these two cover every case.
+        //
+        // In a back callback rather than onDestroyView, which would also fire
+        // on a configuration change and invalidate for nothing.
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    BrowseTreeInvalidator.invalidateRoot()
+                    BrowseTreeInvalidator.invalidateNode(Constants.MORE_ID, 0)
+                    isEnabled = false
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        )
 
         return root
     }
