@@ -37,7 +37,11 @@ import com.google.android.material.materialswitch.MaterialSwitch
  * uses RecyclerView deliberately, for ItemTouchHelper's drag and auto-scroll.
  * These screens simply do not need it.
  */
-internal fun addChoice(container: ViewGroup, label: String, onClick: () -> Unit) {
+internal fun addChoice(
+    container: ViewGroup,
+    label: String,
+    onClick: () -> Unit
+): MaterialButton {
     val resources = container.resources
     val button = MaterialButton(container.context).apply {
         text = label
@@ -65,6 +69,7 @@ internal fun addChoice(container: ViewGroup, label: String, onClick: () -> Unit)
             bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
         }
     )
+    return button
 }
 
 /**

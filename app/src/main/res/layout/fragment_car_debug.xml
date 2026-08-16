@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The debug surface, promoted from an AlertDialog once it grew a second
+    action. See docs/decisions/2026-08-16-debug-screen-design.md, and the
+    2026-08-14 design it follows through on.
+
+    Same pinned-heading-over-scrolling-list arrangement as fragment_car_settings,
+    for the same reason: this list is expected to grow.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="32dp"
+    android:paddingTop="32dp"
+    android:paddingEnd="32dp">
+
+    <!--
+        No marginStart: activity_car_host's back button overlays this fragment
+        at top|start, and this heading is short and centred, so the two do not
+        meet.
+    -->
+    <TextView
+        android:id="@+id/tagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:text="@string/debug_screen_title"
+        android:textAppearance="?attr/textAppearanceDisplaySmall" />
+
+    <ScrollView
+        android:id="@+id/content_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:paddingTop="8dp"
+        android:paddingBottom="32dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/scroll_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top|center_horizontal"
+            android:orientation="vertical">
+
+            <!--
+                The address report. Monospace so that a column of hosts and
+                ports lines up, which is the whole reason this screen is read.
+            -->
+            <TextView
+                android:id="@+id/address_text"
+                android:layout_width="@dimen/plex_sign_in_choice_width"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:fontFamily="monospace"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <LinearLayout
+                android:id="@+id/choice_container"
+                android:layout_width="@dimen/plex_sign_in_choice_width"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>
