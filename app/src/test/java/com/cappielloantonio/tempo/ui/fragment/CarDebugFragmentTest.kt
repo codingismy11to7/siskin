@@ -124,25 +124,45 @@ class CarDebugFragmentTest {
         assertTrue(rowLabelled(controller, label).isEnabled)
     }
 
-    /**
-     * The ordering that makes the row work at all.
-     *
-     * CarHostActivity's router returns early while the back stack is non-empty --
-     * that guard is what stops a uiMode flip replacing a pushed screen -- and the
-     * debug screen is itself on that back stack. So the row has to pop *itself*,
-     * synchronously, before the state changes. Swap popBackStackImmediate() for
-     * popBackStack() and this fails: the pop posts, the router still sees a count
-     * of one, and the picker never arrives.
-     */
-    @Test
-    fun `choosing a server leaves the debug screen for the picker`() {
-        val controller = launch()
-        openDebugScreen(controller)
-
+    private fun chooseServer(controller: ActivityController<CarHostActivity>) {
         val label = controller.get().getString(R.string.debug_choose_server)
         rowLabelled(controller, label).performClick()
         idle()
+    }
+
+    @Test
+    fun `choosing a server opens the picker`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        chooseServer(controller)
 
         assertTrue(screenOf(controller) is PlexSignInFragment)
+    }
+
+    /**
+     * The reason the picker is pushed rather than routed to.
+     *
+     * Back out of a picker opened from here means "return to the debug
+     * screen", and a back stack is the thing that knows how to do that. The
+     * fragment declines to claim the press for ChoosingServer when it was
+     * pushed (see PlexSignInFragment.claimsBackPress), so the press falls
+     * through to the FragmentManager's own pop.
+     *
+     * This fails if that exception is removed: PlexSignInViewModel.backPressed
+     * takes the press instead, publishes Disconnected, and the router replaces
+     * the picker with the Connect screen -- abandoning a sign-in the user never
+     * started, and never returning here.
+     */
+    @Test
+    fun `back out of the picker returns to the debug screen`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        chooseServer(controller)
+
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertTrue(screenOf(controller) is CarDebugFragment)
     }
 }

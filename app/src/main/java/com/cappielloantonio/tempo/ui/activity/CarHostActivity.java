@@ -141,15 +141,18 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
     private void route(PlexSignInState state) {
         FragmentManager fragments = getSupportFragmentManager();
 
-        // A pushed screen owns the container -- BrowseTabOrderFragment and
-        // CarDebugFragment both push one. Neither may publish a new state
-        // while its screen is still on the stack: CarDebugFragment's
-        // chooseServer() pops itself with popBackStackImmediate() before ever
-        // calling reopenServerPicker(), so that state change always finds the
-        // stack already empty. What this guard actually has to survive is a
-        // uiMode flip, where onCreate runs again and this observer fires again
-        // with whatever state was already showing -- without it, the restored
-        // pushed screen would be replaced by settings underneath the user.
+        // A pushed screen owns the container, and there are two pushers:
+        // BrowseTabOrderFragment, and CarDebugFragment -- which pushes the
+        // sign-in screen itself for its "Choose server" row, precisely so that
+        // back returns there rather than wherever a routed screen would land.
+        //
+        // So a routed swap is exactly what must not happen while anything is
+        // pushed, and state does change while something is: reopenServerPicker
+        // publishes into a stack this activity is deliberately keeping its
+        // hands off. The other case is a uiMode flip, where onCreate runs again
+        // and this observer fires again with whatever was already showing.
+        // Without this guard either one replaces the pushed screen underneath
+        // the user.
         if (fragments.getBackStackEntryCount() > 0) return;
 
         boolean wantSettings = state instanceof PlexSignInState.Connected;

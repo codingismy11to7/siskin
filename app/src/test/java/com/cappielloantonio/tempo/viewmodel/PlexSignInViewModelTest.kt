@@ -1310,23 +1310,14 @@ class PlexSignInViewModelTest {
         assertNull("sign out must not leave the previous account's token behind", api.accountToken)
     }
 
+    /**
+     * The flow's answer, and it is the same one whichever screen opened the
+     * picker. Where back *lands* when the debug screen opened it is the back
+     * stack's business, not this function's -- CarDebugFragmentTest covers
+     * that, and PlexSignInFragment is what declines to claim the press.
+     */
     @Test
-    fun `back from a settings-opened picker returns to settings`() {
-        val viewModel = PlexSignInViewModel(mock<Application>())
-        viewModel.setStateForTest(
-            PlexSignInState.ChoosingServer(
-                nonEmptyListOf(aMediaServer()),
-                returnsToSettings = true
-            )
-        )
-
-        assertTrue(viewModel.backPressed())
-
-        assertEquals(PlexSignInState.Connected, viewModel.state.value)
-    }
-
-    @Test
-    fun `back from a sign-in picker still abandons the flow`() {
+    fun `back out of the server picker abandons the flow`() {
         val viewModel = PlexSignInViewModel(mock<Application>())
         viewModel.setStateForTest(
             PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer()))
@@ -1335,25 +1326,6 @@ class PlexSignInViewModelTest {
         assertTrue(viewModel.backPressed())
 
         assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-    }
-
-    @Test
-    fun `back out of the library picker carries the settings flag with it`() {
-        val viewModel = PlexSignInViewModel(mock<Application>())
-        viewModel.setStateForTest(
-            PlexSignInState.ChoosingLibrary(
-                nonEmptyListOf(Directory().apply { key = "5"; title = "Music" }),
-                nonEmptyListOf(aMediaServer()),
-                returnsToSettings = true
-            )
-        )
-
-        assertTrue(viewModel.backPressed())
-
-        val state = viewModel.state.value as PlexSignInState.ChoosingServer
-        // Without the carry-forward this is false and the next back press
-        // abandons a sign-in the user never started.
-        assertTrue(state.returnsToSettings)
     }
 
     @Test
@@ -1368,8 +1340,6 @@ class PlexSignInViewModelTest {
 
         val state = viewModel.state.value as PlexSignInState.ChoosingServer
         assertEquals(1, state.servers.size)
-        // The whole point of this entry point: back must return to Settings.
-        assertTrue(state.returnsToSettings)
     }
 
     @Test

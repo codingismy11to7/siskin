@@ -147,9 +147,14 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * setter deliberately leaves that token alone when clearing a session --
      * so a signed-in app always has one, and there is nothing to approve.
      *
-     * Publishes with `returnsToSettings = true`, which is the only thing
-     * distinguishing this picker from the one sign-in publishes: back out of
-     * it and the session that was never in question is still there.
+     * Publishes exactly the picker sign-in publishes, with nothing marking it
+     * as having come from elsewhere. Getting back out of it is the fragment
+     * back stack's job: the debug screen pushes the picker rather than letting
+     * the router swap to it, so back pops to the debug screen the ordinary way
+     * -- see [com.cappielloantonio.tempo.ui.fragment.CarDebugFragment]. An
+     * earlier draft carried a `returnsToSettings` flag on the state instead and
+     * hardcoded where back landed, which reimplemented the back stack badly and
+     * could only name a destination the state machine happened to have.
      *
      * Failures land in Failed exactly as signIn's do. That is right here for
      * the same reason it is right there -- both errors this can raise are
@@ -168,7 +173,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
                     AuthClient.mediaServers(resources).toNonEmptyListOrNull()
                 ) { SignInError.NoServers }
 
-                _state.value = PlexSignInState.ChoosingServer(servers, returnsToSettings = true)
+                _state.value = PlexSignInState.ChoosingServer(servers)
             }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
         }
     }
@@ -252,10 +257,18 @@ class PlexSignInViewModel @JvmOverloads constructor(
      *
      * | From | Goes to |
      * |---|---|
-     * | [PlexSignInState.ChoosingLibrary] | [PlexSignInState.ChoosingServer], the same server list and the same `returnsToSettings`, no message |
-     * | [PlexSignInState.ChoosingServer] with `returnsToSettings` set | [PlexSignInState.Connected] |
-     * | [PlexSignInState.ChoosingServer] without it, [PlexSignInState.AwaitingApproval], [PlexSignInState.Failed], [PlexSignInState.Working] | [PlexSignInState.Disconnected] |
+     * | [PlexSignInState.ChoosingLibrary] | [PlexSignInState.ChoosingServer], the same server list, no message |
+     * | [PlexSignInState.ChoosingServer], [PlexSignInState.AwaitingApproval], [PlexSignInState.Failed], [PlexSignInState.Working] | [PlexSignInState.Disconnected] |
      * | anything [handlesBackPress] reports false for | nothing |
+     *
+     * These are the *flow's* answers, and they assume the flow is what the
+     * user is in. The debug screen reaches this picker without being in it, and
+     * back there must return to the debug screen instead -- which is why that
+     * route pushes the fragment onto the back stack and
+     * [com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment] stops
+     * claiming the press for [PlexSignInState.ChoosingServer] when it was
+     * pushed. Nothing about that reaches this function: the back stack owns
+     * that navigation, and this stays a statement about the flow.
      *
      * The library-picker case reuses the server list [PlexSignInState.ChoosingLibrary]
      * now carries rather than re-deriving it, and deliberately omits
@@ -263,7 +276,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * their own pick, not Plex rejecting anything, so there is nothing to
      * report -- see the KDoc on [PlexSignInState.ChoosingServer.messageRes].
      *
-     * Every other consumed case lands on Disconnected or Connected and cancels [attempt]
+     * Every other consumed case lands on Disconnected and cancels [attempt]
      * first: that job describes the PIN poll or the server probe/getSections
      * call the user is abandoning by backing out, and letting it run to
      * completion could publish a state over the Disconnected this call just
@@ -276,26 +289,11 @@ class PlexSignInViewModel @JvmOverloads constructor(
         val current = _state.value ?: return false
         return when (current) {
             is PlexSignInState.ChoosingLibrary -> {
-                _state.value = PlexSignInState.ChoosingServer(
-                    current.servers,
-                    returnsToSettings = current.returnsToSettings
-                )
+                _state.value = PlexSignInState.ChoosingServer(current.servers)
                 true
             }
 
-            // Split out of the group below because it is the one state back can
-            // be reached in on two different journeys. Settings opened this
-            // picker without putting the session in question, so abandoning it
-            // returns to the screen it was opened from; the sign-in journey has
-            // no session to return to and lands on Disconnected as before.
-            is PlexSignInState.ChoosingServer -> {
-                attempt?.cancel()
-                _state.value =
-                    if (current.returnsToSettings) PlexSignInState.Connected
-                    else PlexSignInState.Disconnected
-                true
-            }
-
+            is PlexSignInState.ChoosingServer,
             is PlexSignInState.AwaitingApproval,
             is PlexSignInState.Failed,
             is PlexSignInState.Working -> {
@@ -339,16 +337,14 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
     fun chooseServer(resource: Resource) {
         // Read before the overwrite below, because the state is the only place
-        // these live -- a parallel field would give them two owners. If this
-        // line ever moves under the assignment `servers` becomes permanently
-        // null and #18 is silently back; PlexSignInViewModelTest's three
-        // recovery tests are what hold it here. Serves two purposes below:
-        // restoring the picker on rejection (unchanged), and carrying both
-        // values forward into a successful ChoosingLibrary so backPressed()
-        // has a list to return to and knows where the journey ends.
-        val picker = _state.value as? PlexSignInState.ChoosingServer
-        val servers = picker?.servers
-        val returnsToSettings = picker?.returnsToSettings ?: false
+        // this list lives -- a parallel field would give it two owners. If this
+        // line ever moves under the assignment it becomes permanently null and
+        // #18 is silently back; PlexSignInViewModelTest's three recovery tests
+        // are what hold it here. Serves two purposes below: restoring the
+        // picker on rejection (unchanged), and now also carried forward into a
+        // successful ChoosingLibrary so backPressed() has a list to return to
+        // -- still the state's one read, not a second copy of it.
+        val servers = (_state.value as? PlexSignInState.ChoosingServer)?.servers
 
         // Picking a server supersedes the poll loop and any earlier pick: an
         // outstanding probe or sections call describes a server the user is no
@@ -390,7 +386,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 // chooseLibrary's own three "normally unreachable" guards
                 // build Failed directly instead of going through Arrow.
                 _state.value = servers?.let {
-                    PlexSignInState.ChoosingLibrary(sections, it, returnsToSettings)
+                    PlexSignInState.ChoosingLibrary(sections, it)
                 }
                     ?: run {
                         Log.d(TAG, "chooseServer succeeded with no server list on record")
@@ -411,7 +407,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 // picker, which the UI cannot currently do.
                 val message = PlexSignInFlow.messageFor(error)
                 _state.value = if (servers != null) {
-                    PlexSignInState.ChoosingServer(servers, message, returnsToSettings)
+                    PlexSignInState.ChoosingServer(servers, message)
                 } else {
                     PlexSignInState.Failed(message)
                 }

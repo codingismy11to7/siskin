@@ -79,20 +79,16 @@ More → Select Library is untouched. This is deliberate: the two are not
 redundant, because this route exists to exercise the sign-in flow's picker, and
 a second implementation that could regress independently would defeat that.
 
-### Opening the picker pops first, then publishes
+### The picker is pushed, not routed
 
-The router in #119 returns early while the back stack is non-empty. The debug
-screen is *on* that back stack, so it has to remove itself before the state
-changes:
+The debug screen pushes `PlexSignInFragment` onto the back stack with
+`addToBackStack` and then calls `reopenServerPicker()`. Order does not matter:
+the push only makes the back stack deeper, and the router in #119 already
+declines to act while it is non-empty, so the router stays silent throughout and
+the fragment renders whatever state is current when it starts observing.
 
-1. `popBackStackImmediate()` — synchronous, deliberately. `popBackStack()` posts,
-   so the router could still observe a count of one and refuse to move, leaving
-   the debug screen on display while the state advanced underneath it.
-2. `reopenServerPicker()` publishes `Working` synchronously and launches the
-   fetch.
-3. The router sees `Working` with an empty back stack and swaps in
-   `PlexSignInFragment`, which draws the spinner it already draws for that state.
-4. `getResources()` returns and `ChoosingServer` renders the picker.
+Back then returns to the debug screen because that is what a back stack does.
+Nothing has to remember where the user came from.
 
 The spinner is free, and so is failure handling: a transport failure or an empty
 server list already map onto `SignInError.Api` and `SignInError.NoServers`, which
@@ -103,28 +99,38 @@ without a PIN at all. `PlexApi.session`'s setter deliberately leaves
 `accountToken` alone when clearing the session, so the token outlives the session
 it was gathered with.
 
-### `ChoosingServer` learns which journey it is on
+### Back belongs to the back stack, not to the state
 
-Back out of the picker today and `backPressed()` cancels the attempt and
-publishes `Disconnected` — the Connect screen. That is right when the journey was
-signing in, and wrong when it was a look from Settings, which should leave the
-session alone and return to it.
+Back out of the picker and `backPressed()` cancels the attempt and publishes
+`Disconnected` — the Connect screen. That is right when the journey was signing
+in, and wrong when the picker was opened from the debug screen, where back should
+return there and leave the session alone.
 
-**`ChoosingServer` gains `returnsToSettings: Boolean = false`, carried forward
-into `ChoosingLibrary` by `chooseServer` the way `servers` already is.**
-`backPressed()` publishes `Connected` when it is set and `Disconnected` when it
-is not.
+**Pushing the fragment is the whole answer.** The `FragmentManager` pops back to
+the debug screen without being told to, and `PlexSignInState` learns nothing
+about navigation.
 
-This state machine already solves this problem this way, which is the argument
-for it. `ChoosingLibrary` carries `servers` for no purpose other than letting
-back return to a populated picker, and its KDoc records that this was chosen over
-a parallel field, citing #18. A second navigational fact in the state follows
-that precedent instead of setting a new one, and it cannot desync: a state that
-is not the picker does not carry the field.
+One thing does have to be said out loud. `PlexSignInFragment` registers an
+`OnBackPressedCallback` enabled whenever `handlesBackPress` is true, which
+includes `ChoosingServer` — so pushed, it would claim the press and abandon a
+sign-in nobody started. It therefore takes a `pushed` **fragment argument** and
+declines the press for that one state. A fragment argument is the right home for
+"how was this screen reached": it is a fact about this instance, not about the
+flow. Backing out of the *library* picker still belongs to the flow even when
+pushed, because that returns to the server picker one step up — a move inside
+this screen rather than out of it.
 
-A `ViewModel` flag was the cheaper option and is the #18 shape exactly — it would
-have to be cleared in `open()`, `signIn()` and `signOut()`, and a missed clear
-fails silently and much later.
+**An earlier draft of this design put a `returnsToSettings` flag on
+`ChoosingServer` and `ChoosingLibrary` instead**, with `backPressed()` publishing
+`Connected` when set. It was implemented, reviewed and tested before being
+replaced, and the reason it was wrong is worth keeping: routing the picker meant
+the debug screen had to `popBackStackImmediate()` itself out of existence first
+— destroying the very back-stack entry that would have returned the user there —
+and then name a hardcoded destination to fill the hole. That destination could
+only ever be a state the flow already had, so it was Settings: not where anyone
+came from. It reimplemented the back stack, worse, after discarding it.
+
+Two more alternatives, both rejected before the flag was:
 
 Two distinct states, `ChoosingServer` and `ChangingServer`, would let the
 compiler force every decision. Rejected on ceremony: four exhaustive `when`
@@ -136,25 +142,19 @@ entirely, would make back trivially correct. Rejected because it would be a thir
 implementation of choosing a server and could regress independently of the one
 this feature exists to watch.
 
-The default of `false` leaves every existing construction site unchanged, and
-`PlexSignInState`'s own KDoc — "describes the steps of signing in" — is stretched
-slightly by this, though `messageRes` is presentation and already lives there.
-
 ## Testing
 
-- **`reopenServerPicker()`**: publishes `Working`, then
-  `ChoosingServer(servers, returnsToSettings = true)`; `Failed` on a transport
-  failure; `Failed` on an empty media-server list. MockWebServer, as
-  `PlexSignInViewModelTest` already drives this flow.
-- **`backPressed()` for both journeys**: `returnsToSettings = true` reaches
-  `Connected` with the session intact; `false` still reaches `Disconnected`,
-  which is existing behaviour and the regression most worth catching. And
-  `ChoosingLibrary` → back → `ChoosingServer` **with the flag carried forward**,
-  the direct analogue of the existing `servers` carry-forward tests.
-- **The pop ordering**: choosing server from the debug screen lands on
-  `PlexSignInFragment`. This test has teeth — substituting `popBackStack()` for
-  `popBackStackImmediate()` makes it fail, because the router still sees a
-  non-empty back stack.
+- **`reopenServerPicker()`**: publishes `Working`, then `ChoosingServer(servers)`;
+  `Failed` on a transport failure; `Failed` on an empty media-server list.
+  `AuthClient` is stubbed with Mockito, as `PlexSignInViewModelTest` already
+  drives this flow — no test in this repository makes a real outbound call, and
+  `plex.tv`'s base URL is a private const that cannot be redirected.
+- **Back out of the pushed picker returns to the debug screen.** The test with
+  teeth: remove `PlexSignInFragment`'s `pushed` exception and it fails, because
+  `backPressed()` claims the press, publishes `Disconnected`, and the router
+  swaps in the Connect screen instead of the pop happening.
+- **`backPressed()` from `ChoosingServer` still abandons the flow**, which is
+  unchanged behaviour and the regression most worth catching.
 - **The entry point**: the version line pushes `CarDebugFragment`, driven through
   `CarHostActivity` as `CarSettingsFragmentTest` drives settings.
 

@@ -142,27 +142,31 @@ class CarDebugFragment : Fragment() {
     /**
      * Opens the sign-in flow's own server picker, without signing in.
      *
-     * The order here is the whole trick. CarHostActivity's router refuses to
-     * act while the back stack is non-empty -- that is what keeps a pushed
-     * screen from being replaced underneath the user on a uiMode flip -- and
-     * this screen is on that back stack. So it removes itself first, and it
-     * does so with popBackStackImmediate rather than popBackStack because the
-     * latter posts: the router would still observe a count of one and decline
-     * to move, leaving this screen on display while the state advanced behind
-     * it.
+     * **Pushed, not routed, and that is the whole design.** Back out of the
+     * picker should return here, to the screen it was opened from, and a back
+     * stack is precisely the thing that knows how to do that. Pushing also
+     * keeps CarHostActivity's router out of the way for free: it declines to
+     * act while the back stack is non-empty, and this transaction only makes it
+     * emptier by nothing.
      *
-     * The ViewModel is resolved *before* the pop, because afterwards this
-     * fragment is detached and requireActivity() would throw.
+     * An earlier draft had the router show the picker instead. That forced this
+     * row to pop *itself* first -- destroying the very entry that would have
+     * brought the user back -- and then to name a hardcoded destination for
+     * back, which could only ever be a state the flow already had. Settings,
+     * in practice, which is not where anyone came from.
      *
-     * Nothing else is needed. Working routes to PlexSignInFragment, which
-     * already draws a spinner for it, and ChoosingServer arrives into the same
-     * fragment a moment later.
+     * The order below does not matter. The push makes the back stack deeper, so
+     * the router is silent either way, and the fragment picks up whatever state
+     * is current when it starts observing.
      */
     private fun chooseServer() {
-        val viewModel =
-            ViewModelProvider(requireActivity())[PlexSignInViewModel::class.java]
-        parentFragmentManager.popBackStackImmediate()
-        viewModel.reopenServerPicker()
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.car_host_container, PlexSignInFragment.pushed())
+            .addToBackStack(null)
+            .commit()
+
+        ViewModelProvider(requireActivity())[PlexSignInViewModel::class.java]
+            .reopenServerPicker()
     }
 
     companion object {
