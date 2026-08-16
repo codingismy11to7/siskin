@@ -57,7 +57,7 @@ object BrowseTreeInvalidator {
      * car will pick up the current tree the next time it connects or re-subscribes.
      *
      * Must be called on the main thread. This is a process-wide singleton with callers
-     * in different components (currently [com.cappielloantonio.tempo.ui.activity.CarSignInActivity]),
+     * in different components (currently [com.cappielloantonio.tempo.ui.activity.CarHostActivity]),
      * and [MoreExecutors.directExecutor] below runs `notifyChildrenChanged` on whatever
      * thread completes [MediaBrowserTree.getChildren]'s future -- correct today only
      * because that resolves synchronously on the calling thread, which callers keep on

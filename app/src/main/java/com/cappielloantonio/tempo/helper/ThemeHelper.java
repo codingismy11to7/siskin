@@ -43,7 +43,7 @@ public class ThemeHelper {
 
     /**
      * Applies the user's theme choice to an activity. Must be called before
-     * super.onCreate(). Called by CarSignInActivity, the app's only activity.
+     * super.onCreate(). Called by CarHostActivity, the app's only activity.
      */
     public static void applyActivityTheme(AppCompatActivity activity) {
         String theme = Preferences.getTheme();

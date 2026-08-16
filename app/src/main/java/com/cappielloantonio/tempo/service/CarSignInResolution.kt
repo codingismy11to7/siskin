@@ -12,7 +12,7 @@ import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
+import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.google.common.collect.ImmutableList
 
 /**
@@ -60,13 +60,13 @@ object CarSignInResolution {
     }
 
     private fun signInPendingIntent(context: Context): PendingIntent {
-        val intent = Intent(context, CarSignInActivity::class.java)
+        val intent = Intent(context, CarHostActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             // Every route through this object is a credentials problem, so the
             // screen must offer sign-in even when a (rejected) session object
             // still exists. The gear's launch carries no extra and decides for
             // itself.
-            .putExtra(CarSignInActivity.EXTRA_FORCE_SIGN_IN, true)
+            .putExtra(CarHostActivity.EXTRA_FORCE_SIGN_IN, true)
         return PendingIntent.getActivity(
             context,
             REQUEST_CODE,

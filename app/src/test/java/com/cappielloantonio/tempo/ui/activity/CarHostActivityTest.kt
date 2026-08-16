@@ -26,8 +26,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
 /**
- * Covers CarSignInActivity's two LoginHost callbacks directly, on a bare
- * `CarSignInActivity()` instance rather than one built through Robolectric's
+ * Covers CarHostActivity's two LoginHost callbacks directly, on a bare
+ * `CarHostActivity()` instance rather than one built through Robolectric's
  * full Activity lifecycle (`buildActivity(...).create()`): onLoginSuccess()
  * and onSignedOut() only touch BrowseTreeInvalidator's static session and
  * (for onLoginSuccess) call finish(), none of which needs onCreate() to have
@@ -39,7 +39,7 @@ import org.robolectric.Shadows.shadowOf
  *
  * The back button test below is the one exception and does use
  * `buildActivity(...).create()`: the button only exists once onCreate() has
- * inflated activity_car_sign_in.xml, and the whole point of that test is that
+ * inflated activity_car_host.xml, and the whole point of that test is that
  * clicking it reaches the activity through the real click listener onCreate()
  * wires up, not a hand-called method. open(false)'s network-free path
  * (CredentialGate.isSignedIn() is false with no session on record) and the
@@ -48,7 +48,7 @@ import org.robolectric.Shadows.shadowOf
  */
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
-class CarSignInActivityTest {
+class CarHostActivityTest {
 
     private lateinit var session: MediaLibrarySession
     private lateinit var player: Player
@@ -76,7 +76,7 @@ class CarSignInActivityTest {
 
     @Test
     fun `onLoginSuccess invalidates the root and all four tabs`() {
-        val activity = CarSignInActivity()
+        val activity = CarHostActivity()
         activity.onLoginSuccess()
         idleMainLooper()
 
@@ -89,7 +89,7 @@ class CarSignInActivityTest {
 
     @Test
     fun `onSignedOut stops playback and invalidates the root and all four tabs`() {
-        val activity = CarSignInActivity()
+        val activity = CarHostActivity()
         activity.onSignedOut()
         idleMainLooper()
 
@@ -107,7 +107,7 @@ class CarSignInActivityTest {
      * this button is the only way out of any state it hosts -- settings and
      * every step of the sign-in flow alike. It is wired through
      * getOnBackPressedDispatcher().onBackPressed() rather than a direct
-     * finish() call (see CarSignInActivity.onCreate's comment on why).
+     * finish() call (see CarHostActivity.onCreate's comment on why).
      *
      * PlexSignInFragment does now register an OnBackPressedCallback -- the
      * back handling this button's KDoc anticipated -- but it stays disabled
@@ -122,7 +122,7 @@ class CarSignInActivityTest {
      */
     @Test
     fun `back button routes through the back dispatcher and finishes the activity`() {
-        val controller = Robolectric.buildActivity(CarSignInActivity::class.java).create()
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).create()
         idleMainLooper()
         val activity = controller.get()
 

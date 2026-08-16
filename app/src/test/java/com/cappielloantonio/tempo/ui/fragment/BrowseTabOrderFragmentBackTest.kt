@@ -7,7 +7,7 @@ import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
-import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
+import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
 import org.junit.After
@@ -29,7 +29,7 @@ import org.robolectric.Shadows.shadowOf
  * invalidator directly and never touched the fragment -- it would still pass
  * if the callback wiring were deleted from onCreateView entirely. This drives
  * the real callback, registered on the real dispatcher, by getting the
- * fragment on screen the way PlexSignInFragment's "Customize tabs" row does
+ * fragment on screen the way CarSettingsFragment's "Customize tabs" row does
  * and then pressing back, so it fails if either call is missing.
  */
 @UnstableApi
@@ -54,15 +54,15 @@ class BrowseTabOrderFragmentBackTest {
 
     @Test
     fun `leaving the screen invalidates both the root and More`() {
-        val controller = Robolectric.buildActivity(CarSignInActivity::class.java).setup()
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
         val activity = controller.get()
 
-        // Mirrors PlexSignInFragment's "Customize tabs" row: replace the
+        // Mirrors CarSettingsFragment's "Customize tabs" row: replace the
         // container and add to the back stack. addToBackStack matters here --
         // it is what lets FragmentManager's own back-stack-pop callback take
         // over once this fragment's callback disables itself and re-dispatches.
         activity.supportFragmentManager.beginTransaction()
-            .replace(R.id.car_sign_in_container, BrowseTabOrderFragment())
+            .replace(R.id.car_host_container, BrowseTabOrderFragment())
             .addToBackStack(null)
             .commit()
         shadowOf(Looper.getMainLooper()).idle()
