@@ -209,12 +209,15 @@ class PlexBrowseRepository {
     fun getHubs(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val session = api.session ?: return errorFuture()
         val scope = CompositeArt.scopeOf(session)
+        // Once per browse rather than once per row, so every Discover row in
+        // one listing agrees about the hour it was minted in.
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         return fetch({ libraryClient.getSectionHubs(session.musicSectionKey) }) { body ->
             val rows = hubsOf(body)
                 .filter { (it.size ?: 0) > 0 }
                 .filter { it.type != TYPE_CLIP }
                 .filter { LibraryClient.isSafeHubKey(it.key) }
-                .mapNotNull { PlexMediaMapper.hubToMediaItem(it, prefix, scope) }
+                .mapNotNull { PlexMediaMapper.hubToMediaItem(it, prefix, scope, bucket) }
 
             // A server with no play history emits hubs it cannot fill -- five of
             // six were empty on one measured server -- so an empty Discover is

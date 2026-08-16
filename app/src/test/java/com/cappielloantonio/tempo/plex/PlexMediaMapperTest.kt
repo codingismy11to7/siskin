@@ -181,7 +181,7 @@ class PlexMediaMapperTest {
             key = "/library/sections/7/all?type=8&sort=random"
         }
 
-        val item = PlexMediaMapper.hubToMediaItem(hub, Constants.HUB_ID, "abc123-7")!!
+        val item = PlexMediaMapper.hubToMediaItem(hub, Constants.HUB_ID, "abc123-7", bucket = 487234L)!!
 
         assertEquals(
             Constants.HUB_ID + "abc123-7|/library/sections/7/all?type=8&sort=random",
@@ -197,7 +197,7 @@ class PlexMediaMapperTest {
         val noKey = Hub().apply { title = "x"; size = 6 }
         val noTitle = Hub().apply { key = "/library/sections/7/all"; size = 6 }
 
-        assertNull(PlexMediaMapper.hubToMediaItem(noKey, Constants.HUB_ID, "abc123-7"))
-        assertNull(PlexMediaMapper.hubToMediaItem(noTitle, Constants.HUB_ID, "abc123-7"))
+        assertNull(PlexMediaMapper.hubToMediaItem(noKey, Constants.HUB_ID, "abc123-7", bucket = 487234L))
+        assertNull(PlexMediaMapper.hubToMediaItem(noTitle, Constants.HUB_ID, "abc123-7", bucket = 487234L))
     }
 }

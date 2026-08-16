@@ -18,6 +18,7 @@ import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
+import com.cappielloantonio.tempo.util.HubCoverPool
 import com.cappielloantonio.tempo.util.HubKey
 import com.cappielloantonio.tempo.util.ResourceUris
 
@@ -391,16 +392,25 @@ object PlexMediaMapper {
     /**
      * A Discover row, from one [Hub].
      *
-     * No artwork of its own: a hub row is a proposition -- "Haven't played in 5
-     * months" -- and four covers cannot tell it from "Most Played in April".
      * Its children are albums and artists, which covers *do* identify, so they
-     * grid like everywhere else. Whether Discover's own rows list or grid is
-     * decided on the node in `MediaBrowserTree.buildTree`, not here.
+     * grid like everywhere else. **Whether Discover's own rows list or grid is
+     * decided on the node in `MediaBrowserTree.buildTree`, and the answer is
+     * list, permanently.** A hub row is a proposition -- "Haven't played in 5
+     * months" -- and nothing about four covers tells it from "Most Played in
+     * April", so the covers below decorate the row rather than promoting it: a
+     * list gives the full server-supplied title plus a second line where a grid
+     * gives a caption that truncates, in five locales whose lengths this app
+     * neither controls nor can test in four of them.
+     *
+     * [artworkUri] is a composite tiled from the hub's own items, which cost
+     * nothing to obtain -- they arrived with the listing that decided this row
+     * exists. A hub whose items carry no thumb gets none, and the car draws its
+     * own placeholder, which is what every Discover row did before this.
      *
      * [Hub.title] arrives localised, because the client sends X-Plex-Language.
      */
     @JvmStatic
-    fun hubToMediaItem(hub: Hub, idPrefix: String, scope: String): MediaItem? {
+    fun hubToMediaItem(hub: Hub, idPrefix: String, scope: String, bucket: Long): MediaItem? {
         val key = hub.key?.takeIf { it.isNotBlank() } ?: return null
         val title = hub.title?.takeIf { it.isNotBlank() } ?: return null
 
@@ -415,17 +425,23 @@ object PlexMediaMapper {
             )
         }
 
+        val pool = hub.metadata.orEmpty()
+            .mapNotNull { artworkThumb(it) }
+            .take(HubCoverPool.MAX)
+
+        val metadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setIsBrowsable(true)
+            .setIsPlayable(false)
+            .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+            .setExtras(extras)
+        if (pool.isNotEmpty()) {
+            metadata.setArtworkUri(AlbumArtContentProvider.hubContentUri(scope, bucket, pool))
+        }
+
         return MediaItem.Builder()
             .setMediaId(idPrefix + HubKey.of(scope, key))
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setIsBrowsable(true)
-                    .setIsPlayable(false)
-                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                    .setExtras(extras)
-                    .build()
-            )
+            .setMediaMetadata(metadata.build())
             .build()
     }
 
