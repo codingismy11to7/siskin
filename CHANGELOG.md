@@ -17,6 +17,12 @@
   held that list and never shown it, so "am I reaching the server over the LAN
   or going out to the internet and back" had no answer from inside the car —
   and a head unit has no adb to ask another way.
+- The More tab has a Discover entry: the hub rows your Plex server builds from
+  what you actually listen to — recently played, most played this month,
+  artists you haven't heard from in a while, more from a genre or a label. Each
+  hub opens onto its full contents and can be mixed, and the rows are named by
+  the server, so they arrive in the car's own language. A server with no
+  listening history yet says so, plainly, rather than showing an empty screen.
 
 ## [0.99.4] (2026-08-14)
 
@@ -32,12 +38,6 @@
 - "Use the car's shuffle" is gone from Settings. With the rows renamed, its on
   position would have made tapping a Mix do the one thing the row's name says it
   does not.
-- The More tab has a Discover entry: the hub rows your Plex server builds from
-  what you actually listen to — recently played, most played this month,
-  artists you haven't heard from in a while, more from a genre or a label. Each
-  hub opens onto its full contents and can be mixed, and the rows are named by
-  the server, so they arrive in the car's own language. A server with no
-  listening history yet says so, plainly, rather than showing an empty screen.
 
 ## [0.99.3] (2026-08-12)
 
