@@ -28,6 +28,15 @@ class MediaBrowserTreeTest {
 
     @Before
     fun setUp() {
+        // Robolectric caches SharedPreferences statically across test methods
+        // (and across test classes in the same JVM fork). This class writes
+        // the by-initial key and reads the tab-order key, so without this
+        // reset -- done before the build below -- one method's write would
+        // decide another's result, and a later-running class would inherit it
+        // too.
+        App.getInstance().preferences.edit().remove("artists_by_initial").commit()
+        BrowseTabOrderFixture.clearSavedOrder()
+
         // A real Application, not a mock: this class used to run without
         // Robolectric, where Uri.Builder's chained setters return null instead
         // of `this` under unitTests.returnDefaultValues = true, NPEing on the
@@ -42,18 +51,6 @@ class MediaBrowserTreeTest {
         // asserted on.
         val context = RuntimeEnvironment.getApplication()
         MediaBrowserTree.initialize(context, mock<PlexBrowseRepository>())
-        MediaBrowserTree.buildTree()
-
-        // Robolectric caches SharedPreferences statically across test methods
-        // (and across test classes in the same JVM fork). This class now
-        // writes the by-initial key, so without this reset one method's write
-        // would decide another's result -- and a later-running class would
-        // inherit it too.
-        App.getInstance().preferences.edit().remove("artists_by_initial").commit()
-        BrowseTabOrderFixture.clearSavedOrder()
-        // buildTree() above ran before that reset, so a key left by an earlier
-        // method could have decided the root it built. Rebuild against the
-        // cleared state.
         MediaBrowserTree.buildTree()
     }
 

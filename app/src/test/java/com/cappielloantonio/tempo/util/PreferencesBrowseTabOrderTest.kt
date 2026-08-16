@@ -63,8 +63,15 @@ class PreferencesBrowseTabOrderTest {
         )
     }
 
+    /**
+     * setBrowseTabOrder(emptyList()) writes an empty string, not an absent
+     * key -- it does not clear the preference. What matters is that the
+     * empty string round-trips back to an empty list rather than to
+     * listOf("") (`"".split(",")` produces a one-element list of a blank
+     * string, which is the failure mode this pins against).
+     */
     @Test
-    fun `an empty order clears rather than storing a blank entry`() {
+    fun `an empty order round-trips as an empty list rather than a blank entry`() {
         Preferences.setBrowseTabOrder(listOf(Constants.ALBUMS_ID))
         Preferences.setBrowseTabOrder(emptyList())
 
