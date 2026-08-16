@@ -137,7 +137,7 @@ instinct, keeping "Server Select staying last where it reads as settings", and
 making it orderable would allow burying the only route to switching libraries
 underneath the destinations it exists to change. Pinning it to the last row of
 More means it is always in one known place, and means the drag logic needs no
-special case forbidding it from crossing the divider.
+special case forbidding it from crossing the line.
 
 ## Persistence
 
@@ -215,11 +215,12 @@ navigated away and back. That is exactly the behaviour `invalidateNode`'s KDoc
 already describes — "the car caches a browse list and does not re-fetch it when
 the user navigates back into it" — arriving at a second call site.
 
-Not `invalidateTree()`, for two reasons. It also invalidates Playlists, Artists
-and Albums, forcing re-fetches of large lists whose contents did not change. And
-it hardcodes the four ids that this feature makes non-constant, so it would
-become actively misleading. A reordered destination always moves between root
-and More, so those two ids cover every case.
+Not `invalidateTree()`. It also invalidates Playlists, Artists and Albums,
+forcing re-fetches of large lists whose contents did not change. A reordered
+destination always moves between root and More, so those two calls cover every
+case. (This branch also updated `invalidateTree()` itself to derive the root
+tabs from the saved order instead of hardcoding them, but that does not change
+the re-fetch cost above.)
 
 Threading is unchanged: `invalidateRoot()` must be called on the main thread and
 runs synchronously, which holds for a fragment back-callback — the same contract

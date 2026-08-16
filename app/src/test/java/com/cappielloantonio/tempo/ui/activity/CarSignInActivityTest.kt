@@ -9,6 +9,7 @@ import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
+import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
 import org.junit.After
 import org.junit.Assert.assertTrue
@@ -54,6 +55,11 @@ class CarSignInActivityTest {
 
     @Before
     fun setUp() {
+        // Robolectric caches SharedPreferences statically across test
+        // methods (see BrowseTabOrderFixture's KDoc), so a saved order left
+        // by another test -- including one in another class -- would
+        // otherwise leak into the tab ids this test asserts on.
+        BrowseTabOrderFixture.clearSavedOrder()
         player = mock()
         session = mock()
         whenever(session.player).thenReturn(player)

@@ -166,8 +166,7 @@ class BrowseTabOrderFragment : Fragment() {
         //
         // Not invalidateTree(): it also invalidates Playlists, Artists and
         // Albums, forcing re-fetches of large lists whose contents did not
-        // change, and it hardcodes the four ids this feature makes
-        // non-constant. A reordered destination always moves between root and
+        // change. A reordered destination always moves between root and
         // More, so these two cover every case.
         //
         // In a back callback rather than onDestroyView, which would also fire
