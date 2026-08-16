@@ -34,9 +34,11 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:fadingEdgeLength="48dp"
         android:fillViewport="true"
         android:paddingTop="8dp"
         android:paddingBottom="32dp"
+        android:requiresFadingEdge="vertical"
         android:scrollbars="none">
 
         <LinearLayout
@@ -49,10 +51,17 @@
             <!--
                 The address report. Monospace so that a column of hosts and
                 ports lines up, which is the whole reason this screen is read.
+
+                Full width, unlike the rows below it, and that is the point: a
+                plex.direct hostname is around 70 characters, so at the 480dp
+                the buttons use it wrapped to three lines per address and broke
+                mid-hostname. A list nobody can scan defeats the screen. The
+                buttons stay 480dp because they are tap targets and that width
+                is the head-unit convention; only the text needs the room.
             -->
             <TextView
                 android:id="@+id/address_text"
-                android:layout_width="@dimen/plex_sign_in_choice_width"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 android:fontFamily="monospace"
