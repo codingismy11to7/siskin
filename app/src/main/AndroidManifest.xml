@@ -143,6 +143,26 @@
                 android:value="true" />
         </service>
 
+        <!--
+            Exported because the system's AccountManagerService binds this from
+            outside the app's uid; unexported, the account type is registered
+            and then never reachable, which presents as "Add account" doing
+            nothing. This adds an ExportedService lint warning like the one
+            MediaService already carries — account it for in CLAUDE.md's count
+            and suppress it with a reason in #99, rather than leaving the tally
+            wrong.
+        -->
+        <service
+            android:name=".plex.account.PlexAuthenticatorService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator" />
+        </service>
+
         <provider
             android:name=".provider.AlbumArtContentProvider"
             android:authorities="${applicationId}.albumart.provider"
