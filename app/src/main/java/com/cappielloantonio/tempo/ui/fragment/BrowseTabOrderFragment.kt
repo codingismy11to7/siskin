@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -209,6 +210,29 @@ class BrowseTabOrderFragment : Fragment() {
 
         override fun getItemCount(): Int = order.size
 
+        /**
+         * Suppressed rather than satisfied, because the rule cannot be
+         * satisfied here and the behaviour it protects already is.
+         *
+         * ClickableViewAccessibility's setOnTouchListener check is about the
+         * *view class*: "Custom view ImageView has setOnTouchListener called on
+         * it but does not override performClick". [Row.handle] is a plain
+         * ImageView inflated from the layout, so the only way to make the
+         * warning go away on its own terms is to subclass ImageView purely to
+         * override performClick and use that subclass in the layout -- a class
+         * that exists to appease a linter.
+         *
+         * Measured against this lint version rather than assumed: calling
+         * `view.performClick()` inside the listener does not clear it, whether
+         * the listener is a lambda or an `object : View.OnTouchListener`, and
+         * whether the call is conditional or unconditional. The check does not
+         * read the body at all.
+         *
+         * The accessibility behaviour is implemented regardless -- see the
+         * performClick() call below, which is what tells a screen reader a
+         * gesture completed on the handle.
+         */
+        @SuppressLint("ClickableViewAccessibility")
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Row {
             val row = Row(
                 LayoutInflater.from(parent.context)
@@ -217,11 +241,13 @@ class BrowseTabOrderFragment : Fragment() {
             // Touching the handle starts the drag immediately, with no hold
             // -- the handle is not a scroll target, so touch-down is
             // unambiguous there the way it would not be on the row body.
-            // performClick() on release is what satisfies
-            // ClickableViewAccessibility here instead of suppressing it: the
-            // handle has no OnClickListener of its own, so this fires only
-            // the click accessibility event, but that event is what tells a
-            // screen reader a gesture completed on this view. It is reached
+            // performClick() on release is the accessibility behaviour the
+            // ClickableViewAccessibility rule exists to protect -- though it
+            // does not silence that rule, which is suppressed above for the
+            // reason given there. The handle has no OnClickListener of its
+            // own, so this fires only the click accessibility event, but that
+            // event is what tells a screen reader a gesture completed on this
+            // view. It is reached
             // only on a plain tap-and-release -- once startDrag() hands the
             // gesture to ItemTouchHelper, the RecyclerView intercepts the
             // following events and this listener sees ACTION_CANCEL instead,
