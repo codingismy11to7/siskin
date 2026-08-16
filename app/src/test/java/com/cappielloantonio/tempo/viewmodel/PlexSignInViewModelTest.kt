@@ -1126,4 +1126,50 @@ class PlexSignInViewModelTest {
 
         assertNull("sign out must not leave the previous account's token behind", api.accountToken)
     }
+
+    @Test
+    fun `back from a settings-opened picker returns to settings`() {
+        val viewModel = PlexSignInViewModel(mock<Application>())
+        viewModel.setStateForTest(
+            PlexSignInState.ChoosingServer(
+                nonEmptyListOf(aMediaServer()),
+                returnsToSettings = true
+            )
+        )
+
+        assertTrue(viewModel.backPressed())
+
+        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+    }
+
+    @Test
+    fun `back from a sign-in picker still abandons the flow`() {
+        val viewModel = PlexSignInViewModel(mock<Application>())
+        viewModel.setStateForTest(
+            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer()))
+        )
+
+        assertTrue(viewModel.backPressed())
+
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+    }
+
+    @Test
+    fun `back out of the library picker carries the settings flag with it`() {
+        val viewModel = PlexSignInViewModel(mock<Application>())
+        viewModel.setStateForTest(
+            PlexSignInState.ChoosingLibrary(
+                nonEmptyListOf(Directory().apply { key = "5"; title = "Music" }),
+                nonEmptyListOf(aMediaServer()),
+                returnsToSettings = true
+            )
+        )
+
+        assertTrue(viewModel.backPressed())
+
+        val state = viewModel.state.value as PlexSignInState.ChoosingServer
+        // Without the carry-forward this is false and the next back press
+        // abandons a sign-in the user never started.
+        assertTrue(state.returnsToSettings)
+    }
 }

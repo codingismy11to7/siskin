@@ -50,10 +50,19 @@ sealed interface PlexSignInState {
      * step. Null on the way *in* to the picker, and also null when the user
      * backs into it from [ChoosingLibrary]: that is the user correcting their
      * own pick, not Plex saying no to anything, so there is nothing to report.
+     *
+     * [returnsToSettings] records which journey reached this picker, because
+     * the two want opposite things from back. Signing in, back abandons the
+     * attempt and lands on [Disconnected]. Opened from the debug screen, the
+     * session was never in question, so back returns to [Connected] and leaves
+     * it alone. Carried in the state rather than held on the ViewModel for the
+     * reason [ChoosingLibrary] carries [servers] -- a parallel field would give
+     * the fact two owners, which is issue #18's shape.
      */
     data class ChoosingServer(
         val servers: NonEmptyList<Resource>,
-        @param:StringRes val messageRes: Int? = null
+        @param:StringRes val messageRes: Int? = null,
+        val returnsToSettings: Boolean = false
     ) : PlexSignInState
 
     /**
@@ -67,10 +76,15 @@ sealed interface PlexSignInState {
      * simply carries the same value forward into this one rather than caching
      * it anywhere else. See the comment on that read for why a parallel field
      * is the thing being avoided (issue #18).
+     *
+     * [returnsToSettings] rides along for the same reason and by the same
+     * route: back from here reaches [ChoosingServer], and that picker has to
+     * still know where its own back goes.
      */
     data class ChoosingLibrary(
         val sections: NonEmptyList<Directory>,
-        val servers: NonEmptyList<Resource>
+        val servers: NonEmptyList<Resource>,
+        val returnsToSettings: Boolean = false
     ) : PlexSignInState
 
     data class Failed(@param:StringRes val messageRes: Int) : PlexSignInState

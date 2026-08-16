@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.viewmodel
 
 import android.app.Application
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -63,6 +64,19 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
     private val _state = MutableLiveData<PlexSignInState>(PlexSignInState.Disconnected)
     val state: LiveData<PlexSignInState> get() = _state
+
+    /**
+     * Publishes a state directly, for tests that need to start from the middle
+     * of the flow without driving every step that leads there.
+     *
+     * Deliberately not a general setter: [state] stays read-only to production
+     * code, and every real transition still goes through the function that owns
+     * it.
+     */
+    @VisibleForTesting
+    internal fun setStateForTest(state: PlexSignInState) {
+        _state.value = state
+    }
 
     /**
      * The attempt in flight. Cancelling it abandons everything that attempt
@@ -222,11 +236,26 @@ class PlexSignInViewModel @JvmOverloads constructor(
         val current = _state.value ?: return false
         return when (current) {
             is PlexSignInState.ChoosingLibrary -> {
-                _state.value = PlexSignInState.ChoosingServer(current.servers)
+                _state.value = PlexSignInState.ChoosingServer(
+                    current.servers,
+                    returnsToSettings = current.returnsToSettings
+                )
                 true
             }
 
-            is PlexSignInState.ChoosingServer,
+            // Split out of the group below because it is the one state back can
+            // be reached in on two different journeys. Settings opened this
+            // picker without putting the session in question, so abandoning it
+            // returns to the screen it was opened from; the sign-in journey has
+            // no session to return to and lands on Disconnected as before.
+            is PlexSignInState.ChoosingServer -> {
+                attempt?.cancel()
+                _state.value =
+                    if (current.returnsToSettings) PlexSignInState.Connected
+                    else PlexSignInState.Disconnected
+                true
+            }
+
             is PlexSignInState.AwaitingApproval,
             is PlexSignInState.Failed,
             is PlexSignInState.Working -> {
@@ -270,14 +299,16 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
     fun chooseServer(resource: Resource) {
         // Read before the overwrite below, because the state is the only place
-        // this list lives -- a parallel field would give it two owners. If this
-        // line ever moves under the assignment it becomes permanently null and
-        // #18 is silently back; PlexSignInViewModelTest's three recovery tests
-        // are what hold it here. Serves two purposes below: restoring the
-        // picker on rejection (unchanged), and now also carried forward into a
-        // successful ChoosingLibrary so backPressed() has a list to return to
-        // -- still the state's one read, not a second copy of it.
-        val servers = (_state.value as? PlexSignInState.ChoosingServer)?.servers
+        // these live -- a parallel field would give them two owners. If this
+        // line ever moves under the assignment `servers` becomes permanently
+        // null and #18 is silently back; PlexSignInViewModelTest's three
+        // recovery tests are what hold it here. Serves two purposes below:
+        // restoring the picker on rejection (unchanged), and carrying both
+        // values forward into a successful ChoosingLibrary so backPressed()
+        // has a list to return to and knows where the journey ends.
+        val picker = _state.value as? PlexSignInState.ChoosingServer
+        val servers = picker?.servers
+        val returnsToSettings = picker?.returnsToSettings ?: false
 
         // Picking a server supersedes the poll loop and any earlier pick: an
         // outstanding probe or sections call describes a server the user is no
@@ -318,7 +349,9 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 // than raised through this either block, matching how
                 // chooseLibrary's own three "normally unreachable" guards
                 // build Failed directly instead of going through Arrow.
-                _state.value = servers?.let { PlexSignInState.ChoosingLibrary(sections, it) }
+                _state.value = servers?.let {
+                    PlexSignInState.ChoosingLibrary(sections, it, returnsToSettings)
+                }
                     ?: run {
                         Log.d(TAG, "chooseServer succeeded with no server list on record")
                         PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
@@ -338,7 +371,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 // picker, which the UI cannot currently do.
                 val message = PlexSignInFlow.messageFor(error)
                 _state.value = if (servers != null) {
-                    PlexSignInState.ChoosingServer(servers, message)
+                    PlexSignInState.ChoosingServer(servers, message, returnsToSettings)
                 } else {
                     PlexSignInState.Failed(message)
                 }
