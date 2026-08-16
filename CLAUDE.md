@@ -245,12 +245,15 @@ the account token), so it is not required for a session to exist.
 ### Media service — `service/`
 
 `MediaService` is a media3 `MediaLibraryService`; AAOS discovers it through the
-manifest intent filter. `MediaBrowserTree` defines the static browse root (four
-tabs: Playlists, Artists, Albums, More) — four is the maximum the car renders,
-it silently drops a fifth, so nest anything new under More instead of adding a
-root tab. `PlexBrowseRepository` serves their contents,
-and `MediaLibraryServiceCallback` turns a 401/403 into the "sign in again"
-affordance via `CarSignInResolution`'s `PendingIntent`.
+manifest intent filter. `MediaBrowserTree` builds the browse root from the
+user's saved tab order — the first three destinations, then More, which is
+always fourth. Four is still the maximum the car renders and it silently drops
+a fifth, so a new destination joins `BrowseTabOrder.DEFAULT_ORDER` rather than
+being added to the root directly. See
+`docs/decisions/2026-08-14-customizable-browse-tabs-design.md`.
+`PlexBrowseRepository` serves their contents, and `MediaLibraryServiceCallback`
+turns a 401/403 into the "sign in again" affordance via
+`CarSignInResolution`'s `PendingIntent`.
 
 The HTTP-versus-transport distinction matters here: an HTTP failure becomes a
 `LibraryResult` error the car can act on, while a transport failure completes
@@ -350,6 +353,21 @@ understood. Only user-visible behaviour in the car earns one; documentation,
 comments, tests and refactors earn nothing. Entries state what the app does now,
 with the reason attached where the behaviour alone does not explain it, and the
 file uses flat bullets rather than Keep a Changelog's category headings.
+
+**A new entry goes at the *top* of `[Unreleased]`, directly under the heading —
+never appended at the bottom.** Newest first, matching how the releases below it
+already read.
+
+That ordering is also what keeps a rebase honest. Appending puts a new bullet
+adjacent to whatever line currently ends the section, and after a release cut
+that line belongs to the release that just shipped — so a branch written before
+the cut and rebased after it lands its entry inside a released version, which is
+both wrong and easy to miss in a diff. A bullet inserted directly beneath
+`## [Unreleased] — Siskin` has no such ambiguity: the anchor is a heading that
+the cut rewrites wholesale rather than a bullet the cut leaves behind.
+
+Existing entries are not reordered to match. The rule governs what is added from
+now on.
 
 This is written down because it lapsed. `Cut 0.99.1` carried its entry and the
 next two cuts silently did not, which is what

@@ -12,6 +12,10 @@
 
 ## [Unreleased] — Siskin
 
+- Settings has a Customize tabs screen: drag the browse destinations into the
+  order you want, and the top three become the car's tabs. The first one is
+  the tab the car opens on, since it always opens on the leftmost. Anything
+  below the line moves under More, and Select Library stays where it is.
 - Tapping the version in Settings lists the addresses known for the current
   server, marks the one in use, and offers to re-race them. The app has always
   held that list and never shown it, so "am I reaching the server over the LAN

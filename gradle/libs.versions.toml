@@ -10,6 +10,7 @@ room = "2.7.0"
 splashscreen = "1.0.1"
 appcompat = "1.7.0"
 material = "1.10.0"
+recyclerview = "1.4.0"
 
 # Third-party
 glide = "4.16.0"
@@ -28,6 +29,7 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 

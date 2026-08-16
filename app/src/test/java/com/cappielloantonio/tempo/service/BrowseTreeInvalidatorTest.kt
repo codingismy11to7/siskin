@@ -4,7 +4,9 @@ import android.os.Looper
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.Preferences
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -40,6 +42,10 @@ class BrowseTreeInvalidatorTest {
 
     @Before
     fun setUp() {
+        // Robolectric caches SharedPreferences statically across test
+        // methods (see BrowseTabOrderFixture's KDoc), so a saved order left
+        // by another test would otherwise leak in here.
+        BrowseTabOrderFixture.clearSavedOrder()
         session = mock()
         MediaBrowserTree.initialize(App.getContext(), mock())
         BrowseTreeInvalidator.attach(session)
@@ -50,6 +56,7 @@ class BrowseTreeInvalidatorTest {
         // BrowseTreeInvalidator is a process-wide singleton; leaving a mock
         // attached would leak into whatever test class runs next.
         BrowseTreeInvalidator.detach()
+        BrowseTabOrderFixture.clearSavedOrder()
     }
 
     private fun idleMainLooper() = shadowOf(Looper.getMainLooper()).idle()
@@ -85,6 +92,32 @@ class BrowseTreeInvalidatorTest {
         verify(session, never()).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
         verify(session, never()).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
         verify(session, never()).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))
+    }
+
+    @Test
+    fun `invalidateTree notifies a promoted destination instead of the tab it displaced`() {
+        // Regression guard for the bug this fix closes: the old
+        // implementation hardcoded Playlists/Artists/Albums/More, so a
+        // destination promoted into the top three -- Decades here -- was
+        // never in that list and never got notified. It would keep
+        // rendering the signed-out info row after a sign-in until the user
+        // navigated away and back. This must fail if the ids are hardcoded
+        // again.
+        Preferences.setBrowseTabOrder(
+            listOf(Constants.DECADES_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID)
+        )
+
+        BrowseTreeInvalidator.invalidateTree()
+        idleMainLooper()
+
+        verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.DECADES_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))
+        // Playlists was demoted under More by this order and must not be
+        // invalidated as if it were still a root tab.
+        verify(session, never()).notifyChildrenChanged(eq(Constants.PLAYLIST_ID), any(), eq(null))
     }
 
     @Test

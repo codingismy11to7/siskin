@@ -32,6 +32,11 @@
     <string name="car_settings_artists_by_initial">Show artists by initial</string>
     <string name="car_settings_sign_out">Sign out</string>
     <string name="car_settings_title">Settings</string>
+    <string name="car_settings_customize_tabs">Customize tabs</string>
+    <string name="car_tab_order_title">Tab order</string>
+    <string name="car_tab_order_hint">Drag a row by its handle — the top three become tabs</string>
+    <string name="car_tab_order_drag_handle">Reorder</string>
+    <string name="car_tab_order_tab_badge">Tab</string>
     <string name="car_sign_in_action">Connect</string>
     <string name="car_sign_in_again">Plex rejected the saved connection</string>
     <!-- The activity draws no toolbar, so this is the screen's only affordance for leaving it. -->

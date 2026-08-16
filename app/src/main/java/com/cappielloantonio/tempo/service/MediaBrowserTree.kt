@@ -15,6 +15,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.LibraryPickerRepository
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.BrowseContentStyle
+import com.cappielloantonio.tempo.util.BrowseTabOrder
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.ResourceUris
@@ -105,11 +106,15 @@ object MediaBrowserTree {
     }
 
     /**
-     * The browse root is fixed at Playlists | Artists | Albums | More.
+     * The browse root is the first three ids of the user's saved order, then
+     * More -- which is always fourth and never moves, because Select Library
+     * lives inside it and is the only route to switching libraries. See
+     * docs/decisions/2026-08-14-customizable-browse-tabs-design.md.
      *
-     * Four is the maximum the car allows: it enforces a root-children limit of
-     * four and silently drops a fifth, so do not add another top-level tab here
-     * -- nest it under More instead.
+     * Four is still the maximum the car allows: it enforces a root-children
+     * limit of four and silently drops a fifth. That is why three are the
+     * user's to choose rather than four, and why a new destination joins
+     * BrowseTabOrder.DEFAULT_ORDER rather than being added to the root here.
      *
      * Grid-versus-list styling: Playlists is a list, and Artists and Albums
      * became lists when they started serving group rows -- a window's range
@@ -236,14 +241,19 @@ object MediaBrowserTree {
                 )
             )
 
-        treeNodes[Constants.MORE_ID]!!.addChild(Constants.DISCOVER_ID)
-        treeNodes[Constants.MORE_ID]!!.addChild(Constants.DECADES_ID)
+        // The root and More are both decided by one resolved list, so a
+        // destination is in exactly one of them by construction -- there is no
+        // state where a promotion left a stale copy behind under More.
+        val resolved = BrowseTabOrder.resolve(Preferences.getBrowseTabOrder())
+
+        BrowseTabOrder.moreRows(resolved).forEach { treeNodes[Constants.MORE_ID]!!.addChild(it) }
+        // Pinned last, and not part of the order: it is settings rather than
+        // music, and burying the only route to switching libraries underneath
+        // the destinations it changes would be a trap.
         treeNodes[Constants.MORE_ID]!!.addChild(Constants.SELECT_LIBRARY_ID)
 
         val root = treeNodes[Constants.ROOT_ID]!!
-        root.addChild(Constants.PLAYLIST_ID)
-        root.addChild(Constants.ARTISTS_ID)
-        root.addChild(Constants.ALBUMS_ID)
+        BrowseTabOrder.rootTabs(resolved).forEach { root.addChild(it) }
         root.addChild(Constants.MORE_ID)
     }
 
@@ -517,15 +527,16 @@ object MediaBrowserTree {
      * -- there is no way to place list content at the root at all. The fix
      * is not a different row shape but a different node: stop returning
      * this row (or rows) as a root child. Signed out, the root now returns
-     * its normal four tabs -- Playlists, Artists, Albums, More, built by
-     * [buildTree] exactly as when signed in, since that tree is static and
-     * needs no credentials -- and the car auto-opens the first tab, landing
-     * the user on this row immediately with the toolbar correctly reading
-     * "Siskin". Every *non-root* `parentId` returns this single row, which
-     * is what the two-line split above was solving for in the first place,
-     * so it collapses back into one row using both lines the browse list
-     * already gives every item: `car_sign_in_required` as the title,
-     * `car_sign_in_hint` as the subtitle. That costs nothing *further*: both
+     * its normal four tabs -- the user's three chosen tabs, then More --
+     * built by [buildTree] exactly as when signed in, since that tree is
+     * static and needs no credentials -- and the car auto-opens the first
+     * tab, landing the user on this row immediately with the toolbar
+     * correctly reading "Siskin". Every *non-root* `parentId` returns this
+     * single row, which is what the two-line split above was solving for
+     * in the first place, so it collapses back into one row using both
+     * lines the browse list already gives every item: `car_sign_in_required`
+     * as the title, `car_sign_in_hint` as the subtitle. That costs nothing
+     * *further*: both
      * lines were already in place by the two-row split, which is what first
      * introduced `car_sign_in_hint` as a second row's title. But
      * `car_sign_in_hint` is not a pre-existing string overall -- it is new to
