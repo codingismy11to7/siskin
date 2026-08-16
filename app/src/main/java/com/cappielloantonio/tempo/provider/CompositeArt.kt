@@ -318,8 +318,13 @@ object CompositeArt {
         // why the optimisation was right rather than only that it is gone: this
         // comment is the whole defence against reinstating it.
         //
-        // Asking for COVERS costs nothing when the pool is smaller -- `pick`
-        // walks what it is given and returns what it finds.
+        // Asking for COVERS costs no extra *iteration* when the pool is smaller
+        // -- `pick` walks what it is given and returns what it finds. It does
+        // cost extra fetches compared with the old single-cover ask: a pool of
+        // two or three now issues two or three Glide requests rather than one.
+        // That is the point rather than a regression -- those are the covers
+        // that get drawn -- and it is fewer pixels in total, three 256px covers
+        // against one at 512.
         //
         // Paired with the thumb that produced it, so the degraded case below
         // knows what to re-request.

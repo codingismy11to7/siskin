@@ -33,7 +33,7 @@ paraphrased, because it is a good argument and the reversal has to beat it:
 > has no mosaic, and one cover says that honestly — degrading into exactly what
 > an album tile already looks like.
 
-Two of its three clauses still stand. **Repeating covers is still refused**, for
+Two of its clauses still stand. **Repeating covers is still refused**, for
 exactly the reason given. And an empty cell would indeed be a bad thing to
 draw — *if it were visible*.
 
@@ -44,6 +44,16 @@ too.** There is no empty box beside the covers to read as a failed load; the
 tile's edges simply stop being visible and what remains is two or three covers
 sitting in the corners of a square. A sparse composite reads as *composition*,
 not as damage.
+
+**A fourth argument in that section is dropped rather than answered**, and
+saying which is better than letting a reader find it. It ran: four cells "matches
+the shape of Plex's own playlist `composite`, which this app already renders in
+the Playlists tab, so the two browse surfaces agree rather than each having their
+own idea of what a mosaic looks like." Plex's composite is Plex's; ours is ours.
+It is built on a server this app does not control, for objects of a different
+kind, and it can change under us without notice — so it is not a constraint on
+what a decade or a hub draws. The 2×2 for four covers is unchanged in any case,
+so whatever agreement existed at full mosaics survives untouched.
 
 The other half of the argument — that one cover "says that honestly" — assumed
 the honest thing to say is "this is one album". For a decade or a hub it is not:
@@ -158,6 +168,20 @@ the landscape AVD, a Discover row's thumbnail at 112px — so a quarter cell is
 ~130px on one and 56px on the other. That difference is a property of the
 screens, not of this design; the composite is generated at 512 either way.
 
+**On Discover that is a trade, and it should be named in both directions rather
+than only the flattering one.** The same 56px used above to argue *against* a
+quarter-size single cover applies to the two- and three-cover tiles this design
+introduces: a hub of three albums goes from one cover legible at 112px to three
+swatches at 56px, and the decade design measured that cover text is gone below
+about 80px. What decides it is that Discover already draws four 56px covers for
+any hub with four thumbs, and has since #114 — so the choice is not "legible or
+not", it is whether a three-album hub looks like the four-album hub above it or
+like a single album. Consistency wins, and the information the tile carries is
+which albums are in the row, not what their titles say.
+
+Both surfaces were looked at on the landscape AVD before this was settled; see
+*Verification in the car*.
+
 ## The cache does not need invalidating, and would not notice if it did
 
 A composite's cache id is a digest of its cover pool, and its URI carries that
@@ -169,6 +193,14 @@ That is at most an hour of a stale-looking tile on an upgraded install, on a
 path where the tile was already re-drawn hourly, and it is self-healing without
 any migration. Forcing it sooner would mean changing the id, which would strand
 every cached composite rather than the handful drawn in the last hour.
+
+**A second cache is touched, more quietly.** Glide keys its source cache on the
+requested size, and a pool of two or three now asks for 256px covers where it
+used to ask for one at 512 — so those covers are fetched once more rather than
+served from what is already on disk. One extra fetch per cover, on pools that
+are small by definition, and self-healing in the same way. It is named here
+because "the cache does not need invalidating" would otherwise read as a claim
+about every cache in the chain.
 
 ## What deliberately does not change
 
@@ -221,11 +253,22 @@ verified by eye on the emulator rather than by a test that could not see it.
 
 ## Verification in the car
 
-Worth doing on the landscape AVD, because this design rests on a claim about how
-something looks: that black cells vanish into the background and the covers read
-as composed. Browse Decades for a sparse decade and More → Discover for a hub
-with fewer than four thumb-bearing items, and confirm a two-cover tile reads as
-two covers on a diagonal rather than as a broken grid.
+**Done, on both surfaces**, on the landscape AVD — API 33,
+`automotive_1024p_landscape`, 1024×768 mdpi — with `cache/composite-art` cleared
+first so every tile was drawn by the new code rather than served from the
+previous hour's bucket. Sparse tiles on the Decades grid and on the Discover
+list both read as intended: covers in the corners of a square rather than a grid
+with holes in it.
+
+That mattered more than a usual look-and-see, because the whole design rests on
+a claim about appearance that no test can make. The claim was also checked by
+measurement rather than only by eye: the car's browse background samples as
+exactly `srgba(0, 0, 0, 1)`, and a real three-cover composite pulled off the
+device has a pure black undrawn quadrant in its interior — the only non-black is
+JPEG ringing capped at 14/255 within 8px of a cover edge, which is about 4px once
+a decade tile downscales it and under 2px on a Discover row.
 
 The portrait variant is a separate AVD and switching tears down whatever is
-running, so it is not a step to take unprompted.
+running, so it is not a step to take unprompted. Portrait is 800×1280 at ldpi, a
+different pitch entirely, and by the argument in *Both surfaces change* that
+alters what is drawn rather than what is generated.
