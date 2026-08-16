@@ -213,8 +213,9 @@ class PlexSignInViewModel @JvmOverloads constructor(
      *
      * | From | Goes to |
      * |---|---|
-     * | [PlexSignInState.ChoosingLibrary] | [PlexSignInState.ChoosingServer], the same server list, no message |
-     * | [PlexSignInState.ChoosingServer], [PlexSignInState.AwaitingApproval], [PlexSignInState.Failed], [PlexSignInState.Working] | [PlexSignInState.Disconnected] |
+     * | [PlexSignInState.ChoosingLibrary] | [PlexSignInState.ChoosingServer], the same server list and the same `returnsToSettings`, no message |
+     * | [PlexSignInState.ChoosingServer] with `returnsToSettings` set | [PlexSignInState.Connected] |
+     * | [PlexSignInState.ChoosingServer] without it, [PlexSignInState.AwaitingApproval], [PlexSignInState.Failed], [PlexSignInState.Working] | [PlexSignInState.Disconnected] |
      * | anything [handlesBackPress] reports false for | nothing |
      *
      * The library-picker case reuses the server list [PlexSignInState.ChoosingLibrary]
@@ -223,7 +224,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * their own pick, not Plex rejecting anything, so there is nothing to
      * report -- see the KDoc on [PlexSignInState.ChoosingServer.messageRes].
      *
-     * Every other consumed case lands on Disconnected and cancels [attempt]
+     * Every other consumed case lands on Disconnected or Connected and cancels [attempt]
      * first: that job describes the PIN poll or the server probe/getSections
      * call the user is abandoning by backing out, and letting it run to
      * completion could publish a state over the Disconnected this call just
