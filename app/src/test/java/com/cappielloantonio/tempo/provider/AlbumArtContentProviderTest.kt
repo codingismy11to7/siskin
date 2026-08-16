@@ -412,6 +412,22 @@ class AlbumArtContentProviderTest {
     }
 
     @Test
+    fun servesAPoolOfExactlyTheListingsSixCovers() {
+        // The cap pinned in the other direction. Refusals alone would pass
+        // against a cap mistyped as `>= MAX`, and every other hub test here
+        // uses a two-entry pool -- so that typo would blank every real
+        // six-cover Discover row with the suite fully green. statSize is what
+        // says this pool was served rather than merely not refused.
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        val six = (1..HubCoverPool.MAX).map { "/library/metadata/$it/thumb/170000000$it" }
+        writeCachedHubComposite(six, bucket, bytes = 654)
+
+        provider.openFile(
+            AlbumArtContentProvider.hubContentUri(scope(), bucket, six), "r"
+        ).use { assertEquals(654L, it!!.statSize) }
+    }
+
+    @Test
     fun aTraversalSegmentIsAPathLikeAnyOtherAndCannotReachTheCacheFilename() {
         // getPathSegments() decodes *after* the matcher has accepted, so
         // `%2f..%2f..%2fevil` arrives as `/../../evil` -- and
@@ -426,6 +442,11 @@ class AlbumArtContentProviderTest {
         // digest computed locally over the pool, so the URI below can only
         // ever resolve to a hex-named file inside the cache directory --
         // which is why statSize here is the whole point, not the acceptance.
+        //
+        // This pins today's behaviour, not a requirement: if a future guard
+        // rejects `..` -- a defensible hardening of isServerRelativePath --
+        // this test should be updated to match rather than treated as a
+        // regression to revert the guard over.
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         val decoded = listOf("/../../evil")
         writeCachedHubComposite(decoded, bucket, bytes = 222)

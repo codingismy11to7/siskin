@@ -335,6 +335,11 @@ public class AlbumArtContentProvider extends ContentProvider {
         }
 
         List<String> pool = HubCoverPool.decode(segments.get(3));
+        // pool.isEmpty() is not reachable today -- HubCoverPool.decode is
+        // split(",") and never returns an empty list, not even for "", which
+        // HubCoverPoolTest pins as decode("") == listOf(""). It is kept as
+        // defence against a future decode() that could return one, not as a
+        // condition this guard is currently relied on to catch.
         if (pool.isEmpty() || pool.size() > HubCoverPool.MAX) {
             throw new FileNotFoundException("Not a cover pool");
         }
@@ -354,7 +359,10 @@ public class AlbumArtContentProvider extends ContentProvider {
             return ParcelFileDescriptor.open(cached, ParcelFileDescriptor.MODE_READ_ONLY);
         }
 
-        return pipeFrom(HUB_ART, () -> HubCompositeArt.build(context, pool, bucket));
+        // The pool's digest, not the HUB_ART literal, so a build failure names
+        // which composite failed in the log -- pipeFrom's label is shared with
+        // openDecadeArt, which passes the decade for the same reason.
+        return pipeFrom(HubCompositeArt.idFor(pool), () -> HubCompositeArt.build(context, pool, bucket));
     }
 
     /**
