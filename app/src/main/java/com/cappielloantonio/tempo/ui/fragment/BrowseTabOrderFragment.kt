@@ -8,6 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.cappielloantonio.tempo.R
@@ -45,6 +46,21 @@ class BrowseTabOrderFragment : Fragment() {
             Constants.DECADES_ID -> R.string.browse_decades
             else -> 0
         }
+
+        /**
+         * Moves one row and writes the result.
+         *
+         * Split out of the ItemTouchHelper callback so the list operation can
+         * be tested without a RecyclerView -- the callback below does nothing
+         * but delegate here and tell the adapter.
+         *
+         * Persists on every drop rather than on the way out: a force-quit
+         * mid-session then cannot lose the change.
+         */
+        fun moveAndPersist(order: MutableList<String>, from: Int, to: Int) {
+            order.add(to, order.removeAt(from))
+            Preferences.setBrowseTabOrder(order)
+        }
     }
 
     override fun onCreateView(
@@ -61,6 +77,42 @@ class BrowseTabOrderFragment : Fragment() {
         val list = root.findViewById<RecyclerView>(R.id.tab_order_list)
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = Adapter()
+
+        // ItemTouchHelper rather than hand-rolled touch handling, and
+        // auto-scroll is the reason: five or six rows against roughly four
+        // visible means a drag *must* scroll, so it is a certainty here rather
+        // than an edge case. Long-press to start, which is its default --
+        // a drag that began on touch-down would fight the list's own scroll.
+        ItemTouchHelper(
+            object : ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+                0
+            ) {
+                override fun onMove(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    target: RecyclerView.ViewHolder
+                ): Boolean {
+                    val from = viewHolder.bindingAdapterPosition
+                    val to = target.bindingAdapterPosition
+                    moveAndPersist(order, from, to)
+                    recyclerView.adapter?.notifyItemMoved(from, to)
+                    // Every row's More-or-tab label may have changed, and
+                    // notifyItemMoved alone does not rebind the rows that
+                    // merely shifted.
+                    recyclerView.post {
+                        recyclerView.adapter?.notifyItemRangeChanged(0, order.size)
+                    }
+                    return true
+                }
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+
+                // Removal is not offered: a destination is always somewhere,
+                // above the line or below it.
+                override fun isItemViewSwipeEnabled(): Boolean = false
+            }
+        ).attachToRecyclerView(list)
 
         return root
     }
