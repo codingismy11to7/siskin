@@ -29,6 +29,11 @@
     <string name="car_settings_artists_by_initial">Mostra artisti per iniziale</string>
     <string name="car_settings_sign_out">Esci</string>
     <string name="car_settings_title">Impostazioni</string>
+    <string name="car_settings_customize_tabs">Personalizza schede</string>
+    <string name="car_tab_order_title">Ordine delle schede</string>
+    <string name="car_tab_order_hint">Trascina per riordinare: le prime tre diventano schede</string>
+    <string name="car_tab_order_drag_handle">Riordina</string>
+    <string name="car_tab_order_tab_badge">Scheda</string>
     <string name="car_sign_in_action">Connetti</string>
     <string name="car_sign_in_again">Plex ha rifiutato la connessione salvata</string>
     <string name="car_sign_in_back_description">Indietro</string>
