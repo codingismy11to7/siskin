@@ -304,8 +304,9 @@ public class AlbumArtContentProvider extends ContentProvider {
      * What it does need is a bound on amplification. One open here can trigger
      * seven authenticated fetches where openAlbumArt triggers one -- up to
      * HubCoverPool.MAX candidate loads, plus the full-edge re-request
-     * CompositeArt's degraded branch makes when a pool too small for a full
-     * grid still fails its first load -- which is what the pool cap is for.
+     * CompositeArt's degraded branch makes when a pool of four or more lands
+     * fewer than four covers and the layout falls back to one cell -- which is
+     * what the pool cap is for.
      * The open-proxy hazard itself is openAlbumArt's, not a new one: any app
      * on the head unit has always been able to ask this authority for any
      * server-relative Plex path, behind this same guard.
