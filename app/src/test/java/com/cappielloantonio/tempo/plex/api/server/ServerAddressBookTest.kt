@@ -654,4 +654,66 @@ class ServerAddressBookTest {
         assertEquals("a plex.tv failure must not trigger a server re-probe", 0, live.requestCount)
         live.shutdown()
     }
+
+    @Test
+    fun knownAddressesReportsTheStoredListAndTheAddressInUse() {
+        signedInAt("https://lan.example")
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(
+            resource(
+                "machine-a",
+                connection("https://lan.example"),
+                connection("https://relay.example", relay = true)
+            ),
+            "https://lan.example"
+        )
+
+        val known = book.knownAddresses()
+
+        assertEquals("https://lan.example", known.current)
+        assertEquals(listOf("https://lan.example"), known.direct)
+        assertEquals(listOf("https://relay.example"), known.relay)
+    }
+
+    @Test
+    fun knownAddressesReportsNoCandidatesWhenTheStampIsForAnotherServer() {
+        // The stamp rule storedCandidates already enforces, reachable through
+        // the new accessor: a list belonging to a server the user has left must
+        // never be shown as this server's addresses.
+        signedInAt("https://lan.example", machineIdentifier = "machine-a")
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(resource("machine-b", connection("https://other.example")), "https://other.example")
+
+        val known = book.knownAddresses()
+
+        assertEquals("https://lan.example", known.current)
+        assertTrue(known.direct.isEmpty())
+        assertTrue(known.relay.isEmpty())
+    }
+
+    @Test
+    fun aForcedReprobeIgnoresTheCooldown() = runTest {
+        // The button in the debug panel. The cooldown exists so an offline car
+        // does not pay a full round of timeouts per browse tab -- that is about
+        // automatic callers, and a parked human pressing re-probe is the exact
+        // case it must not silently swallow.
+        var now = 0L
+        var probeCalls = 0
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestOf(any()) } doAnswer { probeCalls++; null }
+        }
+        signedInAt("https://lan.example")
+        val book = ServerAddressBook.newForTest(api, probe = probe, clock = { now })
+        book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+
+        assertNull(book.reprobe("https://lan.example"))
+        val callsAfterFirst = probeCalls
+
+        now += 1_000L
+        assertNull(book.reprobe("https://lan.example"))
+        assertEquals("cooldown must have armed", callsAfterFirst, probeCalls)
+
+        assertNull(book.reprobe("https://lan.example", force = true))
+        assertTrue("force must race despite the cooldown", probeCalls > callsAfterFirst)
+    }
 }

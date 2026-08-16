@@ -81,6 +81,25 @@ class ServerAddressBook private constructor(
     fun current(): String? = api.session?.serverUri
 
     /**
+     * Every address known for the session's server, beside the one in use.
+     *
+     * Reads only what [adopt] and [reprobe] already persisted and probes
+     * nothing, so it costs nothing to open. The stamp rule lives in
+     * [storedCandidates]: a list belonging to another server reports as no
+     * candidates rather than as this server's.
+     *
+     * See docs/decisions/2026-08-14-server-address-debug-design.md.
+     */
+    fun knownAddresses(): KnownAddresses {
+        val stored = storedCandidates(api.session?.machineIdentifier)
+        return KnownAddresses(
+            current = current(),
+            direct = stored?.direct.orEmpty(),
+            relay = stored?.relay.orEmpty()
+        )
+    }
+
+    /**
      * Records a server's full address list beside the address just chosen.
      *
      * Called from the two places that write a session -- sign-in and the More
@@ -146,6 +165,9 @@ class ServerAddressBook private constructor(
      * instead, so it still collapses against whatever every other caller is
      * racing. There is no caller for which passing nothing is meaningful.
      *
+     * [force] bypasses the failure cooldown, allowing a single re-probe to
+     * complete immediately. Used by the debug panel's manual button.
+     *
      * Returns the address now in use, or null when nothing answered, when the
      * session changed out from under a race already in flight (see
      * [adoptAddress]), or when something unexpected went wrong partway
@@ -184,7 +206,7 @@ class ServerAddressBook private constructor(
      * total "nothing answered" is, so the cooldown arms instead of leaving
      * every subsequent call to throw again immediately.
      */
-    suspend fun reprobe(staleAddress: String): String? = mutex.withLock {
+    suspend fun reprobe(staleAddress: String, force: Boolean = false): String? = mutex.withLock {
         try {
             val current = current()
             if (current != staleAddress) {
@@ -195,9 +217,12 @@ class ServerAddressBook private constructor(
             val session = api.session ?: return@withLock null
 
             val lastFailure = lastFailureAt
-            if (lastFailure != null && clock() - lastFailure < FAILURE_COOLDOWN_MS) {
+            if (!force && lastFailure != null && clock() - lastFailure < FAILURE_COOLDOWN_MS) {
                 // A car with no usable network would otherwise pay a full race per
-                // browse tab, serially, for as long as it stayed offline.
+                // browse tab, serially, for as long as it stayed offline. A forced
+                // race is the debug panel's button: a parked human asking once,
+                // which is neither of those things and is most useful precisely
+                // when the cooldown is armed.
                 Log.d(TAG, "in cooldown; not re-probing")
                 return@withLock null
             }
@@ -363,6 +388,13 @@ class ServerAddressBook private constructor(
     /** The persisted shape. Separate from ServerProbe.Candidates so the stamp travels with it. */
     private data class StoredCandidates(
         val machineIdentifier: String,
+        val direct: List<String>,
+        val relay: List<String>
+    )
+
+    /** What [knownAddresses] reports. Public: the debug panel renders it. */
+    data class KnownAddresses(
+        val current: String?,
         val direct: List<String>,
         val relay: List<String>
     )

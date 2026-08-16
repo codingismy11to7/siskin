@@ -34,6 +34,22 @@
     <string name="car_sign_in_back_description">Back</string>
     <string name="car_sign_in_hint">Tap the settings icon to connect</string>
     <string name="car_sign_in_required">Your music is on Plex. Connect to start listening.</string>
+
+    <!-- Diagnostics behind the version line. translatable="false" throughout:
+         this is diagnostic output read by the app's author, in vocabulary that
+         is not user-facing copy, and the debug_ prefix is what makes the
+         exemption auditable. See the 2026-08-14 server address debug design. -->
+    <string name="debug_addresses_title" translatable="false">Server addresses</string>
+    <string name="debug_addresses_in_use" translatable="false">in use</string>
+    <string name="debug_addresses_none" translatable="false">No addresses stored</string>
+    <string name="debug_addresses_direct" translatable="false">Direct</string>
+    <string name="debug_addresses_relay" translatable="false">Relay</string>
+    <string name="debug_addresses_reprobe" translatable="false">Re-probe</string>
+    <string name="debug_reprobe_running" translatable="false">Re-probing…</string>
+    <string name="debug_reprobe_moved" translatable="false">Moved to %1$s</string>
+    <string name="debug_reprobe_unchanged" translatable="false">Unchanged: %1$s</string>
+    <string name="debug_reprobe_failed" translatable="false">Nothing answered</string>
+
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
     <string name="exo_controls_repeat_off_description">Current mode: Repeat none. Toggle repeat mode.</string>
     <string name="exo_controls_repeat_one_description">Current mode: Repeat one. Toggle repeat mode.</string>
