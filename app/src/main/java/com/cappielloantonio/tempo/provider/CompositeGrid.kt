@@ -1,7 +1,7 @@
 package com.cappielloantonio.tempo.provider
 
 /**
- * Where each cover goes in a decade composite.
+ * Where each cover goes in a composite.
  *
  * Four rather than nine, on legibility: a browse-grid tile on the 1024x768
  * landscape head unit is on the order of 240px, which gives roughly 120px a
@@ -25,7 +25,10 @@ object CompositeGrid {
      *
      * More than [COVERS] because an album carrying no thumb would otherwise
      * leave a hole. Free on the same request, and it removes the missing-cover
-     * case rather than designing a fallback for it.
+     * case rather than designing a fallback for it. The spares also cover a
+     * cover that fails to *load* -- [CompositeArt.pick] walks past a failure
+     * rather than discarding these before the fetch, which is what lets a
+     * failed load cost a cell instead of the whole tile.
      */
     const val OVER_FETCH = 8
 

@@ -14,7 +14,7 @@ package com.cappielloantonio.tempo.util
  * Naming the hazard is not the same as closing it: [scopeIn] is what
  * `PlexBrowseRepository.followHubKey` compares against the live session
  * before ever following [keyIn]'s half of the same payload, using the same
- * [com.cappielloantonio.tempo.provider.DecadeCompositeArt.scopeOf] definition
+ * [com.cappielloantonio.tempo.provider.CompositeArt.scopeOf] definition
  * `getHubs` mints these ids with. A mismatch renders the empty-hub message
  * row rather than reaching the server at all.
  *

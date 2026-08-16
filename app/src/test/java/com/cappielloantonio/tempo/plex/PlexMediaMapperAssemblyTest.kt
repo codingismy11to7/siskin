@@ -14,6 +14,7 @@ import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
+import com.cappielloantonio.tempo.util.HubCoverPool
 import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -433,13 +434,113 @@ class PlexMediaMapperAssemblyTest {
         }
 
         val extras = PlexMediaMapper
-            .hubToMediaItem(hub, Constants.HUB_ID, "abc123-7")!!
+            .hubToMediaItem(hub, Constants.HUB_ID, "abc123-7", bucket = 487234L)!!
             .mediaMetadata.extras!!
 
         assertEquals(
             BrowseContentStyle.browsableChildStyle(true),
             extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
         )
+    }
+
+    // ── hub rows ──────────────────────────────────────────────
+
+    private fun hub(vararg thumbs: String) = Hub().apply {
+        key = "/library/sections/7/all?type=9&genre=138884"
+        title = "More in Pop/Rock"
+        metadata = thumbs.map { thumb -> Metadata().apply { this.thumb = thumb } }
+    }
+
+    @Test
+    fun aHubCarriesTheCompositeForItsScopeBucketAndCovers() {
+        // Robolectric rather than plain JUnit: under returnDefaultValues
+        // Uri.Builder hands back null, so the plain suite would be comparing
+        // null to null and passing.
+        val pool = listOf("/library/metadata/51/thumb/1", "/library/metadata/77/thumb/2")
+        val item = PlexMediaMapper.hubToMediaItem(
+            hub(*pool.toTypedArray()), Constants.HUB_ID, SCOPE, bucket = 487234L
+        )!!
+
+        assertEquals(
+            AlbumArtContentProvider.hubContentUri(SCOPE, 487234L, pool),
+            item.mediaMetadata.artworkUri
+        )
+    }
+
+    @Test
+    fun aHubTakesAtMostTheListingsSixCovers() {
+        val many = (1..8).map { "/library/metadata/$it/thumb/1" }
+        val item = PlexMediaMapper.hubToMediaItem(
+            hub(*many.toTypedArray()), Constants.HUB_ID, SCOPE, bucket = 487234L
+        )!!
+
+        assertEquals(
+            AlbumArtContentProvider.hubContentUri(SCOPE, 487234L, many.take(HubCoverPool.MAX)),
+            item.mediaMetadata.artworkUri
+        )
+    }
+
+    @Test
+    fun aHubWhoseItemsShareOneCoverDoesNotTileItFourTimes() {
+        // artworkThumb falls back to parentThumb, so a hub whose albums are all
+        // by one artist -- "More by Just Surrender", measured at three -- can
+        // resolve every entry to the same artist cover. Four identical covers
+        // read as a rendering bug rather than a mosaic; one cover is what a
+        // pool of one honestly means.
+        val shared = "/library/metadata/51/thumb/1"
+        val item = PlexMediaMapper.hubToMediaItem(
+            hub(shared, shared, shared), Constants.HUB_ID, SCOPE, bucket = 487234L
+        )!!
+
+        assertEquals(
+            AlbumArtContentProvider.hubContentUri(SCOPE, 487234L, listOf(shared)),
+            item.mediaMetadata.artworkUri
+        )
+    }
+
+    @Test
+    fun aHubWhoseItemsCarryNoThumbGetsNoArtworkAtAll() {
+        // The behaviour these rows have on main, and the floor this feature
+        // cannot fall below: the car draws its own placeholder.
+        val item = PlexMediaMapper.hubToMediaItem(
+            hub(), Constants.HUB_ID, SCOPE, bucket = 487234L
+        )!!
+
+        assertNull(item.mediaMetadata.artworkUri)
+    }
+
+    @Test
+    fun twoLibrariesMintDifferentHubUrisForOneCoverPool() {
+        // The #84 regression shape, on this row type: the scope has to be in
+        // the URI, because the car's image cache is keyed on it and keying only
+        // the cache file cannot fix what never reaches the file.
+        val pool = listOf("/library/metadata/51/thumb/1")
+        assertNotEquals(
+            PlexMediaMapper.hubToMediaItem(
+                hub(*pool.toTypedArray()), Constants.HUB_ID, "serverA-4", 487234L
+            )!!.mediaMetadata.artworkUri,
+            PlexMediaMapper.hubToMediaItem(
+                hub(*pool.toTypedArray()), Constants.HUB_ID, "serverB-4", 487234L
+            )!!.mediaMetadata.artworkUri
+        )
+    }
+
+    @Test
+    fun anHourRollMintsANewHubUriWithoutTouchingTheRowId() {
+        // The id/URI split DecadeKey's KDoc documents a crash over, from the
+        // other direction: the bucket must move the URI and must not move the
+        // id, or every Discover row churns hourly and every persisted id goes
+        // stale.
+        val pool = listOf("/library/metadata/51/thumb/1")
+        val first = PlexMediaMapper.hubToMediaItem(
+            hub(*pool.toTypedArray()), Constants.HUB_ID, SCOPE, 487234L
+        )!!
+        val next = PlexMediaMapper.hubToMediaItem(
+            hub(*pool.toTypedArray()), Constants.HUB_ID, SCOPE, 487235L
+        )!!
+
+        assertEquals(first.mediaId, next.mediaId)
+        assertNotEquals(first.mediaMetadata.artworkUri, next.mediaMetadata.artworkUri)
     }
 
     @Test
@@ -488,7 +589,7 @@ class PlexMediaMapperAssemblyTest {
     }
 
     private companion object {
-        /** A library scope as DecadeCompositeArt.scopeOf builds one: machine
+        /** A library scope as CompositeArt.scopeOf builds one: machine
          * identifier, then section key. Deliberately not a value any other
          * fixture here uses, so a mapper that dropped the argument could not
          * pass by accident. */
