@@ -807,6 +807,53 @@ class PlexBrowseRepositoryTest {
         )
     }
 
+    /**
+     * The repository -> mapper -> URI wiring, end to end, on the other row
+     * type. `PlexMediaMapperAssemblyTest` pins that the mapper puts whatever
+     * scope and bucket it is handed into the artwork URI, but not that
+     * `getHubs` hands it the *session's* scope and a *live* bucket -- a
+     * `getHubs` that passed a constant scope, or `0L`, or a bucket that never
+     * lands in the live/previous window, would pass every mapper test and
+     * every other test in this file.
+     *
+     * Mirrors [aDecadeRowsArtworkUriNamesTheSessionsLibrary]: the bucket is
+     * asserted as live rather than as an exact value, because it is read off
+     * the clock inside `getHubs` and a test that recomputed it afterwards
+     * would fail once an hour. The path shape differs from the decade URI's,
+     * though -- `hubArt` trails the pool rather than the bucket (see
+     * `AlbumArtContentProvider.hubContentUri`), so the bucket is read from
+     * index 2 rather than off the last segment.
+     */
+    @Test
+    fun aHubRowsArtworkUriNamesTheSessionsLibrary() {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                {"MediaContainer":{"Hub":[
+                  {"hubIdentifier":"music.recent.added.7","title":"Recently Added",
+                   "type":"album","size":1,"key":"/library/sections/7/all?type=9",
+                   "Metadata":[{"ratingKey":"51","thumb":"/library/metadata/51/thumb/1"}]}
+                ]}}
+                """.trimIndent()
+            )
+        )
+
+        val result = await(PlexBrowseRepository().getHubs(Constants.HUB_ID))
+
+        val artwork = result.value!!.single().mediaMetadata.artworkUri!!
+        assertEquals(AlbumArtContentProvider.AUTHORITY, artwork.authority)
+        assertEquals(
+            listOf(AlbumArtContentProvider.HUB_ART, scope()),
+            artwork.pathSegments.take(2)
+        )
+        assertTrue(
+            "artwork bucket must be live: $artwork",
+            CompositeArtBucket.isLive(
+                artwork.pathSegments[2].toLong(), System.currentTimeMillis()
+            )
+        )
+    }
+
     @Test
     fun getHubsWithNoSectionSelectedReturnsPermissionDenied() {
         PlexApi().musicSectionKey = null

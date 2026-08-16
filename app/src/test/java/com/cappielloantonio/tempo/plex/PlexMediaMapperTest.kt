@@ -179,6 +179,14 @@ class PlexMediaMapperTest {
             type = "artist"
             size = 6
             key = "/library/sections/7/all?type=8&sort=random"
+            // Deliberately carries no metadata, and that is load-bearing rather
+            // than incidental: this suite is plain JUnit, so android.jar is
+            // stubbed and Uri.Builder's methods return null. A hub whose items
+            // carry a thumb mints an artwork URI, and hubContentUri's
+            // .scheme().authority() chain would NPE here with nothing at the
+            // call site to explain it. Give this fixture a thumb only by
+            // moving the test to PlexMediaMapperAssemblyTest, which runs under
+            // Robolectric.
         }
 
         val item = PlexMediaMapper.hubToMediaItem(hub, Constants.HUB_ID, "abc123-7", bucket = 487234L)!!

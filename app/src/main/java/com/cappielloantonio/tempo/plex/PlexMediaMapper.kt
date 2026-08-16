@@ -429,19 +429,19 @@ object PlexMediaMapper {
             .mapNotNull { artworkThumb(it) }
             .take(HubCoverPool.MAX)
 
-        val metadata = MediaMetadata.Builder()
+        val metadataBuilder = MediaMetadata.Builder()
             .setTitle(title)
             .setIsBrowsable(true)
             .setIsPlayable(false)
             .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
             .setExtras(extras)
         if (pool.isNotEmpty()) {
-            metadata.setArtworkUri(AlbumArtContentProvider.hubContentUri(scope, bucket, pool))
+            metadataBuilder.setArtworkUri(AlbumArtContentProvider.hubContentUri(scope, bucket, pool))
         }
 
         return MediaItem.Builder()
             .setMediaId(idPrefix + HubKey.of(scope, key))
-            .setMediaMetadata(metadata.build())
+            .setMediaMetadata(metadataBuilder.build())
             .build()
     }
 
