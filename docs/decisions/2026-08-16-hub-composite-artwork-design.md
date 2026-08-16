@@ -379,12 +379,19 @@ on drawn output would assert nothing while appearing to pass.
   null to null. With it, the #84 regression shape: two scopes, two buckets or two
   pools must not mint one URI. And an empty pool mints no `artworkUri` at all.
 - **The provider guards, in both directions.** Refused: a stale bucket, a foreign
-  scope, an absolute URL in the pool, a backslash in the pool, `%2f..%2f` — which
-  `getPathSegments()` decodes *after* the matcher has accepted, so that one
-  carries the test's weight — and a pool of seven. Served: the current scope
-  against a cache file the test wrote, asserted on `statSize`, because a guard
-  that refused everything would pass every refusal case while blanking every tile
-  in the car.
+  scope, an absolute URL in the pool, a backslash in the pool, and a pool of
+  seven. Served: the current scope against a cache file the test wrote, asserted
+  on `statSize`, because a guard that refused everything would pass every refusal
+  case while blanking every tile in the car. Served *also*, and this one is the
+  interesting case: `%2f..%2f..%2fevil`, which `getPathSegments()` decodes to
+  `/../../evil` **after** the matcher has accepted it. `isServerRelativePath` does
+  not reject `..` and never has — `openAlbumArt` accepts the same shape today, and
+  the hubs design measured `..` traversal among 23 candidates that do not escape
+  to another host, so refusing it here would buy nothing a caller cannot get by
+  naming the target path directly. The guarantee this route actually makes is the
+  stronger one, and the test asserts that instead: a hostile pool resolves to a
+  hex-named file inside the cache directory or to nothing, because the cache id is
+  a digest computed locally rather than a segment copied out of the URI.
 - **Cache naming and eviction:** one file per (pool, scope, bucket), a different
   pool giving a different file, the two live buckets surviving a sweep, older
   ones not, and files this app did not name left alone.

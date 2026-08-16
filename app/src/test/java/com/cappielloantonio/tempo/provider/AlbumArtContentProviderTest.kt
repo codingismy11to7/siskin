@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.provider
 import android.content.Context
 import android.net.Uri
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.util.HubCoverPool
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
@@ -311,6 +312,132 @@ class AlbumArtContentProviderTest {
         }
     }
 
+    // ── hubArt ────────────────────────────────────────────────
+
+    @Test
+    fun hubContentUriRoundTripsTheScopeBucketAndPool() {
+        val uri = AlbumArtContentProvider.hubContentUri("abc123def456-4", 487234L, hubPool)
+
+        assertEquals(
+            listOf("hubArt", "abc123def456-4", "487234", HubCoverPool.encode(hubPool)),
+            uri.pathSegments
+        )
+        // The pool survives as one segment with its slashes intact, which is
+        // the property openAlbumArt already relies on and the reason the pool
+        // is not one segment per thumb.
+        assertEquals(hubPool, HubCoverPool.decode(uri.pathSegments[3]))
+    }
+
+    @Test
+    fun twoLibrariesMintDifferentUrisForTheSamePoolAndBucket() {
+        assertNotEquals(
+            AlbumArtContentProvider.hubContentUri("serverA-4", 487234L, hubPool),
+            AlbumArtContentProvider.hubContentUri("serverB-4", 487234L, hubPool)
+        )
+    }
+
+    @Test
+    fun servesACachedHubCompositeWithoutBuildingOne() {
+        // The half that carries the weight: a guard that refused everything
+        // would pass every refusal below while blanking every Discover row in
+        // the car. statSize pins which file was opened.
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        writeCachedHubComposite(hubPool, bucket, bytes = 321)
+
+        provider.openFile(
+            AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool), "r"
+        ).use { assertEquals(321L, it!!.statSize) }
+    }
+
+    @Test
+    fun refusesAHubCompositeMintedForAnotherLibrary() {
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        writeCachedHubComposite(hubPool, bucket, bytes = 321)
+
+        assertThrows(FileNotFoundException::class.java) {
+            provider.openFile(
+                AlbumArtContentProvider.hubContentUri("f00dcafe-9", bucket, hubPool), "r"
+            )
+        }
+    }
+
+    @Test
+    fun refusesAHubBucketOutsideTheLiveWindow() {
+        val current = CompositeArtBucket.current(System.currentTimeMillis())
+        listOf(current - 2, current + 1).forEach { bucket ->
+            assertThrows(FileNotFoundException::class.java) {
+                provider.openFile(
+                    AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool), "r"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun refusesAPoolHoldingAnythingThatIsNotAServerRelativePath() {
+        // One bad entry refuses the whole URI rather than being filtered out.
+        // Filtering would let a caller pair one real thumb with five probes and
+        // still be handed a tile; refusing whole costs real traffic nothing,
+        // because a pool this app minted is valid in every position.
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        val hostile = listOf(
+            "https://evil.example/x",       // absolute, the open-proxy shape
+            "//evil.example/x",             // protocol-relative
+            "/\\evil.example/x",            // OkHttp normalises the backslash
+            "library/metadata/1/thumb/1",   // not rooted
+            ""                              // a blank component
+        )
+        hostile.forEach { bad ->
+            assertThrows(bad, FileNotFoundException::class.java) {
+                provider.openFile(
+                    AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool + bad), "r"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun refusesAPoolBiggerThanTheListingCanProduce() {
+        // The cap is what bounds one open to six cover fetches. Without it an
+        // exported provider is an amplifier: one binder call, arbitrarily many
+        // authenticated fetches.
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        val tooMany = (0..HubCoverPool.MAX).map { "/library/metadata/$it/thumb/1" }
+
+        assertThrows(FileNotFoundException::class.java) {
+            provider.openFile(
+                AlbumArtContentProvider.hubContentUri(scope(), bucket, tooMany), "r"
+            )
+        }
+    }
+
+    @Test
+    fun aTraversalSegmentIsAPathLikeAnyOtherAndCannotReachTheCacheFilename() {
+        // getPathSegments() decodes *after* the matcher has accepted, so
+        // `%2f..%2f..%2fevil` arrives as `/../../evil` -- and
+        // isServerRelativePath accepts it, exactly as openAlbumArt accepts the
+        // same shape today. It buys a caller nothing: they could name the
+        // target path directly without the `..`, and the hubs design measured
+        // `..` traversal among 23 candidates that do not escape to another
+        // host.
+        //
+        // What this route guarantees is stronger, and is what this asserts:
+        // nothing caller-shaped reaches a filename at all. The cache id is a
+        // digest computed locally over the pool, so the URI below can only
+        // ever resolve to a hex-named file inside the cache directory --
+        // which is why statSize here is the whole point, not the acceptance.
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        val decoded = listOf("/../../evil")
+        writeCachedHubComposite(decoded, bucket, bytes = 222)
+
+        val uri = Uri.parse(
+            "content://" + AlbumArtContentProvider.AUTHORITY +
+                "/hubArt/" + scope() + "/" + bucket + "/%2f..%2f..%2fevil"
+        )
+
+        provider.openFile(uri, "r").use { assertEquals(222L, it!!.statSize) }
+    }
+
     /** The scope of the session setUp() wrote, computed the way the rows the
      * car receives compute it -- one definition, so a test cannot pin a format
      * the minting side has since moved off. */
@@ -326,6 +453,19 @@ class AlbumArtContentProviderTest {
         file.parentFile!!.mkdirs()
         file.writeBytes(ByteArray(bytes))
     }
+
+    private fun writeCachedHubComposite(pool: List<String>, bucket: Long, bytes: Int) {
+        val file = CompositeArt.cacheFile(
+            App.getContext(), MACHINE_IDENTIFIER, "4", HubCompositeArt.idFor(pool), bucket
+        )
+        file.parentFile?.mkdirs()
+        file.writeBytes(ByteArray(bytes))
+    }
+
+    private val hubPool = listOf(
+        "/library/metadata/51/thumb/1699999999",
+        "/library/metadata/77/thumb/1700000000"
+    )
 
     private companion object {
         /** The signed-in session's machine identifier, per setUp(). */

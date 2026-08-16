@@ -17,6 +17,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.cappielloantonio.tempo.BuildConfig;
 import com.cappielloantonio.tempo.plex.PlexApi;
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder;
+import com.cappielloantonio.tempo.util.HubCoverPool;
 import com.cappielloantonio.tempo.util.Preferences;
 
 import java.io.File;
@@ -36,14 +37,16 @@ public class AlbumArtContentProvider extends ContentProvider {
     public static final String AUTHORITY = BuildConfig.APPLICATION_ID + ".albumart.provider";
     public static final String ALBUM_ART = "albumArt";
     public static final String DECADE_ART = "decadeArt";
+    public static final String HUB_ART = "hubArt";
 
     private static final int MATCH_ALBUM_ART = 1;
     private static final int MATCH_DECADE_ART = 2;
+    private static final int MATCH_HUB_ART = 3;
 
     /** A decade key must be four digits. It becomes part of a cache filename,
      * and what the guard buys is exactly two properties: the segment is
      * digits only, so no decoded `/`, no `..` and no separator of any kind
-     * reaches the filename DecadeCompositeArt.cacheFile interpolates; and it
+     * reaches the filename CompositeArt.cacheFile interpolates; and it
      * is a fixed-width run, so there is no length to play with either.
      * matches() anchors the whole segment rather than a prefix, which is what
      * makes both properties hold of the segment and not merely of a prefix
@@ -78,6 +81,12 @@ public class AlbumArtContentProvider extends ContentProvider {
         // each of the three by index, so a URI of any other shape must not
         // reach it at all.
         uriMatcher.addURI(AUTHORITY, DECADE_ART + "/*/*/#", MATCH_DECADE_ART);
+        // scope / bucket / pool. Fixed arity again, and the pool is one segment
+        // rather than one per thumb: UriMatcher has no repeating wildcard, so
+        // the alternative was six near-identical rules with the cap on how many
+        // covers a caller may demand emerging from the rule set instead of
+        // being stated in openHubArt. See HubCoverPool.
+        uriMatcher.addURI(AUTHORITY, HUB_ART + "/*/#/*", MATCH_HUB_ART);
     }
 
     public static Uri contentUri(String artworkId) {
@@ -113,6 +122,30 @@ public class AlbumArtContentProvider extends ContentProvider {
                 .build();
     }
 
+    /**
+     * The composite for one Discover row, in one library, for one hour.
+     *
+     * Unlike {@link #decadeContentUri}, this URI names its own covers, so it is
+     * already content-addressed: a re-rolled hub changes the pool and therefore
+     * the URI. The bucket is here anyway, for a narrower reason than it has
+     * there. A tile that degraded because a cover failed to load would
+     * otherwise sit in the car's own image cache under a URI nothing
+     * invalidates; rolling the bucket is what lets it redraw.
+     *
+     * The pool costs no Plex request. It is the six items the hub listing
+     * already returned -- the ones the row's existence was decided from.
+     */
+    public static Uri hubContentUri(String scope, long bucket, List<String> pool) {
+        return new Uri.Builder()
+                .scheme(ContentResolver.SCHEME_CONTENT)
+                .authority(AUTHORITY)
+                .appendPath(HUB_ART)
+                .appendPath(scope)
+                .appendPath(Long.toString(bucket))
+                .appendPath(HubCoverPool.encode(pool))
+                .build();
+    }
+
     @Nullable
     @Override
     public ParcelFileDescriptor openFile(@NonNull Uri uri, @NonNull String mode) throws FileNotFoundException {
@@ -125,6 +158,8 @@ public class AlbumArtContentProvider extends ContentProvider {
                 return openAlbumArt(uri);
             case MATCH_DECADE_ART:
                 return openDecadeArt(uri);
+            case MATCH_HUB_ART:
+                return openHubArt(uri);
             default:
                 throw new FileNotFoundException("Unrecognised artwork URI");
         }
@@ -188,12 +223,15 @@ public class AlbumArtContentProvider extends ContentProvider {
 
     /**
      * The decade composite. Its validation differs from openAlbumArt's, and
-     * deliberately: no caller-supplied path reaches MediaUrlBuilder here -- the
-     * four thumbs come from our own Plex response -- so the open-proxy hazard
-     * that path guards against cannot arise. What this path needs instead is a
-     * bound on how much work a caller can ask for, because every cache miss is a
-     * Plex request made with the user's token, and an answer to "is this URI
-     * even about the library we are pointed at now".
+     * deliberately: no caller-supplied path reaches MediaUrlBuilder on *this*
+     * route -- the covers come from our own Plex response -- so the open-proxy
+     * hazard that path guards against cannot arise here. That is a property of
+     * this method and not of this provider: openHubArt below takes its covers
+     * from the URI, and guards them the way openAlbumArt guards its thumb.
+     * What this path needs instead is a bound on how much work a caller can
+     * ask for, because every cache miss is a Plex request made with the user's
+     * token, and an answer to "is this URI even about the library we are
+     * pointed at now".
      */
     private ParcelFileDescriptor openDecadeArt(Uri uri) throws FileNotFoundException {
         Context context = getContext();
@@ -252,6 +290,71 @@ public class AlbumArtContentProvider extends ContentProvider {
         }
 
         return pipeFrom(decade, () -> DecadeCompositeArt.build(context, decade, bucket));
+    }
+
+    /**
+     * The hub composite. Its validation differs from both paths above.
+     *
+     * Cheaper to serve than a decade tile and cheaper to abuse: there is no
+     * Plex request on this route at all, so a hostile open costs Glide fetches
+     * and no metadata query -- the opposite of the residual openDecadeArt
+     * concedes, where a well-formed but absent decade costs one query per open
+     * forever.
+     *
+     * What it does need is a bound on amplification. One open here can trigger
+     * six authenticated fetches where openAlbumArt triggers one, which is what
+     * the pool cap is for. The open-proxy hazard itself is openAlbumArt's, not
+     * a new one: any app on the head unit has always been able to ask this
+     * authority for any server-relative Plex path, behind this same guard.
+     */
+    private ParcelFileDescriptor openHubArt(Uri uri) throws FileNotFoundException {
+        Context context = getContext();
+        List<String> segments = uri.getPathSegments();
+
+        long bucket;
+        try {
+            bucket = Long.parseLong(segments.get(2));
+        } catch (NumberFormatException e) {
+            // `#` restricts the segment to digits but not to a digit run that
+            // fits in a long, which is the case this catch is for.
+            throw new FileNotFoundException("Not a bucket");
+        }
+        if (!CompositeArtBucket.isLive(bucket, System.currentTimeMillis())) {
+            throw new FileNotFoundException("Stale composite bucket");
+        }
+
+        // The same guard, the same known window as openDecadeArt's: currentScope()
+        // reads the session here and HubCompositeArt.cached() reads it again
+        // below, so a library switch landing between the two lets a URI validated
+        // against the old scope be answered out of the new session's cache file.
+        // Microseconds wide, one wrong tile until the list behind it is
+        // re-fetched, which a library switch provokes anyway.
+        String scope = CompositeArt.currentScope();
+        if (scope == null || !scope.equals(segments.get(1))) {
+            throw new FileNotFoundException("Not this library's composite");
+        }
+
+        List<String> pool = HubCoverPool.decode(segments.get(3));
+        if (pool.isEmpty() || pool.size() > HubCoverPool.MAX) {
+            throw new FileNotFoundException("Not a cover pool");
+        }
+        for (String thumb : pool) {
+            // One bad entry refuses the whole URI rather than being filtered
+            // out: filtering would let a caller pair one real thumb with five
+            // probes and still be handed a tile, and refusing whole costs real
+            // traffic nothing, because a pool this app minted is valid in every
+            // position by construction.
+            if (!MediaUrlBuilder.isServerRelativePath(thumb)) {
+                throw new FileNotFoundException("Not a Plex artwork path");
+            }
+        }
+
+        File cached = HubCompositeArt.cached(context, pool, bucket);
+        if (cached != null) {
+            return ParcelFileDescriptor.open(cached, ParcelFileDescriptor.MODE_READ_ONLY);
+        }
+
+        return pipeFrom(HUB_ART, () -> HubCompositeArt.build(context, pool, bucket));
     }
 
     /**
