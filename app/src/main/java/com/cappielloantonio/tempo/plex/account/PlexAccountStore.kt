@@ -71,6 +71,26 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
         }
     }
 
+    /**
+     * Calls [onRemoved] when Siskin's account disappears, whichever side did
+     * it -- the car's Settings and Siskin's own Sign out are the same
+     * operation reached from two places, and neither is the special case.
+     *
+     * The listener is never unregistered. It is held for the life of the
+     * process by design: the thing it protects against is the car's Settings
+     * removing the account while Siskin is in the background, which is
+     * precisely when a lifecycle-scoped listener would be gone.
+     */
+    fun observeRemoval(onRemoved: () -> Unit) {
+        var present = hasAccount()
+
+        manager.addOnAccountsUpdatedListener({
+            val nowPresent = hasAccount()
+            if (present && !nowPresent) onRemoved()
+            present = nowPresent
+        }, null, true)
+    }
+
     companion object {
         const val ACCOUNT_NAME = "Plex"
 
