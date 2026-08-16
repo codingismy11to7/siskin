@@ -309,8 +309,17 @@ object CompositeArt {
         // optimisation that asked for a single cover whenever the pool held
         // fewer than four: that was correct while fewer than four covers drew
         // one full-bleed cell, so loading the rest was a transcode spent on a
-        // cover no cell existed for. Two covers now means two cells. `pick`
-        // stops early on its own when the pool is smaller than this.
+        // cover no cell existed for. Two covers now means two cells -- see
+        // CompositeGrid.cells and 2026-08-16-sparse-composite-cells-design.md.
+        //
+        // **Nothing here is covered by a test**, because this function is
+        // private and network-bound, and a test against `pick` would pass
+        // identically before and after. That is why the paragraph above records
+        // why the optimisation was right rather than only that it is gone: this
+        // comment is the whole defence against reinstating it.
+        //
+        // Asking for COVERS costs nothing when the pool is smaller -- `pick`
+        // walks what it is given and returns what it finds.
         //
         // Paired with the thumb that produced it, so the degraded case below
         // knows what to re-request.
