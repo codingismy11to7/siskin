@@ -7,7 +7,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import com.cappielloantonio.tempo.util.BrowseTabOrder
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.FutureCallback
 import com.google.common.util.concurrent.Futures
@@ -119,20 +121,29 @@ object BrowseTreeInvalidator {
     }
 
     /**
-     * Invalidates the root plus each of the four static tabs hanging off it
-     * -- Playlists, Artists, Albums, More.
+     * Invalidates the root plus each of the current root tabs and More.
+     *
+     * Which ids those are is not fixed: since the browse tabs became
+     * user-orderable (see
+     * docs/decisions/2026-08-14-customizable-browse-tabs-design.md), the
+     * three root tabs are whatever [BrowseTabOrder.resolve] returns for the
+     * saved order, not a hardcoded Playlists/Artists/Albums -- a promoted
+     * destination like Discover or Decades has to be invalidated exactly
+     * like the tabs it displaced, or it keeps showing the signed-out info
+     * row after a sign-in until the user navigates away and back.
      *
      * [invalidateRoot] alone stopped being enough for sign-in and sign-out
-     * once [MediaBrowserTree.buildTree] made the root return the same four
-     * tabs signed in or out: `notifyChildrenChanged(ROOT_ID, ...)` then sees
+     * once [MediaBrowserTree.buildTree] made the root return the same tabs
+     * signed in or out: `notifyChildrenChanged(ROOT_ID, ...)` then sees
      * byte-identical children on both transitions and gives the car nothing
      * to act on. The info row that used to live at the root now lives one
      * level down, inside each tab, so both transitions have to reach that
      * level to get the car to redraw it -- the same hole [invalidateNode] was
      * written to close for the library-switch case (see its KDoc), needed
-     * here for the identical reason at four ids instead of one. Sign-in and
-     * sign-out both need this same sequence, which is why it lives here once
-     * instead of as four [invalidateNode] calls duplicated at each call site.
+     * here for the identical reason at the root tabs plus More instead of
+     * one. Sign-in and sign-out both need this same sequence, which is why it
+     * lives here once instead of as separate [invalidateNode] calls
+     * duplicated at each call site.
      *
      * childCount is 0 for every tab: the same placeholder [invalidateRoot]
      * itself falls back to when it cannot count the root's children, and the
@@ -149,9 +160,8 @@ object BrowseTreeInvalidator {
      */
     fun invalidateTree() {
         invalidateRoot()
-        invalidateNode(Constants.PLAYLIST_ID, 0)
-        invalidateNode(Constants.ARTISTS_ID, 0)
-        invalidateNode(Constants.ALBUMS_ID, 0)
+        val resolved = BrowseTabOrder.resolve(Preferences.getBrowseTabOrder())
+        BrowseTabOrder.rootTabs(resolved).forEach { invalidateNode(it, 0) }
         invalidateNode(Constants.MORE_ID, 0)
     }
 
