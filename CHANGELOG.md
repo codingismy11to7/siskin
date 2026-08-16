@@ -12,6 +12,9 @@
 
 ## [Unreleased] — Siskin
 
+- A cover mosaic built from two or three albums now shows all of them instead of
+  just the first. A decade or a Discover row holding three albums used to draw a
+  single cover, which looked like it held one.
 - Discover rows now wear a mosaic of covers drawn from the hub itself, instead
   of the car's music-note placeholder. The covers come from the listing that
   already builds the row, so the rows cost no extra requests, and Discover

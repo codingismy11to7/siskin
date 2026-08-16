@@ -45,8 +45,32 @@ object CompositeGrid {
     data class Cell(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
     /**
-     * The largest grid that fills completely: 2x2 from four covers or more, one
-     * full-bleed cover from one to three, nothing from none.
+     * Where [count] covers go, in fill order: the draw loop pairs cell *n* with
+     * cover *n*, so the order here is the order covers are consumed.
+     *
+     * | covers | layout |
+     * |---|---|
+     * | 0 | nothing — the caller draws no composite at all |
+     * | 1 | one cover, full-bleed |
+     * | 2 | the diagonal: top-left and bottom-right |
+     * | 3 | top-left, top-right, bottom-left |
+     * | 4 or more | the full 2x2 |
+     *
+     * **A sparse layout returns fewer cells than the grid has positions**, not
+     * four cells of which some are empty. An undrawn cell is an absence, so the
+     * draw loop needs no notion of skipping one.
+     *
+     * Nothing is drawn into the remaining positions, which leaves them black --
+     * the composite is RGB_565 and carries no alpha, and black is also the car's
+     * browse background. That is what makes a sparse composite read as
+     * composition rather than as damage: there is no visible empty box beside
+     * the covers to look like a failed load. It reverses the rule this file
+     * shipped with; see 2026-08-16-sparse-composite-cells-design.md, which
+     * supersedes the decade design's *Four covers, in the largest grid that
+     * fills completely*.
+     *
+     * Repeating a cover to fill a position is still refused, for the reason
+     * that design gave: it would claim albums that are not there.
      *
      * The midpoint is used as both the right edge of the first column and the
      * left edge of the second, rather than computing each from `size / 2`, so an
@@ -55,14 +79,18 @@ object CompositeGrid {
     @JvmStatic
     fun cells(count: Int, size: Int): List<Cell> {
         if (count <= 0) return emptyList()
-        if (count < COVERS) return listOf(Cell(0, 0, size, size))
+        if (count == 1) return listOf(Cell(0, 0, size, size))
 
         val mid = size / 2
-        return listOf(
-            Cell(0, 0, mid, mid),
-            Cell(mid, 0, size, mid),
-            Cell(0, mid, mid, size),
-            Cell(mid, mid, size, size)
-        )
+        val topLeft = Cell(0, 0, mid, mid)
+        val topRight = Cell(mid, 0, size, mid)
+        val bottomLeft = Cell(0, mid, mid, size)
+        val bottomRight = Cell(mid, mid, size, size)
+
+        return when (count) {
+            2 -> listOf(topLeft, bottomRight)
+            3 -> listOf(topLeft, topRight, bottomLeft)
+            else -> listOf(topLeft, topRight, bottomLeft, bottomRight)
+        }
     }
 }
