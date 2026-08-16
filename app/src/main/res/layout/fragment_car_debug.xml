@@ -49,6 +49,26 @@
             android:orientation="vertical">
 
             <!--
+                Names the section rather than the screen. "Debug" is the
+                container — the 2026-08-14 design's whole argument for hanging
+                this off the version line was that debug information
+                accumulates, so a second section will arrive and the screen
+                title cannot be about addresses. Without this the list has
+                "Direct" and "Relay" inside it and nothing saying what the list
+                as a whole is.
+
+                This is the string that used to title the dialog, back when the
+                dialog was only ever about addresses.
+            -->
+            <TextView
+                android:id="@+id/addresses_heading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="@string/debug_addresses_title"
+                android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+            <!--
                 The address report. Monospace so that a column of hosts and
                 ports lines up, which is the whole reason this screen is read.
 

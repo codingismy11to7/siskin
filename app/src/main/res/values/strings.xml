@@ -58,6 +58,7 @@
     <string name="debug_reprobe_unchanged" translatable="false">Unchanged: %1$s</string>
     <string name="debug_reprobe_failed" translatable="false">Nothing answered</string>
     <string name="debug_screen_title" translatable="false">Debug</string>
+    <string name="debug_addresses_title" translatable="false">Server addresses</string>
     <string name="debug_choose_server" translatable="false">Choose server</string>
 
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
