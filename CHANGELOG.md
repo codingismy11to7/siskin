@@ -12,6 +12,10 @@
 
 ## [Unreleased] — Siskin
 
+- Discover rows now wear a mosaic of covers drawn from the hub itself, instead
+  of the car's music-note placeholder. The covers come from the listing that
+  already builds the row, so the rows cost no extra requests, and Discover
+  stays a list — a hub's title is a sentence, and a grid would truncate it.
 - Settings has a Customize tabs screen: drag the browse destinations into the
   order you want, and the top three become the car's tabs. The first one is
   the tab the car opens on, since it always opens on the leftmost. Anything
@@ -27,10 +31,6 @@
   hub opens onto its full contents and can be mixed, and the rows are named by
   the server, so they arrive in the car's own language. A server with no
   listening history yet says so, plainly, rather than showing an empty screen.
-- Discover rows now wear a mosaic of covers drawn from the hub itself, instead
-  of the car's music-note placeholder. The covers come from the listing that
-  already builds the row, so the rows cost no extra requests, and Discover
-  stays a list — a hub's title is a sentence, and a grid would truncate it.
 
 ## [0.99.4] (2026-08-14)
 
