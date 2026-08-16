@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.provider
 import android.content.Context
 import android.net.Uri
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.util.HubCoverPool
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -39,14 +40,17 @@ class AlbumArtContentProviderTest {
         // Robolectric caches SharedPreferences statically across test methods,
         // so writeCachedComposite's cache files have to agree with whatever
         // this method last wrote.
+        //
+        // The account token goes through PlexApi rather than the raw
+        // preference key: it now lives in the system account, not preferences.
         val context = App.getContext()
         context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
             .edit()
             .putString("plex_server_uri", "https://plex.example")
-            .putString("plex_token", "tok123")
             .putString("plex_music_section_key", "4")
             .putString("plex_machine_identifier", MACHINE_IDENTIFIER)
             .commit()
+        PlexApi().accountToken = "tok123"
 
         // Robolectric's cacheDir is real and persists across test methods within
         // a run; servesACachedCompositeWithoutBuildingOne writes into it
