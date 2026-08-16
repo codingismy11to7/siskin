@@ -37,19 +37,68 @@ class CompositeGridTest {
     }
 
     @Test
-    fun fewerThanFourCoversYieldOneFullBleedCell() {
-        // The largest grid that fills completely. A decade with two albums
-        // genuinely has no mosaic, and one cover says that honestly -- repeats
-        // would claim albums that are not there, and empty cells look like
-        // artwork that failed to load, which is the one thing this must never
-        // be confused with.
-        listOf(1, 2, 3).forEach { count ->
-            assertEquals(
-                "count=$count",
-                listOf(Cell(0, 0, 512, 512)),
-                CompositeGrid.cells(count = count, size = 512)
-            )
+    fun oneCoverIsStillFullBleed() {
+        // The one layout the sparse rule does not touch: with one cover there
+        // is nothing to under-report, and a quarter-size cover surrounded by
+        // three dark cells is the one arrangement here that really would look
+        // like artwork that failed to load.
+        assertEquals(
+            listOf(Cell(0, 0, 512, 512)),
+            CompositeGrid.cells(count = 1, size = 512)
+        )
+    }
+
+    @Test
+    fun twoCoversTakeTheDiagonal() {
+        // Top-left and bottom-right rather than a filled top row. Both keep
+        // square cells; the diagonal reads as a deliberate arrangement where a
+        // top row reads as a grid that stopped halfway.
+        assertEquals(
+            listOf(
+                Cell(0, 0, 256, 256),
+                Cell(256, 256, 512, 512)
+            ),
+            CompositeGrid.cells(count = 2, size = 512)
+        )
+    }
+
+    @Test
+    fun threeCoversFillInReadingOrderAndLeaveTheBottomRightDark() {
+        assertEquals(
+            listOf(
+                Cell(0, 0, 256, 256),
+                Cell(256, 0, 512, 256),
+                Cell(0, 256, 256, 512)
+            ),
+            CompositeGrid.cells(count = 3, size = 512)
+        )
+    }
+
+    @Test
+    fun anUndrawnCellIsAbsentRatherThanEmpty() {
+        // The draw loop pairs cell n with cover n, so a "blank" has to be a
+        // missing cell and not a zero-area rectangle sitting in the list --
+        // the latter would pair a real cover with a rectangle of no pixels and
+        // silently drop it.
+        (1..CompositeGrid.COVERS).forEach { count ->
+            assertEquals("count=$count", count, CompositeGrid.cells(count, size = 512).size)
         }
+    }
+
+    @Test
+    fun aSparseLayoutAlsoTilesAnOddSizeWithNoSeam() {
+        // Same guard as the 2x2's, on the layouts that share its midpoint.
+        val two = CompositeGrid.cells(count = 2, size = 513)
+        assertEquals(two[0].right, two[1].left)
+        assertEquals(two[0].bottom, two[1].top)
+        assertEquals(513, two[1].right)
+        assertEquals(513, two[1].bottom)
+
+        val three = CompositeGrid.cells(count = 3, size = 513)
+        assertEquals(three[0].right, three[1].left)
+        assertEquals(three[0].bottom, three[2].top)
+        assertEquals(513, three[1].right)
+        assertEquals(513, three[2].bottom)
     }
 
     @Test
