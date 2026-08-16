@@ -22,7 +22,7 @@ package com.cappielloantonio.tempo.util
  * makes a server switch a pure remove-and-insert, which is what every other row
  * type already gets for free.
  *
- * [scope] is [com.cappielloantonio.tempo.provider.DecadeCompositeArt.scopeOf]'s
+ * [scope] is [com.cappielloantonio.tempo.provider.CompositeArt.scopeOf]'s
  * string and nothing else -- the same one definition of "which library" the
  * artwork URI and the provider's guard compare against, so there is no second
  * encoding of it to drift.
@@ -32,7 +32,7 @@ package com.cappielloantonio.tempo.util
  * can contain one. A scope is a normalised machine identifier -- letters and
  * digits, or a hyphenated sentinel -- then `-`, then a section key, which is an
  * integer. That side is genuinely constrained, by
- * `DecadeCompositeArt.isSafeCacheIdentifier`.
+ * `CompositeArt.isSafeCacheIdentifier`.
  *
  * The decade side is not validated here, and it is worth being exact about why
  * it is still safe. The provider's `\d{4}` guard runs on the *read* path, on an

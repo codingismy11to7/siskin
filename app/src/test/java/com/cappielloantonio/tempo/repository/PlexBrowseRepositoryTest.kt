@@ -19,8 +19,8 @@ import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
+import com.cappielloantonio.tempo.provider.CompositeArt
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
-import com.cappielloantonio.tempo.provider.DecadeCompositeArt
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
@@ -688,7 +688,7 @@ class PlexBrowseRepositoryTest {
     /** The scope of the session [PlexBrowseTestServer] wrote, computed through
      * the one definition the rows themselves use rather than spelled out here,
      * so this cannot pin a format the minting side has moved off. */
-    private fun scope(): String = DecadeCompositeArt.currentScope()!!
+    private fun scope(): String = CompositeArt.currentScope()!!
 
     /**
      * A HubKey payload scoped to the live session, so `followHubKey`'s

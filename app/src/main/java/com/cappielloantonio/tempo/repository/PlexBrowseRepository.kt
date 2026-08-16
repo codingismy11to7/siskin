@@ -28,8 +28,8 @@ import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Hub
 import com.cappielloantonio.tempo.plex.models.Metadata
+import com.cappielloantonio.tempo.provider.CompositeArt
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
-import com.cappielloantonio.tempo.provider.DecadeCompositeArt
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
@@ -179,7 +179,7 @@ class PlexBrowseRepository {
         // rather than drifting, and they all name the library this listing was
         // actually fetched from.
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
-        val scope = DecadeCompositeArt.scopeOf(session)
+        val scope = CompositeArt.scopeOf(session)
         return fetch({ libraryClient.getDecades(session.musicSectionKey) }) { body ->
             directoriesOf(body).mapNotNull {
                 PlexMediaMapper.decadeToMediaItem(it, prefix, scope, bucket)
@@ -208,7 +208,7 @@ class PlexBrowseRepository {
      */
     fun getHubs(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val session = api.session ?: return errorFuture()
-        val scope = DecadeCompositeArt.scopeOf(session)
+        val scope = CompositeArt.scopeOf(session)
         return fetch({ libraryClient.getSectionHubs(session.musicSectionKey) }) { body ->
             val rows = hubsOf(body)
                 .filter { (it.size ?: 0) > 0 }
@@ -366,7 +366,7 @@ class PlexBrowseRepository {
      * picker node but not Discover's rows underneath More -- would otherwise
      * query whatever section that number happens to be on the *new* server,
      * possibly a video library. [HubKey.scopeIn] and
-     * [DecadeCompositeArt.currentScope] are compared with the one definition
+     * [CompositeArt.currentScope] are compared with the one definition
      * [getHubs] already mints these ids from, so neither side can drift onto a
      * second encoding of "which library".
      *
@@ -378,7 +378,7 @@ class PlexBrowseRepository {
      * does rather than an error screen for "you switched libraries".
      */
     private suspend fun followHubKey(hubKey: String): Either<PlexTransportFailure, PlexResponse> {
-        if (HubKey.scopeIn(hubKey) != DecadeCompositeArt.currentScope()) {
+        if (HubKey.scopeIn(hubKey) != CompositeArt.currentScope()) {
             Log.w(TAG, "not following a stale hub key from another library: $hubKey")
             return PlexResponse().right()
         }

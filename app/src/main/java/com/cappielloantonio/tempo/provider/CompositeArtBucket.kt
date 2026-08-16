@@ -1,14 +1,18 @@
 package com.cappielloantonio.tempo.provider
 
 /**
- * The hour window a decade composite belongs to.
+ * The hour window a composite belongs to.
  *
  * This exists because a `content://` URI that named only the decade would be
  * constant forever, and the car's own image cache could then pin a tile for the
  * life of the process -- the one-hour life would exist in our code and never be
  * observable in the car. Rolling the bucket changes the URI, which invalidates
  * every cache in the chain at once without any of them needing to know a TTL
- * exists.
+ * exists. A `hubArt` URI names its own covers and so is already content-addressed;
+ * it carries a bucket anyway, for a narrower reason. A tile that degraded
+ * because a cover failed to load would otherwise be pinned in the car's own
+ * image cache under a URI nothing invalidates. Rolling the bucket is what
+ * lets it redraw.
  *
  * Takes `nowMs` rather than reading a clock, so it stays a pure function and the
  * test does not have to wait an hour.

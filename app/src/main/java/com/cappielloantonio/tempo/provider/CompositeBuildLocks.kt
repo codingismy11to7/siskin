@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Runs one body at a time per key, and different keys at once.
  *
- * This exists for [DecadeCompositeArt.build]. That provider is exported and
+ * This exists for [CompositeArt.build]. That provider is exported and
  * served on a thread pool, so the car can open the same decade tile
  * concurrently, and until one build renames its file into place every one of
  * those opens is a fresh cache miss -- a full Plex metadata query plus four

@@ -50,8 +50,8 @@ class AlbumArtContentProviderTest {
         // Robolectric's cacheDir is real and persists across test methods within
         // a run; servesACachedCompositeWithoutBuildingOne writes into it
         // directly, so it is cleared here rather than assumed empty --
-        // DecadeCompositeArtCacheTest resets the same way for the same reason.
-        DecadeCompositeArt.cacheDir(context).deleteRecursively()
+        // CompositeArtCacheTest resets the same way for the same reason.
+        CompositeArt.cacheDir(context).deleteRecursively()
 
         provider = Robolectric.buildContentProvider(AlbumArtContentProvider::class.java).create().get()
     }
@@ -314,7 +314,7 @@ class AlbumArtContentProviderTest {
     /** The scope of the session setUp() wrote, computed the way the rows the
      * car receives compute it -- one definition, so a test cannot pin a format
      * the minting side has since moved off. */
-    private fun scope(): String = DecadeCompositeArt.currentScope()!!
+    private fun scope(): String = CompositeArt.currentScope()!!
 
     /** A composite already on disk for [decade], of exactly [bytes] length --
      * the length being what the assertions read back off the descriptor. Keyed
@@ -322,7 +322,7 @@ class AlbumArtContentProviderTest {
      * session's, so the provider's read of the session resolves to the same
      * cache file this writes. */
     private fun writeCachedComposite(decade: String, bucket: Long, bytes: Int) {
-        val file = DecadeCompositeArt.cacheFile(App.getContext(), MACHINE_IDENTIFIER, "4", decade, bucket)
+        val file = CompositeArt.cacheFile(App.getContext(), MACHINE_IDENTIFIER, "4", decade, bucket)
         file.parentFile!!.mkdirs()
         file.writeBytes(ByteArray(bytes))
     }

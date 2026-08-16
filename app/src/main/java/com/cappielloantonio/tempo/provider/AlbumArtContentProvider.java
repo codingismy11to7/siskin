@@ -95,7 +95,7 @@ public class AlbumArtContentProvider extends ContentProvider {
      * All three parts are in the URI for a single reason: the car caches
      * artwork by URI, so anything that has to invalidate a tile has to be
      * visible here. The bucket covers time. {@code scope} --
-     * {@link DecadeCompositeArt#scopeOf} -- covers *which library*, and it was
+     * {@link CompositeArt#scopeOf} -- covers *which library*, and it was
      * the missing one: "1980s" on two servers minted byte-identical URIs, so
      * after a switch under More -&gt; Server Select the car re-served the old
      * server's mosaic out of its own cache and this provider was never opened
@@ -237,7 +237,7 @@ public class AlbumArtContentProvider extends ContentProvider {
         // is what build() already does for itself -- see the snapshot it pins
         // for its lock key -- and is worth doing when this file becomes Kotlin
         // (#86) rather than growing a second session-shaped Java parameter now.
-        String scope = DecadeCompositeArt.currentScope();
+        String scope = CompositeArt.currentScope();
         if (scope == null || !scope.equals(segments.get(1))) {
             throw new FileNotFoundException("Not this library's composite");
         }

@@ -1,7 +1,7 @@
 package com.cappielloantonio.tempo.provider
 
 /**
- * Where each cover goes in a decade composite.
+ * Where each cover goes in a composite.
  *
  * Four rather than nine, on legibility: a browse-grid tile on the 1024x768
  * landscape head unit is on the order of 240px, which gives roughly 120px a
