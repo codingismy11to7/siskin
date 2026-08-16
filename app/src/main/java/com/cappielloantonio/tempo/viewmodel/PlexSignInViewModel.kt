@@ -2,16 +2,19 @@ package com.cappielloantonio.tempo.viewmodel
 
 import android.app.Application
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.util.UnstableApi
 import arrow.core.Either
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import arrow.core.toNonEmptyListOrNull
+import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexIdentity
@@ -30,6 +33,8 @@ import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.repository.QueueRepository
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.CredentialGate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -414,6 +419,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
         }
     }
 
+    @OptIn(UnstableApi::class)
     fun chooseLibrary(section: Directory) {
         // Done is terminal, and cancelling is what makes that true of the state as
         // well as of the flow: nothing still outstanding can publish a Failed over a
@@ -457,14 +463,33 @@ class PlexSignInViewModel @JvmOverloads constructor(
         // first recovery escalates all the way to plex.tv.
         addressBook.adopt(resource, uri)
 
-        // The one write. All five values land together or not at all.
-        api.session = PlexSession(
+        val previous = api.session
+        val next = PlexSession(
             accountToken = token,
             serverUri = uri,
             musicSectionKey = SectionKey(key),
             serverToken = resource.accessToken,
             machineIdentifier = resource.clientIdentifier
         )
+
+        // Same guard LibraryPickerRepository.selectLibrary applies to its own
+        // commit -- this call site needed it too once the debug screen's
+        // "Choose server" row started reaching chooseLibrary while signed in
+        // and possibly playing, rather than only fresh off a PIN. On that
+        // journey `previous` is a live session, so a server change here can
+        // leave Room holding rating keys from the server that was just
+        // replaced and ExoPlayer's timeline still pointed at its URLs. The
+        // sign-in journey is unaffected: it always calls chooseLibrary with
+        // `previous == null`, and invalidatesQueue is false whenever the old
+        // session is null.
+        if (LibrarySelection.invalidatesQueue(previous, next)) {
+            Log.d(TAG, "server changed; discarding the saved queue")
+            QueueRepository().deleteAll()
+            BrowseTreeInvalidator.stopPlayback()
+        }
+
+        // The one write. All five values land together or not at all.
+        api.session = next
         _state.value = PlexSignInState.Done
     }
 

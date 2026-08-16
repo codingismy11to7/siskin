@@ -141,12 +141,15 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
     private void route(PlexSignInState state) {
         FragmentManager fragments = getSupportFragmentManager();
 
-        // A pushed screen owns the container, and BrowseTabOrderFragment is the
-        // one that pushes. Its state is still Connected the whole time it is up,
-        // so nothing re-routes while it is showing -- except on a uiMode flip,
-        // where onCreate runs again, this observer fires again with that same
-        // Connected, and without this guard the restored tab-order screen would
-        // be replaced by settings underneath the user.
+        // A pushed screen owns the container -- BrowseTabOrderFragment and
+        // CarDebugFragment both push one. Neither may publish a new state
+        // while its screen is still on the stack: CarDebugFragment's
+        // chooseServer() pops itself with popBackStackImmediate() before ever
+        // calling reopenServerPicker(), so that state change always finds the
+        // stack already empty. What this guard actually has to survive is a
+        // uiMode flip, where onCreate runs again and this observer fires again
+        // with whatever state was already showing -- without it, the restored
+        // pushed screen would be replaced by settings underneath the user.
         if (fragments.getBackStackEntryCount() > 0) return;
 
         boolean wantSettings = state instanceof PlexSignInState.Connected;

@@ -1,13 +1,18 @@
 package com.cappielloantonio.tempo.viewmodel
 
 import android.app.Application
+import android.os.Looper
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.media3.common.Player
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import arrow.core.left
 import arrow.core.nonEmptyListOf
 import arrow.core.right
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.database.AppDatabase
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.SectionKey
@@ -20,6 +25,8 @@ import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.repository.QueueRepository
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,10 +54,13 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.doReturnConsecutively
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.stub
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 // Robolectric, like PlexBrowseRepositoryTest and PlexMixRepositoryTest: the
 // ViewModel's default PlexApi (and signIn()'s writes through it, e.g.
@@ -91,6 +101,29 @@ class PlexSignInViewModelTest {
         PlexApi().session = null
         PlexApi().accountToken = null
         PlexApi().serverCandidates = null
+    }
+
+    // A live session is what makes chooseLibrary's new invalidatesQueue guard
+    // (see the comment on that call site) do anything at all -- stopPlayback()
+    // returns early with no session attached, which would make every
+    // assertion below pass vacuously. Attached for every test in this class,
+    // the same way LibraryPickerCommitTest attaches one for every test in
+    // that file, even the ones that never touch it.
+    private lateinit var player: Player
+
+    @Before
+    fun attachBrowseTreeInvalidator() {
+        player = mock()
+        val mediaSession = mock<MediaLibrarySession>()
+        whenever(mediaSession.player).thenReturn(player)
+        BrowseTreeInvalidator.attach(mediaSession)
+    }
+
+    @After
+    fun detachBrowseTreeInvalidator() {
+        // BrowseTreeInvalidator is a process-wide singleton; leaving a mock
+        // attached would leak into whatever test class runs next.
+        BrowseTreeInvalidator.detach()
     }
 
     private val created = CreatedPin(
@@ -357,6 +390,170 @@ class PlexSignInViewModelTest {
             session
         )
         assertNull(session?.machineIdentifier)
+    }
+
+    // ── chooseLibrary's invalidatesQueue guard ─────────────────────────
+    //
+    // Until the debug screen's "Choose server" row existed, chooseLibrary was
+    // reachable only fresh off a PIN, where PlexApi().session was always null
+    // going in -- so LibrarySelection.invalidatesQueue(old, new) was always
+    // false and there was nothing to guard. CarSettingsFragment can now reopen
+    // this same picker while signed in and possibly playing, so a server
+    // switch here has to stop playback and drop the saved queue exactly the
+    // way LibraryPickerRepository.selectLibrary's equivalent commit already
+    // does -- these three prove it, on both the reachable-while-signed-in
+    // journey and the original sign-in journey.
+
+    private fun track(ratingKey: String) = PlexMediaMapper.buildTrackMediaItem(
+        ratingKey = ratingKey,
+        title = "Track $ratingKey",
+        albumTitle = null,
+        artist = null,
+        thumb = null,
+        partKey = "/library/parts/$ratingKey/file.flac",
+        durationMs = null,
+        trackIndex = null,
+        year = null,
+        grandparentRatingKey = null,
+        isHearted = false,
+        parentId = null,
+        serverUri = "http://old-server:32400",
+        token = "tok"
+    )
+
+    private fun queueIds(): List<String?> {
+        var ids: List<String?> = emptyList()
+        // Off the test thread: AppDatabase is not built with
+        // allowMainThreadQueries() and Robolectric runs the test method on the
+        // "main" thread (see LibraryPickerCommitTest for the same pattern).
+        Thread { ids = AppDatabase.getInstance().queueDao().getAllSimple().map { it.id } }
+            .apply { start(); join() }
+        return ids
+    }
+
+    private fun pollUntilQueueContains(id: String, timeoutMs: Long = 3000, intervalMs: Long = 10) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (queueIds().contains(id)) return
+            Thread.sleep(intervalMs)
+        }
+        throw AssertionError("'$id' never appeared in the queue within ${timeoutMs}ms")
+    }
+
+    /** Seeds the queue and blocks until the seed is actually visible. */
+    private fun seedQueue(id: String) {
+        QueueRepository().insertAll(listOf(track(id)), true, 0)
+        pollUntilQueueContains(id)
+    }
+
+    /**
+     * Submits a second write through QueueRepository's own single-threaded
+     * executor and waits for it, then reads the table -- see
+     * LibraryPickerCommitTest's identical helper for why this barrier is what
+     * makes a read after chooseLibrary race-free rather than a coin flip
+     * against its async deleteAll.
+     */
+    private fun queueIdsAfterBarrier(): List<String?> {
+        QueueRepository().insertAll(listOf(track("barrier")), false, Int.MAX_VALUE)
+        pollUntilQueueContains("barrier")
+        return queueIds()
+    }
+
+    /** Drives connect() through chooseServer to a ready-to-commit ChoosingLibrary. */
+    private suspend fun TestScope.setUpToChoosingLibrary(
+        resource: Resource
+    ): Pair<PlexSignInViewModel, Directory> {
+        val serverUri = server.url("/").toString()
+        val authClient = setUpToChoosingServer(resource)
+        val probe = mock<ServerProbe>().stub {
+            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+        }
+        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+        viewModel.connect()
+        advanceUntilIdle()
+        viewModel.chooseServer(resource)
+        awaitSettled(viewModel)
+
+        val state = viewModel.state.value
+        assertTrue(
+            "setup did not reach ChoosingLibrary, got $state",
+            state is PlexSignInState.ChoosingLibrary
+        )
+        return viewModel to (state as PlexSignInState.ChoosingLibrary).sections.head
+    }
+
+    @Test
+    fun chooseLibraryOnADifferentServerStopsPlaybackAndClearsTheQueue() = runTest(dispatcher) {
+        seedQueue("keep-me")
+        PlexApi().session = PlexSession(
+            accountToken = "old-token",
+            serverUri = "http://old-server:32400",
+            musicSectionKey = SectionKey("9"),
+            serverToken = "old-server-tok",
+            machineIdentifier = "old-machine"
+        )
+
+        // aMediaServer()'s default clientIdentifier is "machine-id", which
+        // disagrees with the "old-machine" session above -- a genuine server
+        // change.
+        val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
+
+        viewModel.chooseLibrary(section)
+        // stopPlayback() posts to the main thread, and Robolectric's looper is
+        // paused, so without this the queued Player calls never run and the
+        // verifications below would fail whether or not the fix is present.
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(PlexSignInState.Done, viewModel.state.value)
+        verify(player).stop()
+        verify(player).clearMediaItems()
+        assertFalse(queueIdsAfterBarrier().contains("keep-me"))
+    }
+
+    @Test
+    fun chooseLibraryOnTheSameServerLeavesPlaybackAndTheQueueAlone() = runTest(dispatcher) {
+        seedQueue("keep-me")
+        PlexApi().session = PlexSession(
+            accountToken = "old-token",
+            serverUri = "http://somewhere-else:32400",
+            musicSectionKey = SectionKey("9"),
+            serverToken = "old-server-tok",
+            // Matches aMediaServer()'s default clientIdentifier below: same
+            // server, different library.
+            machineIdentifier = "machine-id"
+        )
+
+        val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
+
+        viewModel.chooseLibrary(section)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(PlexSignInState.Done, viewModel.state.value)
+        verify(player, never()).stop()
+        verify(player, never()).clearMediaItems()
+        assertTrue(queueIdsAfterBarrier().contains("keep-me"))
+    }
+
+    @Test
+    fun chooseLibraryOnTheSignInJourneyLeavesPlaybackAndTheQueueAlone() = runTest(dispatcher) {
+        // No preset session: clearSession() already left PlexApi().session
+        // null, which is the only way chooseLibrary was ever reachable before
+        // the debug screen existed. invalidatesQueue(old = null, ...) is
+        // false by construction, so this is the case the guard must leave
+        // alone.
+        seedQueue("keep-me")
+
+        val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
+
+        viewModel.chooseLibrary(section)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(PlexSignInState.Done, viewModel.state.value)
+        verify(player, never()).stop()
+        verify(player, never()).clearMediaItems()
+        assertTrue(queueIdsAfterBarrier().contains("keep-me"))
     }
 
     // ── recovering from a bad server pick (#18) ────────────────────────

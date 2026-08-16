@@ -31,8 +31,10 @@ private const val TAG = "PlexSignInFragment"
  * and a music-library picker.
  *
  * Both pickers render even for a single candidate. [CarSettingsFragment], where
- * you land once signed in, offers no way to switch server or library afterwards,
- * so a wrong auto-pick here would mean redoing the whole PIN flow to fix.
+ * you land once signed in, can now reopen this same picker through its debug
+ * screen -- but that is still a detour through Settings, not a correction made
+ * on this screen, so showing the pick here remains cheaper than silently
+ * trusting a single candidate to stay right.
  *
  * This fragment renders every state except
  * [PlexSignInState.Connected] -- [CarHostActivity] routes that one to
