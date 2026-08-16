@@ -17,10 +17,10 @@ import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.auth.PlexPinState
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
-import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -101,20 +101,6 @@ class PlexSignInViewModelTest {
     )
 
     private fun approvedPin() = Pin().apply { authToken = "granted" }
-
-    /**
-     * A media server that survives [AuthClient.mediaServers]: `provides`
-     * contains "server" and it has at least one connection with a non-blank
-     * `uri`, per [com.cappielloantonio.tempo.plex.api.server.ServerProbe.hasUsableConnection].
-     */
-    private fun aMediaServer(accessToken: String? = null, clientIdentifier: String? = "machine-id") =
-        Resource().apply {
-            name = "Living Room"
-            provides = "server"
-            connections = listOf(Connection().apply { uri = "https://10.0.0.5:32400" })
-            this.accessToken = accessToken
-            this.clientIdentifier = clientIdentifier
-        }
 
     /** A minimal getSections() body with one music (type "artist") section. */
     private fun sectionsBody(key: String) =

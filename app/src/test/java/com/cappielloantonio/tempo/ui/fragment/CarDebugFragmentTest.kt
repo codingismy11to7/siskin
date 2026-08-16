@@ -3,19 +3,30 @@ package com.cappielloantonio.tempo.ui.fragment
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
+import arrow.core.right
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
+import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
+import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.stub
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
 
@@ -41,6 +52,29 @@ class CarDebugFragmentTest {
             musicSectionKey = SectionKey("1"),
             serverToken = null
         )
+    }
+
+    @Before
+    fun stubTheAccountsServers() {
+        CarHostActivity.viewModelFactoryForTest = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val authClient = mock<AuthClient>().stub {
+                    onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+                }
+                @Suppress("UNCHECKED_CAST")
+                return PlexSignInViewModel(
+                    RuntimeEnvironment.getApplication(),
+                    authClient = authClient
+                ) as T
+            }
+        }
+    }
+
+    @After
+    fun clearTheStub() {
+        // Static and Robolectric keeps statics between classes, so leaving this
+        // set hands the next suite a stubbed AuthClient.
+        CarHostActivity.viewModelFactoryForTest = null
     }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
@@ -88,5 +122,27 @@ class CarDebugFragmentTest {
         // single() throws if it is missing or duplicated, so reaching the
         // assertion is most of the test.
         assertTrue(rowLabelled(controller, label).isEnabled)
+    }
+
+    /**
+     * The ordering that makes the row work at all.
+     *
+     * CarHostActivity's router returns early while the back stack is non-empty --
+     * that guard is what stops a uiMode flip replacing a pushed screen -- and the
+     * debug screen is itself on that back stack. So the row has to pop *itself*,
+     * synchronously, before the state changes. Swap popBackStackImmediate() for
+     * popBackStack() and this fails: the pop posts, the router still sees a count
+     * of one, and the picker never arrives.
+     */
+    @Test
+    fun `choosing a server leaves the debug screen for the picker`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        val label = controller.get().getString(R.string.debug_choose_server)
+        rowLabelled(controller, label).performClick()
+        idle()
+
+        assertTrue(screenOf(controller) is PlexSignInFragment)
     }
 }

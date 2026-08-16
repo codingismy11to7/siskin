@@ -6,10 +6,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.VisibleForTesting
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentCarDebugBinding
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 
@@ -59,6 +61,10 @@ class CarDebugFragment : Fragment() {
             getString(R.string.debug_addresses_reprobe)
         ) {
             reprobe()
+        }
+
+        addChoice(bind.choiceContainer, getString(R.string.debug_choose_server)) {
+            chooseServer()
         }
 
         return bind.root
@@ -131,6 +137,32 @@ class CarDebugFragment : Fragment() {
             renderAddresses(outcome)
             reprobeRow?.isEnabled = true
         }
+    }
+
+    /**
+     * Opens the sign-in flow's own server picker, without signing in.
+     *
+     * The order here is the whole trick. CarHostActivity's router refuses to
+     * act while the back stack is non-empty -- that is what keeps a pushed
+     * screen from being replaced underneath the user on a uiMode flip -- and
+     * this screen is on that back stack. So it removes itself first, and it
+     * does so with popBackStackImmediate rather than popBackStack because the
+     * latter posts: the router would still observe a count of one and decline
+     * to move, leaving this screen on display while the state advanced behind
+     * it.
+     *
+     * The ViewModel is resolved *before* the pop, because afterwards this
+     * fragment is detached and requireActivity() would throw.
+     *
+     * Nothing else is needed. Working routes to PlexSignInFragment, which
+     * already draws a spinner for it, and ChoosingServer arrives into the same
+     * fragment a moment later.
+     */
+    private fun chooseServer() {
+        val viewModel =
+            ViewModelProvider(requireActivity())[PlexSignInViewModel::class.java]
+        parentFragmentManager.popBackStackImmediate()
+        viewModel.reopenServerPicker()
     }
 
     companion object {

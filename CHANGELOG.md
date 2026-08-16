@@ -12,6 +12,9 @@
 
 ## [Unreleased] — Siskin
 
+- The version line in Settings now opens a debug screen rather than a dialog, and
+  that screen can open the server picker directly — so switching servers no
+  longer means signing in again.
 - A cover mosaic built from two or three albums now shows all of them instead of
   just the first. A decade or a Discover row holding three albums used to draw a
   single cover, which looked like it held one.
