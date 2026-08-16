@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.provider
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Rect
 import android.util.Log
 import com.bumptech.glide.Glide
@@ -294,22 +295,26 @@ object CompositeArt {
         val thumbs = covers(api, session)
         val token = PlexApi.serverTokenOrAccount(session.serverToken, session.accountToken)
 
-        // Candidates are requested at the edge a full grid implies, because
-        // that is what four of them will be drawn into. A pool that then fails
-        // its way down to one cell re-requests that survivor at the full edge
-        // below -- one extra Glide call, from its own disk cache, on a path
-        // that only runs after a load has already failed.
+        // Quarter-size is the norm: every layout but the one-cover case draws
+        // into quarter cells, so a pool of two or more is requested at the edge
+        // those cells imply. A pool of exactly one fills the whole square. A
+        // pool that then fails its way down to one cell re-requests its
+        // survivor at the full edge below -- one extra Glide call, from its own
+        // disk cache, on a path that only runs after a load has already failed.
         val candidateEdge =
-            if (thumbs.size >= CompositeGrid.COVERS) CompositeGrid.SIZE / 2 else CompositeGrid.SIZE
+            if (thumbs.size == 1) CompositeGrid.SIZE else CompositeGrid.SIZE / 2
 
-        // Four only when four could actually be drawn. Below that the layout is
-        // a single full-bleed cell whatever lands, so loading the rest is a
-        // full-size transcode spent on a cover no cell exists for.
-        val want = if (thumbs.size >= CompositeGrid.COVERS) CompositeGrid.COVERS else 1
-
+        // Every candidate up to a full grid is wanted, because every one of
+        // them now has a cell to go in. This deliberately reverts an earlier
+        // optimisation that asked for a single cover whenever the pool held
+        // fewer than four: that was correct while fewer than four covers drew
+        // one full-bleed cell, so loading the rest was a transcode spent on a
+        // cover no cell existed for. Two covers now means two cells. `pick`
+        // stops early on its own when the pool is smaller than this.
+        //
         // Paired with the thumb that produced it, so the degraded case below
         // knows what to re-request.
-        val loaded = pick(thumbs, want) { thumb ->
+        val loaded = pick(thumbs, CompositeGrid.COVERS) { thumb ->
             coverFor(context, session, token, thumb, candidateEdge)?.let { thumb to it }
         }
 
@@ -345,6 +350,14 @@ object CompositeArt {
             // -- still returns null and still recycles, rather than throwing out
             // of a function whose contract is that failure is a null.
             val canvas = Canvas(composite)
+            // Explicit rather than relying on Bitmap.createBitmap handing back
+            // zeroed memory, which is true in practice but not a documented
+            // guarantee -- and undrawn cells are load-bearing now rather than
+            // impossible. RGB_565 carries no alpha, so black is the only blank
+            // available; it is also the car's browse background, which is what
+            // lets a sparse composite read as covers in the corners of a square
+            // rather than as a grid with holes in it.
+            canvas.drawColor(Color.BLACK)
             cells.forEachIndexed { index, cell ->
                 canvas.drawBitmap(
                     bitmaps[index],
