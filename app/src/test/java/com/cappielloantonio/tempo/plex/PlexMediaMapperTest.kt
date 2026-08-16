@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.plex
 
+import com.cappielloantonio.tempo.plex.models.Hub
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
@@ -166,5 +167,37 @@ class PlexMediaMapperTest {
     private companion object {
         /** Any library scope; these rows never reach the artwork URI. */
         const val SCOPE = "abc123def456-4"
+    }
+
+    // ── hub rows ──────────────────────────────────────────────
+
+    @Test
+    fun buildsAHubRowCarryingItsScopedKey() {
+        val hub = Hub().apply {
+            hubIdentifier = "music.vault.7"
+            title = "Haven't played in 5 months"
+            type = "artist"
+            size = 6
+            key = "/library/sections/7/all?type=8&sort=random"
+        }
+
+        val item = PlexMediaMapper.hubToMediaItem(hub, Constants.HUB_ID, "abc123-7")!!
+
+        assertEquals(
+            Constants.HUB_ID + "abc123-7|/library/sections/7/all?type=8&sort=random",
+            item.mediaId
+        )
+        assertEquals("Haven't played in 5 months", item.mediaMetadata.title)
+        assertTrue(item.mediaMetadata.isBrowsable == true)
+        assertTrue(item.mediaMetadata.isPlayable == false)
+    }
+
+    @Test
+    fun refusesAHubWithNoTitleOrNoKey() {
+        val noKey = Hub().apply { title = "x"; size = 6 }
+        val noTitle = Hub().apply { key = "/library/sections/7/all"; size = 6 }
+
+        assertNull(PlexMediaMapper.hubToMediaItem(noKey, Constants.HUB_ID, "abc123-7"))
+        assertNull(PlexMediaMapper.hubToMediaItem(noTitle, Constants.HUB_ID, "abc123-7"))
     }
 }

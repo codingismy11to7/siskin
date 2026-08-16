@@ -14,6 +14,10 @@
     <string name="browse_select_library">Select Library</string>
     <string name="browse_decades">Decades</string>
     <string name="browse_mix_decade">Decade Mix</string>
+    <string name="browse_discover">Discover</string>
+    <string name="browse_mix_hub">Mix</string>
+    <string name="browse_discover_empty">Nothing to suggest yet</string>
+    <string name="browse_discover_empty_hint">Play some music and check back</string>
 
     <!-- A proper noun. Marked non-translatable because every locale file used to
          carry an identical copy of it, which is what a translator does when handed

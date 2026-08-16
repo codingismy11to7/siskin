@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.service
 
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
@@ -24,6 +25,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mockConstruction
+import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -327,6 +329,106 @@ class MediaLibrarySessionCallbackShuffleTest {
         assertShuffleUntouched()
     }
 
+    /**
+     * The hub Mix's cache hit: the ids of the containers already on screen,
+     * expanded to tracks in one request rather than following the hub's key a
+     * second time. Unlike the decade cache hit, this still issues a request --
+     * see `MediaLibraryServiceCallback.cachedHubTracks`'s KDoc for why a hub's
+     * browse list (albums and artists) cannot be replayed the way a decade's
+     * (tracks) can.
+     *
+     * Both container kinds on screen at once, not just albums: Plex's
+     * `music.vault` and `music.recent.played` hubs are `type=artist`, so the
+     * artist branch of `cachedHubTracks` is a primary path in the car, not an
+     * edge case. Asserting the exact call pins the KDoc's claim that "a hub
+     * mixing albums and artists sends both filters" -- albums first, artists
+     * second, matching `getHubTracksForIds(albumIds, artistIds)`.
+     */
+    @Test
+    fun aHubMixExpandsTheIdsAlreadyOnScreen() {
+        val hubKey = "abc123-7|/library/sections/7/all?type=9"
+        browseHub(hubKey, albumIds = listOf("111", "222"), artistIds = listOf("333", "444"))
+        whenever(browseRepository.getHubTracksForIds(listOf("111", "222"), listOf("333", "444")))
+            .thenReturn(itemList(albumTracks("50", "51")))
+
+        callback.onAddMediaItems(session, controller, listOf(mixRow(Constants.MIX_HUB_ID + hubKey)))
+
+        verify(browseRepository).getHubTracksForIds(listOf("111", "222"), listOf("333", "444"))
+        verify(browseRepository, never()).getHubTracksForShuffle(any())
+    }
+
+    /**
+     * The hub's browse list holds albums and artists -- browsable, with no
+     * stream -- so the queue a hub Mix produces must be exclusively tracks
+     * expanded from those ids, never the browsable rows themselves.
+     *
+     * The browsable check alone passes even with dispatch broken entirely: the
+     * fallback path that queues the bare tapped row produces a `MediaItem`
+     * with no `isBrowsable` set, so a build that never reaches
+     * `getHubTracksForIds` at all would still satisfy it. The multiset
+     * assertion closes that gap by pinning what the queue *does* contain --
+     * exactly the expanded tracks, none invented, none missing. Compared as a
+     * multiset rather than a sequence because `resolveQueueForItem` shuffles a
+     * Mix's queue, same as every other Mix in this file.
+     */
+    @Test
+    fun aHubMixNeverQueuesABrowsableItem() {
+        val hubKey = "abc123-7|/library/sections/7/all?type=9"
+        browseHub(hubKey, albumIds = listOf("111"))
+        val tracks = albumTracks("50", "51")
+        whenever(browseRepository.getHubTracksForIds(listOf("111"), emptyList()))
+            .thenReturn(itemList(tracks))
+
+        val queued = callback
+            .onAddMediaItems(session, controller, listOf(mixRow(Constants.MIX_HUB_ID + hubKey)))
+            .get()
+
+        assertTrue(queued.none { it.mediaMetadata.isBrowsable == true })
+        assertEquals(
+            tracks.map { it.mediaId }.sorted(),
+            queued.map { it.mediaId }.sorted()
+        )
+    }
+
+    /**
+     * `queueSourceCache` is a single slot, so it can hold another hub's most
+     * recent list -- here, one whose key differs only in its query string. The
+     * guard has to notice that and fall back to following this hub's key fresh
+     * rather than mix the wrong hub's containers.
+     */
+    @Test
+    fun aHubMixFallsBackWhenTheCacheHoldsAnotherHub() {
+        browseHub("abc123-7|/library/sections/7/all?type=9", albumIds = listOf("111"))
+        val other = "abc123-7|/library/sections/7/all?type=8"
+        whenever(browseRepository.getHubTracksForShuffle(other))
+            .thenReturn(itemList(albumTracks("9")))
+
+        callback.onAddMediaItems(session, controller, listOf(mixRow(Constants.MIX_HUB_ID + other)))
+
+        verify(browseRepository).getHubTracksForShuffle(other)
+    }
+
+    /**
+     * `getHubTracksForIds(emptyList(), emptyList())` would send neither
+     * filter, which Plex answers by shuffling the whole library rather than
+     * the hub -- 500 arbitrary tracks with nothing to do with what was on
+     * screen. A cache hit whose rows expand to no ids at all (the Mix row
+     * alone, nothing after it) must fall back to following the hub's key
+     * instead of sending that request.
+     */
+    @Test
+    fun `a hub mix with no container ids in the cache falls back rather than shuffling the whole library`() {
+        val hubKey = "abc123-7|/library/sections/7/all?type=9"
+        browseHub(hubKey)
+        whenever(browseRepository.getHubTracksForShuffle(hubKey))
+            .thenReturn(itemList(albumTracks("9")))
+
+        callback.onAddMediaItems(session, controller, listOf(mixRow(Constants.MIX_HUB_ID + hubKey)))
+
+        verify(browseRepository, never()).getHubTracksForIds(any(), any())
+        verify(browseRepository).getHubTracksForShuffle(hubKey)
+    }
+
     // ─────────────────────────────────────────────────────────────
 
     private fun setMediaItems(tapped: MediaItem): MediaSession.MediaItemsWithStartPosition =
@@ -356,6 +458,43 @@ class MediaLibrarySessionCallbackShuffleTest {
         .setMediaId(Constants.MIX_ARTIST_ID + ARTIST)
         .build()
 
+    /** A bare tapped Mix row, the shape the car echoes back on any Mix tap. */
+    private fun mixRow(mediaId: String) = MediaItem.Builder()
+        .setMediaId(mediaId)
+        .build()
+
+    /**
+     * Built with the same [PlexMediaMapper.mixRowToMediaItem] the real row
+     * uses, for the same reason [decadeMixRow] is: [browseHub] runs it through
+     * `LibraryResult.ofItemList`, which requires `isBrowsable` on every item.
+     */
+    private fun hubMixRow(hubKey: String) =
+        PlexMediaMapper.mixRowToMediaItem(Constants.MIX_HUB_ID + hubKey, "Hub Mix")
+
+    /** A hub's album container row, as `PlexBrowseRepository.getHubContent` builds one. */
+    private fun albumRow(ratingKey: String) = MediaItem.Builder()
+        .setMediaId(Constants.ALBUM_ID + ratingKey)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle("Album $ratingKey")
+                .setIsBrowsable(true)
+                .setIsPlayable(false)
+                .build()
+        )
+        .build()
+
+    /** A hub's artist container row, as `PlexBrowseRepository.getHubContent` builds one. */
+    private fun artistRow(ratingKey: String) = MediaItem.Builder()
+        .setMediaId(Constants.ARTIST_ID + ratingKey)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle("Artist $ratingKey")
+                .setIsBrowsable(true)
+                .setIsPlayable(false)
+                .build()
+        )
+        .build()
+
     /**
      * Built with the same [PlexMediaMapper.mixRowToMediaItem] the real row
      * uses, not a bare `MediaItem.Builder()`: [browseDecade] runs the row
@@ -381,6 +520,34 @@ class MediaLibrarySessionCallbackShuffleTest {
             mock<MediaLibraryService.MediaLibrarySession>(),
             controller,
             Constants.DECADE_ID + decade,
+            0,
+            Constants.MAX_ITEMS,
+            null
+        ).get()
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, children.resultCode)
+    }
+
+    /**
+     * What a real browse of a hub leaves in `queueSourceCache`: the Mix row
+     * at index 0, then its containers -- see
+     * `PlexBrowseRepository.getHubContent`. Driven through `onGetChildren`,
+     * the way [browseDecade] drives a decade, rather than by reaching into
+     * the private top-level cache directly.
+     */
+    private fun browseHub(
+        hubKey: String,
+        albumIds: List<String> = emptyList(),
+        artistIds: List<String> = emptyList()
+    ) {
+        val containers = albumIds.map { albumRow(it) } + artistIds.map { artistRow(it) }
+        whenever(browseRepository.getHubContent(hubKey))
+            .thenReturn(itemList(listOf(hubMixRow(hubKey)) + containers))
+
+        val children = callback.onGetChildren(
+            mock<MediaLibraryService.MediaLibrarySession>(),
+            controller,
+            Constants.HUB_ID + hubKey,
             0,
             Constants.MAX_ITEMS,
             null

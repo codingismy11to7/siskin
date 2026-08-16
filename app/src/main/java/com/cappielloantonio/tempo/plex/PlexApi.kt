@@ -101,8 +101,15 @@ class PlexApi {
 
     val appVersion: String get() = BuildConfig.VERSION_NAME
 
+    /**
+     * The car's language, for `X-Plex-Language`. Read from the default locale
+     * rather than from Preferences: the head unit's language is the car's
+     * setting, and this app has no language setting of its own.
+     */
+    val language: String get() = java.util.Locale.getDefault().language
+
     fun plexTvHeaders(): Map<String, String> =
-        PlexIdentity.headers(clientIdentifier, appVersion, accountToken)
+        PlexIdentity.headers(clientIdentifier, appVersion, accountToken, language)
 
     companion object {
         private const val KEY_CLIENT_ID = "plex_client_identifier"

@@ -211,14 +211,29 @@ class MediaBrowserTreeTest {
     }
 
     @Test
-    fun decadesLeadsTheMoreTabAheadOfSelectLibrary() {
+    fun moreOffersDiscoverFirst() {
         val children = MediaBrowserTree.getChildren(Constants.MORE_ID)
             .get().value!!.map { it.mediaId }
 
         assertEquals(
-            listOf(Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
+            listOf(Constants.DISCOVER_ID, Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
             children
         )
+    }
+
+    /**
+     * A list, permanently -- see the comment on the Discover node in
+     * buildTree(). A hub row's meaning is its sentence ("Haven't played in 5
+     * months"), which a grid's caption truncates, and the server-supplied
+     * titles vary in length across five locales.
+     */
+    @Test
+    fun discoverChildrenAreAListNotAGrid() {
+        val discover = MediaBrowserTree.getItem(Constants.DISCOVER_ID)!!
+        val style = discover.mediaMetadata.extras!!
+            .getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+
+        assertEquals(BrowseContentStyle.browsableChildStyle(false), style)
     }
 
     @Test

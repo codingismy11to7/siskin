@@ -7,11 +7,14 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
 import arrow.core.Either
+import arrow.core.flatMap
+import arrow.core.left
 import arrow.core.raise.either
 import arrow.core.right
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexSession
@@ -23,11 +26,13 @@ import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.models.Hub
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.provider.DecadeCompositeArt
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
+import com.cappielloantonio.tempo.util.HubKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -181,6 +186,211 @@ class PlexBrowseRepository {
             }
         }
     }
+
+    /**
+     * The hubs this section's server chose to compute, in the order it returned
+     * them.
+     *
+     * Siskin mirrors rather than curates: there is no list of blessed hub
+     * identifiers here, so a hub Plex adds later appears with no code change.
+     * The three exclusions are structural rather than editorial -- an empty hub
+     * would open onto nothing, a `clip` hub is music videos this app cannot
+     * play, and a key that is not a relative path must never be followed at all
+     * (see [LibraryClient.isSafeHubKey]).
+     *
+     * Empty hubs are an ordinary outcome, not an error: measured against PMS
+     * 1.43.3, "Top Albums from 1993" is empty because that library has nothing
+     * rated from 1993, and "Artists on Tour" is empty because no artist carries
+     * a tour tag. Both answer 200. The hub set itself is derived from listening
+     * history rather than fixed -- a server with none emits six hubs, five of
+     * them empty, while one with history emits ten -- so this renders whatever
+     * arrives rather than a known list.
+     */
+    fun getHubs(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val session = api.session ?: return errorFuture()
+        val scope = DecadeCompositeArt.scopeOf(session)
+        return fetch({ libraryClient.getSectionHubs(session.musicSectionKey) }) { body ->
+            val rows = hubsOf(body)
+                .filter { (it.size ?: 0) > 0 }
+                .filter { it.type != TYPE_CLIP }
+                .filter { LibraryClient.isSafeHubKey(it.key) }
+                .mapNotNull { PlexMediaMapper.hubToMediaItem(it, prefix, scope) }
+
+            // A server with no play history emits hubs it cannot fill -- five of
+            // six were empty on one measured server -- so an empty Discover is
+            // an ordinary state, not a failure. A row rather than a blank
+            // screen, the same rule signedOutRow and the picker's message row
+            // follow.
+            rows.ifEmpty {
+                listOf(
+                    LibraryPickerRepository.messageRow(
+                        App.getContext().getString(R.string.browse_discover_empty),
+                        App.getContext().getString(R.string.browse_discover_empty_hint)
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * One hub's real contents: its Mix row, then the containers the server's
+     * own query returns.
+     *
+     * The six items that arrived with the listing decided only that the row
+     * exists; this is what the row actually opens onto.
+     *
+     * Items are mapped by their **own** `type` rather than by the hub's
+     * declared one, because that is what the response carries -- a hub declared
+     * `album` is not a promise about every row in it.
+     *
+     * An empty answer renders the message row rather than a lone Mix row that
+     * would play nothing. Reachable in normal use: the server re-rolls a hub's
+     * parameters, so the key listed a moment ago can return nothing now.
+     */
+    fun getHubContent(
+        hubKey: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        fetch({ followHubKey(hubKey) }) { body ->
+            val containers = containersOf(body)
+            if (containers.isEmpty()) {
+                listOf(
+                    LibraryPickerRepository.messageRow(
+                        App.getContext().getString(R.string.browse_discover_empty)
+                    )
+                )
+            } else {
+                listOf(mixHubRow(hubKey)) + containers
+            }
+        }
+
+    /**
+     * The hub's containers expanded to tracks, for a Mix tap that could not be
+     * served from the browse cache.
+     *
+     * Two requests, chained as one `Either` so a failure in either reaches
+     * `resultFor` unchanged. `MediaLibraryServiceCallback.cachedHubTracks`
+     * exists to avoid the first of them -- and, for a hub whose key carries
+     * `sort=random`, to mix what the driver is looking at rather than a fresh
+     * draw.
+     *
+     * When the hub holds no containers the head response is returned as-is:
+     * `cachedTracks` finds no tracks in it and the node renders empty, which is
+     * the honest answer and costs no second request.
+     */
+    fun getHubTracksForShuffle(
+        hubKey: String
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return cachedTracks({
+            followHubKey(hubKey).flatMap { body ->
+                val albums = itemsOf(body, TYPE_ALBUM).mapNotNull { it.ratingKey }
+                val artists = itemsOf(body, TYPE_ARTIST).mapNotNull { it.ratingKey }
+                if (albums.isEmpty() && artists.isEmpty()) {
+                    body.right()
+                } else {
+                    trackRequest(key, albums, artists)
+                }
+            }
+        }) { it }
+    }
+
+    /**
+     * Container ids -> their tracks, in one request.
+     *
+     * Both filters are sent when both lists are non-empty; Plex ORs them, so a
+     * hub holding albums and artists together mixes all of it. Measured against
+     * PMS 1.43.3: 500 album ids in a 3,499-character URL returned 4,801 tracks.
+     */
+    fun getHubTracksForIds(
+        albumIds: List<String>,
+        artistIds: List<String>
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        return cachedTracks({ trackRequest(key, albumIds, artistIds) }) { it }
+    }
+
+    private suspend fun trackRequest(
+        key: SectionKey,
+        albumIds: List<String>,
+        artistIds: List<String>
+    ): Either<PlexTransportFailure, PlexResponse> =
+        libraryClient.getSectionContent(
+            key,
+            PlexItemType.TRACK,
+            0,
+            Constants.MAX_ITEMS,
+            sort = LibraryClient.SORT_RANDOM,
+            artistId = artistIds.takeIf { it.isNotEmpty() }?.joinToString(","),
+            albumId = albumIds.takeIf { it.isNotEmpty() }?.joinToString(",")
+        )
+
+    /**
+     * A hub's items as browse rows, dispatched on each item's own type. Not
+     * [itemsOf], which narrows to a single type -- a hub may hold either.
+     *
+     * [Constants.MAX_ITEMS], like every other bounded node here.
+     * `LibraryClient.getByHubKey` already asks for at most that many with
+     * `X-Plex-Container-Size` -- see its KDoc for what an unbounded followed
+     * key measured at, 1,322 albums for one real "Recently Added" hub -- but
+     * this node was the one browse call with no cap of its own, so a server
+     * that ignored the header, or answered through some other path, could
+     * still hand back an unbounded list and, downstream, an oversized mix URL
+     * from `MediaLibraryServiceCallback.cachedHubTracks`. Capped again here
+     * independently, the same belt-and-suspenders every other bounded node
+     * applies to its own response.
+     */
+    private fun containersOf(body: PlexResponse?): List<MediaItem> =
+        body?.mediaContainer?.metadata
+            ?.filter { !it.ratingKey.isNullOrBlank() }
+            ?.mapNotNull { metadata ->
+                when (metadata.type) {
+                    TYPE_ALBUM -> PlexMediaMapper.albumToMediaItem(metadata, Constants.ALBUM_ID)
+                    TYPE_ARTIST -> PlexMediaMapper.artistToMediaItem(metadata, Constants.ARTIST_ID)
+                    else -> null
+                }
+            }
+            ?.take(Constants.MAX_ITEMS)
+            ?: emptyList()
+
+    /**
+     * A key rejected by `LibraryClient.isSafeHubKey` reaches here only if a row
+     * was somehow drawn for one, which `getHubs` prevents. Reported as a 403 so
+     * it lands on an error the car can act on rather than throwing.
+     *
+     * A scope that no longer names the live session is a different kind of
+     * problem and is checked first, before the safety guard and before any
+     * request. [HubKey]'s own KDoc names the hazard: a hub key addresses a
+     * section *by number*, so a row cached before `More -> Server Select`
+     * switched libraries -- reachable, because
+     * `LibraryPickerRepository.selectLibrary` invalidates the root and the
+     * picker node but not Discover's rows underneath More -- would otherwise
+     * query whatever section that number happens to be on the *new* server,
+     * possibly a video library. [HubKey.scopeIn] and
+     * [DecadeCompositeArt.currentScope] are compared with the one definition
+     * [getHubs] already mints these ids from, so neither side can drift onto a
+     * second encoding of "which library".
+     *
+     * Unlike the safety guard, a mismatch is not reported as an error: the key
+     * itself may be perfectly safe, it simply belongs to a library the car has
+     * left. No request is issued -- there may not even be a reachable server
+     * for it to reach -- and an empty response is handed back instead of a
+     * Left, so the caller renders the same message row an ordinary empty hub
+     * does rather than an error screen for "you switched libraries".
+     */
+    private suspend fun followHubKey(hubKey: String): Either<PlexTransportFailure, PlexResponse> {
+        if (HubKey.scopeIn(hubKey) != DecadeCompositeArt.currentScope()) {
+            Log.w(TAG, "not following a stale hub key from another library: $hubKey")
+            return PlexResponse().right()
+        }
+        return libraryClient.getByHubKey(HubKey.keyIn(hubKey))
+            ?: PlexTransportFailure.Http(PlexHost.Server, HTTP_FORBIDDEN).left()
+    }
+
+    private fun mixHubRow(hubKey: String): MediaItem =
+        PlexMediaMapper.mixRowToMediaItem(
+            Constants.MIX_HUB_ID + hubKey,
+            App.getContext().getString(R.string.browse_mix_hub)
+        )
 
     /**
      * The browse list: the shuffle row, then a random sample of the decade.
@@ -836,6 +1046,7 @@ class PlexBrowseRepository {
         private const val TYPE_ALBUM = "album"
         private const val TYPE_ARTIST = "artist"
         private const val TYPE_PLAYLIST = "playlist"
+        private const val TYPE_CLIP = "clip"
 
         /**
          * Narrows a container to streamable tracks. An absent Metadata list is an
@@ -861,6 +1072,11 @@ class PlexBrowseRepository {
         @JvmStatic
         fun directoriesOf(response: PlexResponse?): List<Directory> =
             response?.mediaContainer?.directory ?: emptyList()
+
+        /** A container's Hub rows; an absent list is an empty result. */
+        @JvmStatic
+        fun hubsOf(response: PlexResponse?): List<Hub> =
+            response?.mediaContainer?.hub ?: emptyList()
 
         /**
          * Decides what a browse outcome means to media3.

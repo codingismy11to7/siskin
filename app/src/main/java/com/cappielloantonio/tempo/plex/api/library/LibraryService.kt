@@ -5,26 +5,30 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 /**
  * Plex Media Server library endpoints. Every response is MediaContainer-wrapped.
  *
  * Paging is expressed through X-Plex-Container-Start / -Size headers rather than
  * query parameters, on the endpoints that return a list: getSectionContent,
- * getChildren and getFirstCharacterContent. Not for media3's benefit --
- * measured on the AAOS API 33 emulator, onGetChildren always arrives as
+ * getChildren, getFirstCharacterContent and getByPath. Not for media3's benefit
+ * -- measured on the AAOS API 33 emulator, onGetChildren always arrives as
  * page=0, pageSize=Integer.MAX_VALUE, even scrolled to a list's true end, so
  * the car never actually pages a node (see
  * docs/decisions/2026-08-09-browse-list-windowing-design.md). These headers exist
  * for the browse tree's grouped nodes instead: PlexBrowseRepository's windowed
  * nodes fetch one WINDOW_SIZE-item slice per window and one single-item slice
  * per boundary label, and getFirstCharacterContent fetches one bucket, all on
- * Start/Size. getSections, getMetadata, getSectionHubs, getDecades and
- * getFirstCharacters return bounded results and take no paging.
+ * Start/Size. getByPath is not windowed the same way -- a hub's followed key is
+ * fetched once, in full, capped at MAX_ITEMS rather than sliced -- but it rides
+ * the same mechanism; see its own KDoc for why that bound is load-bearing
+ * rather than decorative. getSections, getMetadata, getSectionHubs, getDecades
+ * and getFirstCharacters return bounded results and take no paging.
  *
  * The OpenAPI spec does not document these headers on these operations -- container
  * paging is a general Plex mechanism rather than a per-endpoint one -- so they were
- * verified directly against PMS 1.43.3: all three endpoints honour Start/Size and
+ * verified directly against PMS 1.43.3: all four endpoints honour Start/Size and
  * return size, totalSize and offset.
  *
  * A non-2xx still throws `HttpException` here -- Retrofit's behaviour, unchanged
@@ -65,6 +69,11 @@ interface LibraryService {
      * What a caller sees is an empty list, which reads as an empty library
      * rather than as a malformed request -- and for the composite artwork that
      * feeds off the album form, as artwork that quietly never appears.
+     *
+     * [albumId] and [artistId] both accept a comma-separated list, which is
+     * how a Discover Mix turns the containers on screen into tracks in one
+     * request. Measured against PMS 1.43.3: 500 album ids in a 3,499-character
+     * URL answered 200 with 4,801 tracks.
      */
     @GET("library/sections/{sectionId}/all")
     suspend fun getSectionContent(
@@ -75,7 +84,8 @@ interface LibraryService {
         @Query("sort") sort: String?,
         @Query("artist.id") artistId: String?,
         @Query("album.decade") trackDecade: String?,
-        @Query("decade") albumDecade: String?
+        @Query("decade") albumDecade: String?,
+        @Query("album.id") albumId: String?
     ): PlexResponse
 
     /**
@@ -216,6 +226,46 @@ interface LibraryService {
         @Path("sectionId") sectionId: String,
         @Path("key", encoded = true) key: String,
         @Query("type") type: Int,
+        @Header("X-Plex-Container-Start") start: Int,
+        @Header("X-Plex-Container-Size") size: Int
+    ): PlexResponse
+
+    /**
+     * Follows a server-supplied path verbatim -- a hub's `key`, which is the
+     * only way to open a hub whose parameters were rolled server-side.
+     *
+     * **Callers must pass [LibraryClient.isSafeHubKey] first.** `@Url` accepts
+     * an absolute URL and would happily send this client's `X-Plex-Token` to
+     * another host, because PlexRetrofitFactory's interceptor attaches it to
+     * every request without inspecting the target.
+     *
+     * Keys carry comparison operators -- `viewCount>=50`,
+     * `lastViewedAt<=-5mon` -- so the string is handed over whole rather than
+     * decomposed into @Query parameters, which would re-encode them. This is
+     * the same hazard [getFirstCharacterContent] documents, where "%23"
+     * re-encoded to "%2523" and answered 200 with an empty list.
+     *
+     * **This was the one node in the whole browse tree with no cap, and a
+     * followed key can return everything a library holds.** Measured against
+     * PMS 1.43.3: the "Recently Added in Music" hub's key,
+     * `/library/sections/7/all?type=9&sort=addedAt:desc`, answers with
+     * **1,322 albums** on a library that size -- roughly a megabyte of JSON
+     * parsed and Binder-transferred on a head unit, of which
+     * `Constants.WINDOW_SIZE`'s KDoc records the car keeps only the first
+     * ~227KB and silently drops the rest. `LibraryClient.getByHubKey` sends
+     * `X-Plex-Container-Size: 500` for exactly this reason, and the same
+     * server honours it on both key shapes a hub can carry: the followed-key
+     * form above comes back `size=500, totalSize=1322`, and the other shape --
+     * the hub endpoint itself, `/hubs/sections/7/popular?monthsAgo=4` -- comes
+     * back `size=35, totalSize=35`, the header honoured even though nothing
+     * needed trimming. `PlexBrowseRepository.containersOf` caps at
+     * `Constants.MAX_ITEMS` independently of this header, the same
+     * belt-and-suspenders every other bounded node in this file gets, in case
+     * a server ever answers without honouring it.
+     */
+    @GET
+    suspend fun getByPath(
+        @Url path: String,
         @Header("X-Plex-Container-Start") start: Int,
         @Header("X-Plex-Container-Size") size: Int
     ): PlexResponse

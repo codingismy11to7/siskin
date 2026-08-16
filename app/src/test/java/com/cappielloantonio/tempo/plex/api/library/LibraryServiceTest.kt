@@ -7,7 +7,9 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
@@ -63,7 +65,8 @@ class LibraryServiceTest {
             sort = "titleSort",
             artistId = "15100",
             trackDecade = null,
-            albumDecade = null
+            albumDecade = null,
+            albumId = null
         )
 
         val request = server.takeRequest()
@@ -150,7 +153,8 @@ class LibraryServiceTest {
             sort = "random",
             artistId = null,
             trackDecade = "1980",
-            albumDecade = null
+            albumDecade = null,
+            albumId = null
         )
 
         val request = server.takeRequest()
@@ -175,7 +179,8 @@ class LibraryServiceTest {
             sort = "random",
             artistId = null,
             trackDecade = null,
-            albumDecade = "1980"
+            albumDecade = "1980",
+            albumId = null
         )
 
         val request = server.takeRequest()
@@ -265,6 +270,104 @@ class LibraryServiceTest {
     }
 
     @Test
+    fun filtersTracksByTheAlbumsTheyBelongTo() = runTest {
+        server.enqueue(MockResponse().setBody("{\"MediaContainer\":{\"size\":0}}"))
+
+        service().getSectionContent(
+            "7", 10, 0, 500, null, null, null, null, "111,222,333"
+        )
+
+        val url = server.takeRequest().requestUrl
+        assertEquals("111,222,333", url?.queryParameter("album.id"))
+        assertEquals("10", url?.queryParameter("type"))
+    }
+
+    @Test
+    fun followsAHubKeyAsGivenIncludingItsComparisonOperators() = runTest {
+        server.enqueue(MockResponse().setBody("{\"MediaContainer\":{\"size\":0}}"))
+
+        service().getByPath(
+            "/library/sections/7/all?type=8&viewCount>=50&lastViewedAt<=-5mon&sort=random",
+            start = 0,
+            size = 500
+        )
+
+        val request = server.takeRequest()
+        assertEquals("/library/sections/7/all", request.requestUrl?.encodedPath)
+        assertEquals("50", request.requestUrl?.queryParameter("viewCount>"))
+        assertEquals("-5mon", request.requestUrl?.queryParameter("lastViewedAt<"))
+        assertEquals("random", request.requestUrl?.queryParameter("sort"))
+    }
+
+    @Test
+    fun getByPathCarriesContainerPagingHeaders() = runTest {
+        // Was the one node in the browse tree that sent no cap at all -- a
+        // followed key answered with everything a library holds, 1,322 albums
+        // for one real "Recently Added" hub. See LibraryService.getByPath's
+        // KDoc for the full measurement.
+        server.enqueue(MockResponse().setBody("{\"MediaContainer\":{\"size\":0}}"))
+
+        service().getByPath(
+            "/library/sections/7/all?type=9&sort=addedAt:desc",
+            start = 0,
+            size = 500
+        )
+
+        val request = server.takeRequest()
+        assertEquals("0", request.getHeader("X-Plex-Container-Start"))
+        assertEquals("500", request.getHeader("X-Plex-Container-Size"))
+    }
+
+    @Test
+    fun rejectsAHubKeyThatIsNotARelativePath() {
+        assertFalse(LibraryClient.isSafeHubKey("https://elsewhere.example/library/sections/7/all"))
+        assertFalse(LibraryClient.isSafeHubKey("//elsewhere.example/library/sections/7/all"))
+        assertFalse(LibraryClient.isSafeHubKey("library/sections/7/all"))
+        assertFalse(LibraryClient.isSafeHubKey(null))
+        assertFalse(LibraryClient.isSafeHubKey("   "))
+    }
+
+    @Test
+    fun acceptsAnOrdinaryHubKey() {
+        assertTrue(LibraryClient.isSafeHubKey("/library/sections/7/all?type=9&genre=138884"))
+        assertTrue(LibraryClient.isSafeHubKey("/hubs/sections/7/popular?monthsAgo=4"))
+    }
+
+    @Test
+    fun rejectsAHubKeyThatWouldResolveOffHostViaABackslash() {
+        // A hole the brief's cases miss: "/\evil.example/x" passes both
+        // startsWith("/") and !startsWith("//") on its own, but OkHttp's
+        // HttpUrl.resolve follows the WHATWG URL Standard's
+        // backslash-as-slash normalisation, so a leading "/\" or "\\"
+        // resolves exactly like "//" -- measured against this test's own
+        // MockWebServer base URL, resolving "/\evil.example/x" answers
+        // http://evil.example/x, a different host, with the account token
+        // still attached by PlexRetrofitFactory's interceptor.
+        assertFalse(LibraryClient.isSafeHubKey("/\\evil.example/library/sections/7/all"))
+        assertFalse(LibraryClient.isSafeHubKey("\\\\evil.example/library/sections/7/all"))
+        // A backslash anywhere is rejected, not just leading -- a real Plex
+        // key never contains one, so there is nothing to allow.
+        assertFalse(LibraryClient.isSafeHubKey("/library/sections/7\\evil.example/all"))
+    }
+
+    @Test
+    fun okHttpResolvesABackslashKeyOffHostWhichIsWhyTheGuardRejectsIt() {
+        // isSafeHubKey's backslash rejection rests entirely on OkHttp's own
+        // resolution behaviour, not on anything this codebase controls. This
+        // pins that behaviour directly, against the same MockWebServer base
+        // URL the guard's own comment measures against, so an OkHttp upgrade
+        // that changed which characters take the authority branch fails this
+        // test loudly instead of leaving the guard quietly wrong.
+        val base = server.url("/")
+
+        listOf("/library/sections/7/all?type=9", "/hubs/sections/7/popular?monthsAgo=4")
+            .forEach { assertEquals(base.host, base.resolve(it)?.host) }
+
+        listOf("/\\evil.example/x", "\\\\evil.example/x", "//evil.example/x")
+            .forEach { assertNotEquals(base.host, base.resolve(it)?.host) }
+    }
+
+    @Test
     fun everyEndpointIsCovered() {
         // Fails when an endpoint is added to LibraryService without a test
         // above. The gap this file closes formed exactly that way.
@@ -278,7 +381,8 @@ class LibraryServiceTest {
                 "getSectionHubs",
                 "getDecades",
                 "getFirstCharacters",
-                "getFirstCharacterContent"
+                "getFirstCharacterContent",
+                "getByPath"
             ),
             annotatedEndpoints(LibraryService::class.java)
         )

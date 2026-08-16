@@ -44,7 +44,8 @@ object PlexRetrofitFactory {
             PlexIdentity.headers(
                 api.clientIdentifier,
                 api.appVersion,
-                PlexApi.serverTokenOrAccount(serverToken, api.accountToken)
+                PlexApi.serverTokenOrAccount(serverToken, api.accountToken),
+                api.language
             )
         }
 
