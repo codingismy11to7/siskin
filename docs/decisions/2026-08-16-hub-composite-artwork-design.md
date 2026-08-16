@@ -355,18 +355,32 @@ documents a crash over, arrived at from the other direction.
 `cells`. Four covers from a pool of six; a nine-cell tile is not coverable and
 `?count=` cannot be used to make it so.
 
-**The tile size is inherited, not measured.** `CompositeGrid.SIZE` and the 2×2
-choice were settled in #84 against a *grid* tile measured at 266 px pitch on the
-1024×768 landscape AVD, which gives ~130 px a cover. A Discover row is a **list**
-row, and its thumbnail has never been measured here — it is very likely smaller,
-possibly far enough smaller that individual covers stop being legible.
+**`CompositeGrid.SIZE` stays 512, and the screen does not get a vote.** The
+composite is generated at 512×512 — 256 px a cover cell — to match
+`AlbumArtContentProvider.DEFAULT_ARTWORK_SIZE`, so a composite costs the car no
+more than an album cover does. That is the parity worth keeping, and it is the
+reason to leave the number alone rather than tune it per surface.
 
-That is accepted rather than overlooked, and the reason is that **the bar on this
-row is not cover legibility, it is the placeholder.** Ten identical music-note
-glyphs distinguish nothing; four colour fields drawn from the hub's own contents
-distinguish one row from the next even when no cover can be read. If a
-measurement later says otherwise, the honest response is a follow-up issue with a
-number in it, not a guess now.
+**What a given head unit happens to draw it at is not a design input**, and
+saying so is the point of this paragraph, because getting it backwards is easy.
+Measured on the landscape AVD, a Discover row's thumbnail is 112 px square,
+against the ~260 px #84 measured for a *grid* tile — so a cover cell lands at
+56 px there and cover text is gone, which a capture at 4× confirms: only very
+large type survives. That number describes a 1024×768 mdpi profile, not this
+feature. The app already generates roughly 4.5× what that screen asks for, a
+denser head unit draws the same file larger, and shrinking the output to suit
+the smallest surface would be the actual mistake.
+
+#84's 87 px figure is not a threshold this has to clear either. It was the
+argument for choosing 2×2 over 3×3 *at one output size* — nine cells of one
+512 px composite are illegible where four are not — and it says nothing about
+how small a screen may render the result.
+
+So the bar on this row is what it always was: **the placeholder, not cover
+legibility.** Ten identical music-note glyphs distinguish nothing. Four covers
+from the hub's own contents distinguish one row from the next at 56 px, and read
+as a collection rather than as a single album, which is information a lone cover
+would not carry.
 
 **Nothing else moves.** No new Plex requests, no new endpoint, no `?count=`. No
 new strings and no new drawables, so the five-locale rule costs nothing and
@@ -415,13 +429,28 @@ on drawn output would assert nothing while appearing to pass.
 
 ## Verification in the car
 
-Worth doing on the landscape AVD once it is built — browse More → Discover and
-confirm the rows wear tiles rather than the music-note placeholder, that the
-list layout is unchanged, and that a second browse within the hour is served from
-cache. The portrait variant is a separate AVD and switching tears down whatever
-is running, so it is not a step to take unprompted.
+Done on the landscape AVD — API 33, `automotive_1024p_landscape`, 1024×768 mdpi
+— by browsing More → Discover:
 
-The list-row thumbnail measurement noted above is the one number this document
-would have liked and does not have. Capturing it during that browse costs
-nothing and would settle whether 2×2 is right on evidence rather than on
-argument.
+| | measured |
+|---|---|
+| Discover row (`item_container`) | 800 × 116 px |
+| row thumbnail (`thumbnail`) | 112 × 112 px |
+| cover cell at 2×2, as drawn | 56 px |
+| cached composite | 76 KB |
+
+The row draws a 2×2 of four distinct covers rather than the music-note
+placeholder, the layout is a list, and the cache file lands under the name this
+document specifies — `{machineIdentifier}-{sectionKey}-{hash}-{bucket}.jpg`,
+with a 16-character hex hash. Nothing warned in logcat, so no cover fell back.
+
+**Only one row appeared, and that is the documented ordinary case rather than a
+defect.** The hubs design measured that a server whose play history is untouched
+returns six hubs with five of them empty; "Recently Added in Music" is the one
+that needs no history to fill. Seeing the ten-row case needs a server with real
+listening behind it.
+
+The portrait variant is still unverified. Each variant is its own AVD and
+switching tears down whatever is running, so it is not a step to take
+unprompted. Portrait is 800×1280 at ldpi, a different pitch entirely, and by the
+argument above that changes what is drawn rather than what is generated.
