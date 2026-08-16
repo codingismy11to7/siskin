@@ -1,4 +1,4 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
     <string name="browse_albums">Albums</string>
     <string name="browse_artists">Artists</string>
     <string name="browse_mix_artist">Artist Mix</string>
@@ -58,12 +58,6 @@
     <string name="debug_reprobe_unchanged" translatable="false">Unchanged: %1$s</string>
     <string name="debug_reprobe_failed" translatable="false">Nothing answered</string>
     <string name="debug_screen_title" translatable="false">Debug</string>
-    <!-- Unused until the next task wires the row that reads it — see the
-         2026-08-16 debug screen design. -->
-    <string
-        name="debug_choose_server"
-        translatable="false"
-        tools:ignore="UnusedResources">Choose server</string>
 
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
     <string name="exo_controls_repeat_off_description">Current mode: Repeat none. Toggle repeat mode.</string>
