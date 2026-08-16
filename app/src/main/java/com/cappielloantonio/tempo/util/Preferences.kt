@@ -25,6 +25,7 @@ object Preferences {
     private const val PRECACHE_WIFI_ONLY = "precache_wifi_only"
     private const val CONTINUOUS_PLAY = "continuous_play"
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
+    private const val BROWSE_TAB_ORDER = "browse_tab_order"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
     private const val FALLBACK_TO_RANDOM_TRACKS = "fallback_to_random_tracks"
     private const val LAST_INSTANT_MIX = "last_instant_mix"
@@ -220,6 +221,34 @@ object Preferences {
     @JvmStatic
     fun setArtistsByInitialEnabled(enabled: Boolean) {
         App.getInstance().preferences.edit().putBoolean(ARTISTS_BY_INITIAL, enabled).apply()
+    }
+
+    /**
+     * The user's browse tab order, as ids, or empty when they have never set
+     * one. Absence resolves to the default in
+     * [com.cappielloantonio.tempo.util.BrowseTabOrder.resolve], deliberately
+     * not here -- one definition of the default, in one place.
+     *
+     * A comma-joined string rather than putStringSet: a SharedPreferences
+     * string set is *unordered*, and order is the entire content of this
+     * setting. The ids are bracketed camel-case tokens ([albumsID]), so no id
+     * can contain the delimiter and the join needs no escaping.
+     *
+     * These ids are persisted data now. Renaming one of the Constants values
+     * is a migration rather than a refactor: the old value reads as unknown
+     * and that destination silently returns to its default position.
+     */
+    @JvmStatic
+    fun getBrowseTabOrder(): List<String> {
+        val raw = App.getInstance().preferences.getString(BROWSE_TAB_ORDER, "").orEmpty()
+        return if (raw.isEmpty()) emptyList() else raw.split(",")
+    }
+
+    @JvmStatic
+    fun setBrowseTabOrder(order: List<String>) {
+        App.getInstance().preferences.edit()
+            .putString(BROWSE_TAB_ORDER, order.joinToString(","))
+            .apply()
     }
 
     @JvmStatic
