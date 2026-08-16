@@ -391,15 +391,13 @@ object PlexMediaMapper {
     /**
      * A Discover row, from one [Hub].
      *
-     * Carries no artwork and takes none. A hub row is a proposition -- "Haven't
-     * played in 5 months" -- and four album covers cannot tell it apart from
-     * "Most Played in April"; the covers would be the answer to the row rather
-     * than a picture of it. Its children are browsable, and are listed rather
-     * than gridded for the same reason, permanently. See the 2026-08-14 hubs
-     * browse design.
+     * No artwork of its own: a hub row is a proposition -- "Haven't played in 5
+     * months" -- and four covers cannot tell it from "Most Played in April".
+     * Its children are albums and artists, which covers *do* identify, so they
+     * grid like everywhere else. Whether Discover's own rows list or grid is
+     * decided on the node in `MediaBrowserTree.buildTree`, not here.
      *
-     * [Hub.title] arrives already localised, because the client sends
-     * X-Plex-Language, so nothing here formats or translates it.
+     * [Hub.title] arrives localised, because the client sends X-Plex-Language.
      */
     @JvmStatic
     fun hubToMediaItem(hub: Hub, idPrefix: String, scope: String): MediaItem? {
@@ -409,7 +407,7 @@ object PlexMediaMapper {
         val extras = Bundle().apply {
             putInt(
                 MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-                BrowseContentStyle.browsableChildStyle(false)
+                BrowseContentStyle.browsableChildStyle(true)
             )
             putInt(
                 MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
