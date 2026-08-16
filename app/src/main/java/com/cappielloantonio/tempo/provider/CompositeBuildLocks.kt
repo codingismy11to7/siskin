@@ -6,19 +6,24 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Runs one body at a time per key, and different keys at once.
  *
- * This exists for [CompositeArt.build]. That provider is exported and
- * served on a thread pool, so the car can open the same decade tile
- * concurrently, and until one build renames its file into place every one of
- * those opens is a fresh cache miss -- a full Plex metadata query plus four
- * cover transcodes, each, for one image. The album artwork path never needed
+ * This exists for [CompositeArt.build], the shared core both [DecadeCompositeArt]
+ * and [HubCompositeArt] call. `AlbumArtContentProvider` is exported and served
+ * on a thread pool, so the car can open the same tile concurrently, and until
+ * one build renames its file into place every one of those opens is a fresh
+ * cache miss. What a miss costs differs by caller: a decade tile repeats a full
+ * Plex metadata query plus up to four cover transcodes, because
+ * `DecadeCompositeArt` fetches its own covers inside the lock; a hub tile makes
+ * no metadata query at all -- its covers already rode the URI -- and a repeat
+ * only re-runs the transcodes. Either way, the album artwork path never needed
  * this because Glide's engine dedups identical in-flight requests underneath
- * it; the metadata query is the part Glide knows nothing about.
+ * it; a metadata query, where one exists, is the part Glide knows nothing
+ * about, and it is what this lock exists to collapse.
  *
- * **Per key, not global.** On the first browse of an hour all eight decade
- * tiles miss at once against an executor sized `max(2, cores / 2)`. Serialising
- * those behind one lock would turn a burst into eight sequential round trips,
- * which is a worse problem than the one being fixed. Only repeats of the *same*
- * tile wait.
+ * **Per key, not global.** On the first browse of an hour every decade tile and
+ * every hub tile misses at once -- eight decades and ten hubs, both measured,
+ * against an executor sized `max(2, cores / 2)`. Serialising those behind one
+ * lock would turn a burst into eighteen sequential round trips, which is a
+ * worse problem than the one being fixed. Only repeats of the *same* tile wait.
  *
  * **A lock is not a correctness mechanism here.** Two builds of one tile
  * overlapping was already safe -- each writes a uniquely named partial and
@@ -43,7 +48,8 @@ object CompositeBuildLocks {
      * racing pair can briefly hold different locks for one key and both run;
      * the loser then finds the file already cached, and the rename backstop
      * covers the rest. Bounding the map is worth that, because a key carries
-     * a bucket and every hour mints eight fresh ones. Put plainly: this is
+     * a bucket and every hour mints a fresh set -- eight for decades, ten for
+     * hubs. Put plainly: this is
      * best-effort deduplication, not mutual exclusion for all time --
      * correctness across the removal window rests on the unique-partial-file
      * plus `renameTo` backstop described on the object, not on this lock.

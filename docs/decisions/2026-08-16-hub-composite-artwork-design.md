@@ -126,7 +126,7 @@ safe — the shape that crashes `BrowseAdapter.onBindViewHolder` is a change
 ```
 PlexBrowseRepository.getHubs(prefix)              one request, unchanged
    └─ PlexMediaMapper.hubToMediaItem(hub, prefix, scope, bucket)
-         pool = hub.metadata.mapNotNull(::artworkThumb).take(POOL_MAX)
+         pool = hub.metadata.mapNotNull(::artworkThumb).distinct().take(POOL_MAX)
          artworkUri = AlbumArtContentProvider.hubContentUri(scope, bucket, pool)
                       an empty pool mints no artworkUri at all
 
@@ -137,6 +137,15 @@ the car opens that URI
                     load the pool in order until four covers land
                     draw into 512×512, compress JPEG, write, rename, stream
 ```
+
+`.distinct()` is not defensive, it is load-bearing: `artworkThumb`'s
+parent-thumb fallback means every item in a hub can resolve to the *same*
+cover whenever its items share a parent -- several albums by one artist,
+"More by Just Surrender" measured at three. Without it the tile draws that one
+cover four times, which reads as a rendering bug rather than a mosaic. Deduping
+first means such a hub mints a pool of one, and the greedy pick already knows
+what to do with that: one candidate, one full-bleed cell, the honest picture of
+what the hub actually has to show.
 
 Scope and bucket are computed once per browse and passed into the mapper rather
 than read from a clock or a session inside it, for the reason the decade path
@@ -220,7 +229,11 @@ decade whose fourth cover fails now draws a full-bleed tile where it previously
 drew nothing. One wrinkle falls out of it — covers are requested at the cell edge
 implied by the *candidate* count, so a pool that degrades to full-bleed
 re-requests its survivor at the full edge. That is one extra Glide call, from its
-own disk cache, on a path that only runs after a load has already failed.
+own disk cache, on a path that only runs after a load has already failed. A pool
+too small to fill the grid in the first place never enters that trade: below
+four candidates the layout is a single full-bleed cell no matter what lands, so
+the pick asks for one cover at the full edge rather than four, and the re-request
+above only arises where a full grid was actually attainable to begin with.
 
 The pick itself is a pure generic function over a loader, so the interesting
 behaviour is unit-testable without Glide.

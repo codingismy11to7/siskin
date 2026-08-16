@@ -481,6 +481,24 @@ class PlexMediaMapperAssemblyTest {
     }
 
     @Test
+    fun aHubWhoseItemsShareOneCoverDoesNotTileItFourTimes() {
+        // artworkThumb falls back to parentThumb, so a hub whose albums are all
+        // by one artist -- "More by Just Surrender", measured at three -- can
+        // resolve every entry to the same artist cover. Four identical covers
+        // read as a rendering bug rather than a mosaic; one cover is what a
+        // pool of one honestly means.
+        val shared = "/library/metadata/51/thumb/1"
+        val item = PlexMediaMapper.hubToMediaItem(
+            hub(shared, shared, shared), Constants.HUB_ID, SCOPE, bucket = 487234L
+        )!!
+
+        assertEquals(
+            AlbumArtContentProvider.hubContentUri(SCOPE, 487234L, listOf(shared)),
+            item.mediaMetadata.artworkUri
+        )
+    }
+
+    @Test
     fun aHubWhoseItemsCarryNoThumbGetsNoArtworkAtAll() {
         // The behaviour these rows have on main, and the floor this feature
         // cannot fall below: the car draws its own placeholder.

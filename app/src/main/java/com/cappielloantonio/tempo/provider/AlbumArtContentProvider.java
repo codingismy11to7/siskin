@@ -302,10 +302,23 @@ public class AlbumArtContentProvider extends ContentProvider {
      * forever.
      *
      * What it does need is a bound on amplification. One open here can trigger
-     * six authenticated fetches where openAlbumArt triggers one, which is what
-     * the pool cap is for. The open-proxy hazard itself is openAlbumArt's, not
-     * a new one: any app on the head unit has always been able to ask this
-     * authority for any server-relative Plex path, behind this same guard.
+     * seven authenticated fetches where openAlbumArt triggers one -- up to
+     * HubCoverPool.MAX candidate loads, plus the full-edge re-request
+     * CompositeArt's degraded branch makes when a pool too small for a full
+     * grid still fails its first load -- which is what the pool cap is for.
+     * The open-proxy hazard itself is openAlbumArt's, not a new one: any app
+     * on the head unit has always been able to ask this authority for any
+     * server-relative Plex path, behind this same guard.
+     *
+     * One residual is worth naming rather than leaving for someone to
+     * rediscover: a hostile caller can mint many distinct valid pools out of
+     * real thumb paths -- reordering six real thumbs alone is hundreds of
+     * pools -- and cause a small JPEG per pool to be written under this
+     * bucket, since evictStale reaps only stale buckets, not a live bucket's
+     * volume. That is app-private storage in a system-evictable cacheDir, no
+     * worse than the same app filling its own cache directly, so it is not
+     * treated as a bug here -- just recorded so it reads as considered rather
+     * than missed.
      */
     private ParcelFileDescriptor openHubArt(Uri uri) throws FileNotFoundException {
         Context context = getContext();

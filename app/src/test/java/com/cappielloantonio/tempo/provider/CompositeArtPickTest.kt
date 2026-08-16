@@ -57,6 +57,11 @@ class CompositeArtPickTest {
 
     @Test
     fun wantingNothingLoadsNothing() {
+        // Sequence.take(0) already short-circuits before the loader runs, so
+        // this passes identically with or without the `if (want <= 0)` guard
+        // in pick -- it does not exercise that branch. What the guard actually
+        // stops is `take(-1)`, which throws; this test just pins the boundary
+        // input's behaviour, not the guard's necessity.
         val attempted = mutableListOf<String>()
         val picked = CompositeArt.pick(pool, 0) { thumb -> attempted.add(thumb); thumb }
         assertEquals(emptyList<String>(), picked)

@@ -24,12 +24,14 @@ private const val TAG = "CompositeArt"
  * [build] takes that query as a lambda rather than a list of thumbs, and that
  * is deliberate: the lambda runs inside [CompositeBuildLocks]'s per-tile lock,
  * so a caller's fetch is what gets deduplicated across concurrent opens of one
- * missing tile, not just the drawing. [DecadeCompositeArt] is the first
- * caller, and keeps only that lambda's body -- the Plex query for a decade's
- * covers -- plus `cached` and `build`, the JvmStatic pair `AlbumArtContentProvider`
- * (still Java) actually calls. `coverThumbs` is JvmStatic too, but that is so a
- * test can drive the thumb-selection logic directly, not because the provider
- * reaches it.
+ * missing tile, not just the drawing. [DecadeCompositeArt] and [HubCompositeArt]
+ * are its two callers, and the entire split between them is that one fetches
+ * its covers and the other is handed them. Each keeps only that lambda's body
+ * -- a Plex query for the decade path, a pass-through of the URI's pool for the
+ * hub path -- plus `cached` and `build`, the JvmStatic pair `AlbumArtContentProvider`
+ * (still Java) actually calls. `DecadeCompositeArt.coverThumbs` is JvmStatic too,
+ * but that is so a test can drive the thumb-selection logic directly, not
+ * because the provider reaches it.
  */
 object CompositeArt {
 
@@ -300,9 +302,14 @@ object CompositeArt {
         val candidateEdge =
             if (thumbs.size >= CompositeGrid.COVERS) CompositeGrid.SIZE / 2 else CompositeGrid.SIZE
 
+        // Four only when four could actually be drawn. Below that the layout is
+        // a single full-bleed cell whatever lands, so loading the rest is a
+        // full-size transcode spent on a cover no cell exists for.
+        val want = if (thumbs.size >= CompositeGrid.COVERS) CompositeGrid.COVERS else 1
+
         // Paired with the thumb that produced it, so the degraded case below
         // knows what to re-request.
-        val loaded = pick(thumbs, CompositeGrid.COVERS) { thumb ->
+        val loaded = pick(thumbs, want) { thumb ->
             coverFor(context, session, token, thumb, candidateEdge)?.let { thumb to it }
         }
 
@@ -352,8 +359,8 @@ object CompositeArt {
             // half-drawn composite: the provider's hit path only checks that the
             // file exists. The sibling is unique per attempt, not just per
             // destination: this is an exported ContentProvider served on a
-            // thread pool, and the car can open the same decade tile
-            // concurrently, so two builds for the same decade and bucket can
+            // thread pool, and the car can open the same tile -- decade or hub
+            // -- concurrently, so two builds for the same id and bucket can
             // run at once. A shared partial name would let their writes
             // interleave, and whichever rename ran last would publish a
             // corrupt JPEG under the real cache name, where it would sit for

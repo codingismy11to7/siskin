@@ -427,6 +427,7 @@ object PlexMediaMapper {
 
         val pool = hub.metadata.orEmpty()
             .mapNotNull { artworkThumb(it) }
+            .distinct()
             .take(HubCoverPool.MAX)
 
         val metadataBuilder = MediaMetadata.Builder()
