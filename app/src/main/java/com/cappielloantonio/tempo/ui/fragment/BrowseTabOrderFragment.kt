@@ -103,8 +103,10 @@ class BrowseTabOrderFragment : Fragment() {
         // ItemTouchHelper.onChildViewDetachedFromWindow sees it is the selected
         // holder and ends the drag -- the row stops following the finger mid
         // gesture, one swap in. Off, the badge update rebinds in place instead.
-        // A payload does not help: SimpleItemAnimator does not override the
-        // payload-aware canReuseUpdatedViewHolder overload.
+        // DefaultItemAnimator does override the payload-aware canReuseUpdatedViewHolder,
+        // so a non-empty payload would work as an alternative; disabling animations
+        // was chosen instead because it requires only one line at construction rather
+        // than threading a payload through every notify call and bind.
         (list.itemAnimator as SimpleItemAnimator).supportsChangeAnimations = false
 
         // ItemTouchHelper rather than hand-rolled touch handling, and

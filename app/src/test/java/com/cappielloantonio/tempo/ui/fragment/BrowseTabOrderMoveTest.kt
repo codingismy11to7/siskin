@@ -107,4 +107,21 @@ class BrowseTabOrderMoveTest {
             order
         )
     }
+
+    @Test
+    fun `a NO_POSITION to is rejected and leaves the order untouched`() {
+        val order = mutableListOf(
+            Constants.PLAYLIST_ID,
+            Constants.ARTISTS_ID,
+            Constants.ALBUMS_ID
+        )
+
+        val moved = BrowseTabOrderFragment.moveIfValid(order, 0, RecyclerView.NO_POSITION)
+
+        assertFalse(moved)
+        assertEquals(
+            listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
+            order
+        )
+    }
 }
