@@ -1172,4 +1172,50 @@ class PlexSignInViewModelTest {
         // abandons a sign-in the user never started.
         assertTrue(state.returnsToSettings)
     }
+
+    @Test
+    fun `reopening the picker publishes the servers the account has`() = runTest(dispatcher) {
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+        }
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+
+        viewModel.reopenServerPicker()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value as PlexSignInState.ChoosingServer
+        assertEquals(1, state.servers.size)
+        // The whole point of this entry point: back must return to Settings.
+        assertTrue(state.returnsToSettings)
+    }
+
+    @Test
+    fun `reopening the picker reports a plex_tv failure as Failed`() = runTest(dispatcher) {
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { getResources() } doReturn
+                PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+        }
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+
+        viewModel.reopenServerPicker()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value is PlexSignInState.Failed)
+    }
+
+    @Test
+    fun `reopening the picker reports an account with no servers as Failed`() = runTest(dispatcher) {
+        // Empty rather than absent: an account with resources that are all
+        // players rather than servers reaches the same place, and that is the
+        // case NoServers exists for.
+        val authClient = mock<AuthClient>().stub {
+            onBlocking { getResources() } doReturn emptyList<Resource>().right()
+        }
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+
+        viewModel.reopenServerPicker()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value is PlexSignInState.Failed)
+    }
 }

@@ -135,6 +135,40 @@ class PlexSignInViewModel @JvmOverloads constructor(
     }
 
     /**
+     * Opens the server picker from the debug screen, with no PIN.
+     *
+     * This is `signIn()` without its first half. The account token is all
+     * plex.tv needs to list an account's servers, and `PlexApi.session`'s
+     * setter deliberately leaves that token alone when clearing a session --
+     * so a signed-in app always has one, and there is nothing to approve.
+     *
+     * Publishes with `returnsToSettings = true`, which is the only thing
+     * distinguishing this picker from the one sign-in publishes: back out of
+     * it and the session that was never in question is still there.
+     *
+     * Failures land in Failed exactly as signIn's do. That is right here for
+     * the same reason it is right there -- both errors this can raise are
+     * account-scoped rather than about one server -- even though Failed's
+     * retry re-enters the PIN flow rather than this entry point.
+     */
+    fun reopenServerPicker() {
+        attempt?.cancel()
+        _state.value = PlexSignInState.Working
+
+        attempt = viewModelScope.launch {
+            either {
+                val resources = authClient.getResources().mapLeft(SignInError::Api).bind()
+
+                val servers = ensureNotNull(
+                    AuthClient.mediaServers(resources).toNonEmptyListOrNull()
+                ) { SignInError.NoServers }
+
+                _state.value = PlexSignInState.ChoosingServer(servers, returnsToSettings = true)
+            }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
+        }
+    }
+
+    /**
      * The Connect button.
      *
      * Two guards, inherited from start(). The fragment's own dispatch is the
