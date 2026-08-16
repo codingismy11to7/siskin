@@ -1,10 +1,12 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import androidx.media3.common.util.UnstableApi
+import androidx.recyclerview.widget.RecyclerView
 import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -79,6 +81,30 @@ class BrowseTabOrderMoveTest {
         assertEquals(
             listOf(Constants.ALBUMS_ID, Constants.PLAYLIST_ID, Constants.ARTISTS_ID),
             Preferences.getBrowseTabOrder()
+        )
+    }
+
+    /**
+     * ItemTouchHelper.moveIfNecessary does not guard against NO_POSITION
+     * itself before calling onMove -- a -1 can still reach here, and without
+     * the guard order.removeAt(-1) would throw and crash the settings
+     * screen. This proves the guard stops moveAndPersist from running at
+     * all, rather than merely tolerating a bad index.
+     */
+    @Test
+    fun `a NO_POSITION move is rejected and leaves the order untouched`() {
+        val order = mutableListOf(
+            Constants.PLAYLIST_ID,
+            Constants.ARTISTS_ID,
+            Constants.ALBUMS_ID
+        )
+
+        val moved = BrowseTabOrderFragment.moveIfValid(order, RecyclerView.NO_POSITION, 0)
+
+        assertFalse(moved)
+        assertEquals(
+            listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
+            order
         )
     }
 }

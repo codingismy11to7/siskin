@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.SimpleItemAnimator
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.util.BrowseTabOrder
 import com.cappielloantonio.tempo.util.Constants
@@ -61,6 +62,22 @@ class BrowseTabOrderFragment : Fragment() {
             order.add(to, order.removeAt(from))
             Preferences.setBrowseTabOrder(order)
         }
+
+        /**
+         * Guards [moveAndPersist] against [RecyclerView.NO_POSITION] (-1) and
+         * reports whether the move happened.
+         *
+         * ItemTouchHelper.moveIfNecessary does not check for NO_POSITION
+         * itself before calling onMove, so a -1 can still reach here; without
+         * this, order.removeAt(-1) would throw and crash the settings screen.
+         * Split out for the same reason moveAndPersist is: so the guard can
+         * be exercised without a RecyclerView.
+         */
+        fun moveIfValid(order: MutableList<String>, from: Int, to: Int): Boolean {
+            if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
+            moveAndPersist(order, from, to)
+            return true
+        }
     }
 
     override fun onCreateView(
@@ -78,6 +95,18 @@ class BrowseTabOrderFragment : Fragment() {
         list.layoutManager = LinearLayoutManager(requireContext())
         list.adapter = Adapter()
 
+        // Change animations off, and this is load-bearing rather than cosmetic.
+        // With them on, SimpleItemAnimator.canReuseUpdatedViewHolder() is false,
+        // so the notifyItemRangeChanged below routes the *dragged* holder into
+        // changed-scrap, binds a replacement for its position and cross-fades.
+        // When that animation ends the old view is detached, and
+        // ItemTouchHelper.onChildViewDetachedFromWindow sees it is the selected
+        // holder and ends the drag -- the row stops following the finger mid
+        // gesture, one swap in. Off, the badge update rebinds in place instead.
+        // A payload does not help: SimpleItemAnimator does not override the
+        // payload-aware canReuseUpdatedViewHolder overload.
+        (list.itemAnimator as SimpleItemAnimator).supportsChangeAnimations = false
+
         // ItemTouchHelper rather than hand-rolled touch handling, and
         // auto-scroll is the reason: five or six rows against roughly four
         // visible means a drag *must* scroll, so it is a certainty here rather
@@ -93,9 +122,12 @@ class BrowseTabOrderFragment : Fragment() {
                     viewHolder: RecyclerView.ViewHolder,
                     target: RecyclerView.ViewHolder
                 ): Boolean {
-                    val from = viewHolder.bindingAdapterPosition
-                    val to = target.bindingAdapterPosition
-                    moveAndPersist(order, from, to)
+                    val from = viewHolder.absoluteAdapterPosition
+                    val to = target.absoluteAdapterPosition
+                    // ItemTouchHelper.moveIfNecessary does not guard against
+                    // NO_POSITION itself before calling onMove; a -1 here
+                    // would otherwise reach order.removeAt(-1) and crash.
+                    if (!moveIfValid(order, from, to)) return false
                     recyclerView.adapter?.notifyItemMoved(from, to)
                     // Every row's More-or-tab label may have changed, and
                     // notifyItemMoved alone does not rebind the rows that
