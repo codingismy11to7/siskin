@@ -12,6 +12,8 @@
 
 ## [Unreleased] — Siskin
 
+## [0.99.5] (2026-08-16)
+
 - Tapping the version line in Settings now opens a debug screen instead of a
   dialog, and that screen can reopen the server picker without a new sign-in.
 - A cover mosaic built from two or three albums now shows all of them instead of
