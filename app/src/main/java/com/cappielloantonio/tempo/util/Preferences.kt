@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.util
 
+import androidx.core.content.edit
 import androidx.media3.common.Player
 import com.cappielloantonio.tempo.App
 
@@ -58,7 +59,7 @@ object Preferences {
 
     @JvmStatic
     fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
-        App.getInstance().preferences.edit().putBoolean(SHUFFLE_MODE, shuffleModeEnabled).apply()
+        App.getInstance().preferences.edit { putBoolean(SHUFFLE_MODE, shuffleModeEnabled) }
     }
 
     @JvmStatic
@@ -68,7 +69,7 @@ object Preferences {
 
     @JvmStatic
     fun setRepeatMode(repeatMode: Int) {
-        App.getInstance().preferences.edit().putInt(REPEAT_MODE, repeatMode).apply()
+        App.getInstance().preferences.edit { putInt(REPEAT_MODE, repeatMode) }
     }
 
     @JvmStatic
@@ -124,9 +125,9 @@ object Preferences {
      */
     @JvmStatic
     fun setReplayGainEnabled(enabled: Boolean) {
-        App.getInstance().preferences.edit()
-            .putString(REPLAY_GAIN_MODE, if (enabled) "auto" else "disabled")
-            .apply()
+        App.getInstance().preferences.edit {
+            putString(REPLAY_GAIN_MODE, if (enabled) "auto" else "disabled")
+        }
     }
 
     /**
@@ -158,10 +159,9 @@ object Preferences {
 
     @JvmStatic
     fun setStreamingCacheStoragePreference(streamingCachePreference: Int) {
-        return App.getInstance().preferences.edit().putString(
-                STREAMING_CACHE_STORAGE,
-                streamingCachePreference.toString()
-        ).apply()
+        App.getInstance().preferences.edit {
+            putString(STREAMING_CACHE_STORAGE, streamingCachePreference.toString())
+        }
     }
 
     @JvmStatic
@@ -201,7 +201,7 @@ object Preferences {
 
     @JvmStatic
     fun setContinuousPlayEnabled(enabled: Boolean) {
-        App.getInstance().preferences.edit().putBoolean(CONTINUOUS_PLAY, enabled).apply()
+        App.getInstance().preferences.edit { putBoolean(CONTINUOUS_PLAY, enabled) }
     }
 
     /**
@@ -220,7 +220,7 @@ object Preferences {
 
     @JvmStatic
     fun setArtistsByInitialEnabled(enabled: Boolean) {
-        App.getInstance().preferences.edit().putBoolean(ARTISTS_BY_INITIAL, enabled).apply()
+        App.getInstance().preferences.edit { putBoolean(ARTISTS_BY_INITIAL, enabled) }
     }
 
     /**
@@ -246,9 +246,9 @@ object Preferences {
 
     @JvmStatic
     fun setBrowseTabOrder(order: List<String>) {
-        App.getInstance().preferences.edit()
-            .putString(BROWSE_TAB_ORDER, order.joinToString(","))
-            .apply()
+        App.getInstance().preferences.edit {
+            putString(BROWSE_TAB_ORDER, order.joinToString(","))
+        }
     }
 
     @JvmStatic
@@ -270,7 +270,7 @@ object Preferences {
     }
     @JvmStatic
     fun setLastInstantMix() {
-        App.getInstance().preferences.edit().putLong(LAST_INSTANT_MIX, System.currentTimeMillis()).apply()
+        App.getInstance().preferences.edit { putLong(LAST_INSTANT_MIX, System.currentTimeMillis()) }
     }
 
     @JvmStatic

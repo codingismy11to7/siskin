@@ -27,9 +27,16 @@ Single test class or method:
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
 **`lintDebug` is clean and CI runs it, so a lint error is yours.** Errors are
-fatal; warnings are not, and 27 of those remain (#99). Four dependency-freshness
+fatal; warnings are not, and 20 of those remain (#99). Four dependency-freshness
 checks are disabled — they report on other people's release schedules, not on
 this repository.
+
+**That number is load-bearing, so move it when you move it.** It is how anyone
+tells a warning they introduced from one that was already there, and it had
+drifted — it read 27 while the tree carried 29, which is enough to make a new
+warning look pre-existing. Ten of the twenty left are `UseKtx` on
+`SharedPreferences.edit()` in `PlexApi` and two `Bitmap.createBitmap` calls; the
+rest are manifest-level and long-standing.
 
 **Kotlin compiles with `-Werror`**, test sources included. Configuration-time
 Gradle warnings are outside its reach. See
