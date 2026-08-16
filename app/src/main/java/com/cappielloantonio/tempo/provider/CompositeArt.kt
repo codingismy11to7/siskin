@@ -2,22 +2,36 @@ package com.cappielloantonio.tempo.provider
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.util.Log
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheKeyFactory
 import java.io.File
 
 private const val TAG = "CompositeArt"
 
+/**
+ * The cache, the scope and the locked build every composite shares: what
+ * distinguishes one composite from another -- `id` and the query that finds
+ * its covers -- stays with the caller.
+ *
+ * [build] takes that query as a lambda rather than a list of thumbs, and that
+ * is deliberate: the lambda runs inside [CompositeBuildLocks]'s per-tile lock,
+ * so a caller's fetch is what gets deduplicated across concurrent opens of one
+ * missing tile, not just the drawing. [DecadeCompositeArt] is the first
+ * caller, and keeps only that lambda's body -- the Plex query for a decade's
+ * covers -- plus the JvmStatic surface `AlbumArtContentProvider` (still Java)
+ * calls.
+ */
 object CompositeArt {
 
-    /** Not private: [DecadeCompositeArt.buildLocked]'s JPEG encode reads this
-     * directly, and that build loop has not moved here (yet). */
-    const val JPEG_QUALITY = 85
+    private const val JPEG_QUALITY = 85
 
     /**
      * One directory for every kind of composite, so one [evictStale] sweep
@@ -32,10 +46,7 @@ object CompositeArt {
     private const val CACHE_DIR = "composite-art"
     private const val CACHE_SUFFIX = ".jpg"
 
-    /** Not private, for the same reason as [JPEG_QUALITY]:
-     * [DecadeCompositeArt.buildLocked]'s write-then-rename reads this
-     * directly. */
-    const val PARTIAL_SUFFIX = ".partial"
+    private const val PARTIAL_SUFFIX = ".partial"
 
     /**
      * Stands in for [PlexSession.machineIdentifier] when it is absent, so that
@@ -189,7 +200,7 @@ object CompositeArt {
         }
     }
 
-    /** A composite already on disk for this decade and bucket, or null.
+    /** A composite already on disk for this id and bucket, or null.
      *
      * Deliberately does no network work and touches neither Glide nor Retrofit:
      * the provider calls this on a binder thread and serves the file directly
@@ -202,6 +213,156 @@ object CompositeArt {
         ).takeIf { it.isFile }
     }
 
+    /**
+     * Draws the composite and caches it, returning the file, or null if it
+     * could not be built.
+     *
+     * Every failure returns null, and the provider turns that into
+     * FileNotFoundException, which the car renders as its own placeholder --
+     * which is exactly what these rows show without this feature. No failure
+     * here is worse than not having shipped it.
+     *
+     * Blocking is correct here: the provider calls this on its own executor,
+     * off the binder thread, with the result piped back.
+     *
+     * **[covers] is evaluated inside the lock, and that is the reason it is a
+     * lambda rather than a list.** A caller that fetched its covers and handed
+     * over the result would leave the fetch outside the lock -- and collapsing
+     * N concurrent opens of one missing tile into one Plex request is the
+     * entire reason [CompositeBuildLocks] exists. It receives the session
+     * snapshot this function pinned, so a library switch mid-build cannot pair
+     * one server's section key with another's address.
+     */
+    fun build(
+        context: Context,
+        id: String,
+        bucket: Long,
+        covers: (PlexApi, PlexSession) -> List<String>
+    ): File? {
+        val api = PlexApi()
+        val session = api.session ?: return null
+
+        // Deduplicated per tile. The car can open one row concurrently, and
+        // until a build renames its file into place every concurrent open is a
+        // fresh miss. Keyed on the cache file's own name rather than
+        // re-interpolating the values that produced it, so the lock key and the
+        // filename cannot drift apart.
+        val file = cacheFile(
+            context, session.machineIdentifier, session.musicSectionKey.value, id, bucket
+        )
+        return CompositeBuildLocks.exclusively(file.name) {
+            // Re-checked after acquiring, against the same session snapshot the
+            // lock key and buildLocked's write use -- not cached(), which
+            // re-reads PlexApi().session fresh and would check a different
+            // server's or section's filename than the winner wrote if More ->
+            // Server Select switched libraries while this thread waited.
+            file.takeIf { it.isFile } ?: buildLocked(context, api, session, file, covers)
+        }
+    }
+
+    /**
+     * [build]'s body, run holding that tile's lock.
+     *
+     * Split out only so `build` can express the lock and the re-check in a
+     * couple of lines; every failure contract described on [build] is this
+     * function's, and the bitmap is recycled on every exit from it.
+     */
+    private fun buildLocked(
+        context: Context,
+        api: PlexApi,
+        session: PlexSession,
+        file: File,
+        covers: (PlexApi, PlexSession) -> List<String>
+    ): File? {
+        val thumbs = covers(api, session)
+        val cells = CompositeGrid.cells(thumbs.size, CompositeGrid.SIZE)
+        if (cells.isEmpty()) return null
+
+        val token = PlexApi.serverTokenOrAccount(session.serverToken, session.accountToken)
+        val cellEdge = CompositeGrid.SIZE / if (cells.size == 1) 1 else 2
+
+        val loaded = thumbs.take(cells.size).mapNotNull { thumb ->
+            val url = MediaUrlBuilder.artworkUrl(
+                session.serverUri, thumb, token, cellEdge, cellEdge
+            ) ?: return@mapNotNull null
+            loadCover(context, url, cellEdge)
+        }
+        if (loaded.size != cells.size) return null
+
+        val composite = Bitmap.createBitmap(
+            CompositeGrid.SIZE, CompositeGrid.SIZE, Bitmap.Config.RGB_565
+        )
+        // Hoisted above the try so the catch below can clean it up too: with
+        // the declaration inside the try, an exception thrown before a
+        // successful rename -- including from createTempFile itself -- left
+        // that attempt's partial on disk forever, since evictStale only
+        // recognises names ending CACHE_SUFFIX and each attempt's partial is
+        // uniquely named.
+        var partial: File? = null
+        return try {
+            // Drawing sits inside the same try as the write so that a draw that
+            // throws -- a cover Glide has since recycled is the way that happens
+            // -- still returns null and still recycles, rather than throwing out
+            // of a function whose contract is that failure is a null.
+            val canvas = Canvas(composite)
+            cells.forEachIndexed { index, cell ->
+                canvas.drawBitmap(
+                    loaded[index],
+                    null,
+                    Rect(cell.left, cell.top, cell.right, cell.bottom),
+                    null
+                )
+            }
+
+            file.parentFile?.mkdirs()
+            // Written to a sibling and renamed, so a reader can never open a
+            // half-drawn composite: the provider's hit path only checks that the
+            // file exists. The sibling is unique per attempt, not just per
+            // destination: this is an exported ContentProvider served on a
+            // thread pool, and the car can open the same decade tile
+            // concurrently, so two builds for the same decade and bucket can
+            // run at once. A shared partial name would let their writes
+            // interleave, and whichever rename ran last would publish a
+            // corrupt JPEG under the real cache name, where it would sit for
+            // the rest of the bucket's hour -- evictStale only reaps files it
+            // named, so a corrupt-but-correctly-named composite is invisible
+            // to it. A unique partial turns that race into last-writer-wins
+            // between two *complete* files instead of a race over one buffer.
+            val target = File.createTempFile(file.name, PARTIAL_SUFFIX, file.parentFile)
+            partial = target
+            // Bitmap.compress reports a write failure -- a full disk mid-encode
+            // is the way that happens -- by returning false rather than
+            // throwing: the native encoder's Java-stream adaptor absorbs the
+            // IOException, and FileOutputStream.close() does not throw on a
+            // full disk either. Without checking it, a truncated or zero-byte
+            // partial renames cleanly and is served as the composite for the
+            // rest of the bucket's hour, since cached() only stats the file.
+            val wrote = target.outputStream().use {
+                composite.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
+            }
+            if (!wrote || !target.renameTo(file)) {
+                // A failed compress or a failed rename must not orphan the
+                // partial: evictStale never sweeps it, correctly, since the
+                // sweep only touches files it named itself. Delete it
+                // explicitly and fail the build like every other failure
+                // path here.
+                target.delete()
+                null
+            } else {
+                evictStale(context, System.currentTimeMillis())
+                file.takeIf { it.isFile }
+            }
+        } catch (e: Exception) {
+            // Outside any either { } block, so there is no Arrow raise for this
+            // to swallow.
+            Log.w(TAG, "could not cache the composite for ${file.name}", e)
+            partial?.delete()
+            null
+        } finally {
+            composite.recycle()
+        }
+    }
+
     /** Data-saving mode is honoured exactly as the album path honours it. The
      * preference it reads is frozen at false -- the settings screen that set it
      * is gone -- so the branch is unreachable today and is kept only so the two
@@ -212,7 +373,7 @@ object CompositeArt {
      * and preserves aspect ratio, so an oblong cover would be squashed square
      * rather than cropped. Plex covers are square in practice, so this removes
      * a case rather than fixing a visible defect. */
-    fun loadCover(context: Context, url: String, edge: Int): Bitmap? = try {
+    private fun loadCover(context: Context, url: String, edge: Int): Bitmap? = try {
         var request = Glide.with(context)
             .asBitmap()
             .load(url)

@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * The two properties DecadeCompositeArt.build depends on, and they pull in
+ * The two properties CompositeArt.build depends on, and they pull in
  * opposite directions: one tile's builds must not overlap, and different tiles'
  * builds must.
  *
