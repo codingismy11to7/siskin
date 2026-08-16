@@ -245,12 +245,15 @@ the account token), so it is not required for a session to exist.
 ### Media service — `service/`
 
 `MediaService` is a media3 `MediaLibraryService`; AAOS discovers it through the
-manifest intent filter. `MediaBrowserTree` defines the static browse root (four
-tabs: Playlists, Artists, Albums, More) — four is the maximum the car renders,
-it silently drops a fifth, so nest anything new under More instead of adding a
-root tab. `PlexBrowseRepository` serves their contents,
-and `MediaLibraryServiceCallback` turns a 401/403 into the "sign in again"
-affordance via `CarSignInResolution`'s `PendingIntent`.
+manifest intent filter. `MediaBrowserTree` builds the browse root from the
+user's saved tab order — the first three destinations, then More, which is
+always fourth. Four is still the maximum the car renders and it silently drops
+a fifth, so a new destination joins `BrowseTabOrder.DEFAULT_ORDER` rather than
+being added to the root directly. See
+`docs/decisions/2026-08-14-customizable-browse-tabs-design.md`.
+`PlexBrowseRepository` serves their contents, and `MediaLibraryServiceCallback`
+turns a 401/403 into the "sign in again" affordance via
+`CarSignInResolution`'s `PendingIntent`.
 
 The HTTP-versus-transport distinction matters here: an HTTP failure becomes a
 `LibraryResult` error the car can act on, while a transport failure completes

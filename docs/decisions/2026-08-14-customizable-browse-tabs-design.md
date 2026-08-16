@@ -67,8 +67,13 @@ paying for rather than hand-rolling — the pool is five or six rows against
 roughly four visible, so a drag must scroll, and that is the fussiest part of a
 hand-written implementation.
 
-The size delta is to be measured with `assembleRelease` before and after, not
-estimated, and recorded in the implementing PR.
+Measured with `assembleRelease` before and after, on this branch's merge base
+with `main` (`331e6742`) as the baseline. The build produces a single universal
+`app-release-unsigned.apk` — `splits.abi` is enabled but nothing calls
+`include(...)` after `reset()`, so no per-ABI APKs actually come out of it,
+contrary to what this section originally expected to compare. Declaring
+`androidx.recyclerview` explicitly costs **20,360 bytes (19.9 KiB), a 0.293%
+increase** — baseline 6,952,064 bytes, branch 6,972,424 bytes.
 
 That comment in `PlexSignInFragment` becomes wrong once this lands and must be
 narrowed to the screen it actually describes rather than left as a
