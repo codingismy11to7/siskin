@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.ui.fragment
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -34,6 +35,11 @@ import com.cappielloantonio.tempo.util.Preferences
 class BrowseTabOrderFragment : Fragment() {
 
     private var order: MutableList<String> = mutableListOf()
+
+    // Retained rather than left anonymous at the attachToRecyclerView call
+    // site: the adapter needs it too, to hand a touched handle's ViewHolder
+    // to startDrag.
+    private lateinit var itemTouchHelper: ItemTouchHelper
 
     companion object {
         /**
@@ -121,9 +127,15 @@ class BrowseTabOrderFragment : Fragment() {
         // ItemTouchHelper rather than hand-rolled touch handling, and
         // auto-scroll is the reason: five or six rows against roughly four
         // visible means a drag *must* scroll, so it is a certainty here rather
-        // than an edge case. Long-press to start, which is its default --
-        // a drag that began on touch-down would fight the list's own scroll.
-        ItemTouchHelper(
+        // than an edge case. Long-press to start on the row body, which is
+        // its default -- a drag that began on touch-down would fight the
+        // list's own scroll there. The handle is the one place that
+        // trade-off doesn't apply: it isn't a scroll target, so its
+        // OnTouchListener below calls startDrag on ACTION_DOWN and skips the
+        // hold. isLongPressDragEnabled stays true regardless, because the
+        // handle is a small target on a head unit and long-press-anywhere is
+        // the forgiving fallback, not a redundant path.
+        itemTouchHelper = ItemTouchHelper(
             object : ItemTouchHelper.SimpleCallback(
                 ItemTouchHelper.UP or ItemTouchHelper.DOWN,
                 0
@@ -155,7 +167,8 @@ class BrowseTabOrderFragment : Fragment() {
                 // above the line or below it.
                 override fun isItemViewSwipeEnabled(): Boolean = false
             }
-        ).attachToRecyclerView(list)
+        )
+        itemTouchHelper.attachToRecyclerView(list)
 
         // On the way out rather than per drop: one invalidation instead of one
         // per drag, and the browse UI is not foreground during the drag anyway.
@@ -196,10 +209,34 @@ class BrowseTabOrderFragment : Fragment() {
 
         override fun getItemCount(): Int = order.size
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Row = Row(
-            LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_browse_tab_order, parent, false)
-        )
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Row {
+            val row = Row(
+                LayoutInflater.from(parent.context)
+                    .inflate(R.layout.item_browse_tab_order, parent, false)
+            )
+            // Touching the handle starts the drag immediately, with no hold
+            // -- the handle is not a scroll target, so touch-down is
+            // unambiguous there the way it would not be on the row body.
+            // performClick() on release is what satisfies
+            // ClickableViewAccessibility here instead of suppressing it: the
+            // handle has no OnClickListener of its own, so this fires only
+            // the click accessibility event, but that event is what tells a
+            // screen reader a gesture completed on this view. It is reached
+            // only on a plain tap-and-release -- once startDrag() hands the
+            // gesture to ItemTouchHelper, the RecyclerView intercepts the
+            // following events and this listener sees ACTION_CANCEL instead,
+            // so it never fires mid-drag. Returning false regardless leaves
+            // the touch otherwise unconsumed, so the row's long-press
+            // fallback (enabled above) is unaffected.
+            row.handle.setOnTouchListener { view, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> itemTouchHelper.startDrag(row)
+                    MotionEvent.ACTION_UP -> view.performClick()
+                }
+                false
+            }
+            return row
+        }
 
         override fun onBindViewHolder(holder: Row, position: Int) {
             val id = order[position]

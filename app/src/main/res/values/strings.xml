@@ -34,7 +34,7 @@
     <string name="car_settings_title">Settings</string>
     <string name="car_settings_customize_tabs">Customize tabs</string>
     <string name="car_tab_order_title">Tab order</string>
-    <string name="car_tab_order_hint">Drag to reorder — the top three become tabs</string>
+    <string name="car_tab_order_hint">Drag a row by its handle — the top three become tabs</string>
     <string name="car_tab_order_drag_handle">Reorder</string>
     <string name="car_tab_order_tab_badge">Tab</string>
     <string name="car_sign_in_action">Connect</string>

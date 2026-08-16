@@ -31,7 +31,7 @@
     <string name="car_settings_title">Impostazioni</string>
     <string name="car_settings_customize_tabs">Personalizza schede</string>
     <string name="car_tab_order_title">Ordine delle schede</string>
-    <string name="car_tab_order_hint">Trascina per riordinare: le prime tre diventano schede</string>
+    <string name="car_tab_order_hint">Trascina una riga dalla maniglia: le prime tre diventano schede</string>
     <string name="car_tab_order_drag_handle">Riordina</string>
     <string name="car_tab_order_tab_badge">Scheda</string>
     <string name="car_sign_in_action">Connetti</string>

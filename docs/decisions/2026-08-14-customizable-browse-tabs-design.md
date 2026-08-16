@@ -48,6 +48,12 @@ it, where a per-row badge just re-labels in place. Rows above the line are
 the root tabs, in the order they appear; rows below live under More. The
 first row is the tab the car opens on.
 
+Each row draws a six-dot handle at its start, and it is not decorative:
+touching it starts the drag immediately, with no hold. Long-press-anywhere
+still works too, unchanged, and both paths stay -- the handle is a small
+target on a head unit, so long-press-anywhere is the forgiving fallback for
+missing it, not a redundant second way to do the same thing.
+
 Select Library is not in the list.
 
 ### The list is a RecyclerView, which is a dependency decision

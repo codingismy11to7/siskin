@@ -31,7 +31,7 @@
     <string name="car_settings_title">Paramètres</string>
     <string name="car_settings_customize_tabs">Personnaliser les onglets</string>
     <string name="car_tab_order_title">Ordre des onglets</string>
-    <string name="car_tab_order_hint">Faites glisser pour réorganiser — les trois premiers deviennent des onglets</string>
+    <string name="car_tab_order_hint">Faites glisser une ligne par sa poignée — les trois premiers deviennent des onglets</string>
     <string name="car_tab_order_drag_handle">Réorganiser</string>
     <string name="car_tab_order_tab_badge">Onglet</string>
     <string name="car_sign_in_action">Se connecter</string>

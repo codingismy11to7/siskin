@@ -31,7 +31,7 @@
     <string name="car_settings_title">Ajustes</string>
     <string name="car_settings_customize_tabs">Personalizar pestañas</string>
     <string name="car_tab_order_title">Orden de pestañas</string>
-    <string name="car_tab_order_hint">Arrastra para reordenar: las tres primeras serán pestañas</string>
+    <string name="car_tab_order_hint">Arrastra una fila por su tirador: las tres primeras serán pestañas</string>
     <string name="car_tab_order_drag_handle">Reordenar</string>
     <string name="car_tab_order_tab_badge">Pestaña</string>
     <string name="car_sign_in_action">Conectar</string>

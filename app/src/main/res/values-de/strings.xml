@@ -30,7 +30,7 @@
     <string name="car_settings_title">Einstellungen</string>
     <string name="car_settings_customize_tabs">Tabs anpassen</string>
     <string name="car_tab_order_title">Tab-Reihenfolge</string>
-    <string name="car_tab_order_hint">Zum Umsortieren ziehen — die obersten drei werden Tabs</string>
+    <string name="car_tab_order_hint">Zeile am Griff ziehen — die obersten drei werden Tabs</string>
     <string name="car_tab_order_drag_handle">Umsortieren</string>
     <string name="car_tab_order_tab_badge">Tab</string>
     <string name="car_sign_in_action">Verbinden</string>
