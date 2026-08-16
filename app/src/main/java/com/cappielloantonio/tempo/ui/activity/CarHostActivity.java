@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.ui.activity;
 import android.os.Bundle;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.fragment.app.Fragment;
@@ -49,6 +50,22 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
     public static final String EXTRA_FORCE_SIGN_IN =
             "us.codingismy11to7.siskin.extra.FORCE_SIGN_IN";
 
+    /**
+     * Test seam: when non-null, builds the PlexSignInViewModel instead of the
+     * default factory.
+     *
+     * Static because onCreate populates the ViewModelStore before any test can
+     * reach the instance, so there is no later moment at which a stub could be
+     * installed. Nothing in production ever sets it.
+     *
+     * **A test that sets this MUST null it again in @After.** Robolectric keeps
+     * statics across test methods and across classes, so a factory left behind
+     * hands the next suite a stubbed AuthClient and fails it somewhere
+     * unrelated.
+     */
+    @VisibleForTesting
+    public static ViewModelProvider.Factory viewModelFactoryForTest = null;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         // Pinned dark rather than following system night mode. A head unit is a
@@ -77,8 +94,10 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
         findViewById(R.id.back_button).setOnClickListener(
                 v -> getOnBackPressedDispatcher().onBackPressed());
 
-        PlexSignInViewModel viewModel =
-                new ViewModelProvider(this).get(PlexSignInViewModel.class);
+        PlexSignInViewModel viewModel = viewModelFactoryForTest == null
+                ? new ViewModelProvider(this).get(PlexSignInViewModel.class)
+                : new ViewModelProvider(this, viewModelFactoryForTest)
+                        .get(PlexSignInViewModel.class);
 
         // Load-bearing for config changes: a day/night uiMode flip re-creates
         // this Activity with savedInstanceState != null, and the guard is what
@@ -122,12 +141,18 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
     private void route(PlexSignInState state) {
         FragmentManager fragments = getSupportFragmentManager();
 
-        // A pushed screen owns the container, and BrowseTabOrderFragment is the
-        // one that pushes. Its state is still Connected the whole time it is up,
-        // so nothing re-routes while it is showing -- except on a uiMode flip,
-        // where onCreate runs again, this observer fires again with that same
-        // Connected, and without this guard the restored tab-order screen would
-        // be replaced by settings underneath the user.
+        // A pushed screen owns the container, and there are two pushers:
+        // BrowseTabOrderFragment, and CarDebugFragment -- which pushes the
+        // sign-in screen itself for its "Choose server" row, precisely so that
+        // back returns there rather than wherever a routed screen would land.
+        //
+        // So a routed swap is exactly what must not happen while anything is
+        // pushed, and state does change while something is: reopenServerPicker
+        // publishes into a stack this activity is deliberately keeping its
+        // hands off. The other case is a uiMode flip, where onCreate runs again
+        // and this observer fires again with whatever was already showing.
+        // Without this guard either one replaces the pushed screen underneath
+        // the user.
         if (fragments.getBackStackEntryCount() > 0) return;
 
         boolean wantSettings = state instanceof PlexSignInState.Connected;

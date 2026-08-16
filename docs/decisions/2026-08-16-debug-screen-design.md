@@ -1,0 +1,183 @@
+# The debug panel becomes a screen, and opens the server picker
+
+**Date:** 2026-08-16
+**Status:** Approved
+
+## Context
+
+The server picker — `PlexSignInState.ChoosingServer`, rendered by
+`PlexSignInFragment` — cannot be looked at without signing in. `signIn()` mints a
+PIN and blocks on `awaitApproval` before it ever publishes that state, and there
+is no path around it: `ChoosingServer` has three publishers, all private to
+`PlexSignInViewModel`, and the only intent extra read anywhere in `main` is
+`EXTRA_FORCE_SIGN_IN`. So checking that the picker still renders correctly costs
+a real PIN approval on a phone, every time.
+
+That is a testing gap rather than a missing feature. More → Select Library
+already switches server and library — `LibraryPickerRepository` serves "which
+servers the account has, which music libraries each has, and committing the
+choice" — and it stays exactly as it is. What is wanted is a way to reach
+*that particular screen*, the one the sign-in flow draws, so that a regression in
+it is visible without an authentication round trip.
+
+The natural home is the debug panel behind the version line, which
+`2026-08-14-server-address-debug-design.md` established. That panel is an
+`AlertDialog`, and an `AlertDialog` has exactly three button slots. OK and
+Re-probe hold two. Adding the route would spend the last one, and the next debug
+affordance would force a restructure anyway.
+
+That design anticipated this: *"An activity was rejected as pre-building for a
+panel that does not exist yet. When the debug panel outgrows a dialog, that is
+the moment to promote it."* This is that moment.
+
+## Decision
+
+**The debug panel becomes `CarDebugFragment`, a full screen pushed onto the back
+stack from the version line, and it carries a row that opens the real server
+picker.**
+
+### A screen, not a fourth button
+
+`CarHostActivity` already hosts three screens and gained state-driven routing in
+#119, so a fourth destination costs nothing structural: the debug screen is pushed
+with `addToBackStack` exactly the way Customize tabs pushes
+`BrowseTabOrderFragment`, and the router's existing "a pushed screen owns the
+container" guard leaves it alone, including across a uiMode flip.
+
+A dialog with a third button was the cheaper option and was rejected on two
+counts. It spends the final slot on the second-ever debug action, so the third
+one pays for the promotion regardless. And `AlertDialog`'s buttons are
+phone-sized, on a screen where every other control is deliberately 72dp because
+the taps happen at arm's length in a car — `addChoice` zeroes MaterialButton's
+insets for exactly this reason.
+
+A custom view inside the dialog would have fixed both without touching
+navigation. It was rejected as the halfway house: it accepts the cost of building
+a scrollable action list while keeping the constraint — a dialog — that made the
+list necessary.
+
+The promotion also deletes the panel's most awkward code. `showAddressPanel`
+currently replaces the neutral button's click listener *after* `show()`, because
+`AlertDialog`'s dismiss-then-run contract would tear the dialog down during a
+re-probe that can take tens of seconds. On a screen there is nothing to dismiss:
+the row disables itself and the body updates in place, and that workaround and
+its explanatory comment go away with it.
+
+### What moves, and what does not
+
+`buildAddressPanelBody` moves untouched, along with its tests. It is the one
+framework-free piece of this feature — no `Context`, no resource lookup — which
+is what lets it be asserted directly under `unitTests.returnDefaultValues`, and
+none of that changes with its address.
+
+The list stays static, reading `knownAddresses()` and probing nothing on open.
+Re-probe keeps `force = true` and keeps reporting which of three things happened,
+because a button whose success looks like nothing happening still reads as
+broken.
+
+More → Select Library is untouched. This is deliberate: the two are not
+redundant, because this route exists to exercise the sign-in flow's picker, and
+a second implementation that could regress independently would defeat that.
+
+### The picker is pushed, not routed
+
+The debug screen pushes `PlexSignInFragment` onto the back stack with
+`addToBackStack` and then calls `reopenServerPicker()`. Order does not matter:
+the push only makes the back stack deeper, and the router in #119 already
+declines to act while it is non-empty, so the router stays silent throughout and
+the fragment renders whatever state is current when it starts observing.
+
+Back then returns to the debug screen because that is what a back stack does.
+Nothing has to remember where the user came from.
+
+The spinner is free, and so is failure handling: a transport failure or an empty
+server list already map onto `SignInError.Api` and `SignInError.NoServers`, which
+reach `Failed` and the sign-in screen's existing error-and-retry rendering.
+
+`reopenServerPicker()` needs only the stored account token, which is why it works
+without a PIN at all. `PlexApi.session`'s setter deliberately leaves
+`accountToken` alone when clearing the session, so the token outlives the session
+it was gathered with.
+
+### Back belongs to the back stack, not to the state
+
+Back out of the picker and `backPressed()` cancels the attempt and publishes
+`Disconnected` — the Connect screen. That is right when the journey was signing
+in, and wrong when the picker was opened from the debug screen, where back should
+return there and leave the session alone.
+
+**Pushing the fragment is the whole answer.** The `FragmentManager` pops back to
+the debug screen without being told to, and `PlexSignInState` learns nothing
+about navigation.
+
+One thing does have to be said out loud. `PlexSignInFragment` registers an
+`OnBackPressedCallback` enabled whenever `handlesBackPress` is true, which
+includes `ChoosingServer` — so pushed, it would claim the press and abandon a
+sign-in nobody started. It therefore takes a `pushed` **fragment argument** and
+declines the press for that one state. A fragment argument is the right home for
+"how was this screen reached": it is a fact about this instance, not about the
+flow. Backing out of the *library* picker still belongs to the flow even when
+pushed, because that returns to the server picker one step up — a move inside
+this screen rather than out of it.
+
+**An earlier draft of this design put a `returnsToSettings` flag on
+`ChoosingServer` and `ChoosingLibrary` instead**, with `backPressed()` publishing
+`Connected` when set. It was implemented, reviewed and tested before being
+replaced, and the reason it was wrong is worth keeping: routing the picker meant
+the debug screen had to `popBackStackImmediate()` itself out of existence first
+— destroying the very back-stack entry that would have returned the user there —
+and then name a hardcoded destination to fill the hole. That destination could
+only ever be a state the flow already had, so it was Settings: not where anyone
+came from. It reimplemented the back stack, worse, after discarding it.
+
+Two more alternatives, both rejected before the flag was:
+
+Two distinct states, `ChoosingServer` and `ChangingServer`, would let the
+compiler force every decision. Rejected on ceremony: four exhaustive `when`
+blocks — `render`, `handlesBackPress`, `backPressed`, and the router — would each
+gain a branch, and three of the four would say "identical to the other one".
+
+A separate picker owned by the debug screen, bypassing `PlexSignInState`
+entirely, would make back trivially correct. Rejected because it would be a third
+implementation of choosing a server and could regress independently of the one
+this feature exists to watch.
+
+## Testing
+
+- **`reopenServerPicker()`**: publishes `Working`, then `ChoosingServer(servers)`;
+  `Failed` on a transport failure; `Failed` on an empty media-server list.
+  `AuthClient` is stubbed with Mockito, as `PlexSignInViewModelTest` already
+  drives this flow — no test in this repository makes a real outbound call, and
+  `plex.tv`'s base URL is a private const that cannot be redirected.
+- **Back out of the pushed picker returns to the debug screen.** The test with
+  teeth: remove `PlexSignInFragment`'s `pushed` exception and it fails, because
+  `backPressed()` claims the press, publishes `Disconnected`, and the router
+  swaps in the Connect screen instead of the pop happening.
+- **`backPressed()` from `ChoosingServer` still abandons the flow**, which is
+  unchanged behaviour and the regression most worth catching.
+- **The entry point**: the version line pushes `CarDebugFragment`, driven through
+  `CarHostActivity` as `CarSettingsFragmentTest` drives settings.
+
+The re-probe's in-place rendering is not covered: it is presentation over values
+that are already tested, which is the argument the 2026-08-14 design made for the
+dialog and which the promotion does not change.
+
+## Sequencing
+
+Depends on #119, which introduces `CarSettingsFragment`, `CarScreenViews` and the
+router this builds on. It lands after, on its own branch, rather than being
+folded into that PR — #119 is a rename and a split with no behaviour change, and
+carrying a feature would change what it is.
+
+## What this does not buy
+
+- **No new diagnostics.** The address report is the same report, on a larger
+  surface. Everything `2026-08-14-server-address-debug-design.md` lists under
+  "what this does not buy" — no history, no per-address reachability, nothing for
+  a shared server beyond what plex.tv advertises — is still true.
+- **No second way to change servers, by design.** Reaching the picker from here
+  commits exactly as the sign-in flow commits, because it *is* the sign-in flow's
+  screen. More → Select Library remains the way a user switches libraries.
+- **Nothing for a moving car.** `CarHostActivity` still carries no
+  `distractionOptimized` meta-data, so the platform blocks this screen in motion.
+  It is readable at a standstill only, which is what lets it stay dense.

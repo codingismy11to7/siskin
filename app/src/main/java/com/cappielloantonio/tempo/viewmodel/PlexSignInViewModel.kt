@@ -2,15 +2,19 @@ package com.cappielloantonio.tempo.viewmodel
 
 import android.app.Application
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.util.UnstableApi
 import arrow.core.Either
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import arrow.core.toNonEmptyListOrNull
+import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexIdentity
@@ -29,6 +33,8 @@ import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.repository.QueueRepository
+import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.CredentialGate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -63,6 +69,19 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
     private val _state = MutableLiveData<PlexSignInState>(PlexSignInState.Disconnected)
     val state: LiveData<PlexSignInState> get() = _state
+
+    /**
+     * Publishes a state directly, for tests that need to start from the middle
+     * of the flow without driving every step that leads there.
+     *
+     * Deliberately not a general setter: [state] stays read-only to production
+     * code, and every real transition still goes through the function that owns
+     * it.
+     */
+    @VisibleForTesting
+    internal fun setStateForTest(state: PlexSignInState) {
+        _state.value = state
+    }
 
     /**
      * The attempt in flight. Cancelling it abandons everything that attempt
@@ -118,6 +137,45 @@ class PlexSignInViewModel @JvmOverloads constructor(
         _state.value =
             if (CredentialGate.isSignedIn()) PlexSignInState.Connected
             else PlexSignInState.Disconnected
+    }
+
+    /**
+     * Opens the server picker from the debug screen, with no PIN.
+     *
+     * This is `signIn()` without its first half. The account token is all
+     * plex.tv needs to list an account's servers, and `PlexApi.session`'s
+     * setter deliberately leaves that token alone when clearing a session --
+     * so a signed-in app always has one, and there is nothing to approve.
+     *
+     * Publishes exactly the picker sign-in publishes, with nothing marking it
+     * as having come from elsewhere. Getting back out of it is the fragment
+     * back stack's job: the debug screen pushes the picker rather than letting
+     * the router swap to it, so back pops to the debug screen the ordinary way
+     * -- see [com.cappielloantonio.tempo.ui.fragment.CarDebugFragment]. An
+     * earlier draft carried a `returnsToSettings` flag on the state instead and
+     * hardcoded where back landed, which reimplemented the back stack badly and
+     * could only name a destination the state machine happened to have.
+     *
+     * Failures land in Failed exactly as signIn's do. That is right here for
+     * the same reason it is right there -- both errors this can raise are
+     * account-scoped rather than about one server -- even though Failed's
+     * retry re-enters the PIN flow rather than this entry point.
+     */
+    fun reopenServerPicker() {
+        attempt?.cancel()
+        _state.value = PlexSignInState.Working
+
+        attempt = viewModelScope.launch {
+            either {
+                val resources = authClient.getResources().mapLeft(SignInError::Api).bind()
+
+                val servers = ensureNotNull(
+                    AuthClient.mediaServers(resources).toNonEmptyListOrNull()
+                ) { SignInError.NoServers }
+
+                _state.value = PlexSignInState.ChoosingServer(servers)
+            }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
+        }
     }
 
     /**
@@ -202,6 +260,15 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * | [PlexSignInState.ChoosingLibrary] | [PlexSignInState.ChoosingServer], the same server list, no message |
      * | [PlexSignInState.ChoosingServer], [PlexSignInState.AwaitingApproval], [PlexSignInState.Failed], [PlexSignInState.Working] | [PlexSignInState.Disconnected] |
      * | anything [handlesBackPress] reports false for | nothing |
+     *
+     * These are the *flow's* answers, and they assume the flow is what the
+     * user is in. The debug screen reaches this picker without being in it, and
+     * back there must return to the debug screen instead -- which is why that
+     * route pushes the fragment onto the back stack and
+     * [com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment] stops
+     * claiming the press for [PlexSignInState.ChoosingServer] when it was
+     * pushed. Nothing about that reaches this function: the back stack owns
+     * that navigation, and this stays a statement about the flow.
      *
      * The library-picker case reuses the server list [PlexSignInState.ChoosingLibrary]
      * now carries rather than re-deriving it, and deliberately omits
@@ -318,7 +385,9 @@ class PlexSignInViewModel @JvmOverloads constructor(
                 // than raised through this either block, matching how
                 // chooseLibrary's own three "normally unreachable" guards
                 // build Failed directly instead of going through Arrow.
-                _state.value = servers?.let { PlexSignInState.ChoosingLibrary(sections, it) }
+                _state.value = servers?.let {
+                    PlexSignInState.ChoosingLibrary(sections, it)
+                }
                     ?: run {
                         Log.d(TAG, "chooseServer succeeded with no server list on record")
                         PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
@@ -346,6 +415,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
         }
     }
 
+    @OptIn(UnstableApi::class)
     fun chooseLibrary(section: Directory) {
         // Done is terminal, and cancelling is what makes that true of the state as
         // well as of the flow: nothing still outstanding can publish a Failed over a
@@ -389,14 +459,33 @@ class PlexSignInViewModel @JvmOverloads constructor(
         // first recovery escalates all the way to plex.tv.
         addressBook.adopt(resource, uri)
 
-        // The one write. All five values land together or not at all.
-        api.session = PlexSession(
+        val previous = api.session
+        val next = PlexSession(
             accountToken = token,
             serverUri = uri,
             musicSectionKey = SectionKey(key),
             serverToken = resource.accessToken,
             machineIdentifier = resource.clientIdentifier
         )
+
+        // Same guard LibraryPickerRepository.selectLibrary applies to its own
+        // commit -- this call site needed it too once the debug screen's
+        // "Choose server" row started reaching chooseLibrary while signed in
+        // and possibly playing, rather than only fresh off a PIN. On that
+        // journey `previous` is a live session, so a server change here can
+        // leave Room holding rating keys from the server that was just
+        // replaced and ExoPlayer's timeline still pointed at its URLs. The
+        // sign-in journey is unaffected: it always calls chooseLibrary with
+        // `previous == null`, and invalidatesQueue is false whenever the old
+        // session is null.
+        if (LibrarySelection.invalidatesQueue(previous, next)) {
+            Log.d(TAG, "server changed; discarding the saved queue")
+            QueueRepository().deleteAll()
+            BrowseTreeInvalidator.stopPlayback()
+        }
+
+        // The one write. All five values land together or not at all.
+        api.session = next
         _state.value = PlexSignInState.Done
     }
 

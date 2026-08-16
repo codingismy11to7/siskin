@@ -31,8 +31,10 @@ private const val TAG = "PlexSignInFragment"
  * and a music-library picker.
  *
  * Both pickers render even for a single candidate. [CarSettingsFragment], where
- * you land once signed in, offers no way to switch server or library afterwards,
- * so a wrong auto-pick here would mean redoing the whole PIN flow to fix.
+ * you land once signed in, can now reopen this same picker through its debug
+ * screen -- but that is still a detour through Settings, not a correction made
+ * on this screen, so showing the pick here remains cheaper than silently
+ * trusting a single candidate to stay right.
  *
  * This fragment renders every state except
  * [PlexSignInState.Connected] -- [CarHostActivity] routes that one to
@@ -42,6 +44,17 @@ class PlexSignInFragment : Fragment() {
 
     private var bind: FragmentPlexSignInBinding? = null
     private lateinit var viewModel: PlexSignInViewModel
+
+    /**
+     * True when something pushed this fragment onto the back stack rather than
+     * letting [CarHostActivity]'s router swap it in.
+     *
+     * An argument rather than anything the state carries, because it is a fact
+     * about how this screen was reached and not about the sign-in flow. It
+     * changes exactly one thing -- see [claimsBackPress].
+     */
+    private val pushed: Boolean
+        get() = arguments?.getBoolean(ARG_PUSHED) == true
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -74,7 +87,7 @@ class PlexSignInFragment : Fragment() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback)
 
         viewModel.state.observe(viewLifecycleOwner) {
-            backCallback.isEnabled = viewModel.handlesBackPress(it)
+            backCallback.isEnabled = claimsBackPress(it)
             render(it)
         }
 
@@ -84,6 +97,28 @@ class PlexSignInFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         bind = null
+    }
+
+    /**
+     * Whether this fragment's back callback takes the press, or leaves it to
+     * whatever is behind it.
+     *
+     * Normally the flow's own answer, [PlexSignInViewModel.handlesBackPress].
+     * The exception is the one state this fragment can be *pushed* into rather
+     * than routed to: opened from the debug screen, back out of the server
+     * picker means "return to the debug screen", and the fragment back stack
+     * already knows how to do that. Claiming the press instead would run
+     * [PlexSignInViewModel.backPressed], which abandons a sign-in that was
+     * never started.
+     *
+     * Only [PlexSignInState.ChoosingServer] is excepted, and only when pushed.
+     * Backing out of the *library* picker still belongs to the flow even here:
+     * it returns to the server picker one step up, which is a move inside this
+     * screen rather than out of it.
+     */
+    private fun claimsBackPress(state: PlexSignInState): Boolean {
+        if (pushed && state is PlexSignInState.ChoosingServer) return false
+        return viewModel.handlesBackPress(state)
     }
 
     @OptIn(UnstableApi::class)
@@ -274,5 +309,21 @@ class PlexSignInFragment : Fragment() {
             if (isOpenEndedList) Gravity.TOP or Gravity.CENTER_HORIZONTAL else Gravity.CENTER
         bind.root.gravity = gravity
         bind.scrollContent.gravity = gravity
+    }
+
+    companion object {
+        private const val ARG_PUSHED = "pushed"
+
+        /**
+         * This screen, pushed onto the back stack by something that expects
+         * back to return to it. [CarDebugFragment]'s "Choose server" row is the
+         * only caller.
+         *
+         * The router constructs this fragment directly instead, which is what
+         * makes the argument's absence mean "routed".
+         */
+        fun pushed(): PlexSignInFragment = PlexSignInFragment().apply {
+            arguments = Bundle().apply { putBoolean(ARG_PUSHED, true) }
+        }
     }
 }

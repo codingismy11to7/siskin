@@ -50,6 +50,12 @@ sealed interface PlexSignInState {
      * step. Null on the way *in* to the picker, and also null when the user
      * backs into it from [ChoosingLibrary]: that is the user correcting their
      * own pick, not Plex saying no to anything, so there is nothing to report.
+     *
+     * Carries nothing about where the user came from, deliberately. The debug
+     * screen reaches this picker too, and back from it has to return there
+     * rather than abandon a sign-in nobody started -- but that is the fragment
+     * back stack's job, not this type's. See
+     * [com.cappielloantonio.tempo.ui.fragment.CarDebugFragment]'s `chooseServer`.
      */
     data class ChoosingServer(
         val servers: NonEmptyList<Resource>,
