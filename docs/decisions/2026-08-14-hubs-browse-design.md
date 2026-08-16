@@ -357,6 +357,13 @@ the one place the design departs from the decade precedent rather than following
 it. `browsableChildrenAsGrid` is `false` on the Discover node and stays `false`,
 and a future artwork change must not flip it.
 
+**This governs Discover's own rows and nothing below them.** A hub's contents
+are albums and artists, which covers *do* identify, so they grid like every
+other album list — `hubToMediaItem` passes `true`. The rule below is about
+rows whose meaning is a sentence; it stops applying the moment the rows are
+records again. Reading it one level too far is a mistake this design has
+already caused once.
+
 A decade row *can* be recognised from a tile: "the eighties" is a look, and four
 covers from it carry real information. A hub row cannot. "Haven't played in 5
 months", "Most Played in April" and "More from Epitaph" are propositions, and

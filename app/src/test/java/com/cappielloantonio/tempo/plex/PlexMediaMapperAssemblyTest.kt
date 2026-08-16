@@ -6,6 +6,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaConstants
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.plex.models.Hub
 import com.cappielloantonio.tempo.plex.models.Media
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.plex.models.Part
@@ -409,6 +410,31 @@ class PlexMediaMapperAssemblyTest {
             "[artistWindowID]0", "A  -  B", R.drawable.ic_browse_artists
         )
         val extras = row.mediaMetadata.extras!!
+
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(true),
+            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+        )
+    }
+
+    @Test
+    fun hubRowSetsBrowsableChildStyleToAGridBecauseItsChildrenAreAlbumsOrArtists() {
+        // The level this is easy to get wrong at. Discover's *own* rows are a
+        // list and stay one -- a hub row's meaning is its sentence, which a
+        // tile cannot carry -- and that rule was once read one level too far,
+        // gridding nothing and listing the albums inside a hub. These children
+        // are records with covers, so they grid like every other album list.
+        // The node's own list-ness is asserted in MediaBrowserTreeTest, not
+        // here; nothing else pins this half.
+        val hub = Hub().apply {
+            title = "Recently Added in Music"
+            key = "/library/sections/7/all?type=9"
+            size = 6
+        }
+
+        val extras = PlexMediaMapper
+            .hubToMediaItem(hub, Constants.HUB_ID, "abc123-7")!!
+            .mediaMetadata.extras!!
 
         assertEquals(
             BrowseContentStyle.browsableChildStyle(true),
