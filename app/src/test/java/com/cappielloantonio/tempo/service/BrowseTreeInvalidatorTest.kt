@@ -25,7 +25,7 @@ import org.robolectric.Shadows.shadowOf
  * info row once [MediaBrowserTree.buildTree] made the root's own children
  * (the four tabs) identical signed in or out -- see the design doc's
  * Consequences section. [BrowseTreeInvalidator.invalidateTree] is what
- * CarSignInActivity's `onLoginSuccess()`/`onSignedOut()` call instead; this
+ * CarHostActivity's `onLoginSuccess()`/`onSignedOut()` call instead; this
  * pins that it actually reaches the root *and* every tab, not just the root.
  *
  * `MediaLibrarySession` is mockable (Mockito 5's default inline mock maker

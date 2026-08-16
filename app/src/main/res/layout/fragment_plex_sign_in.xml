@@ -20,14 +20,12 @@
         has no accounts, and every other AAOS music app is a streaming
         front-end. Naming the app here would only restate the launcher.
 
-        No marginStart here: activity_car_sign_in's back button overlays this
-        fragment at top|start, sized to plex_sign_in_choice_min_height, and
-        would sit under this heading in the three states that pin it to that
-        same corner (Connected, ChoosingServer, ChoosingLibrary). applyArrangement()
-        below sets marginStart programmatically for exactly those three states,
-        rather than statically here, because a static margin would also nudge
-        the other, genuinely-centred states off true centre for no reason —
-        their heading sits well clear of the button already.
+        No marginStart here, and none applied at runtime either: this heading is
+        short and centred in every state, so it never reaches the start edge
+        where activity_car_host's back button overlays this fragment. Offsetting
+        it would be the wrong fix if it ever did — see activity_car_host on why
+        the heading and the content under it have to move together or not at
+        all.
     -->
     <TextView
         android:id="@+id/tagline"
@@ -36,7 +34,7 @@
         android:text="@string/plex_sign_in_tagline"
         android:textAppearance="?attr/textAppearanceDisplaySmall" />
 
-    <!-- Names the step; render() sets it. marginStart: see tagline above. -->
+    <!-- Names the step; render() sets it. -->
     <TextView
         android:id="@+id/step_heading"
         android:layout_width="wrap_content"
@@ -187,36 +185,6 @@
                 android:textAppearance="?attr/textAppearanceTitleLarge"
                 android:textColor="?attr/colorOnPrimary"
                 android:visibility="gone" />
-
-            <!--
-                Inside the scroll area rather than pinned to the bottom of the
-                screen, where a version string conventionally goes: the Settings
-                state is an open-ended list, so contentScroll takes all the
-                remaining height and a pinned row would have nowhere left to sit.
-                Last child, so it lands under the Sign out button that render()
-                adds to choice_container. retry_button is GONE in that state and
-                collapses between them.
-
-                No string resource: the text is a version and a build number, so
-                there is no prose to translate and nothing for the other four
-                locales to carry.
-
-                tools:text is a deliberately impossible version. It exists only
-                to give the layout preview something the right shape; the tools
-                namespace is stripped at build time and never reaches the APK,
-                and render() overwrites the value from BuildConfig anyway. A real
-                version here would go stale at the next bump and read as though
-                it meant something.
-            -->
-            <TextView
-                android:id="@+id/version_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:textAppearance="?attr/textAppearanceTitleLarge"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:visibility="gone"
-                tools:text="0.0.0 (0)" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

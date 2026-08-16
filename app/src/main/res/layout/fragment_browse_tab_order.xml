@@ -2,7 +2,7 @@
 <!--
     The heading is centred and the activity's back button overlays it at
     start|top without an offset, the same arrangement fragment_plex_sign_in
-    uses and for the reason recorded in activity_car_sign_in: heading and
+    uses and for the reason recorded in activity_car_host: heading and
     content have to move together or not at all.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"

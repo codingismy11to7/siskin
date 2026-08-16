@@ -57,7 +57,7 @@ class BrowseTreeInvalidatorTabOrderTest {
         // eq(null), not any(): mockito-kotlin's any() does not match a null
         // argument (it needs anyOrNull() for that), and the real call always
         // passes null for LibraryParams here -- see BrowseTreeInvalidatorTest
-        // and CarSignInActivityTest, which verify the same call shape the
+        // and CarHostActivityTest, which verify the same call shape the
         // same way.
         verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), eq(0), eq(null))

@@ -5,32 +5,41 @@ import android.os.Bundle;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.media3.common.util.UnstableApi;
 
 import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.interfaces.LoginHost;
+import com.cappielloantonio.tempo.plex.auth.PlexSignInState;
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator;
+import com.cappielloantonio.tempo.ui.fragment.CarSettingsFragment;
 import com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment;
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel;
 
 /**
- * Sign-in screen for Android Automotive OS head units.
+ * Host for every screen the car shows outside the browse tree, and the app's
+ * only activity.
  *
- * Reachable two ways: the resolution PendingIntent attached to the browse error
- * when no usable credentials exist, and the car's settings gear
- * (APPLICATION_PREFERENCES). EXTRA_FORCE_SIGN_IN is how onCreate tells them
- * apart. Hosts PlexSignInFragment, which runs the Plex PIN flow: a QR code and
- * short code approved on a phone.
+ * Named for hosting rather than for any one of the screens it hosts, which is
+ * the whole point: it is the APPLICATION_PREFERENCES target the car's gear
+ * resolves, the target of CarSignInResolution's sign-in PendingIntent, and the
+ * host for the tab-order screen. Deliberately not CarSettingsActivity either --
+ * that would be the same mistake one screen later, since the PendingIntent path
+ * launches it specifically to sign in. EXTRA_FORCE_SIGN_IN is how onCreate tells
+ * those two entry points apart.
  *
  * Deliberately NOT marked distractionOptimized in the manifest: the pickers are
  * tap-only, but sign-in is still not something to do while driving. Without that
  * metadata the platform blocks this screen while the car is moving, which is
- * exactly the behavior we want.
+ * exactly the behavior we want -- and it is what keeps a drag gesture off a
+ * moving vehicle on the tab-order screen too, which is why any restructuring
+ * here has to preserve the absence and not just the class name.
  */
 @UnstableApi
-public class CarSignInActivity extends AppCompatActivity implements LoginHost {
+public class CarHostActivity extends AppCompatActivity implements LoginHost {
 
     /**
      * Set by CarSignInResolution's PendingIntent. Absent when the car's settings
@@ -54,7 +63,7 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         getDelegate().setLocalNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         ThemeHelper.applyActivityTheme(this);
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_car_sign_in);
+        setContentView(R.layout.activity_car_host);
 
         // Routed through the back dispatcher rather than calling finish()
         // directly: this button *is* the back button, not something that
@@ -67,6 +76,9 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         // recreation, and the button needs its listener every time.
         findViewById(R.id.back_button).setOnClickListener(
                 v -> getOnBackPressedDispatcher().onBackPressed());
+
+        PlexSignInViewModel viewModel =
+                new ViewModelProvider(this).get(PlexSignInViewModel.class);
 
         // Load-bearing for config changes: a day/night uiMode flip re-creates
         // this Activity with savedInstanceState != null, and the guard is what
@@ -86,15 +98,51 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         if (savedInstanceState == null) {
             boolean forceSignIn = getIntent() != null
                     && getIntent().getBooleanExtra(EXTRA_FORCE_SIGN_IN, false);
-            new ViewModelProvider(this)
-                    .get(PlexSignInViewModel.class)
-                    .open(forceSignIn);
-
-            getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.car_sign_in_container, new PlexSignInFragment())
-                    .commit();
+            viewModel.open(forceSignIn);
         }
+
+        // Observed after open(), not before: observe() delivers the current
+        // value immediately, so the other order would route on the ViewModel's
+        // initial Disconnected and commit a sign-in screen that open(false) is
+        // about to replace with settings -- one wasted transaction, visible as
+        // a flash of the Connect screen on every trip through the gear.
+        viewModel.getState().observe(this, this::route);
+    }
+
+    /**
+     * Which screen the state calls for.
+     *
+     * The routing lives here rather than in either fragment because neither
+     * fragment owns the other: Connected is settings and everything else is the
+     * PIN flow, and a fragment that pushed its own successor would be
+     * responsible for a screen it does not draw. That was the shape being
+     * removed -- one fragment rendering two screens -- not a shape to preserve
+     * one level up.
+     */
+    private void route(PlexSignInState state) {
+        FragmentManager fragments = getSupportFragmentManager();
+
+        // A pushed screen owns the container, and BrowseTabOrderFragment is the
+        // one that pushes. Its state is still Connected the whole time it is up,
+        // so nothing re-routes while it is showing -- except on a uiMode flip,
+        // where onCreate runs again, this observer fires again with that same
+        // Connected, and without this guard the restored tab-order screen would
+        // be replaced by settings underneath the user.
+        if (fragments.getBackStackEntryCount() > 0) return;
+
+        boolean wantSettings = state instanceof PlexSignInState.Connected;
+        Fragment current = fragments.findFragmentById(R.id.car_host_container);
+
+        // Compared by which screen is showing rather than by identity, so a
+        // recreation that restored the right fragment commits nothing: the
+        // FragmentManager has already put it back by the time this first runs.
+        if (current != null && (current instanceof CarSettingsFragment) == wantSettings) return;
+
+        fragments.beginTransaction()
+                .replace(
+                        R.id.car_host_container,
+                        wantSettings ? new CarSettingsFragment() : new PlexSignInFragment())
+                .commit();
     }
 
     @Override
@@ -121,8 +169,8 @@ public class CarSignInActivity extends AppCompatActivity implements LoginHost {
         // calling thread (see BrowseTreeInvalidator's KDoc on
         // directExecutor) and only then posts one invalidateNode() call per
         // tab. Since this callback itself runs on the main thread -- it is
-        // dispatched from a button tap, see PlexSignInFragment's Connected
-        // case -- the root's notifyChildrenChanged fires immediately, ahead
+        // dispatched from a button tap, see CarSettingsFragment's Sign out
+        // row -- the root's notifyChildrenChanged fires immediately, ahead
         // of stopPlayback()'s already-queued Runnable: the reverse of what
         // the two lines below suggest. The four tab invalidations are the
         // opposite case: they are posted after stopPlayback() was already

@@ -102,7 +102,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * (typically Connected, reached via a plain `open(false)` moments
      * earlier). Delegating straight to connect() would let its Disconnected
      * check silently swallow exactly the call this flag exists to guarantee.
-     * Today the only caller is CarSignInActivity.onCreate on a freshly
+     * Today the only caller is CarHostActivity.onCreate on a freshly
      * constructed ViewModel, where connect()'s guard would have been a no-op
      * anyway -- but nothing enforces that this stays the only caller, and a
      * future re-entry point (e.g. onNewIntent) must reach Working here even
@@ -150,12 +150,23 @@ class PlexSignInViewModel @JvmOverloads constructor(
 
     /**
      * Whether [backPressed] would act on this state rather than doing
-     * nothing. The fragment's `OnBackPressedCallback` stays enabled exactly
-     * when this is true, so [PlexSignInState.Disconnected] and
-     * [PlexSignInState.Connected] -- the states with nowhere in the flow to
-     * go back to -- fall through to the platform default (finishing the
+     * nothing. [com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment]'s
+     * `OnBackPressedCallback` stays enabled exactly when this is true, so
+     * [PlexSignInState.Disconnected] -- which has nowhere in the flow to go
+     * back to -- falls through to the platform default (finishing the
      * activity) instead of an enabled-but-inert callback swallowing the press
-     * and going nowhere. [PlexSignInState.Done] is included in that group
+     * and going nowhere.
+     *
+     * [PlexSignInState.Connected] answers false for the same reason, and is
+     * the one case where the answer is not what enables anything:
+     * [com.cappielloantonio.tempo.ui.fragment.CarSettingsFragment] is the
+     * screen that state routes to and it registers no callback at all, so back
+     * reaches the platform default there by having nothing in its way. The
+     * branch stays because this function is a statement about the states, not
+     * about one fragment's wiring -- and because a settings screen that later
+     * did want a callback should find the answer already written down.
+     *
+     * [PlexSignInState.Done] is in that group
      * too: it is a one-tick pass-through to [com.cappielloantonio.tempo.interfaces.LoginHost.onLoginSuccess]
      * (see [com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment.render]'s
      * `Done` branch), never a state a user is looking at, so "leave" is as

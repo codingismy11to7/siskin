@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Settings is an open-ended list, so the heading is pinned and only the rows
+    beneath it scroll.
+
+    Static here, where fragment_plex_sign_in has to choose that arrangement at
+    runtime: this screen has one arrangement and always wants it. It was given
+    the list shape back when it held nothing but a Sign out button, precisely so
+    that a row's arrival would cost nothing — four rows have since arrived and
+    each cost only a call.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="32dp"
+    android:paddingTop="32dp"
+    android:paddingEnd="32dp">
+
+    <!--
+        Settings takes the tagline's slot rather than sitting under it. The
+        sign-in screen leads with "Your car. Your music." because it is
+        introducing the app; this screen is where you land when you are already
+        signed in, and that tagline over "Settings" reads like a splash screen
+        someone forgot to dismiss.
+
+        No marginStart: activity_car_host's back button overlays this fragment
+        at top|start, sized to plex_sign_in_choice_min_height, and this heading
+        is short and centred, so the two do not meet. Offsetting the heading
+        alone would be wrong anyway — see activity_car_host on why the heading
+        and the content under it have to move together or not at all.
+    -->
+    <TextView
+        android:id="@+id/tagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:text="@string/car_settings_title"
+        android:textAppearance="?attr/textAppearanceDisplaySmall" />
+
+    <!--
+        requiresFadingEdge is the affordance for a list that runs past the
+        bottom: the platform fades the clipped edge, which is the only cue that
+        scrolling is possible on a screen with no scrollbar (the app theme sets
+        android:scrollbars=none). This list is the one that grows, so it is the
+        one that needs it.
+    -->
+    <ScrollView
+        android:id="@+id/content_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fadingEdgeLength="48dp"
+        android:fillViewport="true"
+        android:paddingTop="8dp"
+        android:paddingBottom="32dp"
+        android:requiresFadingEdge="vertical"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/scroll_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top|center_horizontal"
+            android:minHeight="1dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/choice_container"
+                android:layout_width="@dimen/plex_sign_in_choice_width"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!--
+                Inside the scroll area rather than pinned to the bottom of the
+                screen, where a version string conventionally goes: this list
+                takes all the remaining height, so a pinned row would have
+                nowhere left to sit. Last child, so it lands under the Sign out
+                button the fragment adds to choice_container.
+
+                No string resource: the text is a version and a build number, so
+                there is no prose to translate and nothing for the other four
+                locales to carry.
+
+                tools:text is a deliberately impossible version. It exists only
+                to give the layout preview something the right shape; the tools
+                namespace is stripped at build time and never reaches the APK,
+                and the fragment overwrites the value from BuildConfig anyway. A
+                real version here would go stale at the next bump and read as
+                though it meant something.
+            -->
+            <TextView
+                android:id="@+id/version_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:textAppearance="?attr/textAppearanceTitleLarge"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                tools:text="0.0.0 (0)" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

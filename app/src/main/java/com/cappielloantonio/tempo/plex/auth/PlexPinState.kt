@@ -57,7 +57,7 @@ sealed interface PlexPinState {
          *
          * A flat 2s for the pin's whole 15-minute life cost ~450 requests for a
          * sign-in nobody completes, and nobody completing it is a routine case:
-         * CarSignInActivity is the media session's activity, so the car can open
+         * CarHostActivity is the media session's activity, so the car can open
          * the sign-in screen by accident. The fast cadence only ever earns its
          * keep in the seconds between approving on a phone and the car noticing,
          * and that window is early -- so the tail slows down and the responsive

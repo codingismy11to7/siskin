@@ -13,7 +13,7 @@ import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
-import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
+import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -33,9 +33,16 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
 /**
- * The Settings screen is the Connected branch of PlexSignInFragment.render(),
- * reached by CarSignInActivity.onCreate calling open(forceSignIn = false) while a
- * session exists in preferences -- which is what setUp() arranges.
+ * Settings is reached by state: CarHostActivity.onCreate calls
+ * open(forceSignIn = false), a session exists in preferences -- which is what
+ * setUp() arranges -- so the ViewModel publishes Connected and the activity
+ * routes this fragment into car_host_container.
+ *
+ * Driven through the activity rather than a FragmentScenario precisely because
+ * that routing is part of what makes this screen appear at all. `setup()` is
+ * what makes it happen: the activity observes with itself as the LifecycleOwner,
+ * so nothing is delivered until STARTED and a `create()`-only controller would
+ * find an empty container.
  *
  * This is the test #72 is actually about. The complaint was not that continuous
  * play defaulted on; it was that nothing could turn it off. A default flip alone
@@ -43,7 +50,7 @@ import org.robolectric.Shadows.shadowOf
  */
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
-class PlexSignInSettingsTest {
+class CarSettingsFragmentTest {
 
     private lateinit var session: MediaLibrarySession
 
@@ -80,9 +87,9 @@ class PlexSignInSettingsTest {
     }
 
     private fun settingsScreen(): View {
-        val controller = Robolectric.buildActivity(CarSignInActivity::class.java).setup()
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
         shadowOf(Looper.getMainLooper()).idle()
-        return controller.get().findViewById(R.id.car_sign_in_container)
+        return controller.get().findViewById(R.id.car_host_container)
     }
 
     private fun switchesIn(view: View): List<MaterialSwitch> = when (view) {

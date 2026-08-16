@@ -33,7 +33,7 @@ import com.cappielloantonio.tempo.equalizer.DefaultBackend
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.repository.QueueRepository
-import com.cappielloantonio.tempo.ui.activity.CarSignInActivity
+import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
@@ -439,7 +439,7 @@ open class BaseMediaService : MediaLibraryService() {
         Log.d(TAG, "initializeMediaLibrarySession")
         val sessionActivityPendingIntent =
             TaskStackBuilder.create(this).run {
-                addNextIntent(Intent(baseContext, CarSignInActivity::class.java))
+                addNextIntent(Intent(baseContext, CarHostActivity::class.java))
                 getPendingIntent(0, FLAG_IMMUTABLE or FLAG_UPDATE_CURRENT)
             }
 

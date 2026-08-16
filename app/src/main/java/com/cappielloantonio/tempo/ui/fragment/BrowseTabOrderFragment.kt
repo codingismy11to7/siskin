@@ -26,7 +26,7 @@ import com.cappielloantonio.tempo.util.Preferences
  * Reorders the browse destinations: the first three become the car's root
  * tabs, in the order shown, and the rest become More's rows.
  *
- * Hosted by CarSignInActivity rather than an activity of its own, and that is
+ * Hosted by CarHostActivity rather than an activity of its own, and that is
  * load-bearing rather than convenient: that activity is deliberately not
  * marked distractionOptimized, so the platform blocks it while the car is
  * moving -- which is what keeps a drag gesture off a moving vehicle. See

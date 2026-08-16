@@ -83,17 +83,17 @@
              applicationId default any other activity would share.
              CarSignInResolution's PendingIntent launches this activity with
              NEW_TASK|CLEAR_TASK, and CLEAR_TASK clears whatever task shares
-             this activity's affinity. CarSignInActivity is the app's only
+             this activity's affinity. CarHostActivity is the app's only
              activity, so nothing else occupies that default task today, but
              the distinct affinity is what keeps CLEAR_TASK scoped to just
              this activity's own task rather than relying on that staying
              true. -->
         <activity
-            android:name=".ui.activity.CarSignInActivity"
+            android:name=".ui.activity.CarHostActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTop"
-            android:taskAffinity=":car_sign_in"
+            android:taskAffinity=":car_host"
             android:theme="@style/AppTheme">
 
             <!-- What the car's settings gear launches. Verified on the
