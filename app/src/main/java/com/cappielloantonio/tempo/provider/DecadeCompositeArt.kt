@@ -63,6 +63,11 @@ object DecadeCompositeArt {
      *
      * Runs inside the build lock, which is what turns N concurrent opens of one
      * missing tile into one Plex query rather than N.
+     *
+     * A 401 here deliberately does not raise the sign-in affordance: a
+     * ContentProvider has no route to MediaLibraryServiceCallback's
+     * PendingIntent, and needs none, because the browse call that produced the
+     * list being drawn would have hit the same 401 first and raised it there.
      */
     private fun fetchThumbs(api: PlexApi, session: PlexSession, decade: String): List<String> {
         val response = try {
@@ -86,7 +91,7 @@ object DecadeCompositeArt {
             null
         } ?: return emptyList()
 
-        return coverThumbs(response, CompositeGrid.COVERS)
+        return coverThumbs(response, CompositeGrid.OVER_FETCH)
     }
 
     /** @see CompositeArt.build */

@@ -26,8 +26,10 @@ private const val TAG = "CompositeArt"
  * so a caller's fetch is what gets deduplicated across concurrent opens of one
  * missing tile, not just the drawing. [DecadeCompositeArt] is the first
  * caller, and keeps only that lambda's body -- the Plex query for a decade's
- * covers -- plus the JvmStatic surface `AlbumArtContentProvider` (still Java)
- * calls.
+ * covers -- plus `cached` and `build`, the JvmStatic pair `AlbumArtContentProvider`
+ * (still Java) actually calls. `coverThumbs` is JvmStatic too, but that is so a
+ * test can drive the thumb-selection logic directly, not because the provider
+ * reaches it.
  */
 object CompositeArt {
 
@@ -200,6 +202,16 @@ object CompositeArt {
         }
     }
 
+    /**
+     * The first [want] members of [pool] that [load] can actually load.
+     *
+     * Lazy on purpose: a loader is a network round trip, so the walk stops as
+     * soon as it has enough and the spares cost nothing when nothing failed.
+     */
+    fun <T : Any> pick(pool: List<String>, want: Int, load: (String) -> T?): List<T> =
+        if (want <= 0) emptyList()
+        else pool.asSequence().mapNotNull(load).take(want).toList()
+
     /** A composite already on disk for this id and bucket, or null.
      *
      * Deliberately does no network work and touches neither Glide nor Retrofit:
@@ -255,7 +267,10 @@ object CompositeArt {
             // lock key and buildLocked's write use -- not cached(), which
             // re-reads PlexApi().session fresh and would check a different
             // server's or section's filename than the winner wrote if More ->
-            // Server Select switched libraries while this thread waited.
+            // Server Select switched libraries while this thread waited. A
+            // tile whose query yields no covers caches nothing, though, so a
+            // miss here still costs each waiter its own metadata query, just
+            // serialised behind the lock rather than run in parallel.
             file.takeIf { it.isFile } ?: buildLocked(context, api, session, file, covers)
         }
     }
@@ -275,19 +290,37 @@ object CompositeArt {
         covers: (PlexApi, PlexSession) -> List<String>
     ): File? {
         val thumbs = covers(api, session)
-        val cells = CompositeGrid.cells(thumbs.size, CompositeGrid.SIZE)
+        val token = PlexApi.serverTokenOrAccount(session.serverToken, session.accountToken)
+
+        // Candidates are requested at the edge a full grid implies, because
+        // that is what four of them will be drawn into. A pool that then fails
+        // its way down to one cell re-requests that survivor at the full edge
+        // below -- one extra Glide call, from its own disk cache, on a path
+        // that only runs after a load has already failed.
+        val candidateEdge =
+            if (thumbs.size >= CompositeGrid.COVERS) CompositeGrid.SIZE / 2 else CompositeGrid.SIZE
+
+        // Paired with the thumb that produced it, so the degraded case below
+        // knows what to re-request.
+        val loaded = pick(thumbs, CompositeGrid.COVERS) { thumb ->
+            coverFor(context, session, token, thumb, candidateEdge)?.let { thumb to it }
+        }
+
+        // Cells come from how many covers *landed*, not from how many thumbs
+        // exist. That is the difference this pool buys: two failed loads cost
+        // two candidates rather than the whole tile.
+        val cells = CompositeGrid.cells(loaded.size, CompositeGrid.SIZE)
         if (cells.isEmpty()) return null
 
-        val token = PlexApi.serverTokenOrAccount(session.serverToken, session.accountToken)
-        val cellEdge = CompositeGrid.SIZE / if (cells.size == 1) 1 else 2
-
-        val loaded = thumbs.take(cells.size).mapNotNull { thumb ->
-            val url = MediaUrlBuilder.artworkUrl(
-                session.serverUri, thumb, token, cellEdge, cellEdge
-            ) ?: return@mapNotNull null
-            loadCover(context, url, cellEdge)
+        val bitmaps = if (cells.size == 1 && candidateEdge != CompositeGrid.SIZE) {
+            val (thumb, small) = loaded.first()
+            // Not recycled if the re-request succeeds: these bitmaps come from
+            // Glide's pool and recycling one out from under it is what the draw
+            // loop's own catch exists to survive.
+            listOf(coverFor(context, session, token, thumb, CompositeGrid.SIZE) ?: small)
+        } else {
+            loaded.take(cells.size).map { it.second }
         }
-        if (loaded.size != cells.size) return null
 
         val composite = Bitmap.createBitmap(
             CompositeGrid.SIZE, CompositeGrid.SIZE, Bitmap.Config.RGB_565
@@ -307,7 +340,7 @@ object CompositeArt {
             val canvas = Canvas(composite)
             cells.forEachIndexed { index, cell ->
                 canvas.drawBitmap(
-                    loaded[index],
+                    bitmaps[index],
                     null,
                     Rect(cell.left, cell.top, cell.right, cell.bottom),
                     null
@@ -387,4 +420,15 @@ object CompositeArt {
         Log.w(TAG, "could not load a cover for the composite", e)
         null
     }
+
+    /** One cover at [edge] square, or null if there is no URL for it or it
+     * would not load. */
+    private fun coverFor(
+        context: Context,
+        session: PlexSession,
+        token: String?,
+        thumb: String,
+        edge: Int
+    ): Bitmap? = MediaUrlBuilder.artworkUrl(session.serverUri, thumb, token, edge, edge)
+        ?.let { loadCover(context, it, edge) }
 }
