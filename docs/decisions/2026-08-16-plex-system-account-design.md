@@ -158,10 +158,16 @@ from the outside.
 Behind it, a new **`PlexAccountStore`** owns every `AccountManager` call: the
 account's existence, the password, the tagged authtoken, removal, and the
 accounts-updated listener. `PlexApi` holds one and touches the framework
-nowhere. That keeps the change inside one file's internals and gives the
-existing `PlexApi` tests something to fake — they run under Robolectric today
-only because of `App.getInstance().preferences`, and this must not add a second
-reason.
+nowhere.
+
+`PlexApi.accountToken` and `PlexApi.serverToken` keep their `var` shape, with
+the setters redirected at the store — assigning a token creates or updates the
+account, assigning null removes it. That matters more than it looks: twenty-one
+test files construct a bare `PlexApi()` and seed credentials through those
+properties, and every one of them keeps compiling and passing unchanged. The
+alternative — a constructor parameter — would touch all of them plus the
+eleven `PlexApi()` sites in `app/src/main`, for no benefit the store's own
+tests do not already provide.
 
 ## The account type, and the debug suffix
 
@@ -184,17 +190,23 @@ prose that lint cannot know is untranslatable without `translatable="false"`.
 
 ## Signing in
 
-`CarSignInActivity` becomes the authenticator's add-account UI. The
-authenticator's `addAccount` returns an `Intent` to it, so the car's "Add
-account" flow and the existing browse-error `PendingIntent` arrive at the same
-screen rather than at two sign-in paths that drift apart.
+`CarHostActivity` becomes the authenticator's add-account UI. The
+authenticator's `addAccount` returns an `Intent` to it carrying
+`EXTRA_FORCE_SIGN_IN`, which is the flag that already distinguishes "the car's
+settings gear opened this" from "something needs you to sign in" — so the car's
+"Add account" flow joins the existing browse-error `PendingIntent` on a path
+that exists, rather than adding a third.
 
-Sign-in ends by creating the account instead of writing a token to preferences.
-It **removes any existing Siskin account first**, so there is exactly one, ever.
-That is what makes a constant account name safe: with the name carrying no
-identity, "same user signed in again" and "different user signed in" are
-indistinguishable, and replacing unconditionally makes the distinction
-unnecessary rather than unhandled.
+Sign-in creates the account instead of writing a token to preferences, and the
+constant account name is what keeps that simple: there is one possible account,
+so the rule "exactly one, ever" needs no enforcement beyond addressing it by
+name. Concretely, setting the account token adds the account when it is absent
+and sets its password when it is present.
+
+**It must not be implemented as remove-then-add.** Removal fires the
+accounts-updated listener described below, which clears the session — so a
+sign-in that removed the old account first would trip its own sign-out handler
+partway through and land in a state neither path intended.
 
 ## Signing out, from either direction
 
