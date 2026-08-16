@@ -19,9 +19,12 @@ class BrowseTabOrderTest {
 
     @Test
     fun `a complete saved order is returned unchanged`() {
+        // Complete means every id the build knows, Discover included -- a save
+        // missing one is the append case two tests below, not this one.
         val saved = listOf(
             Constants.DECADES_ID,
             Constants.ALBUMS_ID,
+            Constants.DISCOVER_ID,
             Constants.ARTISTS_ID,
             Constants.PLAYLIST_ID
         )
@@ -45,10 +48,10 @@ class BrowseTabOrderTest {
     }
 
     /**
-     * A destination added in a later release -- Discover is the next one.
-     * It lands at the end, so it falls into More and can never displace a
-     * tab the user chose. See the spec's "Fresh installs and upgrades will
-     * disagree about Discover".
+     * A destination added in a later release -- Discover was the first one to
+     * actually arrive this way. It lands at the end, so it falls into More and
+     * can never displace a tab the user chose. See the spec's "Fresh installs
+     * and upgrades will disagree about Discover".
      */
     @Test
     fun `a newly known id is appended rather than inserted`() {
@@ -92,7 +95,10 @@ class BrowseTabOrderTest {
             listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
             BrowseTabOrder.rootTabs(resolved)
         )
-        assertEquals(listOf(Constants.DECADES_ID), BrowseTabOrder.moreRows(resolved))
+        assertEquals(
+            listOf(Constants.DISCOVER_ID, Constants.DECADES_ID),
+            BrowseTabOrder.moreRows(resolved)
+        )
     }
 
     /**
@@ -121,9 +127,53 @@ class BrowseTabOrderTest {
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
+                Constants.DISCOVER_ID,
                 Constants.DECADES_ID
             ),
             BrowseTabOrder.DEFAULT_ORDER
         )
+    }
+
+    /**
+     * The asymmetry the spec accepts, pinned so it is not "fixed" later. A
+     * fresh install gets Discover fourth, ahead of Decades; someone who saved
+     * an order before Discover shipped gets it *last*, behind Decades. Both are
+     * this one rule, and the alternative -- inserting it at its default rank --
+     * would demote whichever tab the user had deliberately chosen third.
+     */
+    @Test
+    fun `an order saved before Discover shipped gets it last, not fourth`() {
+        val savedBeforeDiscover = listOf(
+            Constants.PLAYLIST_ID,
+            Constants.ARTISTS_ID,
+            Constants.ALBUMS_ID,
+            Constants.DECADES_ID
+        )
+
+        val resolved = BrowseTabOrder.resolve(savedBeforeDiscover)
+
+        assertEquals(Constants.DISCOVER_ID, resolved.last())
+        // The three tabs the user had are untouched, which is the whole point.
+        assertEquals(
+            listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
+            BrowseTabOrder.rootTabs(resolved)
+        )
+        assertEquals(
+            listOf(Constants.DECADES_ID, Constants.DISCOVER_ID),
+            BrowseTabOrder.moreRows(resolved)
+        )
+    }
+
+    /**
+     * Discover is an ordinary member of the pool, not a pinned row like Select
+     * Library: promoting it makes it a tab like any other destination.
+     */
+    @Test
+    fun `Discover can be promoted to a root tab`() {
+        val resolved = BrowseTabOrder.resolve(listOf(Constants.DISCOVER_ID))
+
+        assertEquals(Constants.DISCOVER_ID, resolved.first())
+        assertEquals(Constants.DISCOVER_ID, BrowseTabOrder.rootTabs(resolved).first())
+        assertEquals(false, BrowseTabOrder.moreRows(resolved).contains(Constants.DISCOVER_ID))
     }
 }

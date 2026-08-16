@@ -8,6 +8,7 @@ import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.BrowseContentStyle
+import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import org.junit.Assert.assertEquals
@@ -49,6 +50,11 @@ class MediaBrowserTreeTest {
         // would decide another's result -- and a later-running class would
         // inherit it too.
         App.getInstance().preferences.edit().remove("artists_by_initial").commit()
+        BrowseTabOrderFixture.clearSavedOrder()
+        // buildTree() above ran before that reset, so a key left by an earlier
+        // method could have decided the root it built. Rebuild against the
+        // cleared state.
+        MediaBrowserTree.buildTree()
     }
 
     @Test
@@ -365,5 +371,158 @@ class MediaBrowserTreeTest {
         // would send "%2523" back to the server.
         MediaBrowserTree.getChildren(Constants.ARTIST_LETTER_ID + "%23")
         verify(repository).getArtistLetter("%23", Constants.ARTIST_ID)
+    }
+
+    /**
+     * The saved order decides the root. Decades is promoted from More and
+     * Playlists demoted into it, which is the swap measured on the emulator --
+     * see the spec's "What was measured".
+     */
+    @Test
+    fun `a saved order decides which three ids are tabs and their order`() {
+        Preferences.setBrowseTabOrder(
+            listOf(
+                Constants.DECADES_ID,
+                Constants.ALBUMS_ID,
+                Constants.ARTISTS_ID,
+                Constants.PLAYLIST_ID
+            )
+        )
+        MediaBrowserTree.buildTree()
+
+        val children = MediaBrowserTree.getChildren(Constants.ROOT_ID)
+            .get().value!!.map { it.mediaId }
+
+        assertEquals(
+            listOf(
+                Constants.DECADES_ID,
+                Constants.ALBUMS_ID,
+                Constants.ARTISTS_ID,
+                Constants.MORE_ID
+            ),
+            children
+        )
+    }
+
+    /**
+     * The saved order here predates Discover, so resolve() appends it -- which
+     * is why Discover follows Playlists rather than leading More. That is the
+     * upgrade case the spec describes, arriving at the tree.
+     */
+    @Test
+    fun `More holds what the order left over, with Select Library pinned last`() {
+        Preferences.setBrowseTabOrder(
+            listOf(
+                Constants.DECADES_ID,
+                Constants.ALBUMS_ID,
+                Constants.ARTISTS_ID,
+                Constants.PLAYLIST_ID
+            )
+        )
+        MediaBrowserTree.buildTree()
+
+        val children = MediaBrowserTree.getChildren(Constants.MORE_ID)
+            .get().value!!.map { it.mediaId }
+
+        assertEquals(
+            listOf(Constants.PLAYLIST_ID, Constants.DISCOVER_ID, Constants.SELECT_LIBRARY_ID),
+            children
+        )
+    }
+
+    /**
+     * Discover reorders like every other destination, which is what the tab
+     * order feature had to preserve when Discover landed beside it: promoted to
+     * position 0 it is a root tab, it leaves More entirely, and it keeps the
+     * list styling its own node declares. The default case -- Discover as
+     * More's first row -- is covered by moreOffersDiscoverFirst above.
+     */
+    @Test
+    fun `Discover is reorderable like any other destination`() {
+        Preferences.setBrowseTabOrder(
+            listOf(
+                Constants.DISCOVER_ID,
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.DECADES_ID
+            )
+        )
+        MediaBrowserTree.buildTree()
+
+        val root = MediaBrowserTree.getChildren(Constants.ROOT_ID)
+            .get().value!!.map { it.mediaId }
+        assertEquals(
+            listOf(
+                Constants.DISCOVER_ID,
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.MORE_ID
+            ),
+            root
+        )
+
+        val more = MediaBrowserTree.getChildren(Constants.MORE_ID)
+            .get().value!!.map { it.mediaId }
+        assertEquals(
+            listOf(Constants.ALBUMS_ID, Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
+            more
+        )
+
+        // Promotion is free: the node carries its own presentation, so Discover
+        // is still a list at root -- see the comment on its node in buildTree().
+        val discover = MediaBrowserTree.getItem(Constants.DISCOVER_ID)!!
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(false),
+            discover.mediaMetadata.extras!!.getInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE
+            )
+        )
+    }
+
+    /**
+     * More is the fourth tab under every order, because Select Library lives
+     * inside it and is the only route to switching libraries.
+     */
+    @Test
+    fun `More is always the fourth tab and never itself reorderable`() {
+        listOf(
+            listOf(Constants.DECADES_ID, Constants.PLAYLIST_ID, Constants.ALBUMS_ID),
+            listOf(Constants.ALBUMS_ID, Constants.ARTISTS_ID, Constants.DECADES_ID),
+            emptyList()
+        ).forEach { order ->
+            Preferences.setBrowseTabOrder(order)
+            MediaBrowserTree.buildTree()
+
+            val children = MediaBrowserTree.getChildren(Constants.ROOT_ID)
+                .get().value!!.map { it.mediaId }
+
+            assertEquals("root must stay at four for $order", 4, children.size)
+            assertEquals("More must be last for $order", Constants.MORE_ID, children.last())
+        }
+    }
+
+    /**
+     * Promotion must be free: a destination carries its own presentation
+     * wherever it sits. Measured on the emulator -- Decades at root position 0
+     * rendered as a grid with its composite artwork -- and pinned here so a
+     * refactor cannot quietly tie style to position.
+     */
+    @Test
+    fun `a promoted destination keeps its own content style and media type`() {
+        Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID))
+        MediaBrowserTree.buildTree()
+
+        val decades = MediaBrowserTree.getItem(Constants.DECADES_ID)!!
+        assertEquals(
+            BrowseContentStyle.browsableChildStyle(true),
+            decades.mediaMetadata.extras!!.getInt(
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE
+            )
+        )
+        assertEquals(
+            MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+            decades.mediaMetadata.mediaType
+        )
     }
 }

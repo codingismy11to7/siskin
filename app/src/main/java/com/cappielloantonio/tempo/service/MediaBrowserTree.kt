@@ -15,6 +15,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.repository.LibraryPickerRepository
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.util.BrowseContentStyle
+import com.cappielloantonio.tempo.util.BrowseTabOrder
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.ResourceUris
@@ -105,11 +106,15 @@ object MediaBrowserTree {
     }
 
     /**
-     * The browse root is fixed at Playlists | Artists | Albums | More.
+     * The browse root is the first three ids of the user's saved order, then
+     * More -- which is always fourth and never moves, because Select Library
+     * lives inside it and is the only route to switching libraries. See
+     * docs/decisions/2026-08-14-customizable-browse-tabs-design.md.
      *
-     * Four is the maximum the car allows: it enforces a root-children limit of
-     * four and silently drops a fifth, so do not add another top-level tab here
-     * -- nest it under More instead.
+     * Four is still the maximum the car allows: it enforces a root-children
+     * limit of four and silently drops a fifth. That is why three are the
+     * user's to choose rather than four, and why a new destination joins
+     * BrowseTabOrder.DEFAULT_ORDER rather than being added to the root here.
      *
      * Grid-versus-list styling: Playlists is a list, and Artists and Albums
      * became lists when they started serving group rows -- a window's range
@@ -236,14 +241,19 @@ object MediaBrowserTree {
                 )
             )
 
-        treeNodes[Constants.MORE_ID]!!.addChild(Constants.DISCOVER_ID)
-        treeNodes[Constants.MORE_ID]!!.addChild(Constants.DECADES_ID)
+        // The root and More are both decided by one resolved list, so a
+        // destination is in exactly one of them by construction -- there is no
+        // state where a promotion left a stale copy behind under More.
+        val resolved = BrowseTabOrder.resolve(Preferences.getBrowseTabOrder())
+
+        BrowseTabOrder.moreRows(resolved).forEach { treeNodes[Constants.MORE_ID]!!.addChild(it) }
+        // Pinned last, and not part of the order: it is settings rather than
+        // music, and burying the only route to switching libraries underneath
+        // the destinations it changes would be a trap.
         treeNodes[Constants.MORE_ID]!!.addChild(Constants.SELECT_LIBRARY_ID)
 
         val root = treeNodes[Constants.ROOT_ID]!!
-        root.addChild(Constants.PLAYLIST_ID)
-        root.addChild(Constants.ARTISTS_ID)
-        root.addChild(Constants.ALBUMS_ID)
+        BrowseTabOrder.rootTabs(resolved).forEach { root.addChild(it) }
         root.addChild(Constants.MORE_ID)
     }
 
