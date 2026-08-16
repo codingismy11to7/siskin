@@ -1,0 +1,19 @@
+<!--
+    Material Symbols "drag_indicator", on the same 960 viewport as the
+    ic_browse_* icons so every icon in the app shares one grid and weight.
+
+    Six r=80 dots in two columns at x=360/600 and three rows at y=200/480/760,
+    drawn as exact arcs rather than the four-quadratic circle approximation the
+    Symbols exporter emits, the same choice ic_browse_more.xml documents.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:viewportHeight="960"
+    android:viewportWidth="960"
+    android:width="24dp">
+
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M280,200a80,80 0 1,0 160,0a80,80 0 1,0 -160,0M520,200a80,80 0 1,0 160,0a80,80 0 1,0 -160,0M280,480a80,80 0 1,0 160,0a80,80 0 1,0 -160,0M520,480a80,80 0 1,0 160,0a80,80 0 1,0 -160,0M280,760a80,80 0 1,0 160,0a80,80 0 1,0 -160,0M520,760a80,80 0 1,0 160,0a80,80 0 1,0 -160,0"/>
+
+</vector>

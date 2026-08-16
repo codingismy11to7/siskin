@@ -189,6 +189,16 @@ class PlexSignInFragment : Fragment() {
                     BrowseTreeInvalidator.invalidateNode(Constants.ARTISTS_ID, 0)
                 }
 
+                // A destination rather than a toggle, so it takes addChoice.
+                // Below the toggles and above Sign out: it is a setting, and a
+                // destructive terminal action still belongs last.
+                addChoice(getString(R.string.car_settings_customize_tabs)) {
+                    parentFragmentManager.beginTransaction()
+                        .replace(R.id.car_sign_in_container, BrowseTabOrderFragment())
+                        .addToBackStack(null)
+                        .commit()
+                }
+
                 addChoice(getString(R.string.car_settings_sign_out)) {
                     viewModel.signOut()
                     (requireActivity() as LoginHost).onSignedOut()
@@ -469,7 +479,11 @@ class PlexSignInFragment : Fragment() {
 
     /**
      * Buttons in a LinearLayout rather than a RecyclerView: there are one to five
-     * of them, and skipping the RecyclerView is what lets that dependency go.
+     * of them, and a RecyclerView would buy this screen nothing.
+     *
+     * No longer a project-wide rule about the dependency -- BrowseTabOrderFragment
+     * uses RecyclerView deliberately, for ItemTouchHelper's drag and auto-scroll.
+     * This screen simply does not need it.
      */
     private fun addChoice(label: String, onClick: () -> Unit) {
         val bind = this.bind ?: return

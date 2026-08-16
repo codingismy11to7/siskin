@@ -192,6 +192,11 @@ dependencies {
     implementation libs.androidx.room.runtime
     implementation libs.androidx.splashscreen
     implementation libs.androidx.appcompat
+    // Declared rather than leaned on transitively: Material pulls RecyclerView
+    // in, but a dependency Material could drop is not one to build a screen on.
+    // Used only by BrowseTabOrderFragment, for ItemTouchHelper's drag and its
+    // auto-scroll. See the customizable-browse-tabs design doc.
+    implementation libs.androidx.recyclerview
 
     // Android Material
     implementation libs.material
