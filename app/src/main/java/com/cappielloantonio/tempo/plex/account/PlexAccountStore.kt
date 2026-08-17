@@ -152,11 +152,19 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
         /**
          * The token type names the server, so a lookup for a different one
          * returns null on its own. That is what holds PlexSession's invariant
-         * across two stores: serverUri and musicSectionKey are in preferences
-         * while this is in the account, so there is a window between the two
-         * writes, and inside it the worst case is a request made with the
-         * account token instead of a server token -- never one carrying
-         * another server's credentials.
+         * across the *write* path: serverUri and musicSectionKey are in
+         * preferences while this is in the account, so there is a window
+         * between the two writes, and inside it a lookup can only return the
+         * current server's own token or null -- the worst case being a request
+         * made with the account token instead of a server token, which fails
+         * exactly as an absent server token already does.
+         *
+         * It does not make PlexApi.session's *getter* atomic, and nothing here
+         * does. That getter reads five values independently, so a write
+         * landing mid-read can still assemble a session from two servers --
+         * see its KDoc and the 2026-08-16 plex-system-account design. The race
+         * predates this type; storing the token here widened it from an
+         * in-memory read to two Binder round trips without changing its kind.
          */
         fun authTokenType(machineIdentifier: String?): String =
             if (machineIdentifier.isNullOrBlank()) SERVER_TOKEN_TYPE
