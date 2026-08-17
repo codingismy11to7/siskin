@@ -27,6 +27,25 @@ public class App extends Application {
         instance = this;
         context = getApplicationContext();
         preferences = context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
+        clearStaleCredentialKeys(preferences);
+    }
+
+    /**
+     * Both Plex tokens moved to the system account, and the keys they used to
+     * occupy are not read anywhere after that move. Deleting them is hygiene
+     * rather than migration: existing installs sign in again by design, and a
+     * dead account token left in a preferences file outlives the reason it was
+     * there -- including into any backup that file is ever part of.
+     *
+     * Runs on every start rather than behind a one-shot flag. It is two
+     * removes against keys that are absent after the first time, which is
+     * cheaper than a flag that has to be correct forever.
+     */
+    static void clearStaleCredentialKeys(SharedPreferences preferences) {
+        preferences.edit()
+                .remove("plex_token")
+                .remove("plex_server_token")
+                .apply();
     }
 
     /**
