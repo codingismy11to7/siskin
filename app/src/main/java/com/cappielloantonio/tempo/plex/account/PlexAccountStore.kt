@@ -3,10 +3,13 @@ package com.cappielloantonio.tempo.plex.account
 import android.accounts.Account
 import android.accounts.AccountManager
 import android.content.Context
+import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import java.util.concurrent.atomic.AtomicBoolean
+
+private const val TAG = "PlexAccountStore"
 
 /**
  * The only place in the app that talks to [AccountManager].
@@ -46,8 +49,24 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
         val existing = account
         when {
             value == null -> existing?.let { manager.removeAccountExplicitly(it) }
-            existing == null ->
-                manager.addAccountExplicitly(Account(ACCOUNT_NAME, accountType), value, null)
+            existing == null -> {
+                val added =
+                    manager.addAccountExplicitly(Account(ACCOUNT_NAME, accountType), value, null)
+                if (!added) {
+                    // A device policy disabling account management for this type, or
+                    // the restriction appearing between the sign-in screen's check and
+                    // here, leaves no account behind. The PIN flow still reports
+                    // success to the user, and the browse gate will ask them to sign
+                    // in again on the very next request -- forever, since nothing
+                    // retries this write.
+                    Log.w(
+                        TAG,
+                        "addAccountExplicitly returned false; no Plex account was " +
+                            "created, so sign-in will appear to finish but the browse " +
+                            "gate will keep asking to sign in again"
+                    )
+                }
+            }
             else -> manager.setPassword(existing, value)
         }
     }

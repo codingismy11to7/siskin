@@ -7,10 +7,17 @@ package com.cappielloantonio.tempo.plex
  * together. Held as separate nullable fields they could be read as a *mixed*
  * set -- a section key from one server beside another server's address -- which
  * would report as signed in and then ask one server for the other's section.
- * Constructing this type is all-or-nothing, and [PlexApi.session] persists it
- * the same way, so no reader can observe [serverUri], [musicSectionKey] and
- * [serverToken] out of step with one another -- those three never describe
- * *different servers*.
+ * Constructing this type is all-or-nothing, but [serverUri], [musicSectionKey]
+ * and [serverToken] no longer share a single store to be constructed *from*:
+ * the first two are written together in preferences, while [serverToken]
+ * lives in the system account, filed under a type that names the server it
+ * belongs to. What protects the invariant on the write path is that tag, not
+ * a shared store -- a lookup for a server other than the one the token was
+ * stored against yields null, the same state [serverToken] already has for a
+ * server the account owns, rather than ever handing back a token for the
+ * wrong one. [PlexApi.session]'s KDoc covers what a concurrent *read* can
+ * still do to this, which is a separate, older non-atomicity that this split
+ * did not introduce.
  *
  * That is the invariant, and it is subtly weaker than "these three never
  * change independently". [serverUri] alone does move, when ServerAddressBook

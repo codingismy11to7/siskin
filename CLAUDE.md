@@ -39,8 +39,13 @@ warning look pre-existing. Eight of the nineteen are `UseKtx` warnings: six on
 `CompositeArt`, and one on `String.toUri` in `PlexMediaMapper`. Two are
 `ExportedService` warnings on `MediaService` and `PlexAuthenticatorService` —
 the latter is exposed because the system's `AccountManagerService` binds it
-from outside the app's uid. The remaining nine are manifest-level and
-long-standing. Moving both tokens into the system account (this file's
+from outside the app's uid. Four of the remaining nine are manifest-level —
+`UnusedAttribute`, `RedundantLabel`, `ExportedContentProvider`,
+`DataExtractionRules`. The other five are not, though they are equally
+long-standing: two `StaticFieldLeak` in `App.java`, `SetTextI18n` in
+`CarSettingsFragment.kt`, `MergeRootFrame` in `activity_car_host.xml`, and
+`ObsoleteSdkInt` on `mipmap-anydpi-v26`. Moving both tokens into the system
+account (this file's
 "Credentials" section) dropped two of those `SharedPreferences.edit()` warnings
 along with the preferences themselves.
 

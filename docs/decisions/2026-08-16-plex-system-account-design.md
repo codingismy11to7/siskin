@@ -108,18 +108,38 @@ send one server's token to another. The failure is a 401, which
 spurious sign-out prompt, appearing under concurrency, with nothing in the logs
 pointing at storage.
 
-Naming the server in the token *type* removes the window instead of narrowing
-it. A lookup for the current server returns `null` when the stored token
-belongs to a different one, and `serverToken == null` already has a defined
-meaning every reader handles — "a server the account owns, which accepts the
-account token." The invariant stops depending on two writes landing together
-and becomes a property of the data, which is strictly stronger than the single
-`edit { }`: it survives someone later splitting that block.
+Naming the server in the token *type* closes the *write* window rather than
+narrowing it. A lookup for the current server returns `null` when the stored
+token belongs to a different one, and `serverToken == null` already has a
+defined meaning every reader handles — "a server the account owns, which
+accepts the account token." The invariant stops depending on two writes
+landing together and becomes a property of the data: whichever of the two
+writes lands last, a lookup for the current server can only return that
+server's own token or null, never a different server's.
 
-Worst case inside the window is one request made with the account token instead
-of a server token, which fails the same way an absent server token already
-would, and self-heals on the next read. It is never a request carrying
-credentials for a server other than the one being addressed.
+Worst case from the write side alone is one request made with the account
+token instead of a server token, which fails the same way an absent server
+token already would, and self-heals on the next read.
+
+That is the write side, and only the write side. `PlexApi.session`'s getter is
+a separate story: it makes five independent reads — accountToken, serverUri,
+musicSectionKey, serverToken (which itself re-reads machineIdentifier), and
+machineIdentifier again — and nothing makes that sequence atomic. A write
+landing in the middle of it can still hand back a session assembled from two
+servers. Concretely: a reader on an OkHttp thread evaluates `serverUri` for
+server A; `LibraryPickerRepository.selectLibrary` commits server B's address
+and section key, then writes B's server token; the reader's later
+`serverToken` read resolves against B and returns B's token. The session
+handed back pairs `serverUri` from A with `serverToken` from B — exactly the
+cross-server pairing this section exists to prevent, produced not by a
+mistagged write but by a read that was never one read. That window predates
+this change: the old getter read the same five preference keys independently
+and was no more atomic. What moved is its width — it used to span an
+in-memory map read and now spans two Binder round trips into `system_server`,
+which is wider in wall-clock terms though the same kind of race. Closing it
+would mean making the getter atomic, with a lock or the single serialized
+record "Alternatives considered" rejects above; that remains open, and fixing
+it is not part of this change.
 
 **When `machineIdentifier` is null**, the untagged type `plex.server` is used.
 Both session writes — `PlexSignInViewModel.chooseLibrary` and
@@ -168,6 +188,13 @@ properties, and every one of them keeps compiling and passing unchanged. The
 alternative — a constructor parameter — would touch all of them plus the
 eleven `PlexApi()` sites in `app/src/main`, for no benefit the store's own
 tests do not already provide.
+
+One cost of the seam: reading `accountToken` is now a Binder round trip into
+`system_server` rather than an in-memory preferences read, and
+`PlexRetrofitFactory`'s identity interceptor evaluates it on every request,
+not once per client. Judged acceptable — the interceptor runs on an OkHttp
+dispatcher thread, and it sits in front of a network call that costs tens of
+milliseconds, next to which a Binder call is noise.
 
 ## The account type, and the debug suffix
 

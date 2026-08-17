@@ -18,7 +18,8 @@ class PlexApi {
 
     /**
      * Both tokens live in the system account rather than in preferences -- see
-     * the 2026-08-16 design. Constructed per PlexApi like `preferences` above:
+     * `docs/decisions/2026-08-16-plex-system-account-design.md`. Constructed
+     * per PlexApi like `preferences` above:
      * this class is built ad hoc at eleven call sites and has no lifecycle to
      * hang a shared instance on.
      */
@@ -84,12 +85,24 @@ class PlexApi {
     /**
      * The signed-in connection, or null when there is not a complete one.
      *
-     * The three preference-backed values are still written as a unit in one
-     * `edit()`. The two tokens live in the system account, and the server
-     * token is filed under the machine identifier it belongs to, so a reader
-     * between the two writes cannot pair one server's address with another's
-     * token -- it sees no server token at all, which is a state every reader
-     * already handles.
+     * The two tokens live in the system account, and the server token is
+     * filed under the machine identifier it belongs to -- that closes the
+     * *write* window: whichever of a preferences edit and an account write
+     * lands last, a lookup for the current server can only return that
+     * server's own token or null, never a token belonging to a different one.
+     *
+     * It does not close the read window. This getter still makes five
+     * independent reads -- accountToken, serverUri, musicSectionKey,
+     * serverToken (which itself re-reads machineIdentifier), and
+     * machineIdentifier again -- and a write landing between any two of them
+     * can still hand back a session assembled from two servers, e.g. an old
+     * [serverUri] beside a [serverToken] for the server a concurrent write
+     * just switched *to*. That is not new: the pre-account-store getter read
+     * the same five preference keys independently and had the identical
+     * exposure -- only the span changed, from an in-memory map read to two
+     * Binder round trips. Narrowing it would mean making this getter atomic,
+     * which was considered and rejected; see the design doc's "Alternatives
+     * considered".
      */
     var session: PlexSession?
         get() = PlexSession.from(
@@ -103,10 +116,11 @@ class PlexApi {
             // leaving.
             val previousMachineIdentifier = machineIdentifier
 
-            // Preferences first, and machineIdentifier before the server
-            // token: the token is stored under a type derived from the
-            // machine identifier, so writing it against the *previous*
-            // server's identifier would file it where no reader will look.
+            // Preferences first. The account writes below take
+            // previousMachineIdentifier and value.machineIdentifier as
+            // explicit arguments rather than re-reading the machineIdentifier
+            // property, so nothing here depends on this edit having landed
+            // yet -- only previousMachineIdentifier, captured above, does.
             preferences.edit().apply {
                 if (value == null) {
                     remove(KEY_SERVER_URI)
