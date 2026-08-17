@@ -3,8 +3,10 @@ package com.cappielloantonio.tempo.plex.account
 import android.accounts.Account
 import android.accounts.AccountManager
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The only place in the app that talks to [AccountManager].
@@ -76,12 +78,25 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
      * it -- the car's Settings and Siskin's own Sign out are the same
      * operation reached from two places, and neither is the special case.
      *
+     * Registers at most one [AccountManager] listener per process: a call
+     * after the first is a no-op. That guard is what makes "held for the
+     * life of the process," below, actually true rather than aspirational --
+     * the only caller, `BaseMediaService.initializeMediaLibrarySession`, runs
+     * from `onCreate()`, which is once per *service instance*, and the
+     * service is recreated within a single process's lifetime (`onTaskRemoved`
+     * calling `stopSelf()` when nothing is playing, then a later restart).
+     * Without the guard, each recreation would add another listener that is,
+     * itself, never unregistered, and they would accumulate for as long as
+     * the process lived.
+     *
      * The listener is never unregistered. It is held for the life of the
      * process by design: the thing it protects against is the car's Settings
      * removing the account while Siskin is in the background, which is
      * precisely when a lifecycle-scoped listener would be gone.
      */
     fun observeRemoval(onRemoved: () -> Unit) {
+        if (!removalListenerRegistered.compareAndSet(false, true)) return
+
         var present = hasAccount()
 
         manager.addOnAccountsUpdatedListener({
@@ -95,6 +110,25 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
         const val ACCOUNT_NAME = "Plex"
 
         private const val SERVER_TOKEN_TYPE = "plex.server"
+
+        /**
+         * Guards [observeRemoval] so repeated calls -- one per service
+         * recreation, not per process -- register exactly one
+         * [AccountManager] listener. See that function's KDoc.
+         */
+        private val removalListenerRegistered = AtomicBoolean(false)
+
+        /**
+         * Test seam only: [removalListenerRegistered] is deliberately
+         * process-lifetime state, which makes it leak between test methods
+         * sharing a JVM fork the same way Robolectric's statically cached
+         * `SharedPreferences` does. Call from `@Before` so one test's
+         * [observeRemoval] call doesn't silently no-op the next test's.
+         */
+        @VisibleForTesting
+        internal fun resetRemovalListenerForTest() {
+            removalListenerRegistered.set(false)
+        }
 
         /**
          * The token type names the server, so a lookup for a different one
