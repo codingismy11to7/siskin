@@ -34,9 +34,12 @@ this repository.
 **That number is load-bearing, so move it when you move it.** It is how anyone
 tells a warning they introduced from one that was already there, and it had
 drifted — it read 27 while the tree carried 29, which is enough to make a new
-warning look pre-existing. Six of the nineteen left are `UseKtx` on
-`SharedPreferences.edit()` in `PlexApi`, plus one `Bitmap.createBitmap` call and
-one `String.toUri` conversion elsewhere; the rest are manifest-level and
+warning look pre-existing. Eight of the nineteen are `UseKtx` warnings: six on
+`SharedPreferences.edit()` in `PlexApi`, one on `Bitmap.createBitmap` in
+`CompositeArt`, and one on `String.toUri` in `PlexMediaMapper`. Two are
+`ExportedService` warnings on `MediaService` and `PlexAuthenticatorService` —
+the latter is exposed because the system's `AccountManagerService` binds it
+from outside the app's uid. The remaining nine are manifest-level and
 long-standing. Moving both tokens into the system account (this file's
 "Credentials" section) dropped two of those `SharedPreferences.edit()` warnings
 along with the preferences themselves.
