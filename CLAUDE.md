@@ -240,14 +240,32 @@ Relatedly: never `raise` across a coroutine-builder boundary (`launch`,
 
 ### Credentials — `PlexSession`
 
-Four values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`)
-describe **one** connection and are persisted as a unit or not at all. A mixed
-set — a section key from one server beside another's address — would read as
-signed-in and make the app query the wrong server. There are two session writes
-in `app/src/main` — `PlexSignInViewModel.chooseLibrary` and
-`LibraryPickerRepository.selectLibrary` — and both construct the whole session
-in one assignment. Sign-in and the More tab both talk to a *candidate* server
-without persisting anything until a library is chosen.
+Five values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`,
+`machineIdentifier`) describe **one** connection. `PlexApi.session` still reads
+and writes all five as a unit, and the two session writes in `app/src/main` —
+`PlexSignInViewModel.chooseLibrary` and `LibraryPickerRepository.selectLibrary`
+— still construct the whole session in one assignment; that outward shape is
+unchanged. Sign-in and the More tab both talk to a *candidate* server without
+persisting anything until a library is chosen. A mixed set — a section key from
+one server beside another's address — would read as signed-in and make the app
+query the wrong server, which is the invariant all of this exists to hold.
+
+The five no longer share one file. `accountToken` is the password on Siskin's
+own entry in Android's system account store — the entry that shows up as
+**Siskin** under Accounts in the car's settings — rather than a preferences
+value. `serverToken` is an authtoken on that same account, filed under a type
+that embeds the server's machine identifier (`plex.server:$machineIdentifier`,
+or the untagged `plex.server` when no identifier is known yet). A lookup for
+the *current* server's type reads back `null` when the stored token belongs to
+a different one, which is what holds the invariant across a preferences write
+and an account write landing at different times: a reader in that window sees
+no server token rather than a mismatched one, a state every reader already
+handles. `serverUri`, `musicSectionKey` and `machineIdentifier` stay in
+preferences, written together in one `edit { }` exactly as before, alongside
+every user setting. See
+`docs/decisions/2026-08-16-plex-system-account-design.md` for the full
+reasoning, including why the token type carries the machine identifier instead
+of a fifth preferences key.
 
 `serverToken` is legitimately null for a server the account owns (those accept
 the account token), so it is not required for a session to exist.

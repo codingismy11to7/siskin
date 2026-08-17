@@ -340,7 +340,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * the account itself is being disowned -- so leaving the token behind
      * would mean the next createPin()/getPin() silently carries the previous
      * account's X-Plex-Token, and CredentialGate.isSignedIn() would read
-     * false while a real credential still sat in shared_prefs.
+     * false while a real credential still sat in the system account.
      *
      * Stopping playback and invalidating the browse tree belong to the host --
      * see LoginHost.onSignedOut -- because this class has no business knowing

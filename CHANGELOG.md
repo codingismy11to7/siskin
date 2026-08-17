@@ -12,6 +12,11 @@
 
 ## [Unreleased] — Siskin
 
+- Siskin now appears under Accounts in the car's settings, and signing out
+  there signs you out of the app. The Plex tokens moved into Android's account
+  system, which is where a car expects an app's sign-in to live and what lets a
+  guest profile be told it can't add one. Existing installs sign in again once.
+
 ## [0.99.5] (2026-08-16)
 
 - Tapping the version line in Settings now opens a debug screen instead of a
