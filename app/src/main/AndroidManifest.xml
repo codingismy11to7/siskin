@@ -145,16 +145,22 @@
 
         <!--
             Exported because the system's AccountManagerService binds this from
-            outside the app's uid; unexported, the account type is registered
-            and then never reachable, which presents as "Add account" doing
-            nothing. This adds an ExportedService lint warning like the one
-            MediaService already carries — account it for in CLAUDE.md's count
-            and suppress it with a reason in #99, rather than leaving the tally
-            wrong.
+            Not exported, and measured rather than assumed: the reasoning that
+            it had to be is wrong. AccountManagerService binds this from
+            outside the app's uid, which looks like it should need exporting —
+            but it binds through the system's own privileges, so `exported`
+            never enters into it. Verified on the AAOS emulator against this
+            exact declaration: Settings › Accounts › Add account › Siskin
+            binds the service and reaches the PIN screen, with no
+            SecurityException and no bind failure in the log.
+
+            Keeping it unexported is what avoids an ExportedService warning
+            that MediaService carries only because that one genuinely must be
+            exported for AAOS to discover it.
         -->
         <service
             android:name=".plex.account.PlexAuthenticatorService"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
             </intent-filter>

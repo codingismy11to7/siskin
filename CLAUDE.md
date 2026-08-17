@@ -27,19 +27,24 @@ Single test class or method:
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
 **`lintDebug` is clean and CI runs it, so a lint error is yours.** Errors are
-fatal; warnings are not, and 19 of those remain (#99). Four dependency-freshness
+fatal; warnings are not, and 18 of those remain (#99). Four dependency-freshness
 checks are disabled — they report on other people's release schedules, not on
 this repository.
 
 **That number is load-bearing, so move it when you move it.** It is how anyone
 tells a warning they introduced from one that was already there, and it had
 drifted — it read 27 while the tree carried 29, which is enough to make a new
-warning look pre-existing. Eight of the nineteen are `UseKtx` warnings: six on
+warning look pre-existing. Eight of the eighteen are `UseKtx` warnings: six on
 `SharedPreferences.edit()` in `PlexApi`, one on `Bitmap.createBitmap` in
-`CompositeArt`, and one on `String.toUri` in `PlexMediaMapper`. Two are
-`ExportedService` warnings on `MediaService` and `PlexAuthenticatorService` —
-the latter is exposed because the system's `AccountManagerService` binds it
-from outside the app's uid. Four of the remaining nine are manifest-level —
+`CompositeArt`, and one on `String.toUri` in `PlexMediaMapper`. One is
+`ExportedService` on `MediaService`, which must be exported or AAOS cannot
+discover it. `PlexAuthenticatorService` is **not** a second one, and the reason
+is worth knowing before adding another authenticator-shaped component:
+`AccountManagerService` binds it from outside the app's uid, which looks like
+it should require exporting, but the system binds through its own privileges
+and `exported` never enters into it. Measured on the emulator — Add account
+reaches the PIN screen with the service unexported. Four of the remaining nine
+are manifest-level —
 `UnusedAttribute`, `RedundantLabel`, `ExportedContentProvider`,
 `DataExtractionRules`. The other five are not, though they are equally
 long-standing: two `StaticFieldLeak` in `App.java`, `SetTextI18n` in
