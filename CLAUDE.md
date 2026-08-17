@@ -27,16 +27,32 @@ Single test class or method:
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
 **`lintDebug` is clean and CI runs it, so a lint error is yours.** Errors are
-fatal; warnings are not, and 20 of those remain (#99). Four dependency-freshness
+fatal; warnings are not, and 18 of those remain (#99). Four dependency-freshness
 checks are disabled — they report on other people's release schedules, not on
 this repository.
 
 **That number is load-bearing, so move it when you move it.** It is how anyone
 tells a warning they introduced from one that was already there, and it had
 drifted — it read 27 while the tree carried 29, which is enough to make a new
-warning look pre-existing. Ten of the twenty left are `UseKtx` on
-`SharedPreferences.edit()` in `PlexApi` and two `Bitmap.createBitmap` calls; the
-rest are manifest-level and long-standing.
+warning look pre-existing. Eight of the eighteen are `UseKtx` warnings: six on
+`SharedPreferences.edit()` in `PlexApi`, one on `Bitmap.createBitmap` in
+`CompositeArt`, and one on `String.toUri` in `PlexMediaMapper`. One is
+`ExportedService` on `MediaService`, which must be exported or AAOS cannot
+discover it. `PlexAuthenticatorService` is **not** a second one, and the reason
+is worth knowing before adding another authenticator-shaped component:
+`AccountManagerService` binds it from outside the app's uid, which looks like
+it should require exporting, but the system binds through its own privileges
+and `exported` never enters into it. Measured on the emulator — Add account
+reaches the PIN screen with the service unexported. Four of the remaining nine
+are manifest-level —
+`UnusedAttribute`, `RedundantLabel`, `ExportedContentProvider`,
+`DataExtractionRules`. The other five are not, though they are equally
+long-standing: two `StaticFieldLeak` in `App.java`, `SetTextI18n` in
+`CarSettingsFragment.kt`, `MergeRootFrame` in `activity_car_host.xml`, and
+`ObsoleteSdkInt` on `mipmap-anydpi-v26`. Moving both tokens into the system
+account (this file's
+"Credentials" section) dropped two of those `SharedPreferences.edit()` warnings
+along with the preferences themselves.
 
 **Kotlin compiles with `-Werror`**, test sources included. Configuration-time
 Gradle warnings are outside its reach. See
@@ -237,14 +253,32 @@ Relatedly: never `raise` across a coroutine-builder boundary (`launch`,
 
 ### Credentials — `PlexSession`
 
-Four values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`)
-describe **one** connection and are persisted as a unit or not at all. A mixed
-set — a section key from one server beside another's address — would read as
-signed-in and make the app query the wrong server. There are two session writes
-in `app/src/main` — `PlexSignInViewModel.chooseLibrary` and
-`LibraryPickerRepository.selectLibrary` — and both construct the whole session
-in one assignment. Sign-in and the More tab both talk to a *candidate* server
-without persisting anything until a library is chosen.
+Five values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`,
+`machineIdentifier`) describe **one** connection. `PlexApi.session` still reads
+and writes all five as a unit, and the two session writes in `app/src/main` —
+`PlexSignInViewModel.chooseLibrary` and `LibraryPickerRepository.selectLibrary`
+— still construct the whole session in one assignment; that outward shape is
+unchanged. Sign-in and the More tab both talk to a *candidate* server without
+persisting anything until a library is chosen. A mixed set — a section key from
+one server beside another's address — would read as signed-in and make the app
+query the wrong server, which is the invariant all of this exists to hold.
+
+The five no longer share one file. `accountToken` is the password on Siskin's
+own entry in Android's system account store — the entry that shows up as
+**Siskin** under Accounts in the car's settings — rather than a preferences
+value. `serverToken` is an authtoken on that same account, filed under a type
+that embeds the server's machine identifier (`plex.server:$machineIdentifier`,
+or the untagged `plex.server` when no identifier is known yet). A lookup for
+the *current* server's type reads back `null` when the stored token belongs to
+a different one, which is what holds the invariant across a preferences write
+and an account write landing at different times: a reader in that window sees
+no server token rather than a mismatched one, a state every reader already
+handles. `serverUri`, `musicSectionKey` and `machineIdentifier` stay in
+preferences, written together in one `edit { }` exactly as before, alongside
+every user setting. See
+`docs/decisions/2026-08-16-plex-system-account-design.md` for the full
+reasoning, including why the token type carries the machine identifier instead
+of a fifth preferences key.
 
 `serverToken` is legitimately null for a server the account owns (those accept
 the account token), so it is not required for a session to exist.

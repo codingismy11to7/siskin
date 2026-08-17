@@ -56,6 +56,7 @@
     <string name="plex_sign_in_error_server_unreachable">Impossibile raggiungere quel server Plex.</string>
     <string name="plex_sign_in_instructions">Scansiona il codice QR — oppure vai su plex.tv/link e inserisci:</string>
     <string name="plex_sign_in_instructions_no_qr">Vai su plex.tv/link e inserisci:</string>
+    <string name="plex_sign_in_not_allowed">Questo profilo non può aggiungere account, quindi Siskin non può accedere a Plex qui. Passa al tuo profilo per accedere.</string>
     <string name="plex_sign_in_qr_description">Codice QR per accedere a Plex</string>
     <string name="plex_sign_in_retry">Riprova</string>
 

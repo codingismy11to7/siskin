@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.viewmodel
 
 import android.app.Application
+import android.os.UserManager
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.annotation.VisibleForTesting
@@ -14,6 +15,7 @@ import arrow.core.raise.either
 import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import arrow.core.toNonEmptyListOrNull
+import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
@@ -195,6 +197,15 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * asserts the picker state survives.
      */
     fun connect() {
+        // Asked before anything is attempted: on a guest profile the platform
+        // will refuse to add the account at the end of a successful PIN flow,
+        // and a failure that late is indistinguishable from Plex being down.
+        val users = App.getContext().getSystemService(UserManager::class.java)
+        if (users?.hasUserRestriction(UserManager.DISALLOW_MODIFY_ACCOUNTS) == true) {
+            _state.value = PlexSignInState.SignInNotAllowed
+            return
+        }
+
         if (attempt?.isActive == true) return
         if (_state.value !is PlexSignInState.Disconnected) return
         _state.value = PlexSignInState.Working
@@ -214,6 +225,11 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * back to -- falls through to the platform default (finishing the
      * activity) instead of an enabled-but-inert callback swallowing the press
      * and going nowhere.
+     *
+     * [PlexSignInState.SignInNotAllowed] answers false too: it is reached
+     * directly from [PlexSignInState.Disconnected] by [connect] before
+     * anything is attempted, so -- like Disconnected itself -- there is no
+     * in-flow step underneath it to undo.
      *
      * [PlexSignInState.Connected] answers false for the same reason, and is
      * the one case where the answer is not what enables anything:
@@ -245,6 +261,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
         is PlexSignInState.Failed -> true
 
         PlexSignInState.Disconnected,
+        PlexSignInState.SignInNotAllowed,
         PlexSignInState.Connected,
         PlexSignInState.Done -> false
     }
@@ -303,6 +320,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
             }
 
             PlexSignInState.Disconnected,
+            PlexSignInState.SignInNotAllowed,
             PlexSignInState.Connected,
             PlexSignInState.Done -> false
         }
@@ -322,7 +340,7 @@ class PlexSignInViewModel @JvmOverloads constructor(
      * the account itself is being disowned -- so leaving the token behind
      * would mean the next createPin()/getPin() silently carries the previous
      * account's X-Plex-Token, and CredentialGate.isSignedIn() would read
-     * false while a real credential still sat in shared_prefs.
+     * false while a real credential still sat in the system account.
      *
      * Stopping playback and invalidating the browse tree belong to the host --
      * see LoginHost.onSignedOut -- because this class has no business knowing

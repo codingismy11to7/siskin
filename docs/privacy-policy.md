@@ -1,6 +1,6 @@
 # Siskin Privacy Policy
 
-**Last updated:** 2 August 2026
+**Last updated:** 16 August 2026
 
 Siskin is a music player for Android Automotive OS that plays a Plex music
 library on a car's head unit.
@@ -22,13 +22,20 @@ and where it goes, is set out below.
 ## What Siskin stores on your device
 
 To stay connected to your Plex account and server between drives, Siskin keeps
-the following in its own private storage on the head unit:
+the following on the head unit:
 
 - your Plex account token
 - the address of the Plex server you chose
 - a server access token, where the server issues one
 - the identifier of the music library you selected
 - an install identifier: a random value generated the first time the app runs
+
+Your Plex account token and any server access token are held by Android's
+account system rather than in a file of Siskin's own, which is why **Siskin**
+appears under Accounts in the car's settings. Removing it there signs you out,
+exactly as signing out inside the app does. The remaining items stay in
+Siskin's private storage. Either way the data is on the head unit and no other
+app can read it.
 
 The install identifier is Siskin's own, created on the head unit and not read
 from the vehicle or the operating system. It is not your advertising ID, and it
@@ -38,8 +45,10 @@ has to stay the same — it is what makes the app show up as a single device in
 your Plex account rather than a new one after every drive.
 
 These never leave the device except to reach Plex, as described below. Signing
-in again replaces the tokens; clearing the app's data removes everything here,
-including the install identifier.
+in again replaces the tokens. Removing the Siskin account from the car's
+settings, or signing out inside the app, removes the account token and any
+server access token; clearing the app's data removes everything else listed
+here, including the install identifier.
 
 ## What Siskin transmits, and to whom
 

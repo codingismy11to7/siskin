@@ -27,6 +27,14 @@ sealed interface PlexSignInState {
     data object Disconnected : PlexSignInState
 
     /**
+     * This profile may not add accounts, so sign-in is impossible rather than
+     * merely likely to fail. A car is a shared device and an OEM can set
+     * DISALLOW_MODIFY_ACCOUNTS on a guest profile; without this state the PIN
+     * flow would run to a dead end that reads as Plex being unreachable.
+     */
+    data object SignInNotAllowed : PlexSignInState
+
+    /**
      * Creating the pin, or discovering servers or libraries. One state rather
      * than three because all three render the same spinner.
      */

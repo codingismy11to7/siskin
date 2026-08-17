@@ -80,6 +80,7 @@
     <string name="plex_sign_in_instructions">Scan the QR code — or go to plex.tv/link and enter:</string>
     <!-- Shown when the QR image could not be fetched; the code alone still works. -->
     <string name="plex_sign_in_instructions_no_qr">Go to plex.tv/link and enter:</string>
+    <string name="plex_sign_in_not_allowed">This profile can\'t add accounts, so Siskin can\'t sign in to Plex here. Switch to your own profile to sign in.</string>
     <string name="plex_sign_in_qr_description">QR code for signing in to Plex</string>
     <string name="plex_sign_in_retry">Try again</string>
 

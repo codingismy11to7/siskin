@@ -143,6 +143,32 @@
                 android:value="true" />
         </service>
 
+        <!--
+            Exported because the system's AccountManagerService binds this from
+            Not exported, and measured rather than assumed: the reasoning that
+            it had to be is wrong. AccountManagerService binds this from
+            outside the app's uid, which looks like it should need exporting —
+            but it binds through the system's own privileges, so `exported`
+            never enters into it. Verified on the AAOS emulator against this
+            exact declaration: Settings › Accounts › Add account › Siskin
+            binds the service and reaches the PIN screen, with no
+            SecurityException and no bind failure in the log.
+
+            Keeping it unexported is what avoids an ExportedService warning
+            that MediaService carries only because that one genuinely must be
+            exported for AAOS to discover it.
+        -->
+        <service
+            android:name=".plex.account.PlexAuthenticatorService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator" />
+        </service>
+
         <provider
             android:name=".provider.AlbumArtContentProvider"
             android:authorities="${applicationId}.albumart.provider"

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.util.Constants
 import org.junit.Assert.assertEquals
@@ -41,9 +42,12 @@ class RoomEntityRoundTripTest {
         context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
             .edit()
             .putString("plex_server_uri", server)
-            .putString("plex_token", accountToken)
-            .remove("plex_server_token")
             .commit()
+        // The account token lives in the system account, not preferences.
+        PlexApi().apply {
+            this.accountToken = accountToken
+            serverToken = null
+        }
     }
 
     private fun track(hearted: Boolean = true) = PlexMediaMapper.buildTrackMediaItem(

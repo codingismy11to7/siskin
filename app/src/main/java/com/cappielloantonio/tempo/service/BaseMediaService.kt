@@ -30,7 +30,9 @@ import com.cappielloantonio.tempo.equalizer.EqualizerBackend
 import com.cappielloantonio.tempo.equalizer.EqualizerManager
 import com.cappielloantonio.tempo.equalizer.ExternalBackend
 import com.cappielloantonio.tempo.equalizer.DefaultBackend
+import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.account.PlexAccountStore
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
@@ -453,6 +455,16 @@ open class BaseMediaService : MediaLibraryService() {
                 .build()
 
         BrowseTreeInvalidator.attach(mediaLibrarySession)
+
+        // The car's Settings can remove the account while this service is
+        // running, and nothing else tells us. Clearing the session here is what
+        // stops the browse tree serving a library the app can no longer fetch.
+        PlexAccountStore().observeRemoval {
+            PlexApi().session = null
+            PlexApi().accountToken = null
+            BrowseTreeInvalidator.invalidateTree()
+            BrowseTreeInvalidator.stopPlayback()
+        }
     }
 
     private fun initializeNetworkListener() {
