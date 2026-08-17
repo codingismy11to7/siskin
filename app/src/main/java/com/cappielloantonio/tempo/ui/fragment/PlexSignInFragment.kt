@@ -152,6 +152,11 @@ class PlexSignInFragment : Fragment() {
                 bind.retryButton.setText(R.string.car_sign_in_action)
             }
 
+            is PlexSignInState.SignInNotAllowed -> {
+                bind.errorText.visibility = View.VISIBLE
+                bind.errorText.setText(R.string.plex_sign_in_not_allowed)
+            }
+
             is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE
 
             is PlexSignInState.AwaitingApproval -> {
