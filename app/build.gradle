@@ -119,6 +119,11 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+        // Was android.defaults.buildfeatures.resvalues=true in gradle.properties,
+        // which AGP 9 deprecated. Not cosmetic: the resValue calls above generate
+        // plex_account_type, and with the feature off they would silently produce
+        // nothing, taking the account type down with them.
+        resValues = true
     }
 
     // See docs/decisions/2026-08-13-build-hygiene-design.md.
@@ -140,6 +145,16 @@ kotlin {
     compilerOptions {
         allWarningsAsErrors = true
     }
+}
+
+// javac's half of the same rule. -Werror on its own is inert here: without
+// -Xlint, javac collapses deprecated and unchecked use into a single "Note:
+// Recompile with -Xlint:deprecation for details" line, which is not a warning
+// and so fails nothing. The two -Xlint flags are what give -Werror anything to
+// catch — which is why #69 had to inject them through an init script just to
+// read the detail.
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-Xlint:deprecation' << '-Xlint:unchecked' << '-Werror'
 }
 
 // A tag now publishes straight to internal testing, with the "what's new" text
@@ -220,6 +235,8 @@ dependencies {
     implementation libs.media3.common
     implementation libs.media3.exoplayer
     implementation libs.media3.exoplayer.hls
+    // MetadataRetriever moved here from media3-exoplayer, where it is deprecated.
+    implementation libs.media3.inspector
 
     // Room Compiler
     annotationProcessor libs.androidx.room.compiler

@@ -54,9 +54,26 @@ account (this file's
 "Credentials" section) dropped two of those `SharedPreferences.edit()` warnings
 along with the preferences themselves.
 
-**Kotlin compiles with `-Werror`**, test sources included. Configuration-time
-Gradle warnings are outside its reach. See
-`docs/decisions/2026-08-13-build-hygiene-design.md`.
+**Both compilers treat warnings as errors**, test sources included — Kotlin via
+`allWarningsAsErrors`, javac via `-Werror`. The javac half carries
+`-Xlint:deprecation -Xlint:unchecked` with it and that pairing is the load-bearing
+part: on its own `-Werror` catches nothing, because javac reports deprecated and
+unchecked use as a single `Note: Recompile with -Xlint:deprecation for details`
+rather than as warnings. A deprecation that only shows up as that note is one
+nobody is forced to read, which is the thing this exists to prevent.
+
+Configuration-time Gradle warnings are outside the reach of both, so the
+deprecated `android.*` options in `gradle.properties` stay warnings no matter
+what. Two remain and both are deliberate: `android.newDsl=false` is what
+pre-defuses the AGP 9 incompatibility in the Gradle Play Publisher plugin, so
+removing it breaks `publishBundle`, and `android.aapt2FromMavenOverride` is
+flagged experimental but is what stops AGP downloading an aapt2 that cannot run
+on NixOS. See `docs/decisions/2026-08-13-build-hygiene-design.md`.
+
+`resValues` is now declared in `buildFeatures` rather than defaulted on by
+`android.defaults.buildfeatures.resvalues`. It is not cosmetic — `resValue`
+generates `plex_account_type`, and with the feature off it would silently
+generate nothing and take the system account type with it.
 
 **`MissingTranslation` is not in that baseline, and a new one is a real defect.**
 Siskin ships five locales — English, German, Spanish, French, Italian — and all

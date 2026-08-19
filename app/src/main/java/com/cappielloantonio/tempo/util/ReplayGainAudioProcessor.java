@@ -111,7 +111,7 @@ public final class ReplayGainAudioProcessor extends BaseAudioProcessor {
     }
 
     @Override
-    protected void onFlush() {
+    protected void onFlush(AudioProcessor.StreamMetadata streamMetadata) {
         if (hasPendingFlushGain && hasProcessedAnyInput
                 && endOfStreamPending && configAfterEos) {
             activeGainLinear = pendingFlushGainLinear;
