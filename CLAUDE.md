@@ -54,8 +54,18 @@ account (this file's
 "Credentials" section) dropped two of those `SharedPreferences.edit()` warnings
 along with the preferences themselves.
 
-**Both compilers treat warnings as errors**, test sources included — Kotlin via
-`allWarningsAsErrors`, javac via `-Werror`. The javac half carries
+**Both compilers treat warnings as errors, across main *and* test sources** —
+Kotlin via `allWarningsAsErrors`, javac via `-Werror`. The `kotlin { }` block
+that sets it is at the top level of `app/build.gradle` for that reason; the same
+block written inside `android { }` would cover main and silently miss test.
+Verified by probe in both source sets, not assumed.
+
+Kotlin's half is narrower than "any code smell", which is worth knowing before
+trusting it: the K2 *command-line* compiler does not emit `UNUSED_VARIABLE`, so
+an unused local compiles clean here and lights up only in the IDE. Deprecation
+warnings do fire, which is the case that matters.
+
+The javac half carries
 `-Xlint:deprecation -Xlint:unchecked` with it and that pairing is the load-bearing
 part: on its own `-Werror` catches nothing, because javac reports deprecated and
 unchecked use as a single `Note: Recompile with -Xlint:deprecation for details`
