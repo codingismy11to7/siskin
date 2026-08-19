@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.request.FutureTarget;
 import com.cappielloantonio.tempo.BuildConfig;
 import com.cappielloantonio.tempo.plex.PlexApi;
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder;
@@ -217,7 +218,24 @@ public class AlbumArtContentProvider extends ContentProvider {
             if (Preferences.isDataSavingMode()) {
                 fileRequest = fileRequest.onlyRetrieveFromCache(true);
             }
-            return fileRequest.submit().get();
+            FutureTarget<File> target = fileRequest.submit();
+            try {
+                return target.get();
+            } finally {
+                // The same leak CompositeArt fixes, and the reason both are
+                // fixed together: an uncleared target stays registered with the
+                // application-scoped RequestManager and keeps its resource with
+                // it. This one has been here since long before the Plex work.
+                //
+                // It can clear before the bytes are read, where the composite
+                // path cannot. A File target's resource is a SimpleResource,
+                // whose recycle() is empty, so clearing drops the registration
+                // and leaves the disk-cache file where it is for pipeFrom to
+                // copy. A Bitmap resource recycles into Glide's pool instead,
+                // which is why the same mistake has two differently-shaped
+                // repairs rather than one.
+                Glide.with(context).clear(target);
+            }
         });
     }
 
