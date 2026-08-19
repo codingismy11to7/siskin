@@ -215,6 +215,10 @@
           # through gh, so it belongs in the shell rather than being reached for
           # ad hoc via `nix run`.
           pkgs.gh
+          # The editor lints and formats Kotlin with ktlint on every write, so it
+          # has to be on PATH before nvim starts rather than reached for ad hoc —
+          # and from flake.lock, so its version is pinned like everything else.
+          pkgs.ktlint
         ];
 
         JAVA_HOME = "${jdk.home}";

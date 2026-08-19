@@ -78,8 +78,9 @@ claim 88 languages.
 
 ## Toolchain
 
-`flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, and `gh`
-— `nix develop`, or direnv via `.envrc`. Two helper scripts come from the shell:
+`flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, `gh` and
+`ktlint` — `nix develop`, or direnv via `.envrc`. Two helper scripts come from
+the shell:
 
     siskin-avd                    # create the AAOS AVD (idempotent)
     siskin-emulator               # boot it
