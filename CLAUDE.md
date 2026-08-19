@@ -58,7 +58,17 @@ along with the preferences themselves.
 Kotlin via `allWarningsAsErrors`, javac via `-Werror`. The `kotlin { }` block
 that sets it is at the top level of `app/build.gradle` for that reason; the same
 block written inside `android { }` would cover main and silently miss test.
-Verified by probe in both source sets, not assumed.
+javac's is a `tasks.withType(JavaCompile).configureEach`, which is why it reaches
+the release variant as well.
+
+**All five compilations were verified by probe rather than assumed** — a
+deprecated call planted in each, confirmed to fail the build, then removed:
+`compileDebugKotlin`, `compileDebugUnitTestKotlin`, `compileDebugJavaWithJavac`,
+`compileReleaseJavaWithJavac`, `compileDebugUnitTestJavaWithJavac`. The last has
+no sources today, so nothing else would have told you whether the flags were
+waiting there; they are. A javac probe needs the deprecated declaration and its
+caller in **different** classes, because javac exempts uses inside the same
+outermost class and a single-file probe passes while proving nothing.
 
 Kotlin's half is narrower than "any code smell", which is worth knowing before
 trusting it: the K2 *command-line* compiler does not emit `UNUSED_VARIABLE`, so
