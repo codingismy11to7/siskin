@@ -219,6 +219,12 @@
           # has to be on PATH before nvim starts rather than reached for ad hoc —
           # and from flake.lock, so its version is pinned like everything else.
           pkgs.ktlint
+          # lspconfig finds these on PATH the same way, and neither existed
+          # anywhere, so Kotlin and Java opened with no semantic analysis.
+          pkgs.kotlin-language-server
+          # jdtls will not start until the Neovim config stops appending a
+          # -javaagent for a Lombok jar that is not there -- see #134.
+          pkgs.jdt-language-server
         ];
 
         JAVA_HOME = "${jdk.home}";
