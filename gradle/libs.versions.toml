@@ -1,7 +1,7 @@
 [versions]
 agp = "9.2.1"
 kotlin = "2.4.10"
-play-publisher = "4.0.0"
+play-publisher = "4.1.1"
 
 # Keep equal to flake.nix's pkgs.ktlint -- the editor lints from the dev shell
 # and the build lints from here, and two ktlints that disagree about the same
