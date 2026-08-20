@@ -1,0 +1,5 @@
+# Reformatting-only revisions. Blame re-attributes rather than skips, so
+# anything added here must contain nothing but reformatting.
+
+# ktlintFormat over the tree (#126)
+daaf3a35bbf7a37e69ea4bf924c4a261ed051f62
