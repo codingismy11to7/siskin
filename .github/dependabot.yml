@@ -1,0 +1,28 @@
+# Turning Dependabot on *is* this file; the repository setting only opens an
+# editor on it. The four dependency-freshness checks disabled in
+# app/build.gradle stay disabled -- this replaces them, reporting at the
+# upstream release rather than at every local build. See #131.
+version: 2
+updates:
+  # "/" reaches gradle/libs.versions.toml, and settings.gradle's `include
+  # ':app'` carries app/build.gradle with the four test coordinates that are
+  # written out longhand there. It also bumps the Gradle wrapper, rewriting
+  # distributionUrl and distributionSha256Sum together.
+  #
+  # Out of reach, so expect nothing of it: flake.nix, which has no Nix
+  # ecosystem, and libs/lib-decoder-ffmpeg-release.aar, a checked-in file
+  # rather than a coordinate.
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Ungrouped deliberately, and the first media3 release will look like a
+    # misconfiguration because of it: five artifacts share one version ref, so
+    # five PRs open that all rewrite the same line. Merging any one of them
+    # closes the others.
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
