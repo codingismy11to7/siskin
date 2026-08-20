@@ -106,11 +106,27 @@ Play credentials. If GPP resolves the artifact through a removed API at upload
 time, the first sign is a failed release rather than a failed build, so watch
 the next cut.
 
-The one remaining configuration warning is `android.aapt2FromMavenOverride`,
+`android.dependency.useConstraints=true` is gone as well, and it is worth
+knowing why, because the warning it caused named a *different* property.
+AGP nagged four times a build that
+`android.dependency.excludeLibraryComponentsFromConstraints` "should be enabled
+to improve performance" — advice for very large projects, which this is not. The
+suppression flag AGP suggests is
+`android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false`, and its name
+is the tell: the nag exists *because* library constraints were enabled, so
+removing the opt-in silences it at the source rather than muting the symptom.
+Safe here because resolution does not depend on it — `releaseRuntimeClasspath`
+and `debugRuntimeClasspath` are identical line for line, all 519 of each, with
+and without it. Do not "fix" this by adding the suppression flag or by enabling
+the property AGP asks for; neither is needed.
+
+**The one remaining configuration warning is `android.aapt2FromMavenOverride`**,
 which is **experimental rather than deprecated** and is not in
 `gradle.properties` at all — it comes from `GRADLE_OPTS` in `flake.nix`, and
 without it AGP downloads an aapt2 that cannot run on NixOS. That one warns
-forever and should. See `docs/decisions/2026-08-13-build-hygiene-design.md`.
+forever and should, which makes it the whole expected output of a configuration
+phase: anything else appearing there is new and is yours. See
+`docs/decisions/2026-08-13-build-hygiene-design.md`.
 
 `resValues` is now declared in `buildFeatures` rather than defaulted on by
 `android.defaults.buildfeatures.resvalues`. It is not cosmetic — `resValue`
