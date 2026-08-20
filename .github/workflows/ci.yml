@@ -44,21 +44,6 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug
 
-      # Errors only -- see the lint block in app/build.gradle for why the
-      # warnings are not fatal and why the four dependency-freshness checks are
-      # off. The baseline this replaces was 9 errors that nothing ran, which is
-      # the same failure mode as the warnings: a check nobody executes is not a
-      # check.
-      - name: Lint
-        run: ./gradlew lintDebug
-
-      - name: Upload lint report
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: lint-report
-          path: app/build/reports/lint-results-debug.html
-
       # room.schemaLocation writes the exported schema into the *source* tree,
       # so the builds above regenerate app/schemas in the runner's workspace and
       # nothing compares it against what is committed. Changing an entity
@@ -91,3 +76,53 @@ jobs:
         with:
           name: unit-test-report
           path: app/build/reports/tests/testDebugUnitTest/
+
+  # Its own job so the one above is what its name says, and so a style error
+  # reports in about a minute rather than behind four minutes of tests and a
+  # build it does not need. It compiles the sources again rather than inheriting
+  # them -- Android lint needs them, and that is the price of the split.
+  lint:
+    name: Lint and Kotlin style
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Cache Gradle and wrapper
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', 'gradle.properties', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # `lint` rather than `lintDebug`: it is AGP's umbrella over lintDebug, and
+      # app/build.gradle hangs ktlintCheck off it, so this one word covers both
+      # halves -- Android lint's correctness checks and ktlint's style ones.
+      # lintDebug sits underneath and would run Android lint alone.
+      #
+      # Errors only -- see the lint block in app/build.gradle for why the
+      # warnings are not fatal and why the four dependency-freshness checks are
+      # off. The baseline this replaces was 9 errors that nothing ran, which is
+      # the same failure mode as the warnings: a check nobody executes is not a
+      # check.
+      - name: Lint and Kotlin style
+        run: ./gradlew lint
+
+      - name: Upload lint reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lint-reports
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/ktlint/
