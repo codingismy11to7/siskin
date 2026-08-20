@@ -24,7 +24,6 @@ import com.cappielloantonio.tempo.plex.PlexApi
  * -- isSignedIn is not the check that would ever need to tell the difference.
  */
 object CredentialGate {
-
     @JvmStatic
     fun isSignedIn(): Boolean = PlexApi().session != null
 }

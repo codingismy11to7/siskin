@@ -30,7 +30,6 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class RoomEntityRoundTripTest {
-
     private val server = "https://plex.example"
     private val token = "tok123"
 
@@ -39,7 +38,8 @@ class RoomEntityRoundTripTest {
 
     private fun writeCredentials(accountToken: String) {
         val context = App.getContext()
-        context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
+        context
+            .getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
             .edit()
             .putString("plex_server_uri", server)
             .commit()
@@ -50,22 +50,23 @@ class RoomEntityRoundTripTest {
         }
     }
 
-    private fun track(hearted: Boolean = true) = PlexMediaMapper.buildTrackMediaItem(
-        ratingKey = "1234",
-        title = "Song Title",
-        albumTitle = "Album Title",
-        artist = "Artist Name",
-        thumb = "/library/metadata/1234/thumb/1699999999",
-        partKey = "/library/parts/9/file.flac",
-        durationMs = 250_000L,
-        trackIndex = 3,
-        year = 2021,
-        grandparentRatingKey = "77",
-        isHearted = hearted,
-        parentId = Constants.QUEUE_CACHED_SOURCE,
-        serverUri = server,
-        token = token
-    )
+    private fun track(hearted: Boolean = true) =
+        PlexMediaMapper.buildTrackMediaItem(
+            ratingKey = "1234",
+            title = "Song Title",
+            albumTitle = "Album Title",
+            artist = "Artist Name",
+            thumb = "/library/metadata/1234/thumb/1699999999",
+            partKey = "/library/parts/9/file.flac",
+            durationMs = 250_000L,
+            trackIndex = 3,
+            year = 2021,
+            grandparentRatingKey = "77",
+            isHearted = hearted,
+            parentId = Constants.QUEUE_CACHED_SOURCE,
+            serverUri = server,
+            token = token,
+        )
 
     private fun assertRestoresEverythingTheCarShows(restored: MediaItem) {
         assertEquals("1234", restored.mediaId)
@@ -78,7 +79,7 @@ class RoomEntityRoundTripTest {
         assertEquals(HeartRating(true), restored.mediaMetadata.userRating)
         assertEquals(
             "/library/metadata/1234/thumb/1699999999",
-            restored.mediaMetadata.artworkUri!!.lastPathSegment
+            restored.mediaMetadata.artworkUri!!.lastPathSegment,
         )
 
         val extras = restored.mediaMetadata.extras!!
@@ -131,7 +132,12 @@ class RoomEntityRoundTripTest {
         val row = Queue.fromMediaItem(track())!!
         writeCredentials("rotated-token")
 
-        val uri = row.toMediaItem().localConfiguration!!.uri.toString()
+        val uri =
+            row
+                .toMediaItem()
+                .localConfiguration!!
+                .uri
+                .toString()
 
         assertTrue(uri, uri.contains("X-Plex-Token=rotated-token"))
         assertTrue(uri, !uri.contains(token))

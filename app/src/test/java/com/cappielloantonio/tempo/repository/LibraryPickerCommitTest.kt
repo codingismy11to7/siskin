@@ -38,7 +38,6 @@ import org.robolectric.Shadows.shadowOf
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class LibraryPickerCommitTest {
-
     private val api = PlexApi()
     private lateinit var player: Player
 
@@ -76,7 +75,10 @@ class LibraryPickerCommitTest {
         BrowseTreeInvalidator.detach()
     }
 
-    private fun resource(id: String, accessToken: String? = null) = Resource().apply {
+    private fun resource(
+        id: String,
+        accessToken: String? = null,
+    ) = Resource().apply {
         name = "Basement"
         clientIdentifier = id
         this.accessToken = accessToken
@@ -86,34 +88,48 @@ class LibraryPickerCommitTest {
         connections = listOf(Connection().apply { uri = "https://$id.example:32400" })
     }
 
-    private fun track(ratingKey: String) = PlexMediaMapper.buildTrackMediaItem(
-        ratingKey = ratingKey,
-        title = "Track $ratingKey",
-        albumTitle = null,
-        artist = null,
-        thumb = null,
-        partKey = "/library/parts/$ratingKey/file.flac",
-        durationMs = null,
-        trackIndex = null,
-        year = null,
-        grandparentRatingKey = null,
-        isHearted = false,
-        parentId = null,
-        serverUri = "http://pms:32400",
-        token = "tok"
-    )
+    private fun track(ratingKey: String) =
+        PlexMediaMapper.buildTrackMediaItem(
+            ratingKey = ratingKey,
+            title = "Track $ratingKey",
+            albumTitle = null,
+            artist = null,
+            thumb = null,
+            partKey = "/library/parts/$ratingKey/file.flac",
+            durationMs = null,
+            trackIndex = null,
+            year = null,
+            grandparentRatingKey = null,
+            isHearted = false,
+            parentId = null,
+            serverUri = "http://pms:32400",
+            token = "tok",
+        )
 
     private fun queueIds(): List<String?> {
         var ids: List<String?> = emptyList()
         // Off the test thread: AppDatabase is not built with
         // allowMainThreadQueries() and Robolectric runs the test method on the
         // "main" thread (see SessionMediaItemRepositoryTest for the same pattern).
-        Thread { ids = AppDatabase.getInstance().queueDao().getAllSimple().map { it.id } }
-            .apply { start(); join() }
+        Thread {
+            ids =
+                AppDatabase
+                    .getInstance()
+                    .queueDao()
+                    .getAllSimple()
+                    .map { it.id }
+        }.apply {
+            start()
+            join()
+        }
         return ids
     }
 
-    private fun pollUntilQueueContains(id: String, timeoutMs: Long = 3000, intervalMs: Long = 10) {
+    private fun pollUntilQueueContains(
+        id: String,
+        timeoutMs: Long = 3000,
+        intervalMs: Long = 10,
+    ) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             if (queueIds().contains(id)) return
@@ -163,7 +179,7 @@ class LibraryPickerCommitTest {
             uri = "http://newserver:32400",
             resource = resource(id = "xyz999", accessToken = "srv-tok"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
 
         val result = repo.selectLibrary("xyz999|7").get()
@@ -191,7 +207,7 @@ class LibraryPickerCommitTest {
             uri = "http://newserver:32400",
             resource = resource(id = "xyz999", accessToken = "srv-tok"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
 
         repo.selectLibrary("xyz999|7").get()
@@ -200,7 +216,7 @@ class LibraryPickerCommitTest {
         assertNotNull("selectLibrary must record the address list", stored)
         assertTrue(
             "the addresses the resource advertises must be stored",
-            stored!!.direct.isNotEmpty()
+            stored!!.direct.isNotEmpty(),
         )
     }
 
@@ -213,7 +229,7 @@ class LibraryPickerCommitTest {
             uri = "http://pms:32400",
             resource = resource(id = "abc123"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
         repo.selectLibrary("abc123|7").get()
 
@@ -229,7 +245,7 @@ class LibraryPickerCommitTest {
             uri = "http://otherserver:32400",
             resource = resource(id = "xyz999"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
         repo.selectLibrary("xyz999|7").get()
 
@@ -243,7 +259,7 @@ class LibraryPickerCommitTest {
             uri = "http://otherserver:32400",
             resource = resource(id = "xyz999"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
         repo.selectLibrary("xyz999|7").get()
 
@@ -265,7 +281,7 @@ class LibraryPickerCommitTest {
             uri = "http://pms:32400",
             resource = resource(id = "abc123"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
         repo.selectLibrary("abc123|7").get()
         shadowOf(Looper.getMainLooper()).idle()
@@ -283,13 +299,13 @@ class LibraryPickerCommitTest {
             uri = "http://first:32400",
             resource = resource(id = "aaa111", accessToken = "a-tok"),
             sectionKey = "1",
-            libraryName = "A Music"
+            libraryName = "A Music",
         )
         repo.primeCandidateForTest(
             uri = "http://second:32400",
             resource = resource(id = "bbb222", accessToken = "b-tok"),
             sectionKey = "2",
-            libraryName = "B Music"
+            libraryName = "B Music",
         )
 
         // The car caches a browse list and does not re-fetch it on the way back,
@@ -312,7 +328,7 @@ class LibraryPickerCommitTest {
             uri = "http://otherserver:32400",
             resource = resource(id = "xyz999"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
         val before = api.session
 
@@ -330,7 +346,7 @@ class LibraryPickerCommitTest {
             uri = "http://pms:32400",
             resource = resource(id = "abc123"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
         val before = api.session
 
@@ -349,7 +365,7 @@ class LibraryPickerCommitTest {
             uri = "http://newserver:32400",
             resource = resource(id = "xyz999", accessToken = "srv-tok"),
             sectionKey = "7",
-            libraryName = "Soundtrack"
+            libraryName = "Soundtrack",
         )
 
         val result = repo.selectLibrary("xyz999|7").get()
@@ -383,7 +399,7 @@ class LibraryPickerCommitTest {
         val row = requireNotNull(result.value).single()
         assertEquals(
             App.getContext().getString(R.string.browse_library_picker_offline),
-            row.mediaMetadata.title?.toString()
+            row.mediaMetadata.title?.toString(),
         )
         assertEquals(true, row.mediaMetadata.isBrowsable)
         assertEquals(false, row.mediaMetadata.isPlayable)
@@ -401,7 +417,10 @@ class LibraryPickerCommitTest {
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(
             App.getContext().getString(R.string.browse_library_picker_offline),
-            requireNotNull(result.value).single().mediaMetadata.title?.toString()
+            requireNotNull(result.value)
+                .single()
+                .mediaMetadata.title
+                ?.toString(),
         )
     }
 
@@ -426,7 +445,7 @@ class LibraryPickerCommitTest {
             uri = "http://pms:32400",
             resource = resource(id = "abc123"),
             sectionKey = "7",
-            libraryName = "Big Music Library"
+            libraryName = "Big Music Library",
         )
 
         val result = repo.selectLibrary("abc123|7").get()
@@ -437,8 +456,10 @@ class LibraryPickerCommitTest {
         assertEquals(false, item.mediaMetadata.isPlayable)
         // Names the server too: a library called "Music" is ambiguous across an
         // account, and "Basement" is the candidate's server name.
-        val expectedTitle = App.getContext()
-            .getString(R.string.browse_now_browsing, "Big Music Library", "Basement")
+        val expectedTitle =
+            App
+                .getContext()
+                .getString(R.string.browse_now_browsing, "Big Music Library", "Basement")
         assertEquals(expectedTitle, item.mediaMetadata.title?.toString())
         assertEquals("Now browsing: Big Music Library (Basement)", expectedTitle)
     }

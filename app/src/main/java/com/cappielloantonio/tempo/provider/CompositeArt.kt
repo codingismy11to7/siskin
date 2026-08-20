@@ -36,7 +36,6 @@ private const val TAG = "CompositeArt"
  * because the provider reaches it.
  */
 object CompositeArt {
-
     private const val JPEG_QUALITY = 85
 
     /**
@@ -85,8 +84,7 @@ object CompositeArt {
      * (hex) identifier ever needs and excludes every path separator and `..`
      * segment a hostile one could try.
      */
-    private fun isSafeCacheIdentifier(id: String): Boolean =
-        id.isNotEmpty() && id.all(Char::isLetterOrDigit)
+    private fun isSafeCacheIdentifier(id: String): Boolean = id.isNotEmpty() && id.all(Char::isLetterOrDigit)
 
     /**
      * [machineIdentifier], normalised for use in a filename: [NO_MACHINE_ID]
@@ -106,8 +104,7 @@ object CompositeArt {
      * wrong stream, which is why the simpler, coarser fallback is the right
      * call in this file even though it was not in that one.
      */
-    private fun cacheIdentifier(machineIdentifier: String?): String =
-        machineIdentifier?.takeIf(::isSafeCacheIdentifier) ?: NO_MACHINE_ID
+    private fun cacheIdentifier(machineIdentifier: String?): String = machineIdentifier?.takeIf(::isSafeCacheIdentifier) ?: NO_MACHINE_ID
 
     /**
      * Which server and which library a composite belongs to, as the one string
@@ -130,8 +127,7 @@ object CompositeArt {
      * provider's `\d{4}` decade rule exist to close.
      */
     @JvmStatic
-    fun scopeOf(session: PlexSession): String =
-        "${cacheIdentifier(session.machineIdentifier)}-${session.musicSectionKey.value}"
+    fun scopeOf(session: PlexSession): String = "${cacheIdentifier(session.machineIdentifier)}-${session.musicSectionKey.value}"
 
     /**
      * [scopeOf] the session in force right now, or null when there is none.
@@ -178,11 +174,11 @@ object CompositeArt {
         machineIdentifier: String?,
         sectionKey: String,
         id: String,
-        bucket: Long
+        bucket: Long,
     ): File =
         File(
             cacheDir(context),
-            "${cacheIdentifier(machineIdentifier)}-$sectionKey-$id-$bucket$CACHE_SUFFIX"
+            "${cacheIdentifier(machineIdentifier)}-$sectionKey-$id-$bucket$CACHE_SUFFIX",
         )
 
     /**
@@ -193,15 +189,19 @@ object CompositeArt {
      * else's cache. Steady state is on the order of sixteen small JPEGs.
      */
     @JvmStatic
-    fun evictStale(context: Context, nowMs: Long) {
+    fun evictStale(
+        context: Context,
+        nowMs: Long,
+    ) {
         val files = cacheDir(context).listFiles() ?: return
         files.forEach { file ->
-            val bucket = file.name
-                .takeIf { it.endsWith(CACHE_SUFFIX) }
-                ?.removeSuffix(CACHE_SUFFIX)
-                ?.substringAfterLast('-', missingDelimiterValue = "")
-                ?.toLongOrNull()
-                ?: return@forEach
+            val bucket =
+                file.name
+                    .takeIf { it.endsWith(CACHE_SUFFIX) }
+                    ?.removeSuffix(CACHE_SUFFIX)
+                    ?.substringAfterLast('-', missingDelimiterValue = "")
+                    ?.toLongOrNull()
+                    ?: return@forEach
             if (!CompositeArtBucket.isLive(bucket, nowMs)) file.delete()
         }
     }
@@ -212,9 +212,20 @@ object CompositeArt {
      * Lazy on purpose: a loader is a network round trip, so the walk stops as
      * soon as it has enough and the spares cost nothing when nothing failed.
      */
-    fun <T : Any> pick(pool: List<String>, want: Int, load: (String) -> T?): List<T> =
-        if (want <= 0) emptyList()
-        else pool.asSequence().mapNotNull(load).take(want).toList()
+    fun <T : Any> pick(
+        pool: List<String>,
+        want: Int,
+        load: (String) -> T?,
+    ): List<T> =
+        if (want <= 0) {
+            emptyList()
+        } else {
+            pool
+                .asSequence()
+                .mapNotNull(load)
+                .take(want)
+                .toList()
+        }
 
     /** A composite already on disk for this id and bucket, or null.
      *
@@ -222,10 +233,18 @@ object CompositeArt {
      * the provider calls this on a binder thread and serves the file directly
      * when it hits, so the common case never occupies a worker at all. */
     @JvmStatic
-    fun cached(context: Context, id: String, bucket: Long): File? {
+    fun cached(
+        context: Context,
+        id: String,
+        bucket: Long,
+    ): File? {
         val session = PlexApi().session ?: return null
         return cacheFile(
-            context, session.machineIdentifier, session.musicSectionKey.value, id, bucket
+            context,
+            session.machineIdentifier,
+            session.musicSectionKey.value,
+            id,
+            bucket,
         ).takeIf { it.isFile }
     }
 
@@ -253,7 +272,7 @@ object CompositeArt {
         context: Context,
         id: String,
         bucket: Long,
-        covers: (PlexApi, PlexSession) -> List<String>
+        covers: (PlexApi, PlexSession) -> List<String>,
     ): File? {
         val api = PlexApi()
         val session = api.session ?: return null
@@ -263,9 +282,14 @@ object CompositeArt {
         // fresh miss. Keyed on the cache file's own name rather than
         // re-interpolating the values that produced it, so the lock key and the
         // filename cannot drift apart.
-        val file = cacheFile(
-            context, session.machineIdentifier, session.musicSectionKey.value, id, bucket
-        )
+        val file =
+            cacheFile(
+                context,
+                session.machineIdentifier,
+                session.musicSectionKey.value,
+                id,
+                bucket,
+            )
         return CompositeBuildLocks.exclusively(file.name) {
             // Re-checked after acquiring, against the same session snapshot the
             // lock key and buildLocked's write use -- not cached(), which
@@ -295,7 +319,7 @@ object CompositeArt {
         api: PlexApi,
         session: PlexSession,
         file: File,
-        covers: (PlexApi, PlexSession) -> List<String>
+        covers: (PlexApi, PlexSession) -> List<String>,
     ): File? {
         // Every target this build submits, cleared together once the draw is
         // done with them. A submitted target stays registered with the
@@ -340,7 +364,7 @@ object CompositeArt {
         session: PlexSession,
         file: File,
         covers: (PlexApi, PlexSession) -> List<String>,
-        targets: MutableList<FutureTarget<Bitmap>>
+        targets: MutableList<FutureTarget<Bitmap>>,
     ): File? {
         val thumbs = covers(api, session)
         val token = PlexApi.serverTokenOrAccount(session.serverToken, session.accountToken)
@@ -378,10 +402,11 @@ object CompositeArt {
         //
         // Paired with the thumb that produced it, so the degraded case below
         // knows what to re-request.
-        val loaded = pick(thumbs, CompositeGrid.COVERS) { thumb ->
-            coverFor(context, session, token, thumb, candidateEdge, targets)
-                ?.let { thumb to it }
-        }
+        val loaded =
+            pick(thumbs, CompositeGrid.COVERS) { thumb ->
+                coverFor(context, session, token, thumb, candidateEdge, targets)
+                    ?.let { thumb to it }
+            }
 
         // Cells come from how many covers *landed*, not from how many thumbs
         // exist. That is the difference this pool buys: two failed loads cost
@@ -389,24 +414,28 @@ object CompositeArt {
         val cells = CompositeGrid.cells(loaded.size, CompositeGrid.SIZE)
         if (cells.isEmpty()) return null
 
-        val bitmaps = if (cells.size == 1 && candidateEdge != CompositeGrid.SIZE) {
-            val (thumb, small) = loaded.first()
-            // Not recycled if the re-request succeeds: these bitmaps come from
-            // Glide's pool and recycling one out from under it is what the draw
-            // loop's own catch exists to survive. The quarter-size cover this
-            // discards is still released, since its target is in `targets`
-            // either way -- the re-request adds a second one beside it rather
-            // than replacing it.
-            listOf(
-                coverFor(context, session, token, thumb, CompositeGrid.SIZE, targets) ?: small
-            )
-        } else {
-            loaded.take(cells.size).map { it.second }
-        }
+        val bitmaps =
+            if (cells.size == 1 && candidateEdge != CompositeGrid.SIZE) {
+                val (thumb, small) = loaded.first()
+                // Not recycled if the re-request succeeds: these bitmaps come from
+                // Glide's pool and recycling one out from under it is what the draw
+                // loop's own catch exists to survive. The quarter-size cover this
+                // discards is still released, since its target is in `targets`
+                // either way -- the re-request adds a second one beside it rather
+                // than replacing it.
+                listOf(
+                    coverFor(context, session, token, thumb, CompositeGrid.SIZE, targets) ?: small,
+                )
+            } else {
+                loaded.take(cells.size).map { it.second }
+            }
 
-        val composite = Bitmap.createBitmap(
-            CompositeGrid.SIZE, CompositeGrid.SIZE, Bitmap.Config.RGB_565
-        )
+        val composite =
+            Bitmap.createBitmap(
+                CompositeGrid.SIZE,
+                CompositeGrid.SIZE,
+                Bitmap.Config.RGB_565,
+            )
         // Hoisted above the try so the catch below can clean it up too: with
         // the declaration inside the try, an exception thrown before a
         // successful rename -- including from createTempFile itself -- left
@@ -433,7 +462,7 @@ object CompositeArt {
                     bitmaps[index],
                     null,
                     Rect(cell.left, cell.top, cell.right, cell.bottom),
-                    null
+                    null,
                 )
             }
 
@@ -460,9 +489,10 @@ object CompositeArt {
             // full disk either. Without checking it, a truncated or zero-byte
             // partial renames cleanly and is served as the composite for the
             // rest of the bucket's hour, since cached() only stats the file.
-            val wrote = target.outputStream().use {
-                composite.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
-            }
+            val wrote =
+                target.outputStream().use {
+                    composite.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
+                }
             if (!wrote || !target.renameTo(file)) {
                 // A failed compress or a failed rename must not orphan the
                 // partial: evictStale never sweeps it, correctly, since the
@@ -507,23 +537,26 @@ object CompositeArt {
         context: Context,
         url: String,
         edge: Int,
-        targets: MutableList<FutureTarget<Bitmap>>
-    ): Bitmap? = try {
-        var request = Glide.with(context)
-            .asBitmap()
-            .load(url)
-            .centerCrop()
-            .diskCacheStrategy(DiskCacheStrategy.DATA)
-        if (Preferences.isDataSavingMode()) {
-            request = request.onlyRetrieveFromCache(true)
+        targets: MutableList<FutureTarget<Bitmap>>,
+    ): Bitmap? =
+        try {
+            var request =
+                Glide
+                    .with(context)
+                    .asBitmap()
+                    .load(url)
+                    .centerCrop()
+                    .diskCacheStrategy(DiskCacheStrategy.DATA)
+            if (Preferences.isDataSavingMode()) {
+                request = request.onlyRetrieveFromCache(true)
+            }
+            val target = request.submit(edge, edge)
+            targets += target
+            target.get()
+        } catch (e: Exception) {
+            Log.w(TAG, "could not load a cover for the composite", e)
+            null
         }
-        val target = request.submit(edge, edge)
-        targets += target
-        target.get()
-    } catch (e: Exception) {
-        Log.w(TAG, "could not load a cover for the composite", e)
-        null
-    }
 
     /** One cover at [edge] square, or null if there is no URL for it or it
      * would not load. Records its target in [targets] for the caller to
@@ -534,7 +567,9 @@ object CompositeArt {
         token: String?,
         thumb: String,
         edge: Int,
-        targets: MutableList<FutureTarget<Bitmap>>
-    ): Bitmap? = MediaUrlBuilder.artworkUrl(session.serverUri, thumb, token, edge, edge)
-        ?.let { loadCover(context, it, edge, targets) }
+        targets: MutableList<FutureTarget<Bitmap>>,
+    ): Bitmap? =
+        MediaUrlBuilder
+            .artworkUrl(session.serverUri, thumb, token, edge, edge)
+            ?.let { loadCover(context, it, edge, targets) }
 }

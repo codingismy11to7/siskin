@@ -30,9 +30,8 @@ private const val TAG = "ServerProbe"
  */
 class ServerProbe(
     private val client: OkHttpClient = probeClient(),
-    private val headers: Map<String, String> = emptyMap()
+    private val headers: Map<String, String> = emptyMap(),
 ) {
-
     /**
      * The winning connection, or null when nothing answered.
      *
@@ -51,8 +50,7 @@ class ServerProbe(
      * just fetched from plex.tv -- that is what lets a re-probe work on a LAN
      * whose internet is down but whose Plex server is fine.
      */
-    suspend fun bestOf(candidates: Candidates): String? =
-        race(candidates.direct) ?: race(candidates.relay)
+    suspend fun bestOf(candidates: Candidates): String? = race(candidates.direct) ?: race(candidates.relay)
 
     /**
      * Every candidate at once; the first success wins and the rest are cancelled.
@@ -68,15 +66,16 @@ class ServerProbe(
         return coroutineScope {
             val winner = CompletableDeferred<String?>()
 
-            val probes = uris.map { uri ->
-                launch {
-                    if (answers(uri)) {
-                        Log.d(TAG, "reached $uri")
-                        // Only the first call takes effect; the rest are no-ops.
-                        winner.complete(uri)
+            val probes =
+                uris.map { uri ->
+                    launch {
+                        if (answers(uri)) {
+                            Log.d(TAG, "reached $uri")
+                            // Only the first call takes effect; the rest are no-ops.
+                            winner.complete(uri)
+                        }
                     }
                 }
-            }
 
             // Nothing else would ever complete `winner` if every probe fails, and
             // awaiting it would hang for the life of the sign-in.
@@ -94,31 +93,44 @@ class ServerProbe(
      * blocking execute() would ignore the coroutine being cancelled and hold the
      * socket until its own timeout.
      */
-    private suspend fun answers(uri: String): Boolean = suspendCancellableCoroutine { cont ->
-        val request = Request.Builder()
-            .url("${uri.trimEnd('/')}/identity")
-            .apply { headers.forEach { (name, value) -> header(name, value) } }
-            .build()
+    private suspend fun answers(uri: String): Boolean =
+        suspendCancellableCoroutine { cont ->
+            val request =
+                Request
+                    .Builder()
+                    .url("${uri.trimEnd('/')}/identity")
+                    .apply { headers.forEach { (name, value) -> header(name, value) } }
+                    .build()
 
-        val call = client.newCall(request)
-        cont.invokeOnCancellation { call.cancel() }
+            val call = client.newCall(request)
+            cont.invokeOnCancellation { call.cancel() }
 
-        call.enqueue(object : Callback {
-            override fun onResponse(call: okhttp3.Call, response: Response) {
-                response.use { if (cont.isActive) cont.resume(it.isSuccessful) }
-            }
+            call.enqueue(
+                object : Callback {
+                    override fun onResponse(
+                        call: okhttp3.Call,
+                        response: Response,
+                    ) {
+                        response.use { if (cont.isActive) cont.resume(it.isSuccessful) }
+                    }
 
-            override fun onFailure(call: okhttp3.Call, e: IOException) {
-                if (cont.isActive) cont.resume(false)
-            }
-        })
-    }
+                    override fun onFailure(
+                        call: okhttp3.Call,
+                        e: IOException,
+                    ) {
+                        if (cont.isActive) cont.resume(false)
+                    }
+                },
+            )
+        }
 
     /** A server's connections, split into the tier that races and the fallback. */
-    data class Candidates(val direct: List<String>, val relay: List<String>)
+    data class Candidates(
+        val direct: List<String>,
+        val relay: List<String>,
+    )
 
     companion object {
-
         /**
          * Short by design. These run concurrently against addresses most of which
          * are expected to fail, so the wait is bounded by the slowest failure --
@@ -127,11 +139,13 @@ class ServerProbe(
         private const val PROBE_TIMEOUT_SECONDS = 3L
 
         @JvmStatic
-        fun probeClient(): OkHttpClient = OkHttpClient.Builder()
-            .connectTimeout(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .callTimeout(PROBE_TIMEOUT_SECONDS * 2, TimeUnit.SECONDS)
-            .build()
+        fun probeClient(): OkHttpClient =
+            OkHttpClient
+                .Builder()
+                .connectTimeout(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .readTimeout(PROBE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .callTimeout(PROBE_TIMEOUT_SECONDS * 2, TimeUnit.SECONDS)
+                .build()
 
         /**
          * The app permits no cleartext traffic, so an `http://` address cannot be
@@ -143,8 +157,7 @@ class ServerProbe(
          * its private IP. What it excludes is a server with secure connections
          * disabled, or one reached through a custom http access URL.
          */
-        private fun Connection.isSecure(): Boolean =
-            uri?.startsWith("https://", ignoreCase = true) == true
+        private fun Connection.isSecure(): Boolean = uri?.startsWith("https://", ignoreCase = true) == true
 
         /**
          * Plex's ordering is preserved within a tier. It carries no reachability
@@ -159,12 +172,14 @@ class ServerProbe(
          */
         @JvmStatic
         fun candidates(resource: Resource): Candidates {
-            val usable = resource.connections.orEmpty()
-                .filter { !it.uri.isNullOrBlank() }
+            val usable =
+                resource.connections
+                    .orEmpty()
+                    .filter { !it.uri.isNullOrBlank() }
 
             return Candidates(
                 direct = usable.filter { it.relay != true }.mapNotNull { it.uri },
-                relay = usable.filter { it.relay == true }.mapNotNull { it.uri }
+                relay = usable.filter { it.relay == true }.mapNotNull { it.uri },
             )
         }
 
@@ -178,7 +193,6 @@ class ServerProbe(
          * so listing it would only defer the failure until after the user picked it.
          */
         @JvmStatic
-        fun hasUsableConnection(resource: Resource): Boolean =
-            resource.connections?.any { it.isSecure() } == true
+        fun hasUsableConnection(resource: Resource): Boolean = resource.connections?.any { it.isSecure() } == true
     }
 }

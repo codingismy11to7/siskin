@@ -51,24 +51,27 @@ import org.robolectric.Shadows.shadowOf
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class CarSettingsFragmentTest {
-
     private lateinit var session: MediaLibrarySession
 
     @Before
     fun setUp() {
         // Robolectric keeps App's SharedPreferences in a static field between
         // methods, and the session and all three toggles are read out of it.
-        App.getInstance().preferences.edit()
+        App
+            .getInstance()
+            .preferences
+            .edit()
             .remove("continuous_play")
             .remove("replay_gain_mode")
             .remove("artists_by_initial")
             .commit()
-        PlexApi().session = PlexSession(
-            accountToken = "t",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
+        PlexApi().session =
+            PlexSession(
+                accountToken = "t",
+                serverUri = "https://example.invalid",
+                musicSectionKey = SectionKey("1"),
+                serverToken = null,
+            )
 
         // A live session is what makes the artists-by-initial row's
         // BrowseTreeInvalidator.invalidateNode() call do anything at all --
@@ -92,11 +95,12 @@ class CarSettingsFragmentTest {
         return controller.get().findViewById(R.id.car_host_container)
     }
 
-    private fun switchesIn(view: View): List<MaterialSwitch> = when (view) {
-        is MaterialSwitch -> listOf(view)
-        is ViewGroup -> (0 until view.childCount).flatMap { switchesIn(view.getChildAt(it)) }
-        else -> emptyList()
-    }
+    private fun switchesIn(view: View): List<MaterialSwitch> =
+        when (view) {
+            is MaterialSwitch -> listOf(view)
+            is ViewGroup -> (0 until view.childCount).flatMap { switchesIn(view.getChildAt(it)) }
+            else -> emptyList()
+        }
 
     /**
      * Selects by the row's label rather than by position. render() builds the
@@ -104,7 +108,10 @@ class CarSettingsFragmentTest {
      * reordering and assert against the wrong switch -- and both switches are
      * MaterialSwitches with nothing else to tell them apart.
      */
-    private fun switchLabelled(view: View, label: String): MaterialSwitch =
+    private fun switchLabelled(
+        view: View,
+        label: String,
+    ): MaterialSwitch =
         switchesIn(view).single { toggle ->
             val row = toggle.parent as ViewGroup
             (0 until row.childCount)
@@ -113,11 +120,9 @@ class CarSettingsFragmentTest {
                 .any { it.text.toString() == label }
         }
 
-    private fun continuousPlaySwitch(view: View) =
-        switchLabelled(view, App.getInstance().getString(R.string.car_settings_continuous_play))
+    private fun continuousPlaySwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_continuous_play))
 
-    private fun replayGainSwitch(view: View) =
-        switchLabelled(view, App.getInstance().getString(R.string.car_settings_replay_gain))
+    private fun replayGainSwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_replay_gain))
 
     private fun artistsByInitialSwitch(view: View) =
         switchLabelled(view, App.getInstance().getString(R.string.car_settings_artists_by_initial))

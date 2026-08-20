@@ -25,8 +25,9 @@ import com.cappielloantonio.tempo.ui.activity.CarHostActivity
  * the system needs from this class is somewhere to send a user who taps
  * "Add account".
  */
-class PlexAuthenticator(private val context: Context) : AbstractAccountAuthenticator(context) {
-
+class PlexAuthenticator(
+    private val context: Context,
+) : AbstractAccountAuthenticator(context) {
     // CarHostActivity is @UnstableApi (media3); this is the only call site in
     // this class that touches it, matching the per-call-site @OptIn pattern
     // BrowseTabOrderFragment and PlexSignInFragment already use for the same
@@ -41,51 +42,51 @@ class PlexAuthenticator(private val context: Context) : AbstractAccountAuthentic
         accountType: String?,
         authTokenType: String?,
         requiredFeatures: Array<out String>?,
-        options: Bundle?
+        options: Bundle?,
     ): Bundle {
         // EXTRA_FORCE_SIGN_IN is the flag CarHostActivity already uses to tell
         // "the settings gear opened this" from "something needs a sign-in".
         // Reusing it means Add account joins a path that exists rather than
         // adding a third one to keep in step.
-        val intent = Intent(context, CarHostActivity::class.java)
-            .putExtra(CarHostActivity.EXTRA_FORCE_SIGN_IN, true)
-            .putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response)
+        val intent =
+            Intent(context, CarHostActivity::class.java)
+                .putExtra(CarHostActivity.EXTRA_FORCE_SIGN_IN, true)
+                .putExtra(AccountManager.KEY_ACCOUNT_AUTHENTICATOR_RESPONSE, response)
 
         return Bundle().apply { putParcelable(AccountManager.KEY_INTENT, intent) }
     }
 
     override fun editProperties(
         response: AccountAuthenticatorResponse?,
-        accountType: String?
+        accountType: String?,
     ): Bundle = unsupported("editProperties")
 
     override fun confirmCredentials(
         response: AccountAuthenticatorResponse?,
         account: Account?,
-        options: Bundle?
+        options: Bundle?,
     ): Bundle = unsupported("confirmCredentials")
 
     override fun getAuthToken(
         response: AccountAuthenticatorResponse?,
         account: Account?,
         authTokenType: String?,
-        options: Bundle?
+        options: Bundle?,
     ): Bundle = unsupported("getAuthToken")
 
-    override fun getAuthTokenLabel(authTokenType: String?): String =
-        context.getString(R.string.app_name)
+    override fun getAuthTokenLabel(authTokenType: String?): String = context.getString(R.string.app_name)
 
     override fun updateCredentials(
         response: AccountAuthenticatorResponse?,
         account: Account?,
         authTokenType: String?,
-        options: Bundle?
+        options: Bundle?,
     ): Bundle = unsupported("updateCredentials")
 
     override fun hasFeatures(
         response: AccountAuthenticatorResponse?,
         account: Account?,
-        features: Array<out String>?
+        features: Array<out String>?,
     ): Bundle = Bundle().apply { putBoolean(AccountManager.KEY_BOOLEAN_RESULT, false) }
 
     /**
@@ -93,8 +94,9 @@ class PlexAuthenticator(private val context: Context) : AbstractAccountAuthentic
      * exception crossing it surfaces to the caller as a dead process rather
      * than as a refusal.
      */
-    private fun unsupported(what: String): Bundle = Bundle().apply {
-        putInt(AccountManager.KEY_ERROR_CODE, AccountManager.ERROR_CODE_UNSUPPORTED_OPERATION)
-        putString(AccountManager.KEY_ERROR_MESSAGE, "$what is not supported by Siskin")
-    }
+    private fun unsupported(what: String): Bundle =
+        Bundle().apply {
+            putInt(AccountManager.KEY_ERROR_CODE, AccountManager.ERROR_CODE_UNSUPPORTED_OPERATION)
+            putString(AccountManager.KEY_ERROR_MESSAGE, "$what is not supported by Siskin")
+        }
 }

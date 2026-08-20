@@ -23,8 +23,9 @@ private const val TAG = "AuthClient"
  *
  * Every call is a plex.tv call, so every failure carries [PlexHost.PlexTv].
  */
-class AuthClient(api: PlexApi) {
-
+class AuthClient(
+    api: PlexApi,
+) {
     private val service: AuthService =
         PlexRetrofitFactory.plexTv(api).create(AuthService::class.java)
 
@@ -32,17 +33,18 @@ class AuthClient(api: PlexApi) {
      * Validated on the way out, so callers get a PIN they can use rather than one
      * they have to re-check.
      */
-    suspend fun createPin(): Either<CreatePinError, CreatedPin> = either {
-        Log.d(TAG, "createPin()")
-        val pin = plexCall(PlexHost.PlexTv) { service.createPin() }
-            .mapLeft(CreatePinError::Transport)
-            .bind()
-        validate(pin).bind()
-    }
+    suspend fun createPin(): Either<CreatePinError, CreatedPin> =
+        either {
+            Log.d(TAG, "createPin()")
+            val pin =
+                plexCall(PlexHost.PlexTv) { service.createPin() }
+                    .mapLeft(CreatePinError::Transport)
+                    .bind()
+            validate(pin).bind()
+        }
 
     /** Unvalidated on purpose: the poll only reads [Pin.authToken] and the expiry. */
-    suspend fun getPin(pinId: Long): Either<PlexTransportFailure, Pin> =
-        plexCall(PlexHost.PlexTv) { service.getPin(pinId) }
+    suspend fun getPin(pinId: Long): Either<PlexTransportFailure, Pin> = plexCall(PlexHost.PlexTv) { service.getPin(pinId) }
 
     suspend fun getResources(): Either<PlexTransportFailure, List<Resource>> {
         Log.d(TAG, "getResources()")
@@ -50,7 +52,6 @@ class AuthClient(api: PlexApi) {
     }
 
     companion object {
-
         /** Plex advertises capabilities as a comma-separated list. */
         private const val PROVIDES_SERVER = "server"
 
@@ -67,10 +68,11 @@ class AuthClient(api: PlexApi) {
         @JvmStatic
         fun mediaServers(resources: List<Resource>?): List<Resource> =
             resources.orEmpty().filter { resource ->
-                val provides = resource.provides
-                    ?.split(",")
-                    ?.map { it.trim() }
-                    .orEmpty()
+                val provides =
+                    resource.provides
+                        ?.split(",")
+                        ?.map { it.trim() }
+                        .orEmpty()
                 provides.contains(PROVIDES_SERVER) && ServerProbe.hasUsableConnection(resource)
             }
 
@@ -81,18 +83,20 @@ class AuthClient(api: PlexApi) {
          * be tested without a network.
          */
         @JvmStatic
-        fun validate(pin: Pin): Either<CreatePinError, CreatedPin> = either {
-            val id = ensureNotNull(pin.id) { CreatePinError.NoPinCode }
-            val code = ensureNotNull(pin.code?.takeIf { it.isNotBlank() }) {
-                CreatePinError.NoPinCode
+        fun validate(pin: Pin): Either<CreatePinError, CreatedPin> =
+            either {
+                val id = ensureNotNull(pin.id) { CreatePinError.NoPinCode }
+                val code =
+                    ensureNotNull(pin.code?.takeIf { it.isNotBlank() }) {
+                        CreatePinError.NoPinCode
+                    }
+                CreatedPin(
+                    id = id,
+                    code = code,
+                    qrUrl = pin.qr?.takeIf { it.isNotBlank() },
+                    expiresAtEpochSeconds = expiresAtEpochSeconds(pin),
+                )
             }
-            CreatedPin(
-                id = id,
-                code = code,
-                qrUrl = pin.qr?.takeIf { it.isNotBlank() },
-                expiresAtEpochSeconds = expiresAtEpochSeconds(pin)
-            )
-        }
 
         /**
          * Plex reports pin expiry as ISO-8601. Converted here rather than in

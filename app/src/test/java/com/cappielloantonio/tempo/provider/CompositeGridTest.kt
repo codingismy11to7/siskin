@@ -14,7 +14,6 @@ import org.junit.Test
  * nothing.
  */
 class CompositeGridTest {
-
     @Test
     fun fourOrMoreCoversTileIntoQuadrantsThatCoverTheWholeImage() {
         val cells = CompositeGrid.cells(count = 4, size = 512)
@@ -24,9 +23,9 @@ class CompositeGridTest {
                 Cell(0, 0, 256, 256),
                 Cell(256, 0, 512, 256),
                 Cell(0, 256, 256, 512),
-                Cell(256, 256, 512, 512)
+                Cell(256, 256, 512, 512),
             ),
-            cells
+            cells,
         )
     }
 
@@ -44,7 +43,7 @@ class CompositeGridTest {
         // like artwork that failed to load.
         assertEquals(
             listOf(Cell(0, 0, 512, 512)),
-            CompositeGrid.cells(count = 1, size = 512)
+            CompositeGrid.cells(count = 1, size = 512),
         )
     }
 
@@ -56,9 +55,9 @@ class CompositeGridTest {
         assertEquals(
             listOf(
                 Cell(0, 0, 256, 256),
-                Cell(256, 256, 512, 512)
+                Cell(256, 256, 512, 512),
             ),
-            CompositeGrid.cells(count = 2, size = 512)
+            CompositeGrid.cells(count = 2, size = 512),
         )
     }
 
@@ -68,9 +67,9 @@ class CompositeGridTest {
             listOf(
                 Cell(0, 0, 256, 256),
                 Cell(256, 0, 512, 256),
-                Cell(0, 256, 256, 512)
+                Cell(0, 256, 256, 512),
             ),
-            CompositeGrid.cells(count = 3, size = 512)
+            CompositeGrid.cells(count = 3, size = 512),
         )
     }
 

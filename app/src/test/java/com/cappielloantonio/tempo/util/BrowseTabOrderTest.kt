@@ -8,12 +8,11 @@ import org.junit.Test
  * decision about order is here, and none of it needs a Context.
  */
 class BrowseTabOrderTest {
-
     @Test
     fun `nothing saved yields the shipped default`() {
         assertEquals(
             BrowseTabOrder.DEFAULT_ORDER,
-            BrowseTabOrder.resolve(emptyList())
+            BrowseTabOrder.resolve(emptyList()),
         )
     }
 
@@ -21,13 +20,14 @@ class BrowseTabOrderTest {
     fun `a complete saved order is returned unchanged`() {
         // Complete means every id the build knows, Discover included -- a save
         // missing one is the append case two tests below, not this one.
-        val saved = listOf(
-            Constants.DECADES_ID,
-            Constants.ALBUMS_ID,
-            Constants.DISCOVER_ID,
-            Constants.ARTISTS_ID,
-            Constants.PLAYLIST_ID
-        )
+        val saved =
+            listOf(
+                Constants.DECADES_ID,
+                Constants.ALBUMS_ID,
+                Constants.DISCOVER_ID,
+                Constants.ARTISTS_ID,
+                Constants.PLAYLIST_ID,
+            )
 
         assertEquals(saved, BrowseTabOrder.resolve(saved))
     }
@@ -56,12 +56,13 @@ class BrowseTabOrderTest {
     @Test
     fun `a newly known id is appended rather than inserted`() {
         val saved = listOf(Constants.ARTISTS_ID, Constants.ALBUMS_ID)
-        val known = listOf(
-            Constants.PLAYLIST_ID,
-            Constants.ARTISTS_ID,
-            Constants.ALBUMS_ID,
-            Constants.DECADES_ID
-        )
+        val known =
+            listOf(
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.DECADES_ID,
+            )
 
         val resolved = BrowseTabOrder.resolve(saved, known)
 
@@ -70,9 +71,9 @@ class BrowseTabOrderTest {
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
                 Constants.PLAYLIST_ID,
-                Constants.DECADES_ID
+                Constants.DECADES_ID,
             ),
-            resolved
+            resolved,
         )
     }
 
@@ -93,11 +94,11 @@ class BrowseTabOrderTest {
 
         assertEquals(
             listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
-            BrowseTabOrder.rootTabs(resolved)
+            BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
             listOf(Constants.DISCOVER_ID, Constants.DECADES_ID),
-            BrowseTabOrder.moreRows(resolved)
+            BrowseTabOrder.moreRows(resolved),
         )
     }
 
@@ -128,9 +129,9 @@ class BrowseTabOrderTest {
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
-                Constants.DECADES_ID
+                Constants.DECADES_ID,
             ),
-            BrowseTabOrder.DEFAULT_ORDER
+            BrowseTabOrder.DEFAULT_ORDER,
         )
     }
 
@@ -143,12 +144,13 @@ class BrowseTabOrderTest {
      */
     @Test
     fun `an order saved before Discover shipped gets it last, not fourth`() {
-        val savedBeforeDiscover = listOf(
-            Constants.PLAYLIST_ID,
-            Constants.ARTISTS_ID,
-            Constants.ALBUMS_ID,
-            Constants.DECADES_ID
-        )
+        val savedBeforeDiscover =
+            listOf(
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.DECADES_ID,
+            )
 
         val resolved = BrowseTabOrder.resolve(savedBeforeDiscover)
 
@@ -156,11 +158,11 @@ class BrowseTabOrderTest {
         // The three tabs the user had are untouched, which is the whole point.
         assertEquals(
             listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
-            BrowseTabOrder.rootTabs(resolved)
+            BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
             listOf(Constants.DECADES_ID, Constants.DISCOVER_ID),
-            BrowseTabOrder.moreRows(resolved)
+            BrowseTabOrder.moreRows(resolved),
         )
     }
 

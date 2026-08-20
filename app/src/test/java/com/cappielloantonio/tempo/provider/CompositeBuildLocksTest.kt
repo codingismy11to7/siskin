@@ -22,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger
  * run one after another.
  */
 class CompositeBuildLocksTest {
-
     private val threads = 4
 
     /** Exclusivity is guaranteed for threads that arrive before the first one
@@ -94,14 +93,18 @@ class CompositeBuildLocksTest {
     /** Starts [count] threads that all begin inside [body] at once, and waits
      * for them; a body that threw fails the test through the assertions above
      * rather than being swallowed silently. */
-    private fun runConcurrently(count: Int, body: (Int) -> Unit) {
+    private fun runConcurrently(
+        count: Int,
+        body: (Int) -> Unit,
+    ) {
         val start = CountDownLatch(1)
-        val workers = (0 until count).map { index ->
-            Thread {
-                start.await()
-                body(index)
-            }.also { it.start() }
-        }
+        val workers =
+            (0 until count).map { index ->
+                Thread {
+                    start.await()
+                    body(index)
+                }.also { it.start() }
+            }
 
         start.countDown()
         workers.forEach { it.join(30_000) }

@@ -36,7 +36,6 @@ import org.robolectric.android.controller.ActivityController
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class CarHostActivityRoutingTest {
-
     @Before
     fun setUp() {
         // Robolectric caches SharedPreferences statically across test methods,
@@ -47,12 +46,13 @@ class CarHostActivityRoutingTest {
     }
 
     private fun signedIn() {
-        PlexApi().session = PlexSession(
-            accountToken = "t",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
+        PlexApi().session =
+            PlexSession(
+                accountToken = "t",
+                serverUri = "https://example.invalid",
+                musicSectionKey = SectionKey("1"),
+                serverToken = null,
+            )
     }
 
     /**
@@ -157,7 +157,10 @@ class CarHostActivityRoutingTest {
         signedIn()
         val controller = launch()
 
-        controller.get().supportFragmentManager.beginTransaction()
+        controller
+            .get()
+            .supportFragmentManager
+            .beginTransaction()
             .replace(R.id.car_host_container, BrowseTabOrderFragment())
             .addToBackStack(null)
             .commit()

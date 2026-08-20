@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlexPinStateTest {
-
     private val now = 1_000_000L
 
     @Test

@@ -2,22 +2,21 @@ package com.cappielloantonio.tempo.service
 
 import android.content.Context
 import android.os.Bundle
-import androidx.media3.common.Player
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.session.MediaSession
-import androidx.media3.session.SessionCommand
 import androidx.media3.session.MediaSession.ControllerInfo
+import androidx.media3.session.SessionCommand
 import org.junit.Test
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.times
-import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.mockConstruction
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 class BaseSessionCallbackTest {
-
     @Test
     fun updateMediaNotificationCustomLayout_doesNotCrashWhenControllerInfoIsNull() {
         val context = mock<Context>()
@@ -32,11 +31,12 @@ class BaseSessionCallbackTest {
         whenever(session.mediaNotificationControllerInfo).thenReturn(null)
 
         mockConstruction(SessionCommand::class.java).use {
-            val callback = object : BaseSessionCallback(context, service) {
-                fun triggerUpdate() {
-                    updateMediaNotificationCustomLayout(session)
+            val callback =
+                object : BaseSessionCallback(context, service) {
+                    fun triggerUpdate() {
+                        updateMediaNotificationCustomLayout(session)
+                    }
                 }
-            }
             callback.triggerUpdate()
         }
     }
@@ -58,10 +58,10 @@ class BaseSessionCallbackTest {
 
         mockConstruction(SessionCommand::class.java).use {
             val callback = BaseSessionCallback(context, service)
-            
+
             callback.onConnect(session, controller)
             callback.onConnect(session, controller)
-            
+
             // Should be called only once because of currentSession check
             verify(player, times(1)).addListener(any())
         }
@@ -83,13 +83,13 @@ class BaseSessionCallbackTest {
 
         mockConstruction(SessionCommand::class.java).use {
             val callback = BaseSessionCallback(context, service)
-            
+
             // 1. Player changes before any controller connects (currentSession is null)
             callback.handlePlayerChanged(null, player)
-            
+
             // 2. Controller connects
             callback.onConnect(session, controller)
-            
+
             // Should be registered ONLY ONCE (by onConnect)
             verify(player, times(1)).addListener(any())
         }
@@ -112,14 +112,14 @@ class BaseSessionCallbackTest {
 
         mockConstruction(SessionCommand::class.java).use {
             val callback = BaseSessionCallback(context, service)
-            
+
             // 1. Initial connection
             callback.onConnect(session, controller)
             verify(oldPlayer, times(1)).addListener(any())
-            
+
             // 2. Session's player changes
             callback.handlePlayerChanged(oldPlayer, newPlayer)
-            
+
             // Should move the listener
             verify(oldPlayer).removeListener(any())
             verify(newPlayer).addListener(any())

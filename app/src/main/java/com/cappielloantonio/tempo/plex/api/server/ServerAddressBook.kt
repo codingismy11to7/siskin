@@ -51,9 +51,8 @@ class ServerAddressBook private constructor(
     private val api: PlexApi = PlexApi(),
     private val probe: ServerProbe = ServerProbe(),
     private val authClient: AuthClient = AuthClient(api),
-    private val clock: () -> Long = { SystemClock.elapsedRealtime() }
+    private val clock: () -> Long = { SystemClock.elapsedRealtime() },
 ) {
-
     /**
      * Not reentrant, and nothing reachable from [probe] or [authClient] calls
      * back into [reprobe] today -- but if that ever changes, the outcome is a
@@ -95,7 +94,7 @@ class ServerAddressBook private constructor(
         return KnownAddresses(
             current = current(),
             direct = stored?.direct.orEmpty(),
-            relay = stored?.relay.orEmpty()
+            relay = stored?.relay.orEmpty(),
         )
     }
 
@@ -106,7 +105,10 @@ class ServerAddressBook private constructor(
      * tab's library picker -- both of which already hold the Resource and the
      * probed URI, so this adds no network call.
      */
-    fun adopt(resource: Resource, uri: String) {
+    fun adopt(
+        resource: Resource,
+        uri: String,
+    ) {
         val machineIdentifier = resource.clientIdentifier
         if (machineIdentifier.isNullOrBlank()) {
             // Without a stamp the list cannot be proven to belong to the session's
@@ -132,9 +134,7 @@ class ServerAddressBook private constructor(
      * Branches on Either values and catches nothing, so there is no broad catch
      * anywhere near an either { } block.
      */
-    suspend fun <T> withAddressRecovery(
-        call: suspend () -> Either<PlexTransportFailure, T>
-    ): Either<PlexTransportFailure, T> {
+    suspend fun <T> withAddressRecovery(call: suspend () -> Either<PlexTransportFailure, T>): Either<PlexTransportFailure, T> {
         val before = current()
         val outcome = call()
 
@@ -206,47 +206,51 @@ class ServerAddressBook private constructor(
      * total "nothing answered" is, so the cooldown arms instead of leaving
      * every subsequent call to throw again immediately.
      */
-    suspend fun reprobe(staleAddress: String, force: Boolean = false): String? = mutex.withLock {
-        try {
-            val current = current()
-            if (current != staleAddress) {
-                Log.d(TAG, "address already moved to $current")
-                return@withLock current
+    suspend fun reprobe(
+        staleAddress: String,
+        force: Boolean = false,
+    ): String? =
+        mutex.withLock {
+            try {
+                val current = current()
+                if (current != staleAddress) {
+                    Log.d(TAG, "address already moved to $current")
+                    return@withLock current
+                }
+
+                val session = api.session ?: return@withLock null
+
+                val lastFailure = lastFailureAt
+                if (!force && lastFailure != null && clock() - lastFailure < FAILURE_COOLDOWN_MS) {
+                    // A car with no usable network would otherwise pay a full race per
+                    // browse tab, serially, for as long as it stayed offline. A forced
+                    // race is the debug panel's button: a parked human asking once,
+                    // which is neither of those things and is most useful precisely
+                    // when the cooldown is armed.
+                    Log.d(TAG, "in cooldown; not re-probing")
+                    return@withLock null
+                }
+
+                storedCandidates(session.machineIdentifier)?.let { stored ->
+                    probe.bestOf(stored)?.let { return@withLock adoptAddress(session, it) }
+                    Log.d(TAG, "no stored address answered; asking plex.tv for a fresh list")
+                }
+
+                refreshFromPlexTv(session.machineIdentifier)?.let { refreshed ->
+                    probe.bestOf(refreshed)?.let { return@withLock adoptAddress(session, it) }
+                }
+
+                Log.d(TAG, "nothing answered for ${session.machineIdentifier}")
+                lastFailureAt = clock()
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                Log.w(TAG, "reprobe failed unexpectedly for $staleAddress", t)
+                lastFailureAt = clock()
+                null
             }
-
-            val session = api.session ?: return@withLock null
-
-            val lastFailure = lastFailureAt
-            if (!force && lastFailure != null && clock() - lastFailure < FAILURE_COOLDOWN_MS) {
-                // A car with no usable network would otherwise pay a full race per
-                // browse tab, serially, for as long as it stayed offline. A forced
-                // race is the debug panel's button: a parked human asking once,
-                // which is neither of those things and is most useful precisely
-                // when the cooldown is armed.
-                Log.d(TAG, "in cooldown; not re-probing")
-                return@withLock null
-            }
-
-            storedCandidates(session.machineIdentifier)?.let { stored ->
-                probe.bestOf(stored)?.let { return@withLock adoptAddress(session, it) }
-                Log.d(TAG, "no stored address answered; asking plex.tv for a fresh list")
-            }
-
-            refreshFromPlexTv(session.machineIdentifier)?.let { refreshed ->
-                probe.bestOf(refreshed)?.let { return@withLock adoptAddress(session, it) }
-            }
-
-            Log.d(TAG, "nothing answered for ${session.machineIdentifier}")
-            lastFailureAt = clock()
-            null
-        } catch (e: CancellationException) {
-            throw e
-        } catch (t: Throwable) {
-            Log.w(TAG, "reprobe failed unexpectedly for $staleAddress", t)
-            lastFailureAt = clock()
-            null
         }
-    }
 
     /**
      * Moves the session onto [uri], leaving everything else in it untouched --
@@ -274,7 +278,10 @@ class ServerAddressBook private constructor(
      * whole session here, from either copy, would be the mixed-set hazard
      * PlexSession's KDoc describes.
      */
-    private fun adoptAddress(session: PlexSession, uri: String): String? {
+    private fun adoptAddress(
+        session: PlexSession,
+        uri: String,
+    ): String? {
         val latest = api.session
         if (latest == null || latest.machineIdentifier != session.machineIdentifier) {
             Log.d(TAG, "session changed during the race; discarding $uri")
@@ -296,11 +303,13 @@ class ServerAddressBook private constructor(
         if (machineIdentifier.isNullOrBlank()) return null
 
         val resources = fetchResources() ?: return null
-        val resource = AuthClient.mediaServers(resources)
-            .firstOrNull { it.clientIdentifier == machineIdentifier } ?: run {
-            Log.d(TAG, "plex.tv no longer lists $machineIdentifier")
-            return null
-        }
+        val resource =
+            AuthClient
+                .mediaServers(resources)
+                .firstOrNull { it.clientIdentifier == machineIdentifier } ?: run {
+                Log.d(TAG, "plex.tv no longer lists $machineIdentifier")
+                return null
+            }
 
         val candidates = ServerProbe.candidates(resource)
         store(machineIdentifier, candidates)
@@ -330,27 +339,29 @@ class ServerAddressBook private constructor(
      * coroutine timeout being turned into "no fresh list", the same outcome
      * as plex.tv being unreachable outright.
      */
-    private suspend fun fetchResources(): List<Resource>? = try {
-        withTimeout(PLEX_TV_TIMEOUT_MS) { authClient.getResources() }.getOrNull().also {
-            if (it == null) Log.d(TAG, "could not reach plex.tv for a fresh address list")
+    private suspend fun fetchResources(): List<Resource>? =
+        try {
+            withTimeout(PLEX_TV_TIMEOUT_MS) { authClient.getResources() }.getOrNull().also {
+                if (it == null) Log.d(TAG, "could not reach plex.tv for a fresh address list")
+            }
+        } catch (e: TimeoutCancellationException) {
+            Log.d(TAG, "plex.tv did not answer within ${PLEX_TV_TIMEOUT_MS}ms")
+            null
         }
-    } catch (e: TimeoutCancellationException) {
-        Log.d(TAG, "plex.tv did not answer within ${PLEX_TV_TIMEOUT_MS}ms")
-        null
-    }
 
     /** The stored list, or null when absent, unreadable, or stamped for another server. */
     internal fun storedCandidates(machineIdentifier: String?): ServerProbe.Candidates? {
         if (machineIdentifier.isNullOrBlank()) return null
         val raw = api.serverCandidates ?: return null
-        val stored = try {
-            gson.fromJson(raw, StoredCandidates::class.java)
-        } catch (e: JsonSyntaxException) {
-            // Outside any either { }, so this swallows no raise. A blob written
-            // by an older build is a cache miss, not a crash.
-            Log.w(TAG, "could not read stored addresses", e)
-            null
-        } ?: return null
+        val stored =
+            try {
+                gson.fromJson(raw, StoredCandidates::class.java)
+            } catch (e: JsonSyntaxException) {
+                // Outside any either { }, so this swallows no raise. A blob written
+                // by an older build is a cache miss, not a crash.
+                Log.w(TAG, "could not read stored addresses", e)
+                null
+            } ?: return null
 
         if (stored.machineIdentifier != machineIdentifier) {
             Log.d(TAG, "stored addresses belong to ${stored.machineIdentifier}, not $machineIdentifier")
@@ -359,10 +370,14 @@ class ServerAddressBook private constructor(
         return ServerProbe.Candidates(stored.direct, stored.relay)
     }
 
-    private fun store(machineIdentifier: String, candidates: ServerProbe.Candidates) {
-        api.serverCandidates = gson.toJson(
-            StoredCandidates(machineIdentifier, candidates.direct, candidates.relay)
-        )
+    private fun store(
+        machineIdentifier: String,
+        candidates: ServerProbe.Candidates,
+    ) {
+        api.serverCandidates =
+            gson.toJson(
+                StoredCandidates(machineIdentifier, candidates.direct, candidates.relay),
+            )
     }
 
     /**
@@ -389,14 +404,14 @@ class ServerAddressBook private constructor(
     private data class StoredCandidates(
         val machineIdentifier: String,
         val direct: List<String>,
-        val relay: List<String>
+        val relay: List<String>,
     )
 
     /** What [knownAddresses] reports. Public: the debug panel renders it. */
     data class KnownAddresses(
         val current: String?,
         val direct: List<String>,
-        val relay: List<String>
+        val relay: List<String>,
     )
 
     companion object {
@@ -443,7 +458,7 @@ class ServerAddressBook private constructor(
             api: PlexApi = PlexApi(),
             probe: ServerProbe = ServerProbe(),
             authClient: AuthClient = AuthClient(api),
-            clock: () -> Long = { SystemClock.elapsedRealtime() }
+            clock: () -> Long = { SystemClock.elapsedRealtime() },
         ): ServerAddressBook = ServerAddressBook(api, probe, authClient, clock)
     }
 }

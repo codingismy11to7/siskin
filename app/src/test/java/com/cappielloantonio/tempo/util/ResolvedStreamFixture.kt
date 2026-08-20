@@ -38,7 +38,6 @@ import java.util.UUID
  */
 @UnstableApi
 class ResolvedStreamFixture {
-
     private lateinit var liveServer: MockWebServer
 
     private lateinit var api: PlexApi
@@ -60,20 +59,22 @@ class ResolvedStreamFixture {
         api.accountToken = "account-token"
         api.serverCandidates = null
 
-        liveServer = MockWebServer().apply {
-            enqueue(MockResponse().setResponseCode(200).setBody("stream-bytes"))
-            start()
-        }
+        liveServer =
+            MockWebServer().apply {
+                enqueue(MockResponse().setResponseCode(200).setBody("stream-bytes"))
+                start()
+            }
         // ServerAddressBook.shared reads PlexApi.session through the same
         // SharedPreferences PlexApi wraps here -- PlexApi holds no state of its
         // own -- so pointing this session at the mock is what the resolver sees.
-        api.session = PlexSession(
-            accountToken = "account-token",
-            serverUri = liveServer.url("/").toString().trimEnd('/'),
-            musicSectionKey = SectionKey("5"),
-            serverToken = "server-token",
-            machineIdentifier = "machine-a"
-        )
+        api.session =
+            PlexSession(
+                accountToken = "account-token",
+                serverUri = liveServer.url("/").toString().trimEnd('/'),
+                musicSectionKey = SectionKey("5"),
+                serverToken = "server-token",
+                machineIdentifier = "machine-a",
+            )
     }
 
     fun tearDown() {
@@ -85,7 +86,10 @@ class ResolvedStreamFixture {
     }
 
     fun setStreamingCacheSize(megabytes: Long) {
-        App.getInstance().preferences.edit()
+        App
+            .getInstance()
+            .preferences
+            .edit()
             .putString("streaming_cache_size", megabytes.toString())
             .commit()
     }
@@ -114,9 +118,10 @@ class ResolvedStreamFixture {
      * resolver ran on the second call.
      */
     fun openThrough(factory: DataSource.Factory) {
-        val dataSpec = DataSpec(
-            Uri.parse("${deadUri()}/library/parts/${UUID.randomUUID()}/file.mp3?X-Plex-Token=t")
-        )
+        val dataSpec =
+            DataSpec(
+                Uri.parse("${deadUri()}/library/parts/${UUID.randomUUID()}/file.mp3?X-Plex-Token=t"),
+            )
         val dataSource = factory.createDataSource()
         try {
             dataSource.open(dataSpec)

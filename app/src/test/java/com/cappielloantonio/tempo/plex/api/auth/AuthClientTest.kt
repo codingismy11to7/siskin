@@ -9,16 +9,20 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class AuthClientTest {
-
-    private fun connection(uri: String, local: Boolean, relay: Boolean) = Connection().apply {
+    private fun connection(
+        uri: String,
+        local: Boolean,
+        relay: Boolean,
+    ) = Connection().apply {
         this.uri = uri
         this.local = local
         this.relay = relay
     }
 
-    private fun resource(vararg connections: Connection) = Resource().apply {
-        this.connections = connections.toList()
-    }
+    private fun resource(vararg connections: Connection) =
+        Resource().apply {
+            this.connections = connections.toList()
+        }
 
     // Choosing *which* connection to talk to a server on lives in ServerProbe and
     // is tested there, against real sockets -- it is a reachability question, and
@@ -36,7 +40,10 @@ class AuthClientTest {
         assertNull(AuthClient.expiresAtEpochSeconds(Pin().apply { expiresAt = "not a date" }))
     }
 
-    private fun server(provides: String?, uri: String? = "https://server") = Resource().apply {
+    private fun server(
+        provides: String?,
+        uri: String? = "https://server",
+    ) = Resource().apply {
         this.provides = provides
         if (uri != null) this.connections = listOf(connection(uri, local = true, relay = false))
     }
@@ -44,9 +51,10 @@ class AuthClientTest {
     @Test
     fun keepsOnlyDevicesThatProvideAServer() {
         // /resources also returns players, controllers and the account's phones.
-        val servers = AuthClient.mediaServers(
-            listOf(server("server"), server("player"), server("client,player"))
-        )
+        val servers =
+            AuthClient.mediaServers(
+                listOf(server("server"), server("player"), server("client,player")),
+            )
         assertEquals(1, servers.size)
     }
 
@@ -77,7 +85,7 @@ class AuthClientTest {
 
         assertEquals(
             Either.Left(CreatePinError.NoPinCode),
-            AuthClient.validate(pin)
+            AuthClient.validate(pin),
         )
     }
 
@@ -87,28 +95,33 @@ class AuthClientTest {
 
         assertEquals(
             Either.Left(CreatePinError.NoPinCode),
-            AuthClient.validate(pin)
+            AuthClient.validate(pin),
         )
     }
 
     @Test
     fun createdPinRejectsAPinWhoseCodeIsBlank() {
-        val pin = Pin().apply { id = 42L; code = "   " }
+        val pin =
+            Pin().apply {
+                id = 42L
+                code = "   "
+            }
 
         assertEquals(
             Either.Left(CreatePinError.NoPinCode),
-            AuthClient.validate(pin)
+            AuthClient.validate(pin),
         )
     }
 
     @Test
     fun createdPinCarriesIdAndCodeAsNonNull() {
-        val pin = Pin().apply {
-            id = 42L
-            code = "ABCD"
-            qr = "https://plex.tv/qr/ABCD"
-            expiresAt = "2026-07-28T12:00:00Z"
-        }
+        val pin =
+            Pin().apply {
+                id = 42L
+                code = "ABCD"
+                qr = "https://plex.tv/qr/ABCD"
+                expiresAt = "2026-07-28T12:00:00Z"
+            }
 
         val created = AuthClient.validate(pin).getOrNull()!!
 
@@ -122,7 +135,12 @@ class AuthClientTest {
     fun createdPinTreatsABlankQrAsAbsent() {
         // The screen falls back to showing the short code alone; a blank string
         // would make it try to load an image from nowhere.
-        val pin = Pin().apply { id = 42L; code = "ABCD"; qr = "  " }
+        val pin =
+            Pin().apply {
+                id = 42L
+                code = "ABCD"
+                qr = "  "
+            }
 
         assertNull(AuthClient.validate(pin).getOrNull()!!.qrUrl)
     }
@@ -130,7 +148,12 @@ class AuthClientTest {
     @Test
     fun createdPinToleratesAnUnparseableExpiry() {
         // PlexPinState.shouldKeepPolling bounds the loop when this is null.
-        val pin = Pin().apply { id = 42L; code = "ABCD"; expiresAt = "not-a-date" }
+        val pin =
+            Pin().apply {
+                id = 42L
+                code = "ABCD"
+                expiresAt = "not-a-date"
+            }
 
         assertNull(AuthClient.validate(pin).getOrNull()!!.expiresAtEpochSeconds)
     }

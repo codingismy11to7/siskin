@@ -8,7 +8,6 @@ import org.junit.Test
  * so nothing here can be hollowed out by unitTests.returnDefaultValues.
  */
 class HubKeyTest {
-
     @Test
     fun roundTripsAKeyThroughItsPayload() {
         val key = "/library/sections/7/all?type=9&genre=138884"

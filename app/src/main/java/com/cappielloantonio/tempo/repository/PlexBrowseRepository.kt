@@ -62,7 +62,6 @@ private const val TAG = "PlexBrowseRepository"
  */
 @OptIn(UnstableApi::class)
 class PlexBrowseRepository {
-
     private val api = PlexApi()
     private val addressBook = ServerAddressBook.shared
 
@@ -86,10 +85,18 @@ class PlexBrowseRepository {
     private var cachedSearchClient: SearchClient? = null
 
     private val libraryClient: LibraryClient
-        get() = synchronized(this) { refreshClients(); cachedLibraryClient!! }
+        get() =
+            synchronized(this) {
+                refreshClients()
+                cachedLibraryClient!!
+            }
 
     private val searchClient: SearchClient
-        get() = synchronized(this) { refreshClients(); cachedSearchClient!! }
+        get() =
+            synchronized(this) {
+                refreshClients()
+                cachedSearchClient!!
+            }
 
     /**
      * Rebuilds when the session changes, because PlexRetrofitFactory bakes the
@@ -137,9 +144,10 @@ class PlexBrowseRepository {
     }
 
     /** The browse list: the shuffle row, then the playlist in its own order. */
-    fun getPlaylistTracks(playlistId: String) = playlistTracks(playlistId) { tracks ->
-        listOf(shufflePlaylistRow(playlistId)) + tracks
-    }
+    fun getPlaylistTracks(playlistId: String) =
+        playlistTracks(playlistId) { tracks ->
+            listOf(shufflePlaylistRow(playlistId)) + tracks
+        }
 
     /**
      * The same tracks with no shuffle row, for the queue that row builds.
@@ -151,16 +159,16 @@ class PlexBrowseRepository {
 
     private fun playlistTracks(
         playlistId: String,
-        decorate: (List<MediaItem>) -> List<MediaItem>
+        decorate: (List<MediaItem>) -> List<MediaItem>,
     ) = cachedTracks(
         { searchClient.getPlaylistItems(RatingKey(playlistId), 0, Constants.MAX_ITEMS) },
-        decorate
+        decorate,
     )
 
     private fun shufflePlaylistRow(playlistId: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(
             Constants.MIX_PLAYLIST_ID + playlistId,
-            App.getContext().getString(R.string.browse_mix_playlist)
+            App.getContext().getString(R.string.browse_mix_playlist),
         )
 
     /**
@@ -213,11 +221,12 @@ class PlexBrowseRepository {
         // one listing agrees about the hour it was minted in.
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         return fetch({ libraryClient.getSectionHubs(session.musicSectionKey) }) { body ->
-            val rows = hubsOf(body)
-                .filter { (it.size ?: 0) > 0 }
-                .filter { it.type != TYPE_CLIP }
-                .filter { LibraryClient.isSafeHubKey(it.key) }
-                .mapNotNull { PlexMediaMapper.hubToMediaItem(it, prefix, scope, bucket) }
+            val rows =
+                hubsOf(body)
+                    .filter { (it.size ?: 0) > 0 }
+                    .filter { it.type != TYPE_CLIP }
+                    .filter { LibraryClient.isSafeHubKey(it.key) }
+                    .mapNotNull { PlexMediaMapper.hubToMediaItem(it, prefix, scope, bucket) }
 
             // A server with no play history emits hubs it cannot fill -- five of
             // six were empty on one measured server -- so an empty Discover is
@@ -228,8 +237,8 @@ class PlexBrowseRepository {
                 listOf(
                     LibraryPickerRepository.messageRow(
                         App.getContext().getString(R.string.browse_discover_empty),
-                        App.getContext().getString(R.string.browse_discover_empty_hint)
-                    )
+                        App.getContext().getString(R.string.browse_discover_empty_hint),
+                    ),
                 )
             }
         }
@@ -250,16 +259,14 @@ class PlexBrowseRepository {
      * would play nothing. Reachable in normal use: the server re-rolls a hub's
      * parameters, so the key listed a moment ago can return nothing now.
      */
-    fun getHubContent(
-        hubKey: String
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+    fun getHubContent(hubKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
         fetch({ followHubKey(hubKey) }) { body ->
             val containers = containersOf(body)
             if (containers.isEmpty()) {
                 listOf(
                     LibraryPickerRepository.messageRow(
-                        App.getContext().getString(R.string.browse_discover_empty)
-                    )
+                        App.getContext().getString(R.string.browse_discover_empty),
+                    ),
                 )
             } else {
                 listOf(mixHubRow(hubKey)) + containers
@@ -280,9 +287,7 @@ class PlexBrowseRepository {
      * `cachedTracks` finds no tracks in it and the node renders empty, which is
      * the honest answer and costs no second request.
      */
-    fun getHubTracksForShuffle(
-        hubKey: String
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+    fun getHubTracksForShuffle(hubKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return cachedTracks({
             followHubKey(hubKey).flatMap { body ->
@@ -306,7 +311,7 @@ class PlexBrowseRepository {
      */
     fun getHubTracksForIds(
         albumIds: List<String>,
-        artistIds: List<String>
+        artistIds: List<String>,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return cachedTracks({ trackRequest(key, albumIds, artistIds) }) { it }
@@ -315,7 +320,7 @@ class PlexBrowseRepository {
     private suspend fun trackRequest(
         key: SectionKey,
         albumIds: List<String>,
-        artistIds: List<String>
+        artistIds: List<String>,
     ): Either<PlexTransportFailure, PlexResponse> =
         libraryClient.getSectionContent(
             key,
@@ -324,7 +329,7 @@ class PlexBrowseRepository {
             Constants.MAX_ITEMS,
             sort = LibraryClient.SORT_RANDOM,
             artistId = artistIds.takeIf { it.isNotEmpty() }?.joinToString(","),
-            albumId = albumIds.takeIf { it.isNotEmpty() }?.joinToString(",")
+            albumId = albumIds.takeIf { it.isNotEmpty() }?.joinToString(","),
         )
 
     /**
@@ -343,7 +348,9 @@ class PlexBrowseRepository {
      * applies to its own response.
      */
     private fun containersOf(body: PlexResponse?): List<MediaItem> =
-        body?.mediaContainer?.metadata
+        body
+            ?.mediaContainer
+            ?.metadata
             ?.filter { !it.ratingKey.isNullOrBlank() }
             ?.mapNotNull { metadata ->
                 when (metadata.type) {
@@ -351,8 +358,7 @@ class PlexBrowseRepository {
                     TYPE_ARTIST -> PlexMediaMapper.artistToMediaItem(metadata, Constants.ARTIST_ID)
                     else -> null
                 }
-            }
-            ?.take(Constants.MAX_ITEMS)
+            }?.take(Constants.MAX_ITEMS)
             ?: emptyList()
 
     /**
@@ -392,7 +398,7 @@ class PlexBrowseRepository {
     private fun mixHubRow(hubKey: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(
             Constants.MIX_HUB_ID + hubKey,
-            App.getContext().getString(R.string.browse_mix_hub)
+            App.getContext().getString(R.string.browse_mix_hub),
         )
 
     /**
@@ -405,9 +411,10 @@ class PlexBrowseRepository {
      * `MIX_DECADE_ID + key` from what the car sends back, matches by
      * construction.
      */
-    fun getDecadeTracks(decadeKey: String) = decadeTracks(decadeKey) { tracks ->
-        listOf(shuffleDecadeRow(decadeKey)) + tracks
-    }
+    fun getDecadeTracks(decadeKey: String) =
+        decadeTracks(decadeKey) { tracks ->
+            listOf(shuffleDecadeRow(decadeKey)) + tracks
+        }
 
     /**
      * The same query with no shuffle row, for when the row's tap cannot be
@@ -446,7 +453,7 @@ class PlexBrowseRepository {
      */
     private fun decadeTracks(
         decadeKey: String,
-        decorate: (List<MediaItem>) -> List<MediaItem>
+        decorate: (List<MediaItem>) -> List<MediaItem>,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return cachedTracks({
@@ -460,7 +467,7 @@ class PlexBrowseRepository {
                 // unrecognised filter value with 200 and an empty container,
                 // so the whole key here would render as an empty decade rather
                 // than as an error.
-                trackDecade = DecadeKey.decadeIn(decadeKey)
+                trackDecade = DecadeKey.decadeIn(decadeKey),
             )
         }, decorate)
     }
@@ -468,7 +475,7 @@ class PlexBrowseRepository {
     private fun shuffleDecadeRow(decadeKey: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(
             Constants.MIX_DECADE_ID + decadeKey,
-            App.getContext().getString(R.string.browse_mix_decade)
+            App.getContext().getString(R.string.browse_mix_decade),
         )
 
     /**
@@ -480,7 +487,7 @@ class PlexBrowseRepository {
      */
     fun getArtistAlbums(
         albumPrefix: String,
-        artistRatingKey: String
+        artistRatingKey: String,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch({
@@ -489,19 +496,20 @@ class PlexBrowseRepository {
                 PlexItemType.ALBUM,
                 0,
                 Constants.MAX_ITEMS,
-                artistId = artistRatingKey
+                artistId = artistRatingKey,
             )
         }) { body ->
-            listOf(shuffleArtistRow(artistRatingKey)) + itemsOf(body, TYPE_ALBUM).mapNotNull {
-                PlexMediaMapper.albumToMediaItem(it, albumPrefix)
-            }
+            listOf(shuffleArtistRow(artistRatingKey)) +
+                itemsOf(body, TYPE_ALBUM).mapNotNull {
+                    PlexMediaMapper.albumToMediaItem(it, albumPrefix)
+                }
         }
     }
 
     private fun shuffleArtistRow(artistRatingKey: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(
             Constants.MIX_ARTIST_ID + artistRatingKey,
-            App.getContext().getString(R.string.browse_mix_artist)
+            App.getContext().getString(R.string.browse_mix_artist),
         )
 
     /**
@@ -535,7 +543,7 @@ class PlexBrowseRepository {
                 PlexItemType.TRACK,
                 0,
                 Constants.MAX_ITEMS,
-                artistId = artistRatingKey
+                artistId = artistRatingKey,
             )
         }) { body ->
             tracksOf(body).mapNotNull {
@@ -565,15 +573,22 @@ class PlexBrowseRepository {
      * are offsets into this ordering, so a mismatch would point every window at
      * the wrong slice.
      */
-    fun getArtistWindows(windowPrefix: String, artistPrefix: String) =
-        windowed(PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_browse_artists) { body ->
-            itemsOf(body, TYPE_ARTIST).mapNotNull {
-                PlexMediaMapper.artistToMediaItem(it, artistPrefix)
-            }
+    fun getArtistWindows(
+        windowPrefix: String,
+        artistPrefix: String,
+    ) = windowed(PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_browse_artists) { body ->
+        itemsOf(body, TYPE_ARTIST).mapNotNull {
+            PlexMediaMapper.artistToMediaItem(it, artistPrefix)
         }
+    }
 
-    fun getArtistWindow(start: Int, artistPrefix: String) = window(
-        PlexItemType.ARTIST, LibraryClient.SORT_DISPLAY_TITLE, start
+    fun getArtistWindow(
+        start: Int,
+        artistPrefix: String,
+    ) = window(
+        PlexItemType.ARTIST,
+        LibraryClient.SORT_DISPLAY_TITLE,
+        start,
     ) { body ->
         itemsOf(body, TYPE_ARTIST).mapNotNull {
             PlexMediaMapper.artistToMediaItem(it, artistPrefix)
@@ -581,15 +596,22 @@ class PlexBrowseRepository {
     }
 
     /** The Albums tab, ordered by displayed name for the same reason. */
-    fun getAlbumWindows(windowPrefix: String, albumPrefix: String) =
-        windowed(PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_browse_albums) { body ->
-            itemsOf(body, TYPE_ALBUM).mapNotNull {
-                PlexMediaMapper.albumToMediaItem(it, albumPrefix)
-            }
+    fun getAlbumWindows(
+        windowPrefix: String,
+        albumPrefix: String,
+    ) = windowed(PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, windowPrefix, R.drawable.ic_browse_albums) { body ->
+        itemsOf(body, TYPE_ALBUM).mapNotNull {
+            PlexMediaMapper.albumToMediaItem(it, albumPrefix)
         }
+    }
 
-    fun getAlbumWindow(start: Int, albumPrefix: String) = window(
-        PlexItemType.ALBUM, LibraryClient.SORT_DISPLAY_TITLE, start
+    fun getAlbumWindow(
+        start: Int,
+        albumPrefix: String,
+    ) = window(
+        PlexItemType.ALBUM,
+        LibraryClient.SORT_DISPLAY_TITLE,
+        start,
     ) { body ->
         itemsOf(body, TYPE_ALBUM).mapNotNull {
             PlexMediaMapper.albumToMediaItem(it, albumPrefix)
@@ -600,12 +622,12 @@ class PlexBrowseRepository {
         type: Int,
         sort: String?,
         start: Int,
-        map: (PlexResponse) -> List<MediaItem>
+        map: (PlexResponse) -> List<MediaItem>,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch(
             { libraryClient.getSectionContent(key, type, start, Constants.WINDOW_SIZE, sort) },
-            map
+            map,
         )
     }
 
@@ -619,7 +641,7 @@ class PlexBrowseRepository {
         sort: String?,
         windowPrefix: String,
         icon: Int,
-        map: (PlexResponse) -> List<MediaItem>
+        map: (PlexResponse) -> List<MediaItem>,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch({
@@ -631,15 +653,16 @@ class PlexBrowseRepository {
             // truncated first WINDOW_SIZE items with no sign anything went
             // wrong, which is strictly worse than the bug this branch exists to
             // fix. Logged so it is at least diagnosable from logcat.
-            val total = head.mediaContainer?.totalSize ?: run {
-                Log.w(
-                    TAG,
-                    "windowed browse response carried no totalSize -- " +
-                        "falling back to a flat, possibly-truncated first " +
-                        "${Constants.WINDOW_SIZE} items"
-                )
-                0
-            }
+            val total =
+                head.mediaContainer?.totalSize ?: run {
+                    Log.w(
+                        TAG,
+                        "windowed browse response carried no totalSize -- " +
+                            "falling back to a flat, possibly-truncated first " +
+                            "${Constants.WINDOW_SIZE} items",
+                    )
+                    0
+                }
             if (total <= Constants.WINDOW_SIZE) {
                 map(head)
             } else {
@@ -683,42 +706,57 @@ class PlexBrowseRepository {
         total: Int,
         windowPrefix: String,
         icon: Int,
-        head: PlexResponse
+        head: PlexResponse,
     ): List<MediaItem> {
         val size = Constants.WINDOW_SIZE
         val count = (total + size - 1) / size
         val boundaries = (0 until count).map { it * size } + (total - 1)
 
-        val titles = coroutineScope {
-            boundaries.map { index ->
-                async {
-                    if (index == 0) {
-                        head.mediaContainer?.metadata?.firstOrNull()?.title
-                    } else {
-                        withTimeoutOrNull(BOUNDARY_TITLE_TIMEOUT_MS) {
-                            titleAt(key, type, sort, index)
+        val titles =
+            coroutineScope {
+                boundaries
+                    .map { index ->
+                        async {
+                            if (index == 0) {
+                                head.mediaContainer
+                                    ?.metadata
+                                    ?.firstOrNull()
+                                    ?.title
+                            } else {
+                                withTimeoutOrNull(BOUNDARY_TITLE_TIMEOUT_MS) {
+                                    titleAt(key, type, sort, index)
+                                }
+                            }
                         }
-                    }
-                }
-            }.awaitAll()
-        }
+                    }.awaitAll()
+            }
 
         return (0 until count).map { window ->
             val from = titles[window]
             val to = titles[window + 1]
-            val label = if (from != null && to != null) {
-                "${shortened(from)}  -  ${shortened(to)}"
-            } else {
-                "${window * size + 1} - ${minOf((window + 1) * size, total)}"
-            }
+            val label =
+                if (from != null && to != null) {
+                    "${shortened(from)}  -  ${shortened(to)}"
+                } else {
+                    "${window * size + 1} - ${minOf((window + 1) * size, total)}"
+                }
             PlexMediaMapper.groupRowToMediaItem(windowPrefix + (window * size), label, icon)
         }
     }
 
-    private suspend fun titleAt(key: SectionKey, type: Int, sort: String?, index: Int): String? =
-        libraryClient.getSectionContent(key, type, index, 1, sort)
+    private suspend fun titleAt(
+        key: SectionKey,
+        type: Int,
+        sort: String?,
+        index: Int,
+    ): String? =
+        libraryClient
+            .getSectionContent(key, type, index, 1, sort)
             .getOrNull()
-            ?.mediaContainer?.metadata?.firstOrNull()?.title
+            ?.mediaContainer
+            ?.metadata
+            ?.firstOrNull()
+            ?.title
 
     // ── browse by first character ──────────────────────────────
     //
@@ -742,7 +780,7 @@ class PlexBrowseRepository {
      */
     fun getArtistLetters(
         letterPrefix: String,
-        artistPrefix: String
+        artistPrefix: String,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch({ libraryClient.getFirstCharacters(key) }) { body ->
@@ -761,7 +799,7 @@ class PlexBrowseRepository {
                 Log.w(
                     TAG,
                     "firstCharacter index returned buckets with no size on any " +
-                        "of them -- falling back to bucket rows with no counts"
+                        "of them -- falling back to bucket rows with no counts",
                 )
             }
 
@@ -791,7 +829,7 @@ class PlexBrowseRepository {
      */
     fun getArtistLetter(
         bucketKey: String,
-        artistPrefix: String
+        artistPrefix: String,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch({
@@ -815,18 +853,23 @@ class PlexBrowseRepository {
      * [getArtistLetters] therefore falls back to the bucket rows on null *or*
      * empty, both read as "keep the bucket rows".
      */
-    private suspend fun flatArtists(key: SectionKey, artistPrefix: String): List<MediaItem>? =
-        libraryClient.getSectionContent(
-            key,
-            PlexItemType.ARTIST,
-            0,
-            Constants.WINDOW_SIZE,
-            LibraryClient.SORT_DISPLAY_TITLE
-        ).getOrNull()?.let { body ->
-            itemsOf(body, TYPE_ARTIST).mapNotNull {
-                PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+    private suspend fun flatArtists(
+        key: SectionKey,
+        artistPrefix: String,
+    ): List<MediaItem>? =
+        libraryClient
+            .getSectionContent(
+                key,
+                PlexItemType.ARTIST,
+                0,
+                Constants.WINDOW_SIZE,
+                LibraryClient.SORT_DISPLAY_TITLE,
+            ).getOrNull()
+            ?.let { body ->
+                itemsOf(body, TYPE_ARTIST).mapNotNull {
+                    PlexMediaMapper.artistToMediaItem(it, artistPrefix)
+                }
             }
-        }
 
     /**
      * One bucket row. Null for an entry with no key or no title -- there is
@@ -836,7 +879,10 @@ class PlexBrowseRepository {
      * display-ready, so nothing here is localised or cut with [shortened]. The
      * count is, hence the plurals lookup.
      */
-    private fun letterRow(bucket: Directory, letterPrefix: String): MediaItem? {
+    private fun letterRow(
+        bucket: Directory,
+        letterPrefix: String,
+    ): MediaItem? {
         val key = bucket.key?.takeIf { it.isNotBlank() } ?: return null
         val title = bucket.title?.takeIf { it.isNotBlank() } ?: return null
         return PlexMediaMapper.groupRowToMediaItem(
@@ -845,7 +891,7 @@ class PlexBrowseRepository {
             R.drawable.ic_browse_artists,
             bucket.size?.let { count ->
                 App.getContext().resources.getQuantityString(R.plurals.car_artist_count, count, count)
-            }
+            },
         )
     }
 
@@ -858,7 +904,7 @@ class PlexBrowseRepository {
     fun search(
         query: String,
         albumPrefix: String,
-        artistPrefix: String
+        artistPrefix: String,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
 
@@ -875,7 +921,8 @@ class PlexBrowseRepository {
                 PlexMediaMapper.albumToMediaItem(m, albumPrefix)?.let(items::add)
             }
             tracks.forEach { m ->
-                PlexMediaMapper.trackToMediaItem(m, null, serverUri, token)
+                PlexMediaMapper
+                    .trackToMediaItem(m, null, serverUri, token)
                     ?.let(items::add)
             }
             // Always a Right: collect() folds each tier's failure into an empty
@@ -909,7 +956,7 @@ class PlexBrowseRepository {
         sectionKey: SectionKey,
         query: String,
         type: Int,
-        expectedType: String
+        expectedType: String,
     ): List<Metadata> =
         try {
             searchClient.search(sectionKey, query, type).fold(
@@ -917,7 +964,7 @@ class PlexBrowseRepository {
                     Log.w(TAG, "search tier type=$type failed: $failure")
                     emptyList()
                 },
-                { itemsOf(it, expectedType) }
+                { itemsOf(it, expectedType) },
             )
         } catch (failure: Throwable) {
             Log.w(TAG, "search tier type=$type failed unexpectedly", failure)
@@ -942,9 +989,8 @@ class PlexBrowseRepository {
      */
     private fun fetch(
         request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
-        map: suspend (PlexResponse) -> List<MediaItem>
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        launchInto { resultFor(request, map) }
+        map: suspend (PlexResponse) -> List<MediaItem>,
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> = launchInto { resultFor(request, map) }
 
     /**
      * Tracks from one container, tagged as this browse node's queue source.
@@ -960,15 +1006,18 @@ class PlexBrowseRepository {
      */
     private fun cachedTracks(
         request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
-        decorate: (List<MediaItem>) -> List<MediaItem>
+        decorate: (List<MediaItem>) -> List<MediaItem>,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
         fetch(request) { body ->
             decorate(
                 tracksOf(body).mapNotNull {
                     PlexMediaMapper.trackToMediaItem(
-                        it, Constants.QUEUE_CACHED_SOURCE, serverUri, token
+                        it,
+                        Constants.QUEUE_CACHED_SOURCE,
+                        serverUri,
+                        token,
                     )
-                }
+                },
             )
         }
 
@@ -996,7 +1045,7 @@ class PlexBrowseRepository {
      * `raise` for it to swallow.
      */
     private fun launchInto(
-        block: suspend () -> Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>>
+        block: suspend () -> Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>>,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
 
@@ -1007,7 +1056,7 @@ class PlexBrowseRepository {
                         Log.w(TAG, "browse could not reach the server: $failure")
                         future.setException(PlexTransportException(failure))
                     },
-                    { future.set(it) }
+                    { future.set(it) },
                 )
             } catch (failure: Throwable) {
                 Log.w(TAG, "browse failed unexpectedly", failure)
@@ -1060,8 +1109,13 @@ class PlexBrowseRepository {
         fun tracksOf(response: PlexResponse?): List<Metadata> = itemsOf(response, TYPE_TRACK)
 
         @JvmStatic
-        fun itemsOf(response: PlexResponse?, type: String): List<Metadata> =
-            response?.mediaContainer?.metadata
+        fun itemsOf(
+            response: PlexResponse?,
+            type: String,
+        ): List<Metadata> =
+            response
+                ?.mediaContainer
+                ?.metadata
                 ?.filter { it.type == type && !it.ratingKey.isNullOrBlank() }
                 ?: emptyList()
 
@@ -1073,13 +1127,11 @@ class PlexBrowseRepository {
          * not a failure, for the same reason it is in [itemsOf].
          */
         @JvmStatic
-        fun directoriesOf(response: PlexResponse?): List<Directory> =
-            response?.mediaContainer?.directory ?: emptyList()
+        fun directoriesOf(response: PlexResponse?): List<Directory> = response?.mediaContainer?.directory ?: emptyList()
 
         /** A container's Hub rows; an absent list is an empty result. */
         @JvmStatic
-        fun hubsOf(response: PlexResponse?): List<Hub> =
-            response?.mediaContainer?.hub ?: emptyList()
+        fun hubsOf(response: PlexResponse?): List<Hub> = response?.mediaContainer?.hub ?: emptyList()
 
         /**
          * Decides what a browse outcome means to media3.
@@ -1100,26 +1152,34 @@ class PlexBrowseRepository {
          */
         internal suspend fun resultFor(
             request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
-            map: suspend (PlexResponse) -> List<MediaItem>
-        ): Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>> = either {
-            val failure = when (val outcome = request()) {
-                is Either.Right ->
-                    return@either LibraryResult.ofItemList(
-                        ImmutableList.copyOf(map(outcome.value)), null
-                    )
+            map: suspend (PlexResponse) -> List<MediaItem>,
+        ): Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>> =
+            either {
+                val failure =
+                    when (val outcome = request()) {
+                        is Either.Right -> {
+                            return@either LibraryResult.ofItemList(
+                                ImmutableList.copyOf(map(outcome.value)),
+                                null,
+                            )
+                        }
 
-                is Either.Left -> outcome.value
-            }
+                        is Either.Left -> {
+                            outcome.value
+                        }
+                    }
 
-            when (failure) {
-                is PlexTransportFailure.Http -> {
-                    Log.w(TAG, "browse failed with HTTP ${failure.code}")
-                    errorFor(failure.code)
+                when (failure) {
+                    is PlexTransportFailure.Http -> {
+                        Log.w(TAG, "browse failed with HTTP ${failure.code}")
+                        errorFor(failure.code)
+                    }
+
+                    is PlexTransportFailure.Unreachable -> {
+                        raise(failure)
+                    }
                 }
-
-                is PlexTransportFailure.Unreachable -> raise(failure)
             }
-        }
 
         /**
          * 401/403 mean the token Plex issued is no longer accepted, which is

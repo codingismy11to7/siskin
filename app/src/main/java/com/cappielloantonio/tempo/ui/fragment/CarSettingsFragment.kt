@@ -41,7 +41,6 @@ import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
  */
 @UnstableApi
 class CarSettingsFragment : Fragment() {
-
     private var bind: FragmentCarSettingsBinding? = null
     private lateinit var viewModel: PlexSignInViewModel
 
@@ -49,7 +48,7 @@ class CarSettingsFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         viewModel = ViewModelProvider(requireActivity())[PlexSignInViewModel::class.java]
         val bind = FragmentCarSettingsBinding.inflate(inflater, container, false)
@@ -62,13 +61,13 @@ class CarSettingsFragment : Fragment() {
         addToggle(
             rows,
             getString(R.string.car_settings_continuous_play),
-            Preferences.isContinuousPlayEnabled()
+            Preferences.isContinuousPlayEnabled(),
         ) { Preferences.setContinuousPlayEnabled(it) }
 
         addToggle(
             rows,
             getString(R.string.car_settings_replay_gain),
-            Preferences.isReplayGainEnabled()
+            Preferences.isReplayGainEnabled(),
         ) { Preferences.setReplayGainEnabled(it) }
 
         // Invalidates the Artists tab as well as writing the key. The car
@@ -78,7 +77,7 @@ class CarSettingsFragment : Fragment() {
         addToggle(
             rows,
             getString(R.string.car_settings_artists_by_initial),
-            Preferences.isArtistsByInitialEnabled()
+            Preferences.isArtistsByInitialEnabled(),
         ) {
             Preferences.setArtistsByInitialEnabled(it)
             BrowseTreeInvalidator.invalidateNode(Constants.ARTISTS_ID, 0)
@@ -88,7 +87,8 @@ class CarSettingsFragment : Fragment() {
         // toggles and above Sign out: it is a setting, and a destructive
         // terminal action still belongs last.
         addChoice(rows, getString(R.string.car_settings_customize_tabs)) {
-            parentFragmentManager.beginTransaction()
+            parentFragmentManager
+                .beginTransaction()
                 .replace(R.id.car_host_container, BrowseTabOrderFragment())
                 .addToBackStack(null)
                 .commit()
@@ -105,7 +105,8 @@ class CarSettingsFragment : Fragment() {
         // accumulates -- see the 2026-08-14 design. It is a screen rather than
         // a dialog as of the 2026-08-16 one.
         bind.versionText.setOnClickListener {
-            parentFragmentManager.beginTransaction()
+            parentFragmentManager
+                .beginTransaction()
                 .replace(R.id.car_host_container, CarDebugFragment())
                 .addToBackStack(null)
                 .commit()

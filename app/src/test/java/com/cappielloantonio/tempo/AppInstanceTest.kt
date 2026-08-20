@@ -19,7 +19,6 @@ import org.robolectric.RuntimeEnvironment
  */
 @RunWith(RobolectricTestRunner::class)
 class AppInstanceTest {
-
     @Test
     fun getInstanceIsTheApplicationTheSystemCreated() {
         assertSame(RuntimeEnvironment.getApplication(), App.getInstance())

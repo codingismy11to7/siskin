@@ -13,7 +13,6 @@ import org.robolectric.RobolectricTestRunner
 /** Robolectric: reads PlexApi, and android.net.Uri needs a real implementation. */
 @RunWith(RobolectricTestRunner::class)
 class StreamingCacheKeyFactoryTest {
-
     private lateinit var api: PlexApi
 
     @Before
@@ -22,8 +21,7 @@ class StreamingCacheKeyFactoryTest {
         api.machineIdentifier = null
     }
 
-    private fun key(uri: String): String =
-        StreamingCacheKeyFactory(api).buildCacheKey(DataSpec(Uri.parse(uri)))
+    private fun key(uri: String): String = StreamingCacheKeyFactory(api).buildCacheKey(DataSpec(Uri.parse(uri)))
 
     @Test
     fun theSameTrackKeysTheSameAcrossAddresses() {
@@ -33,7 +31,7 @@ class StreamingCacheKeyFactoryTest {
 
         assertEquals(
             key("https://lan.example:32400/library/parts/1/2/file.mp3?X-Plex-Token=t"),
-            key("https://relay.example:8443/library/parts/1/2/file.mp3?X-Plex-Token=t")
+            key("https://relay.example:8443/library/parts/1/2/file.mp3?X-Plex-Token=t"),
         )
     }
 
@@ -75,17 +73,19 @@ class StreamingCacheKeyFactoryTest {
 
         assertNotEquals(
             key("https://one.example/some/thing.mp3"),
-            key("https://two.example/some/thing.mp3")
+            key("https://two.example/some/thing.mp3"),
         )
     }
 
     @Test
     fun anExplicitDataSpecKeyStillWins() {
         api.machineIdentifier = "machine-a"
-        val spec = DataSpec.Builder()
-            .setUri(Uri.parse("https://lan.example:32400/library/parts/1/2/file.mp3"))
-            .setKey("explicit")
-            .build()
+        val spec =
+            DataSpec
+                .Builder()
+                .setUri(Uri.parse("https://lan.example:32400/library/parts/1/2/file.mp3"))
+                .setKey("explicit")
+                .build()
 
         assertEquals("explicit", StreamingCacheKeyFactory(api).buildCacheKey(spec))
     }

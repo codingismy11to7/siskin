@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit
  */
 @RunWith(RobolectricTestRunner::class)
 class MediaManagerScrobbleTest {
-
     private lateinit var server: MockWebServer
 
     @Before
@@ -42,16 +41,21 @@ class MediaManagerScrobbleTest {
         server.shutdown()
     }
 
-    private fun trackItem(ratingKey: String, partKey: String) = MediaItem.Builder()
+    private fun trackItem(
+        ratingKey: String,
+        partKey: String,
+    ) = MediaItem
+        .Builder()
         .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setExtras(Bundle().apply {
-                    putString(PlexMediaMapper.EXTRA_ID, ratingKey)
-                    putString(PlexMediaMapper.EXTRA_PART_KEY, partKey)
-                })
-                .build()
-        )
-        .build()
+            MediaMetadata
+                .Builder()
+                .setExtras(
+                    Bundle().apply {
+                        putString(PlexMediaMapper.EXTRA_ID, ratingKey)
+                        putString(PlexMediaMapper.EXTRA_PART_KEY, partKey)
+                    },
+                ).build(),
+        ).build()
 
     /**
      * Catches a regression back to the pre-fix behaviour, where `scrobble`
@@ -69,8 +73,9 @@ class MediaManagerScrobbleTest {
 
         MediaManager.scrobble(trackItem("42", "/library/parts/99"), true, 123_456L)
 
-        val request = server.takeRequest(5, TimeUnit.SECONDS)
-            ?: throw AssertionError("PlexScrobbler never sent a request")
+        val request =
+            server.takeRequest(5, TimeUnit.SECONDS)
+                ?: throw AssertionError("PlexScrobbler never sent a request")
         assertEquals("123456", request.requestUrl!!.queryParameter("time"))
         assertEquals("42", request.requestUrl!!.queryParameter("ratingKey"))
     }
@@ -84,8 +89,9 @@ class MediaManagerScrobbleTest {
 
         MediaManager.scrobble(trackItem("42", "/library/parts/99"), false, 0L)
 
-        val request = server.takeRequest(5, TimeUnit.SECONDS)
-            ?: throw AssertionError("PlexScrobbler never sent a request")
+        val request =
+            server.takeRequest(5, TimeUnit.SECONDS)
+                ?: throw AssertionError("PlexScrobbler never sent a request")
         assertEquals("0", request.requestUrl!!.queryParameter("time"))
         assertEquals("playing", request.requestUrl!!.queryParameter("state"))
     }

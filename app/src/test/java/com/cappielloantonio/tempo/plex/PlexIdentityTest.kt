@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlexIdentityTest {
-
     @Test
     fun includesEveryHeaderPlexRequires() {
         val headers = PlexIdentity.headers("cid-1", "1.2.3", null, "")

@@ -49,7 +49,6 @@ import org.robolectric.Shadows.shadowOf
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class CarHostActivityTest {
-
     private lateinit var session: MediaLibrarySession
     private lateinit var player: Player
 

@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 @RunWith(RobolectricTestRunner::class)
 class PlexMixRepositoryTest {
-
     private lateinit var server: MockWebServer
 
     @Before
@@ -85,10 +84,12 @@ class PlexMixRepositoryTest {
         val calls = AtomicInteger(0)
         var tracks: List<MediaItem> = listOf(MediaItem.EMPTY)
 
-        request(PlexMixRepository.TracksCallback {
-            tracks = it
-            calls.incrementAndGet()
-        })
+        request(
+            PlexMixRepository.TracksCallback {
+                tracks = it
+                calls.incrementAndGet()
+            },
+        )
 
         val deadline = System.currentTimeMillis() + 10_000
         while (calls.get() == 0 && System.currentTimeMillis() < deadline) {
@@ -133,8 +134,8 @@ class PlexMixRepositoryTest {
                 """{"MediaContainer":{"Metadata":[
                     {"ratingKey":"11","type":"track","title":"One"},
                     {"ratingKey":"22","type":"track","title":"Two"}
-                ]}}"""
-            )
+                ]}}""",
+            ),
         )
 
         val (tracks, calls) = collect { PlexMixRepository().similarTracks("5", 25, it) }
@@ -192,8 +193,9 @@ class PlexMixRepositoryTest {
     fun randomTracksDeliversTheTracksFromA200() {
         PlexApi().musicSectionKey = "1"
         server.enqueue(
-            MockResponse().setResponseCode(200)
-                .setBody("""{"MediaContainer":{"Metadata":[{"ratingKey":"33","type":"track"}]}}""")
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"MediaContainer":{"Metadata":[{"ratingKey":"33","type":"track"}]}}"""),
         )
 
         val (tracks, calls) = collect { PlexMixRepository().randomTracks(25, it) }
@@ -223,24 +225,27 @@ class PlexMixRepositoryTest {
     }
 
     /** Answers /identity like a reachable Plex server, and everything else with [body]. */
-    private fun liveServer(body: String) = MockWebServer().apply {
-        dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest) =
-                if (request.requestUrl?.encodedPath == "/identity") {
-                    MockResponse().setResponseCode(200)
-                } else {
-                    MockResponse().setResponseCode(200).setBody(body)
+    private fun liveServer(body: String) =
+        MockWebServer().apply {
+            dispatcher =
+                object : Dispatcher() {
+                    override fun dispatch(request: RecordedRequest) =
+                        if (request.requestUrl?.encodedPath == "/identity") {
+                            MockResponse().setResponseCode(200)
+                        } else {
+                            MockResponse().setResponseCode(200).setBody(body)
+                        }
                 }
+            start()
         }
-        start()
-    }
 
     @Test
     fun similarTracksRecoversWhenTheStoredAddressDiesButAnotherStillAnswers() {
         val dead = deadUri()
-        val live = liveServer(
-            """{"MediaContainer":{"Metadata":[{"ratingKey":"11","type":"track","title":"One"}]}}"""
-        )
+        val live =
+            liveServer(
+                """{"MediaContainer":{"Metadata":[{"ratingKey":"11","type":"track","title":"One"}]}}""",
+            )
         val liveUri = live.url("/").toString().trimEnd('/')
 
         PlexApi().apply {
@@ -252,12 +257,13 @@ class PlexMixRepositoryTest {
         ServerAddressBook.shared.adopt(
             Resource().apply {
                 clientIdentifier = "machine-a"
-                connections = listOf(
-                    Connection().apply { uri = dead },
-                    Connection().apply { uri = liveUri }
-                )
+                connections =
+                    listOf(
+                        Connection().apply { uri = dead },
+                        Connection().apply { uri = liveUri },
+                    )
             },
-            dead
+            dead,
         )
 
         val (tracks, calls) = collect { PlexMixRepository().similarTracks("5", 25, it) }
@@ -267,7 +273,7 @@ class PlexMixRepositoryTest {
         assertEquals(
             "the re-probe must move the session onto the address that answered",
             liveUri,
-            PlexApi().serverUri
+            PlexApi().serverUri,
         )
         live.shutdown()
     }

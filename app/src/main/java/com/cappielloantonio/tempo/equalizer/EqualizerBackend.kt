@@ -3,10 +3,15 @@ package com.cappielloantonio.tempo.equalizer
 import android.content.Context
 
 interface EqualizerBackend {
+    fun attach(
+        audioSessionId: Int,
+        context: Context,
+    ): Boolean
 
-    fun attach(audioSessionId: Int, context: Context): Boolean
-
-    fun release(audioSessionId: Int, context: Context)
+    fun release(
+        audioSessionId: Int,
+        context: Context,
+    )
 
     fun setEnabled(enabled: Boolean)
 
@@ -18,5 +23,8 @@ interface EqualizerBackend {
 
     fun getBandLevel(band: Short): Short?
 
-    fun setBandLevel(band: Short, level: Short)
+    fun setBandLevel(
+        band: Short,
+        level: Short,
+    )
 }

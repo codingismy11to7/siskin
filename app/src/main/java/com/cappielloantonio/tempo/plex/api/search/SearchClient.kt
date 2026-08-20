@@ -21,8 +21,11 @@ private const val TAG = "SearchClient"
  * parameter is what lets sign-in read a candidate server's sections before it
  * has committed a [com.cappielloantonio.tempo.plex.PlexSession].
  */
-class SearchClient(api: PlexApi, serverUri: String?, serverToken: String?) {
-
+class SearchClient(
+    api: PlexApi,
+    serverUri: String?,
+    serverToken: String?,
+) {
     /** Uses whatever server the persisted session names. */
     constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken)
 
@@ -38,7 +41,7 @@ class SearchClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         sectionKey: SectionKey,
         query: String,
         type: Int,
-        limit: Int = DEFAULT_SEARCH_LIMIT
+        limit: Int = DEFAULT_SEARCH_LIMIT,
     ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "search($sectionKey, type=$type, limit=$limit)")
         return plexCall(PlexHost.Server) { service.search(sectionKey.value, query, type, limit) }
@@ -51,23 +54,24 @@ class SearchClient(api: PlexApi, serverUri: String?, serverToken: String?) {
     suspend fun getPlaylistItems(
         playlistId: RatingKey,
         start: Int,
-        size: Int
-    ): Either<PlexTransportFailure, PlexResponse> =
-        plexCall(PlexHost.Server) { service.getPlaylistItems(playlistId.value, start, size) }
+        size: Int,
+    ): Either<PlexTransportFailure, PlexResponse> = plexCall(PlexHost.Server) { service.getPlaylistItems(playlistId.value, start, size) }
 
     suspend fun reportProgress(
         ratingKey: RatingKey,
         key: String,
         state: String,
-        timeMs: Long
-    ): Either<PlexTransportFailure, Unit> =
-        plexCall(PlexHost.Server) { service.reportProgress(ratingKey.value, key, state, timeMs) }
+        timeMs: Long,
+    ): Either<PlexTransportFailure, Unit> = plexCall(PlexHost.Server) { service.reportProgress(ratingKey.value, key, state, timeMs) }
 
     /**
      * A `Right` is the success case: the service call returns Unit and any
      * non-2xx becomes [PlexTransportFailure.Http], so there is no body to inspect.
      */
-    suspend fun rate(ratingKey: RatingKey, rating: Int): Either<PlexTransportFailure, Unit> {
+    suspend fun rate(
+        ratingKey: RatingKey,
+        rating: Int,
+    ): Either<PlexTransportFailure, Unit> {
         Log.d(TAG, "rate($ratingKey, rating=$rating)")
         return plexCall(PlexHost.Server) { service.rate(ratingKey.value, LIBRARY_IDENTIFIER, rating) }
     }

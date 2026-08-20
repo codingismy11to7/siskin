@@ -16,7 +16,6 @@ import org.robolectric.RobolectricTestRunner
 /** Robolectric: android.net.Uri returns null under returnDefaultValues. */
 @RunWith(RobolectricTestRunner::class)
 class ServerAddressResolverTest {
-
     private lateinit var api: PlexApi
 
     @Before
@@ -24,25 +23,25 @@ class ServerAddressResolverTest {
         api = PlexApi()
         api.accountToken = "account-token"
         api.serverCandidates = null
-        api.session = PlexSession(
-            accountToken = "account-token",
-            serverUri = "https://live.example:32400",
-            musicSectionKey = SectionKey("5"),
-            serverToken = "server-token",
-            machineIdentifier = "machine-a"
-        )
+        api.session =
+            PlexSession(
+                accountToken = "account-token",
+                serverUri = "https://live.example:32400",
+                musicSectionKey = SectionKey("5"),
+                serverToken = "server-token",
+                machineIdentifier = "machine-a",
+            )
     }
 
     private fun resolver() = ServerAddressResolver(ServerAddressBook.newForTest(api))
 
-    private fun resolve(uri: String): String =
-        resolver().resolveDataSpec(DataSpec(Uri.parse(uri))).uri.toString()
+    private fun resolve(uri: String): String = resolver().resolveDataSpec(DataSpec(Uri.parse(uri))).uri.toString()
 
     @Test
     fun aPartUrlGetsTheLiveOrigin() {
         assertEquals(
             "https://live.example:32400/library/parts/1/2/file.mp3?X-Plex-Token=t",
-            resolve("https://dead.example:32400/library/parts/1/2/file.mp3?X-Plex-Token=t")
+            resolve("https://dead.example:32400/library/parts/1/2/file.mp3?X-Plex-Token=t"),
         )
     }
 
@@ -90,24 +89,26 @@ class ServerAddressResolverTest {
 
     @Test
     fun aFullyPopulatedDataSpecKeepsEveryFieldButTheUri() {
-        val original = DataSpec.Builder()
-            .setUri(Uri.parse("https://dead.example:32400/library/parts/1/2/file.mp3?X-Plex-Token=t"))
-            .setUriPositionOffset(7L)
-            .setHttpMethod(DataSpec.HTTP_METHOD_POST)
-            .setHttpBody(byteArrayOf(1, 2, 3))
-            .setHttpRequestHeaders(mapOf("Range" to "bytes=100-"))
-            .setPosition(100L)
-            .setLength(500L)
-            .setKey("cache-key")
-            .setFlags(DataSpec.FLAG_ALLOW_GZIP)
-            .setCustomData("custom")
-            .build()
+        val original =
+            DataSpec
+                .Builder()
+                .setUri(Uri.parse("https://dead.example:32400/library/parts/1/2/file.mp3?X-Plex-Token=t"))
+                .setUriPositionOffset(7L)
+                .setHttpMethod(DataSpec.HTTP_METHOD_POST)
+                .setHttpBody(byteArrayOf(1, 2, 3))
+                .setHttpRequestHeaders(mapOf("Range" to "bytes=100-"))
+                .setPosition(100L)
+                .setLength(500L)
+                .setKey("cache-key")
+                .setFlags(DataSpec.FLAG_ALLOW_GZIP)
+                .setCustomData("custom")
+                .build()
 
         val resolved = resolver().resolveDataSpec(original)
 
         assertEquals(
             "https://live.example:32400/library/parts/1/2/file.mp3?X-Plex-Token=t",
-            resolved.uri.toString()
+            resolved.uri.toString(),
         )
         assertEquals(original.uriPositionOffset, resolved.uriPositionOffset)
         assertEquals(original.httpMethod, resolved.httpMethod)

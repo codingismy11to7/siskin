@@ -14,7 +14,6 @@ import retrofit2.http.Query
  * play from coming back.
  */
 interface SearchService {
-
     /**
      * [type] is REQUIRED -- Plex answers HTTP 400 without it, verified against
      * PMS 1.43.3. It takes a single PlexItemType value; a comma-separated list is
@@ -26,7 +25,7 @@ interface SearchService {
         @Path("sectionId") sectionId: String,
         @Query("query") query: String,
         @Query("type") type: Int,
-        @Query("limit") limit: Int
+        @Query("limit") limit: Int,
     ): PlexResponse
 
     /**
@@ -44,7 +43,7 @@ interface SearchService {
     @GET("playlists")
     suspend fun getPlaylists(
         @Query("sectionID") sectionId: String,
-        @Query("playlistType") playlistType: String = "audio"
+        @Query("playlistType") playlistType: String = "audio",
     ): PlexResponse
 
     /**
@@ -56,7 +55,7 @@ interface SearchService {
     suspend fun getPlaylistItems(
         @Path("playlistId") playlistId: String,
         @Header("X-Plex-Container-Start") start: Int,
-        @Header("X-Plex-Container-Size") size: Int
+        @Header("X-Plex-Container-Size") size: Int,
     ): PlexResponse
 
     /** Plex expects a GET despite this being a write; it returns an empty body. */
@@ -65,7 +64,7 @@ interface SearchService {
         @Query("ratingKey") ratingKey: String,
         @Query("key") key: String,
         @Query("state") state: String,
-        @Query("time") timeMs: Long
+        @Query("time") timeMs: Long,
     )
 
     /**
@@ -77,6 +76,6 @@ interface SearchService {
     suspend fun rate(
         @Query("key") key: String,
         @Query("identifier") identifier: String,
-        @Query("rating") rating: Int
+        @Query("rating") rating: Int,
     )
 }

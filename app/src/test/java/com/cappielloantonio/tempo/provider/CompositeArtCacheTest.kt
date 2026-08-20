@@ -27,7 +27,6 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class CompositeArtCacheTest {
-
     private val context get() = App.getContext()
 
     @Before
@@ -35,12 +34,15 @@ class CompositeArtCacheTest {
         CompositeArt.cacheDir(context).deleteRecursively()
     }
 
-    private fun session(machineIdentifier: String?, sectionKey: String) = PlexSession(
+    private fun session(
+        machineIdentifier: String?,
+        sectionKey: String,
+    ) = PlexSession(
         accountToken = "account-token",
         serverUri = "https://plex.example",
         musicSectionKey = SectionKey(sectionKey),
         serverToken = null,
-        machineIdentifier = machineIdentifier
+        machineIdentifier = machineIdentifier,
     )
 
     @Test
@@ -52,7 +54,7 @@ class CompositeArtCacheTest {
         // mosaic out of its own image cache after More -> Server Select.
         assertNotEquals(
             CompositeArt.scopeOf(session("machinea", "4")),
-            CompositeArt.scopeOf(session("machineb", "4"))
+            CompositeArt.scopeOf(session("machineb", "4")),
         )
     }
 
@@ -63,7 +65,7 @@ class CompositeArtCacheTest {
         // server, and neither identifier subsumes the other.
         assertNotEquals(
             CompositeArt.scopeOf(session("machinea", "4")),
-            CompositeArt.scopeOf(session("machinea", "9"))
+            CompositeArt.scopeOf(session("machinea", "9")),
         )
     }
 
@@ -79,7 +81,7 @@ class CompositeArtCacheTest {
 
         assertTrue(
             "${file.name} should start with ${CompositeArt.scopeOf(session)}",
-            file.name.startsWith(CompositeArt.scopeOf(session) + "-")
+            file.name.startsWith(CompositeArt.scopeOf(session) + "-"),
         )
     }
 

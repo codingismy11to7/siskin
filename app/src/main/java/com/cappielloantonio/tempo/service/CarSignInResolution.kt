@@ -24,14 +24,13 @@ import com.google.common.collect.ImmutableList
  */
 @UnstableApi
 object CarSignInResolution {
-
     /** Arbitrary but stable, so FLAG_UPDATE_CURRENT targets the same PendingIntent. */
     private const val REQUEST_CODE = 0x5169
 
     fun errorResult(
         context: Context,
         @StringRes messageRes: Int,
-        @StringRes actionRes: Int = R.string.car_sign_in_action
+        @StringRes actionRes: Int = R.string.car_sign_in_action,
     ): LibraryResult<ImmutableList<MediaItem>> {
         val message = context.getString(messageRes)
         val action = context.getString(actionRes)
@@ -45,33 +44,39 @@ object CarSignInResolution {
             // a button. Swapping this code for any other SessionError silently drops
             // the button with no compile or test failure.
             SessionError(SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED, message),
-            MediaLibraryService.LibraryParams.Builder()
+            MediaLibraryService.LibraryParams
+                .Builder()
                 .setExtras(resolutionExtras(context, action))
-                .build()
+                .build(),
         )
     }
 
-    private fun resolutionExtras(context: Context, action: String): Bundle = Bundle().apply {
-        putString(MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_LABEL_COMPAT, action)
-        putParcelable(
-            MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_INTENT_COMPAT,
-            signInPendingIntent(context)
-        )
-    }
+    private fun resolutionExtras(
+        context: Context,
+        action: String,
+    ): Bundle =
+        Bundle().apply {
+            putString(MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_LABEL_COMPAT, action)
+            putParcelable(
+                MediaConstants.EXTRAS_KEY_ERROR_RESOLUTION_ACTION_INTENT_COMPAT,
+                signInPendingIntent(context),
+            )
+        }
 
     private fun signInPendingIntent(context: Context): PendingIntent {
-        val intent = Intent(context, CarHostActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            // Every route through this object is a credentials problem, so the
-            // screen must offer sign-in even when a (rejected) session object
-            // still exists. The gear's launch carries no extra and decides for
-            // itself.
-            .putExtra(CarHostActivity.EXTRA_FORCE_SIGN_IN, true)
+        val intent =
+            Intent(context, CarHostActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                // Every route through this object is a credentials problem, so the
+                // screen must offer sign-in even when a (rejected) session object
+                // still exists. The gear's launch carries no extra and decides for
+                // itself.
+                .putExtra(CarHostActivity.EXTRA_FORCE_SIGN_IN, true)
         return PendingIntent.getActivity(
             context,
             REQUEST_CODE,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 }

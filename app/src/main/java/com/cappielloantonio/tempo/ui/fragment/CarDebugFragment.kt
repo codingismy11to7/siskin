@@ -35,7 +35,6 @@ import kotlinx.coroutines.launch
  * moving. That is what lets this screen be as dense as it needs to be.
  */
 class CarDebugFragment : Fragment() {
-
     private var bind: FragmentCarDebugBinding? = null
 
     /**
@@ -49,19 +48,20 @@ class CarDebugFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         val bind = FragmentCarDebugBinding.inflate(inflater, container, false)
         this.bind = bind
 
         renderAddresses(outcome = null)
 
-        reprobeRow = addChoice(
-            bind.choiceContainer,
-            getString(R.string.debug_addresses_reprobe)
-        ) {
-            reprobe()
-        }
+        reprobeRow =
+            addChoice(
+                bind.choiceContainer,
+                getString(R.string.debug_addresses_reprobe),
+            ) {
+                reprobe()
+            }
 
         addChoice(bind.choiceContainer, getString(R.string.debug_choose_server)) {
             chooseServer()
@@ -86,14 +86,15 @@ class CarDebugFragment : Fragment() {
      */
     private fun renderAddresses(outcome: String?) {
         val bind = this.bind ?: return
-        bind.addressText.text = buildAddressPanelBody(
-            known = ServerAddressBook.shared.knownAddresses(),
-            outcome = outcome,
-            noneLabel = getString(R.string.debug_addresses_none),
-            inUseLabel = getString(R.string.debug_addresses_in_use),
-            directLabel = getString(R.string.debug_addresses_direct),
-            relayLabel = getString(R.string.debug_addresses_relay)
-        )
+        bind.addressText.text =
+            buildAddressPanelBody(
+                known = ServerAddressBook.shared.knownAddresses(),
+                outcome = outcome,
+                noneLabel = getString(R.string.debug_addresses_none),
+                inUseLabel = getString(R.string.debug_addresses_in_use),
+                directLabel = getString(R.string.debug_addresses_direct),
+                relayLabel = getString(R.string.debug_addresses_relay),
+            )
     }
 
     /**
@@ -129,11 +130,12 @@ class CarDebugFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             val after = ServerAddressBook.shared.reprobe(before, force = true)
-            val outcome = when (after) {
-                null -> getString(R.string.debug_reprobe_failed)
-                before -> getString(R.string.debug_reprobe_unchanged, after)
-                else -> getString(R.string.debug_reprobe_moved, after)
-            }
+            val outcome =
+                when (after) {
+                    null -> getString(R.string.debug_reprobe_failed)
+                    before -> getString(R.string.debug_reprobe_unchanged, after)
+                    else -> getString(R.string.debug_reprobe_moved, after)
+                }
             renderAddresses(outcome)
             reprobeRow?.isEnabled = true
         }
@@ -160,7 +162,8 @@ class CarDebugFragment : Fragment() {
      * is current when it starts observing.
      */
     private fun chooseServer() {
-        parentFragmentManager.beginTransaction()
+        parentFragmentManager
+            .beginTransaction()
             .replace(R.id.car_host_container, PlexSignInFragment.pushed())
             .addToBackStack(null)
             .commit()
@@ -189,47 +192,51 @@ class CarDebugFragment : Fragment() {
             noneLabel: String,
             inUseLabel: String,
             directLabel: String,
-            relayLabel: String
-        ): String = buildString {
-            if (outcome != null) append(outcome).append("\n\n")
+            relayLabel: String,
+        ): String =
+            buildString {
+                if (outcome != null) append(outcome).append("\n\n")
 
-            fun appendAddress(uri: String) {
-                append(uri)
-                if (uri == known.current) append("  <- ").append(inUseLabel)
-                append("\n")
-            }
-
-            fun appendGroup(label: String, addresses: List<String>) {
-                if (addresses.isEmpty()) return
-                append(label).append("\n")
-                addresses.forEach(::appendAddress)
-            }
-
-            // known.current is live for a session written before the address
-            // book existed (see knownAddresses' own KDoc), which has no
-            // direct/relay candidates at all -- so "no addresses stored" has
-            // to be gated on current too, or it prints directly above the one
-            // address actually in use.
-            if (known.direct.isEmpty() && known.relay.isEmpty() && known.current == null) {
-                append(noneLabel)
-            } else {
-                // Direct and relay are kept apart rather than concatenated: a
-                // relay URI and a direct-but-remote one are both
-                // *.plex.direct-shaped and differ only by port, so flattening
-                // them throws away the one distinction this panel exists to
-                // show -- LAN, or out to the internet and back.
-                appendGroup(directLabel, known.direct)
-                appendGroup(relayLabel, known.relay)
-
-                // Normally current is one of the candidates just printed above.
-                // It is not for that same pre-address-book session, and
-                // showing it separately beats a panel that omits the one
-                // address actually in use.
-                known.current?.takeIf { it !in known.direct && it !in known.relay }?.let {
+                fun appendAddress(uri: String) {
+                    append(uri)
+                    if (uri == known.current) append("  <- ").append(inUseLabel)
                     append("\n")
-                    appendAddress(it)
+                }
+
+                fun appendGroup(
+                    label: String,
+                    addresses: List<String>,
+                ) {
+                    if (addresses.isEmpty()) return
+                    append(label).append("\n")
+                    addresses.forEach(::appendAddress)
+                }
+
+                // known.current is live for a session written before the address
+                // book existed (see knownAddresses' own KDoc), which has no
+                // direct/relay candidates at all -- so "no addresses stored" has
+                // to be gated on current too, or it prints directly above the one
+                // address actually in use.
+                if (known.direct.isEmpty() && known.relay.isEmpty() && known.current == null) {
+                    append(noneLabel)
+                } else {
+                    // Direct and relay are kept apart rather than concatenated: a
+                    // relay URI and a direct-but-remote one are both
+                    // *.plex.direct-shaped and differ only by port, so flattening
+                    // them throws away the one distinction this panel exists to
+                    // show -- LAN, or out to the internet and back.
+                    appendGroup(directLabel, known.direct)
+                    appendGroup(relayLabel, known.relay)
+
+                    // Normally current is one of the candidates just printed above.
+                    // It is not for that same pre-address-book session, and
+                    // showing it separately beats a panel that omits the one
+                    // address actually in use.
+                    known.current?.takeIf { it !in known.direct && it !in known.relay }?.let {
+                        append("\n")
+                        appendAddress(it)
+                    }
                 }
             }
-        }
     }
 }

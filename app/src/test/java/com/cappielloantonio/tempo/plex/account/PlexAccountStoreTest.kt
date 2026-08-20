@@ -16,7 +16,6 @@ import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class PlexAccountStoreTest {
-
     private val context: Context = RuntimeEnvironment.getApplication()
     private lateinit var store: PlexAccountStore
 

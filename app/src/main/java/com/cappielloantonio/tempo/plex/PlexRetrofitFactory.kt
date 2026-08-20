@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit
  * own token, since a shared server rejects the account token.
  */
 object PlexRetrofitFactory {
-
     private const val PLEX_TV_BASE_URL = "https://plex.tv/api/v2/"
 
     /** Syntactically valid but unreachable; used before a server is discovered. */
@@ -39,13 +38,17 @@ object PlexRetrofitFactory {
      * given: callers that outlive a server change must rebuild, as
      * PlexBrowseRepository.refreshClients does.
      */
-    fun server(api: PlexApi, serverUri: String?, serverToken: String?): Retrofit =
+    fun server(
+        api: PlexApi,
+        serverUri: String?,
+        serverToken: String?,
+    ): Retrofit =
         build(normalize(serverUri)) {
             PlexIdentity.headers(
                 api.clientIdentifier,
                 api.appVersion,
                 PlexApi.serverTokenOrAccount(serverToken, api.accountToken),
-                api.language
+                api.language,
             )
         }
 
@@ -67,42 +70,53 @@ object PlexRetrofitFactory {
      * over one PlexApi's header supplier, so it must stay per-client or a
      * server call would start sending plex.tv's token and vice versa.
      */
-    private val sharedClient: OkHttpClient = OkHttpClient.Builder()
-        .callTimeout(1, TimeUnit.MINUTES)
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
+    private val sharedClient: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .callTimeout(1, TimeUnit.MINUTES)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
 
-    private fun build(baseUrl: String, headers: () -> Map<String, String>): Retrofit =
-        Retrofit.Builder()
+    private fun build(
+        baseUrl: String,
+        headers: () -> Map<String, String>,
+    ): Retrofit =
+        Retrofit
+            .Builder()
             .baseUrl(baseUrl)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .client(okHttp(headers))
             .build()
 
-    private fun okHttp(headers: () -> Map<String, String>): OkHttpClient = sharedClient.newBuilder()
-        .addInterceptor(identityInterceptor(headers))
-        .addInterceptor(logging())
-        .build()
+    private fun okHttp(headers: () -> Map<String, String>): OkHttpClient =
+        sharedClient
+            .newBuilder()
+            .addInterceptor(identityInterceptor(headers))
+            .addInterceptor(logging())
+            .build()
 
     /** Attaches the X-Plex-* headers to every request, token included when present. */
-    private fun identityInterceptor(headers: () -> Map<String, String>) = Interceptor { chain ->
-        val builder = chain.request().newBuilder()
-        headers().forEach { (name, value) -> builder.header(name, value) }
-        chain.proceed(builder.build())
-    }
-
-    private fun logging() = HttpLoggingInterceptor().apply {
-        level = if (BuildConfig.DEBUG) {
-            HttpLoggingInterceptor.Level.HEADERS
-        } else {
-            HttpLoggingInterceptor.Level.NONE
+    private fun identityInterceptor(headers: () -> Map<String, String>) =
+        Interceptor { chain ->
+            val builder = chain.request().newBuilder()
+            headers().forEach { (name, value) -> builder.header(name, value) }
+            chain.proceed(builder.build())
         }
-        // X-Plex-Token is a full account credential; HEADERS logging would
-        // otherwise write it to logcat verbatim on every request.
-        redactHeader("X-Plex-Token")
-    }
+
+    private fun logging() =
+        HttpLoggingInterceptor().apply {
+            level =
+                if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.HEADERS
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
+                }
+            // X-Plex-Token is a full account credential; HEADERS logging would
+            // otherwise write it to logcat verbatim on every request.
+            redactHeader("X-Plex-Token")
+        }
 
     /**
      * Retrofit rejects a base URL without a parseable host, and requires a

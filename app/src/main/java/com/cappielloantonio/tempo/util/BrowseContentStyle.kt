@@ -21,7 +21,6 @@ import androidx.media3.session.MediaConstants
  */
 @OptIn(UnstableApi::class)
 object BrowseContentStyle {
-
     /**
      * Playable children are always tracks, and tracks are always a list.
      *

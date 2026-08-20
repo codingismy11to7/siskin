@@ -15,7 +15,6 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class PreferencesBrowseTabOrderTest {
-
     @Before
     fun setUp() = BrowseTabOrderFixture.clearSavedOrder()
 
@@ -31,12 +30,13 @@ class PreferencesBrowseTabOrderTest {
 
     @Test
     fun `the setter round-trips order faithfully`() {
-        val order = listOf(
-            Constants.DECADES_ID,
-            Constants.ALBUMS_ID,
-            Constants.ARTISTS_ID,
-            Constants.PLAYLIST_ID
-        )
+        val order =
+            listOf(
+                Constants.DECADES_ID,
+                Constants.ALBUMS_ID,
+                Constants.ARTISTS_ID,
+                Constants.PLAYLIST_ID,
+            )
 
         Preferences.setBrowseTabOrder(order)
 
@@ -53,13 +53,13 @@ class PreferencesBrowseTabOrderTest {
         Preferences.setBrowseTabOrder(listOf(Constants.ALBUMS_ID, Constants.ARTISTS_ID))
         assertEquals(
             listOf(Constants.ALBUMS_ID, Constants.ARTISTS_ID),
-            Preferences.getBrowseTabOrder()
+            Preferences.getBrowseTabOrder(),
         )
 
         Preferences.setBrowseTabOrder(listOf(Constants.ARTISTS_ID, Constants.ALBUMS_ID))
         assertEquals(
             listOf(Constants.ARTISTS_ID, Constants.ALBUMS_ID),
-            Preferences.getBrowseTabOrder()
+            Preferences.getBrowseTabOrder(),
         )
     }
 

@@ -5,11 +5,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LibrarySelectionTest {
-
     private fun session(
         uri: String = "http://pms:32400",
         section: String = "3",
-        machine: String? = "abc123"
+        machine: String? = "abc123",
     ) = PlexSession.from("acct", uri, section, null, machine)!!
 
     @Test

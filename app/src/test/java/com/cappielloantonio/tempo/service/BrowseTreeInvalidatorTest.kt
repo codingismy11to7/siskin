@@ -37,7 +37,6 @@ import org.robolectric.Shadows.shadowOf
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class BrowseTreeInvalidatorTest {
-
     private lateinit var session: MediaLibrarySession
 
     @Before
@@ -104,7 +103,7 @@ class BrowseTreeInvalidatorTest {
         // navigated away and back. This must fail if the ids are hardcoded
         // again.
         Preferences.setBrowseTabOrder(
-            listOf(Constants.DECADES_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID)
+            listOf(Constants.DECADES_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
         )
 
         BrowseTreeInvalidator.invalidateTree()

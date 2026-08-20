@@ -21,7 +21,7 @@ import java.io.IOException
  */
 internal suspend fun <T> plexCall(
     host: PlexHost,
-    block: suspend () -> T
+    block: suspend () -> T,
 ): Either<PlexTransportFailure, T> =
     try {
         block().right()

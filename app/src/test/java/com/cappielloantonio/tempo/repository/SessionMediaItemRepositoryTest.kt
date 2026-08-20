@@ -26,7 +26,6 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class SessionMediaItemRepositoryTest {
-
     private val repository = SessionMediaItemRepository()
 
     @Before
@@ -37,29 +36,30 @@ class SessionMediaItemRepositoryTest {
         repository.deleteAll()
     }
 
-    private fun track(ratingKey: String) = PlexMediaMapper.buildTrackMediaItem(
-        ratingKey = ratingKey,
-        title = "Track $ratingKey",
-        albumTitle = null,
-        artist = null,
-        thumb = null,
-        partKey = "/library/parts/$ratingKey/file.flac",
-        durationMs = null,
-        trackIndex = null,
-        year = null,
-        grandparentRatingKey = null,
-        isHearted = false,
-        parentId = Constants.QUEUE_CACHED_SOURCE,
-        serverUri = "https://plex.example",
-        token = "tok"
-    )
+    private fun track(ratingKey: String) =
+        PlexMediaMapper.buildTrackMediaItem(
+            ratingKey = ratingKey,
+            title = "Track $ratingKey",
+            albumTitle = null,
+            artist = null,
+            thumb = null,
+            partKey = "/library/parts/$ratingKey/file.flac",
+            durationMs = null,
+            trackIndex = null,
+            year = null,
+            grandparentRatingKey = null,
+            isHearted = false,
+            parentId = Constants.QUEUE_CACHED_SOURCE,
+            serverUri = "https://plex.example",
+            token = "tok",
+        )
 
     /** cache() writes land on a background executor; poll rather than sleep-and-hope. */
     private fun pollUntilFound(
         id: String,
         timeoutMs: Long = 3000,
         intervalMs: Long = 10,
-        repository: SessionMediaItemRepository = this.repository
+        repository: SessionMediaItemRepository = this.repository,
     ): SessionMediaItem {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
@@ -144,9 +144,12 @@ class SessionMediaItemRepositoryTest {
                         id = "stale-$i"
                         timestamp = Long.MAX_VALUE - i
                     }
-                }
+                },
             )
-        }.apply { start(); join() }
+        }.apply {
+            start()
+            join()
+        }
 
         // Simulates the next process: a brand new repository over the same
         // on-disk table, exactly as MediaService constructs one at process start.

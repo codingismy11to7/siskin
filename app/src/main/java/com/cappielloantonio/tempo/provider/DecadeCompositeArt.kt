@@ -28,7 +28,6 @@ import java.io.File
  * feature behind one seam a test can drive without standing up a ContentProvider.
  */
 object DecadeCompositeArt {
-
     private const val TAG = "DecadeCompositeArt"
 
     private const val TYPE_ALBUM = "album"
@@ -42,15 +41,22 @@ object DecadeCompositeArt {
      * album that carries only a parent thumb still contributes a cover.
      */
     @JvmStatic
-    fun coverThumbs(response: PlexResponse?, want: Int): List<String> =
-        PlexBrowseRepository.itemsOf(response, TYPE_ALBUM)
+    fun coverThumbs(
+        response: PlexResponse?,
+        want: Int,
+    ): List<String> =
+        PlexBrowseRepository
+            .itemsOf(response, TYPE_ALBUM)
             .mapNotNull { PlexMediaMapper.artworkThumb(it) }
             .take(want)
 
     /** @see CompositeArt.cached */
     @JvmStatic
-    fun cached(context: Context, decade: String, bucket: Long): File? =
-        CompositeArt.cached(context, decade, bucket)
+    fun cached(
+        context: Context,
+        decade: String,
+        bucket: Long,
+    ): File? = CompositeArt.cached(context, decade, bucket)
 
     /**
      * The decade's covers, fetched.
@@ -69,34 +75,43 @@ object DecadeCompositeArt {
      * PendingIntent, and needs none, because the browse call that produced the
      * list being drawn would have hit the same 401 first and raised it there.
      */
-    private fun fetchThumbs(api: PlexApi, session: PlexSession, decade: String): List<String> {
-        val response = try {
-            runBlocking {
-                LibraryClient(api, session.serverUri, session.serverToken).getSectionContent(
-                    sectionKey = session.musicSectionKey,
-                    type = PlexItemType.ALBUM,
-                    start = 0,
-                    size = CompositeGrid.OVER_FETCH,
-                    sort = LibraryClient.SORT_RANDOM,
-                    albumDecade = decade
-                )
-            }.getOrNull()
-        } catch (e: Exception) {
-            // plexCall catches only IOException/HttpException; a malformed
-            // response body (Gson JsonSyntaxException) or a mapping bug is a
-            // RuntimeException that would otherwise escape build() and break its
-            // contract that every failure is a null, never a throw. Outside any
-            // either { } block, so there is no Arrow raise here to swallow.
-            Log.w(TAG, "could not fetch section content for $decade", e)
-            null
-        } ?: return emptyList()
+    private fun fetchThumbs(
+        api: PlexApi,
+        session: PlexSession,
+        decade: String,
+    ): List<String> {
+        val response =
+            try {
+                runBlocking {
+                    LibraryClient(api, session.serverUri, session.serverToken).getSectionContent(
+                        sectionKey = session.musicSectionKey,
+                        type = PlexItemType.ALBUM,
+                        start = 0,
+                        size = CompositeGrid.OVER_FETCH,
+                        sort = LibraryClient.SORT_RANDOM,
+                        albumDecade = decade,
+                    )
+                }.getOrNull()
+            } catch (e: Exception) {
+                // plexCall catches only IOException/HttpException; a malformed
+                // response body (Gson JsonSyntaxException) or a mapping bug is a
+                // RuntimeException that would otherwise escape build() and break its
+                // contract that every failure is a null, never a throw. Outside any
+                // either { } block, so there is no Arrow raise here to swallow.
+                Log.w(TAG, "could not fetch section content for $decade", e)
+                null
+            } ?: return emptyList()
 
         return coverThumbs(response, CompositeGrid.OVER_FETCH)
     }
 
     /** @see CompositeArt.build */
     @JvmStatic
-    fun build(context: Context, decade: String, bucket: Long): File? =
+    fun build(
+        context: Context,
+        decade: String,
+        bucket: Long,
+    ): File? =
         CompositeArt.build(context, decade, bucket) { api, session ->
             fetchThumbs(api, session, decade)
         }

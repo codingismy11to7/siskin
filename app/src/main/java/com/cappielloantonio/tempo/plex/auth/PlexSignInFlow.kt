@@ -16,7 +16,6 @@ import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
  * pure and testable without a network, which is why the object still exists.
  */
 object PlexSignInFlow {
-
     /**
      * Cannot fail: [CreatedPin] is validated at the client, so a code is
      * guaranteed present. The check this used to perform, and the "only returns
@@ -26,7 +25,7 @@ object PlexSignInFlow {
         PlexSignInState.AwaitingApproval(
             code = created.code,
             qrUrl = created.qrUrl,
-            expiresAtEpochSeconds = created.expiresAtEpochSeconds
+            expiresAtEpochSeconds = created.expiresAtEpochSeconds,
         )
 
     /**
@@ -37,14 +36,15 @@ object PlexSignInFlow {
      * to be six scattered `Failed(R.string...)` calls across two files.
      */
     @StringRes
-    fun messageFor(error: SignInError): Int = when (error) {
-        is SignInError.Api -> messageForApi(error.failure)
-        SignInError.NoPinCode -> R.string.plex_sign_in_error_pin
-        SignInError.PinExpired -> R.string.plex_sign_in_error_expired
-        SignInError.NoServers -> R.string.plex_sign_in_error_no_servers
-        SignInError.NoLibraries -> R.string.plex_sign_in_error_no_libraries
-        SignInError.NoCandidate -> R.string.plex_sign_in_error_lost_candidate
-    }
+    fun messageFor(error: SignInError): Int =
+        when (error) {
+            is SignInError.Api -> messageForApi(error.failure)
+            SignInError.NoPinCode -> R.string.plex_sign_in_error_pin
+            SignInError.PinExpired -> R.string.plex_sign_in_error_expired
+            SignInError.NoServers -> R.string.plex_sign_in_error_no_servers
+            SignInError.NoLibraries -> R.string.plex_sign_in_error_no_libraries
+            SignInError.NoCandidate -> R.string.plex_sign_in_error_lost_candidate
+        }
 
     /**
      * A transport failure reads as whichever side failed to answer.
@@ -56,8 +56,9 @@ object PlexSignInFlow {
      * this reads it directly rather than switching on the failure's own shape.
      */
     @StringRes
-    private fun messageForApi(failure: PlexTransportFailure): Int = when (failure.host) {
-        PlexHost.PlexTv -> R.string.plex_sign_in_error_network
-        PlexHost.Server -> R.string.plex_sign_in_error_server_unreachable
-    }
+    private fun messageForApi(failure: PlexTransportFailure): Int =
+        when (failure.host) {
+            PlexHost.PlexTv -> R.string.plex_sign_in_error_network
+            PlexHost.Server -> R.string.plex_sign_in_error_server_unreachable
+        }
 }

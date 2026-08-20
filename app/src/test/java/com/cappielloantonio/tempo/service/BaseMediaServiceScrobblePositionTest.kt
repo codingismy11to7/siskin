@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit
  */
 @RunWith(RobolectricTestRunner::class)
 class BaseMediaServiceScrobblePositionTest {
-
     private lateinit var server: MockWebServer
     private lateinit var service: BaseMediaService
 
@@ -50,28 +49,43 @@ class BaseMediaServiceScrobblePositionTest {
         server.shutdown()
     }
 
-    private fun trackItem(ratingKey: String) = MediaItem.Builder()
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setExtras(Bundle().apply {
-                    putString(PlexMediaMapper.EXTRA_ID, ratingKey)
-                    putString(PlexMediaMapper.EXTRA_PART_KEY, "/library/parts/1")
-                    putString(PlexMediaMapper.EXTRA_TYPE, Constants.MEDIA_TYPE_MUSIC)
-                })
-                .build()
-        )
-        .build()
+    private fun trackItem(ratingKey: String) =
+        MediaItem
+            .Builder()
+            .setMediaMetadata(
+                MediaMetadata
+                    .Builder()
+                    .setExtras(
+                        Bundle().apply {
+                            putString(PlexMediaMapper.EXTRA_ID, ratingKey)
+                            putString(PlexMediaMapper.EXTRA_PART_KEY, "/library/parts/1")
+                            putString(PlexMediaMapper.EXTRA_TYPE, Constants.MEDIA_TYPE_MUSIC)
+                        },
+                    ).build(),
+            ).build()
 
-    private fun positionInfo(mediaItem: MediaItem?, positionMs: Long) = Player.PositionInfo(
-        /* windowUid = */ null,
-        /* mediaItemIndex = */ 0,
-        /* mediaItem = */ mediaItem,
-        /* periodUid = */ null,
-        /* periodIndex = */ 0,
-        /* positionMs = */ positionMs,
-        /* contentPositionMs = */ positionMs,
-        /* adGroupIndex = */ C.INDEX_UNSET,
-        /* adIndexInAdGroup = */ C.INDEX_UNSET
+    private fun positionInfo(
+        mediaItem: MediaItem?,
+        positionMs: Long,
+    ) = Player.PositionInfo(
+        // windowUid =
+        null,
+        // mediaItemIndex =
+        0,
+        // mediaItem =
+        mediaItem,
+        // periodUid =
+        null,
+        // periodIndex =
+        0,
+        // positionMs =
+        positionMs,
+        // contentPositionMs =
+        positionMs,
+        // adGroupIndex =
+        C.INDEX_UNSET,
+        // adIndexInAdGroup =
+        C.INDEX_UNSET,
     )
 
     /**
@@ -100,11 +114,12 @@ class BaseMediaServiceScrobblePositionTest {
         listenerCaptor.firstValue.onPositionDiscontinuity(
             oldPosition,
             newPosition,
-            Player.DISCONTINUITY_REASON_AUTO_TRANSITION
+            Player.DISCONTINUITY_REASON_AUTO_TRANSITION,
         )
 
-        val request = server.takeRequest(5, TimeUnit.SECONDS)
-            ?: throw AssertionError("PlexScrobbler never sent a request")
+        val request =
+            server.takeRequest(5, TimeUnit.SECONDS)
+                ?: throw AssertionError("PlexScrobbler never sent a request")
         assertEquals("123456", request.requestUrl!!.queryParameter("time"))
         assertEquals("42", request.requestUrl!!.queryParameter("ratingKey"))
         assertEquals("stopped", request.requestUrl!!.queryParameter("state"))

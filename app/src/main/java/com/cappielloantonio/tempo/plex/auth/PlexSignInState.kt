@@ -15,7 +15,6 @@ import com.cappielloantonio.tempo.plex.models.Resource
  * keeps the one that still needs a function, [PlexSignInFlow.afterPinCreated].
  */
 sealed interface PlexSignInState {
-
     /**
      * Nothing has been attempted yet. The screen shows the invitation and a
      * Connect button, and no network call has been made.
@@ -45,7 +44,7 @@ sealed interface PlexSignInState {
         val code: String,
         /** Null when Plex omitted it; the screen then shows the code alone. */
         val qrUrl: String?,
-        val expiresAtEpochSeconds: Long?
+        val expiresAtEpochSeconds: Long?,
     ) : PlexSignInState
 
     /**
@@ -67,7 +66,7 @@ sealed interface PlexSignInState {
      */
     data class ChoosingServer(
         val servers: NonEmptyList<Resource>,
-        @param:StringRes val messageRes: Int? = null
+        @param:StringRes val messageRes: Int? = null,
     ) : PlexSignInState
 
     /**
@@ -84,10 +83,12 @@ sealed interface PlexSignInState {
      */
     data class ChoosingLibrary(
         val sections: NonEmptyList<Directory>,
-        val servers: NonEmptyList<Resource>
+        val servers: NonEmptyList<Resource>,
     ) : PlexSignInState
 
-    data class Failed(@param:StringRes val messageRes: Int) : PlexSignInState
+    data class Failed(
+        @param:StringRes val messageRes: Int,
+    ) : PlexSignInState
 
     data object Done : PlexSignInState
 

@@ -9,12 +9,12 @@ import org.junit.Test
  * mapper that have to agree about a delimiter.
  */
 class HubCoverPoolTest {
-
-    private val thumbs = listOf(
-        "/library/metadata/51/thumb/1699999999",
-        "/library/metadata/77/thumb/1700000000",
-        "/library/metadata/92/thumb/1700000001"
-    )
+    private val thumbs =
+        listOf(
+            "/library/metadata/51/thumb/1699999999",
+            "/library/metadata/77/thumb/1700000000",
+            "/library/metadata/92/thumb/1700000001",
+        )
 
     @Test
     fun aPoolSurvivesTheRoundTrip() {
@@ -42,7 +42,7 @@ class HubCoverPoolTest {
         // real Plex thumb -- digits and slashes -- never contains a comma.
         assertEquals(
             listOf("/library/metadata/5", "1/thumb/1"),
-            HubCoverPool.decode(HubCoverPool.encode(listOf("/library/metadata/5,1/thumb/1")))
+            HubCoverPool.decode(HubCoverPool.encode(listOf("/library/metadata/5,1/thumb/1"))),
         )
     }
 

@@ -23,7 +23,6 @@ package com.cappielloantonio.tempo.util
  * [decode] therefore repairs nothing and drops nothing.
  */
 object HubCoverPool {
-
     /**
      * The most covers a pool may hold, which is the hub listing's own item
      * count.

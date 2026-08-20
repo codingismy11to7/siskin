@@ -13,7 +13,6 @@ import com.cappielloantonio.tempo.plex.models.Resource
  * shared one.
  */
 object PlexResourceFixture {
-
     /**
      * A media server that survives [com.cappielloantonio.tempo.plex.api.auth.AuthClient.mediaServers]:
      * `provides` contains "server" and it has at least one connection with a
@@ -26,7 +25,7 @@ object PlexResourceFixture {
      */
     fun aMediaServer(
         accessToken: String? = null,
-        clientIdentifier: String? = "machine-id"
+        clientIdentifier: String? = "machine-id",
     ) = Resource().apply {
         name = "Living Room"
         provides = "server"

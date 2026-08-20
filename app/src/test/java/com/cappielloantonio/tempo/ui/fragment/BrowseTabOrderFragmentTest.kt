@@ -19,7 +19,6 @@ import org.robolectric.RobolectricTestRunner
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class BrowseTabOrderFragmentTest {
-
     @Before
     fun setUp() = BrowseTabOrderFixture.clearSavedOrder()
 
@@ -29,7 +28,7 @@ class BrowseTabOrderFragmentTest {
             assertEquals(
                 "$id must have a label or it renders as a blank row",
                 true,
-                BrowseTabOrderFragment.labelFor(id) != 0
+                BrowseTabOrderFragment.labelFor(id) != 0,
             )
         }
     }

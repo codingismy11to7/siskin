@@ -12,6 +12,7 @@ import androidx.annotation.Keep
 class Resource {
     var name: String? = null
     var clientIdentifier: String? = null
+
     /** Comma-separated capability list, e.g. "server,player". */
     var provides: String? = null
     var accessToken: String? = null

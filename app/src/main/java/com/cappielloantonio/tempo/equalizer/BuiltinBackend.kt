@@ -4,10 +4,13 @@ import android.content.Context
 import android.media.audiofx.Equalizer
 import com.cappielloantonio.tempo.util.Preferences
 
-class BuiltinBackend: EqualizerBackend {
+class BuiltinBackend : EqualizerBackend {
     private var equalizer: Equalizer? = null
 
-    override fun attach(audioSessionId: Int, context: Context): Boolean {
+    override fun attach(
+        audioSessionId: Int,
+        context: Context,
+    ): Boolean {
         if (audioSessionId == 0 || audioSessionId == -1) return false
         val attached = attachToSession(audioSessionId, context.applicationContext)
         if (attached) {
@@ -22,13 +25,17 @@ class BuiltinBackend: EqualizerBackend {
         return attached
     }
 
-    private fun attachToSession(audioSessionId: Int, context: Context): Boolean {
+    private fun attachToSession(
+        audioSessionId: Int,
+        context: Context,
+    ): Boolean {
         release(audioSessionId, context.applicationContext)
         if (audioSessionId != 0 && audioSessionId != -1) {
             try {
-                equalizer = Equalizer(0, audioSessionId).apply {
-                    enabled = true
-                }
+                equalizer =
+                    Equalizer(0, audioSessionId).apply {
+                        enabled = true
+                    }
                 return true
             } catch (e: Exception) {
                 // Some devices may not support Equalizer or audio session may be invalid
@@ -38,7 +45,10 @@ class BuiltinBackend: EqualizerBackend {
         return false
     }
 
-    override fun release(audioSessionId: Int, context: Context) {
+    override fun release(
+        audioSessionId: Int,
+        context: Context,
+    ) {
         release()
     }
 
@@ -47,7 +57,10 @@ class BuiltinBackend: EqualizerBackend {
         equalizer = null
     }
 
-    override fun setBandLevel(band: Short, level: Short) {
+    override fun setBandLevel(
+        band: Short,
+        level: Short,
+    ) {
         equalizer?.setBandLevel(band, level)
     }
 
@@ -55,11 +68,9 @@ class BuiltinBackend: EqualizerBackend {
 
     override fun getBandLevelRange(): ShortArray? = equalizer?.bandLevelRange
 
-    override fun getCenterFreq(band: Short): Int? =
-        equalizer?.getCenterFreq(band)?.div(1000)
+    override fun getCenterFreq(band: Short): Int? = equalizer?.getCenterFreq(band)?.div(1000)
 
-    override fun getBandLevel(band: Short): Short? =
-        equalizer?.getBandLevel(band)
+    override fun getBandLevel(band: Short): Short? = equalizer?.getBandLevel(band)
 
     override fun setEnabled(enabled: Boolean) {
         equalizer?.enabled = enabled

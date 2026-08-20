@@ -9,8 +9,12 @@ package com.cappielloantonio.tempo.plex
  * used to compile and fail at runtime against a live server.
  */
 @JvmInline
-value class SectionKey(val value: String)
+value class SectionKey(
+    val value: String,
+)
 
 /** Which item -- artist, album, track or playlist. Plex calls it a rating key. */
 @JvmInline
-value class RatingKey(val value: String)
+value class RatingKey(
+    val value: String,
+)

@@ -6,22 +6,23 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PlexSessionTest {
-
-    private val complete = PlexSession(
-        accountToken = "account",
-        serverUri = "https://server.example/",
-        musicSectionKey = SectionKey("3"),
-        serverToken = null
-    )
+    private val complete =
+        PlexSession(
+            accountToken = "account",
+            serverUri = "https://server.example/",
+            musicSectionKey = SectionKey("3"),
+            serverToken = null,
+        )
 
     @Test
     fun readsBackEveryFieldItWasGiven() {
-        val stored = PlexSession.from(
-            accountToken = "account",
-            serverUri = "https://server.example/",
-            musicSectionKey = "3",
-            serverToken = "shared"
-        )
+        val stored =
+            PlexSession.from(
+                accountToken = "account",
+                serverUri = "https://server.example/",
+                musicSectionKey = "3",
+                serverToken = "shared",
+            )
 
         assertEquals("account", stored!!.accountToken)
         assertEquals("https://server.example/", stored.serverUri)

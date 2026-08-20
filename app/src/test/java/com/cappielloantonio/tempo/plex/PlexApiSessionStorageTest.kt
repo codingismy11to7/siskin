@@ -16,7 +16,6 @@ import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class PlexApiSessionStorageTest {
-
     // androidx.test:core (ApplicationProvider) is not on this module's test
     // classpath -- only androidx.test:monitor arrives transitively via
     // Robolectric. RuntimeEnvironment.getApplication() is the same app Context
@@ -37,13 +36,14 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun writingASessionPutsBothTokensInTheAccountAndTheRestInPreferences() {
-        api.session = PlexSession(
-            accountToken = "acct",
-            serverUri = "https://one.example",
-            musicSectionKey = SectionKey("4"),
-            serverToken = "srv",
-            machineIdentifier = "machine-a"
-        )
+        api.session =
+            PlexSession(
+                accountToken = "acct",
+                serverUri = "https://one.example",
+                musicSectionKey = SectionKey("4"),
+                serverToken = "srv",
+                machineIdentifier = "machine-a",
+            )
 
         val store = PlexAccountStore(context)
         assertEquals("acct", store.accountToken())
@@ -55,13 +55,14 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun aSessionReadsBackWholeThroughTheAccount() {
-        api.session = PlexSession(
-            accountToken = "acct",
-            serverUri = "https://one.example",
-            musicSectionKey = SectionKey("4"),
-            serverToken = "srv",
-            machineIdentifier = "machine-a"
-        )
+        api.session =
+            PlexSession(
+                accountToken = "acct",
+                serverUri = "https://one.example",
+                musicSectionKey = SectionKey("4"),
+                serverToken = "srv",
+                machineIdentifier = "machine-a",
+            )
 
         val read = api.session
         assertNotNull(read)
@@ -72,21 +73,23 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun switchingServersDoesNotLeaveThePreviousServersTokenReadable() {
-        api.session = PlexSession(
-            accountToken = "acct",
-            serverUri = "https://one.example",
-            musicSectionKey = SectionKey("4"),
-            serverToken = "srv-a",
-            machineIdentifier = "machine-a"
-        )
+        api.session =
+            PlexSession(
+                accountToken = "acct",
+                serverUri = "https://one.example",
+                musicSectionKey = SectionKey("4"),
+                serverToken = "srv-a",
+                machineIdentifier = "machine-a",
+            )
 
-        api.session = PlexSession(
-            accountToken = "acct",
-            serverUri = "https://two.example",
-            musicSectionKey = SectionKey("9"),
-            serverToken = null,
-            machineIdentifier = "machine-b"
-        )
+        api.session =
+            PlexSession(
+                accountToken = "acct",
+                serverUri = "https://two.example",
+                musicSectionKey = SectionKey("9"),
+                serverToken = null,
+                machineIdentifier = "machine-b",
+            )
 
         // Owned server: no server token, and machine-a's must not surface.
         assertNull(api.serverToken)
@@ -102,13 +105,14 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun clearingTheSessionKeepsTheAccountTokenBecauseThePinGrantIsStillGood() {
-        api.session = PlexSession(
-            accountToken = "acct",
-            serverUri = "https://one.example",
-            musicSectionKey = SectionKey("4"),
-            serverToken = "srv",
-            machineIdentifier = "machine-a"
-        )
+        api.session =
+            PlexSession(
+                accountToken = "acct",
+                serverUri = "https://one.example",
+                musicSectionKey = SectionKey("4"),
+                serverToken = "srv",
+                machineIdentifier = "machine-a",
+            )
 
         api.session = null
 

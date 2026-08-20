@@ -20,15 +20,17 @@ import com.cappielloantonio.tempo.plex.api.server.ServerAddressResolver
 
 @UnstableApi
 class DynamicMediaSourceFactory(
-    private val context: Context
+    private val context: Context,
 ) : MediaSource.Factory {
-
     override fun createMediaSource(mediaItem: MediaItem): MediaSource {
         val dataSourceFactory = buildDataSourceFactory()
 
         return when {
             mediaItem.localConfiguration?.mimeType == MimeTypes.APPLICATION_M3U8 ||
-                    mediaItem.localConfiguration?.uri?.lastPathSegment?.endsWith(".m3u8", ignoreCase = true) == true -> {
+                mediaItem.localConfiguration
+                    ?.uri
+                    ?.lastPathSegment
+                    ?.endsWith(".m3u8", ignoreCase = true) == true -> {
                 HlsMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
             }
 
@@ -67,11 +69,12 @@ class DynamicMediaSourceFactory(
         val streamingCacheSize = Preferences.getStreamingCacheSize()
         val useUpstream = streamingCacheSize <= 0L
 
-        val selected: DataSource.Factory = if (useUpstream) {
-            DownloadUtil.getUpstreamDataSourceFactory(context)
-        } else {
-            DownloadUtil.getCacheDataSourceFactory(context)
-        }
+        val selected: DataSource.Factory =
+            if (useUpstream) {
+                DownloadUtil.getUpstreamDataSourceFactory(context)
+            } else {
+                DownloadUtil.getCacheDataSourceFactory(context)
+            }
 
         return ResolvingDataSource.Factory(selected, ServerAddressResolver(ServerAddressBook.shared))
     }
@@ -84,10 +87,9 @@ class DynamicMediaSourceFactory(
         TODO("Not yet implemented")
     }
 
-    override fun getSupportedTypes(): IntArray {
-        return intArrayOf(
+    override fun getSupportedTypes(): IntArray =
+        intArrayOf(
             C.CONTENT_TYPE_HLS,
-            C.CONTENT_TYPE_OTHER
+            C.CONTENT_TYPE_OTHER,
         )
-    }
 }

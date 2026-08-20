@@ -12,7 +12,6 @@ import java.net.URLEncoder
  * under which Uri would silently return null in tests.
  */
 object MediaUrlBuilder {
-
     /**
      * True only for a path Plex will resolve against its own library.
      *
@@ -43,7 +42,7 @@ object MediaUrlBuilder {
         thumbPath: String?,
         token: String?,
         width: Int,
-        height: Int
+        height: Int,
     ): String? {
         val base = normalizeBase(serverUri) ?: return null
         // Defence in depth behind AlbumArtContentProvider's own check: this is
@@ -58,7 +57,11 @@ object MediaUrlBuilder {
             "&X-Plex-Token=${encode(token)}"
     }
 
-    fun streamUrl(serverUri: String?, partKey: String?, token: String?): String? {
+    fun streamUrl(
+        serverUri: String?,
+        partKey: String?,
+        token: String?,
+    ): String? {
         val base = normalizeBase(serverUri) ?: return null
         if (partKey.isNullOrBlank() || token.isNullOrBlank()) return null
 

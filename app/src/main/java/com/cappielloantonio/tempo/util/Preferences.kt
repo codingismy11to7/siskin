@@ -37,25 +37,19 @@ object Preferences {
     private const val DARK_THEME_STYLE = "dark_theme_style"
 
     @JvmStatic
-    fun getPlaybackSpeed(): Float {
-        return App.getInstance().preferences.getFloat(PLAYBACK_SPEED, 1f)
-    }
+    fun getPlaybackSpeed(): Float = App.getInstance().preferences.getFloat(PLAYBACK_SPEED, 1f)
+
     @JvmStatic
-    fun isPlaybackSpeedPitchEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(PLAYBACK_SPEED_PITCH, false)
-    }
+    fun isPlaybackSpeedPitchEnabled(): Boolean = App.getInstance().preferences.getBoolean(PLAYBACK_SPEED_PITCH, false)
+
     @JvmStatic
-    fun isPlaybackSpeedManualPitchEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(PLAYBACK_SPEED_MANUAL_PITCH, false)
-    }
+    fun isPlaybackSpeedManualPitchEnabled(): Boolean = App.getInstance().preferences.getBoolean(PLAYBACK_SPEED_MANUAL_PITCH, false)
+
     @JvmStatic
-    fun getPlaybackSpeedManualPitch(): Float {
-        return App.getInstance().preferences.getFloat(PLAYBACK_SPEED_MANUAL_PITCH_VALUE, 1f)
-    }
+    fun getPlaybackSpeedManualPitch(): Float = App.getInstance().preferences.getFloat(PLAYBACK_SPEED_MANUAL_PITCH_VALUE, 1f)
+
     @JvmStatic
-    fun isShuffleModeEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(SHUFFLE_MODE, false)
-    }
+    fun isShuffleModeEnabled(): Boolean = App.getInstance().preferences.getBoolean(SHUFFLE_MODE, false)
 
     @JvmStatic
     fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
@@ -63,9 +57,7 @@ object Preferences {
     }
 
     @JvmStatic
-    fun getRepeatMode(): Int {
-        return App.getInstance().preferences.getInt(REPEAT_MODE, Player.REPEAT_MODE_OFF)
-    }
+    fun getRepeatMode(): Int = App.getInstance().preferences.getInt(REPEAT_MODE, Player.REPEAT_MODE_OFF)
 
     @JvmStatic
     fun setRepeatMode(repeatMode: Int) {
@@ -73,23 +65,31 @@ object Preferences {
     }
 
     @JvmStatic
-    fun getImageCacheSize(): Int {
-        return App.getInstance().preferences.getString(IMAGE_CACHE_SIZE, "500")!!.toInt()
-    }
-    @JvmStatic
-    fun getImageSize(): Int {
-        return App.getInstance().preferences.getString(IMAGE_SIZE, "-1")!!.toInt()
-    }
+    fun getImageCacheSize(): Int =
+        App
+            .getInstance()
+            .preferences
+            .getString(IMAGE_CACHE_SIZE, "500")!!
+            .toInt()
 
     @JvmStatic
-    fun getStreamingCacheSize(): Long {
-        return App.getInstance().preferences.getString(STREAMING_CACHE_SIZE, "256")!!.toLong()
-    }
+    fun getImageSize(): Int =
+        App
+            .getInstance()
+            .preferences
+            .getString(IMAGE_SIZE, "-1")!!
+            .toInt()
 
     @JvmStatic
-    fun isDataSavingMode(): Boolean {
-        return App.getInstance().preferences.getBoolean(DATA_SAVING_MODE, false)
-    }
+    fun getStreamingCacheSize(): Long =
+        App
+            .getInstance()
+            .preferences
+            .getString(STREAMING_CACHE_SIZE, "256")!!
+            .toLong()
+
+    @JvmStatic
+    fun isDataSavingMode(): Boolean = App.getInstance().preferences.getBoolean(DATA_SAVING_MODE, false)
 
     /**
      * Four-way: "disabled", "track", "album", "auto". [ReplayGainUtil] switches on
@@ -101,9 +101,7 @@ object Preferences {
      * never did anything.
      */
     @JvmStatic
-    fun getReplayGainMode(): String? {
-        return App.getInstance().preferences.getString(REPLAY_GAIN_MODE, "disabled")
-    }
+    fun getReplayGainMode(): String? = App.getInstance().preferences.getString(REPLAY_GAIN_MODE, "disabled")
 
     /**
      * The boolean view of the four-way mode, for the Settings row.
@@ -113,9 +111,7 @@ object Preferences {
      * that cannot yet express it.
      */
     @JvmStatic
-    fun isReplayGainEnabled(): Boolean {
-        return getReplayGainMode() != "disabled"
-    }
+    fun isReplayGainEnabled(): Boolean = getReplayGainMode() != "disabled"
 
     /**
      * On means "auto": album gain when the adjacent track shares an album title,
@@ -138,9 +134,7 @@ object Preferences {
      * than the rule.
      */
     @JvmStatic
-    fun isReplayGainPreventClipping(): Boolean {
-        return App.getInstance().preferences.getBoolean(REPLAY_GAIN_PREVENT_CLIPPING, true)
-    }
+    fun isReplayGainPreventClipping(): Boolean = App.getInstance().preferences.getBoolean(REPLAY_GAIN_PREVENT_CLIPPING, true)
 
     /**
      * Defaults to 0 dB. Nothing writes this key either, same as
@@ -148,14 +142,20 @@ object Preferences {
      * the effective value.
      */
     @JvmStatic
-    fun getLoudnessPreamp(): Float {
-        return App.getInstance().preferences.getInt(LOUDNESS_PREAMP, 0).toFloat()
-    }
+    fun getLoudnessPreamp(): Float =
+        App
+            .getInstance()
+            .preferences
+            .getInt(LOUDNESS_PREAMP, 0)
+            .toFloat()
 
     @JvmStatic
-    fun getStreamingCacheStoragePreference(): Int {
-        return App.getInstance().preferences.getString(STREAMING_CACHE_STORAGE, "0")!!.toInt()
-    }
+    fun getStreamingCacheStoragePreference(): Int =
+        App
+            .getInstance()
+            .preferences
+            .getString(STREAMING_CACHE_STORAGE, "0")!!
+            .toInt()
 
     @JvmStatic
     fun setStreamingCacheStoragePreference(streamingCachePreference: Int) {
@@ -165,24 +165,26 @@ object Preferences {
     }
 
     @JvmStatic
-    fun isScrobblingEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(SCROBBLING, true)
-    }
+    fun isScrobblingEnabled(): Boolean = App.getInstance().preferences.getBoolean(SCROBBLING, true)
 
     @JvmStatic
-    fun getSongPreloadBuffer(): Int {
-        return App.getInstance().preferences.getString(SONG_PRELOAD_BUFFER, "60")!!.toInt()
-    }
+    fun getSongPreloadBuffer(): Int =
+        App
+            .getInstance()
+            .preferences
+            .getString(SONG_PRELOAD_BUFFER, "60")!!
+            .toInt()
 
     @JvmStatic
-    fun getPrecacheTracksCount(): Int {
-        return App.getInstance().preferences.getString(PRECACHE_TRACKS_COUNT, "0")!!.toInt()
-    }
+    fun getPrecacheTracksCount(): Int =
+        App
+            .getInstance()
+            .preferences
+            .getString(PRECACHE_TRACKS_COUNT, "0")!!
+            .toInt()
 
     @JvmStatic
-    fun isPrecacheWifiOnly(): Boolean {
-        return App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, true)
-    }
+    fun isPrecacheWifiOnly(): Boolean = App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, true)
 
     /**
      * Off unless asked for, and #72 is why. There was no writer and no settings
@@ -195,9 +197,7 @@ object Preferences {
      * neighbouring key and still means it: that one has no writer.
      */
     @JvmStatic
-    fun isContinuousPlayEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(CONTINUOUS_PLAY, false)
-    }
+    fun isContinuousPlayEnabled(): Boolean = App.getInstance().preferences.getBoolean(CONTINUOUS_PLAY, false)
 
     @JvmStatic
     fun setContinuousPlayEnabled(enabled: Boolean) {
@@ -214,9 +214,7 @@ object Preferences {
      * docs/decisions/2026-08-10-artists-by-initial-design.md.
      */
     @JvmStatic
-    fun isArtistsByInitialEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(ARTISTS_BY_INITIAL, true)
-    }
+    fun isArtistsByInitialEnabled(): Boolean = App.getInstance().preferences.getBoolean(ARTISTS_BY_INITIAL, true)
 
     @JvmStatic
     fun setArtistsByInitialEnabled(enabled: Boolean) {
@@ -240,7 +238,12 @@ object Preferences {
      */
     @JvmStatic
     fun getBrowseTabOrder(): List<String> {
-        val raw = App.getInstance().preferences.getString(BROWSE_TAB_ORDER, "").orEmpty()
+        val raw =
+            App
+                .getInstance()
+                .preferences
+                .getString(BROWSE_TAB_ORDER, "")
+                .orEmpty()
         return if (raw.isEmpty()) emptyList() else raw.split(",")
     }
 
@@ -252,9 +255,7 @@ object Preferences {
     }
 
     @JvmStatic
-    fun getNumberOfTracksKeepInQueue(): Int {
-        return App.getInstance().preferences.getInt(NUMBER_TRACKS_KEEP_IN_QUEUE, 30) - 1
-    }
+    fun getNumberOfTracksKeepInQueue(): Int = App.getInstance().preferences.getInt(NUMBER_TRACKS_KEEP_IN_QUEUE, 30) - 1
 
     /**
      * Defaults to true. Nothing writes this key -- the Settings screen behind
@@ -265,29 +266,31 @@ object Preferences {
      * kept for a row that may yet be added; only the default flips.
      */
     @JvmStatic
-    fun isFallbackToRandomTracksEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(FALLBACK_TO_RANDOM_TRACKS, true)
-    }
+    fun isFallbackToRandomTracksEnabled(): Boolean = App.getInstance().preferences.getBoolean(FALLBACK_TO_RANDOM_TRACKS, true)
+
     @JvmStatic
     fun setLastInstantMix() {
         App.getInstance().preferences.edit { putLong(LAST_INSTANT_MIX, System.currentTimeMillis()) }
     }
 
     @JvmStatic
-    fun isInstantMixUsable(): Boolean {
-        return App.getInstance().preferences.getLong(
-                LAST_INSTANT_MIX, 0
+    fun isInstantMixUsable(): Boolean =
+        App.getInstance().preferences.getLong(
+            LAST_INSTANT_MIX,
+            0,
         ) + 10000 < System.currentTimeMillis()
-    }
-    @JvmStatic
-    fun isEqualizerEnabled(): Boolean {
-        return App.getInstance().preferences.getBoolean(EQUALIZER_ENABLED, false)
-    }
 
     @JvmStatic
-    fun getSelectedEqualizer(): Int {
-        return App.getInstance().preferences.getString(SELECTED_EQUALIZER, "0")!!.toInt()
-    }
+    fun isEqualizerEnabled(): Boolean = App.getInstance().preferences.getBoolean(EQUALIZER_ENABLED, false)
+
+    @JvmStatic
+    fun getSelectedEqualizer(): Int =
+        App
+            .getInstance()
+            .preferences
+            .getString(SELECTED_EQUALIZER, "0")!!
+            .toInt()
+
     @JvmStatic
     fun getEqualizerBandLevels(bandCount: Short): ShortArray {
         val str = App.getInstance().preferences.getString(EQUALIZER_BAND_LEVELS, null)
@@ -298,12 +301,10 @@ object Preferences {
         if (parts.size < bandCount) return ShortArray(bandCount.toInt())
         return ShortArray(bandCount.toInt()) { i -> parts[i].toShortOrNull() ?: 0 }
     }
+
     @JvmStatic
-    fun getTheme(): String {
-        return App.getInstance().preferences.getString(THEME, "default") ?: "default"
-    }
+    fun getTheme(): String = App.getInstance().preferences.getString(THEME, "default") ?: "default"
+
     @JvmStatic
-    fun getDarkThemeStyle(): String {
-        return App.getInstance().preferences.getString(DARK_THEME_STYLE, "standard") ?: "standard"
-    }
+    fun getDarkThemeStyle(): String = App.getInstance().preferences.getString(DARK_THEME_STYLE, "standard") ?: "standard"
 }

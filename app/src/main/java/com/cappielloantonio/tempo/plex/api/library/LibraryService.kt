@@ -39,7 +39,6 @@ import retrofit2.http.Url
  * reach it" at the call site.
  */
 interface LibraryService {
-
     /**
      * The trailing slash is Plex's canonical form and is kept for that reason, not
      * because it is required -- verified against PMS 1.43.3, where
@@ -85,7 +84,7 @@ interface LibraryService {
         @Query("artist.id") artistId: String?,
         @Query("album.decade") trackDecade: String?,
         @Query("decade") albumDecade: String?,
-        @Query("album.id") albumId: String?
+        @Query("album.id") albumId: String?,
     ): PlexResponse
 
     /**
@@ -103,7 +102,7 @@ interface LibraryService {
     suspend fun getChildren(
         @Path("id") ratingKey: String,
         @Header("X-Plex-Container-Start") start: Int,
-        @Header("X-Plex-Container-Size") size: Int
+        @Header("X-Plex-Container-Size") size: Int,
     ): PlexResponse
 
     /**
@@ -126,7 +125,7 @@ interface LibraryService {
     @GET("library/metadata/{id}/nearest")
     suspend fun getNearest(
         @Path("id") ratingKey: String,
-        @Query("limit") limit: Int
+        @Query("limit") limit: Int,
     ): PlexResponse
 
     /**
@@ -134,10 +133,14 @@ interface LibraryService {
      * comma-separated batch; a single ratingKey is the common case.
      */
     @GET("library/metadata/{ids}")
-    suspend fun getMetadata(@Path("ids") ratingKeys: String): PlexResponse
+    suspend fun getMetadata(
+        @Path("ids") ratingKeys: String,
+    ): PlexResponse
 
     @GET("hubs/sections/{sectionId}")
-    suspend fun getSectionHubs(@Path("sectionId") sectionId: String): PlexResponse
+    suspend fun getSectionHubs(
+        @Path("sectionId") sectionId: String,
+    ): PlexResponse
 
     /**
      * The decades this section's albums fall into, newest first.
@@ -161,7 +164,7 @@ interface LibraryService {
     @GET("library/sections/{sectionId}/decade")
     suspend fun getDecades(
         @Path("sectionId") sectionId: String,
-        @Query("type") type: Int
+        @Query("type") type: Int,
     ): PlexResponse
 
     /**
@@ -189,7 +192,7 @@ interface LibraryService {
     @GET("library/sections/{sectionId}/firstCharacter")
     suspend fun getFirstCharacters(
         @Path("sectionId") sectionId: String,
-        @Query("type") type: Int
+        @Query("type") type: Int,
     ): PlexResponse
 
     /**
@@ -227,7 +230,7 @@ interface LibraryService {
         @Path("key", encoded = true) key: String,
         @Query("type") type: Int,
         @Header("X-Plex-Container-Start") start: Int,
-        @Header("X-Plex-Container-Size") size: Int
+        @Header("X-Plex-Container-Size") size: Int,
     ): PlexResponse
 
     /**
@@ -267,6 +270,6 @@ interface LibraryService {
     suspend fun getByPath(
         @Url path: String,
         @Header("X-Plex-Container-Start") start: Int,
-        @Header("X-Plex-Container-Size") size: Int
+        @Header("X-Plex-Container-Size") size: Int,
     ): PlexResponse
 }

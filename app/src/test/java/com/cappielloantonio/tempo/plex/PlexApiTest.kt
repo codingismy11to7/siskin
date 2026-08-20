@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PlexApiTest {
-
     @Test
     fun usesTheServerTokenWhenTheResourceSuppliedOne() {
         // A shared server rejects the account token; only its own accessToken works.

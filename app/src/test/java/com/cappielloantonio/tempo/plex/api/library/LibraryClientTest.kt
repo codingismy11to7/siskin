@@ -24,7 +24,6 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class LibraryClientTest {
-
     private lateinit var server: MockWebServer
 
     @Before
@@ -41,11 +40,16 @@ class LibraryClientTest {
         return LibraryClient(api, api.serverUri, api.serverToken)
     }
 
-    private fun response(vararg sections: Directory) = PlexResponse().apply {
-        mediaContainer = MediaContainer().apply { directory = sections.toList() }
-    }
+    private fun response(vararg sections: Directory) =
+        PlexResponse().apply {
+            mediaContainer = MediaContainer().apply { directory = sections.toList() }
+        }
 
-    private fun section(key: String, type: String, title: String) = Directory().apply {
+    private fun section(
+        key: String,
+        type: String,
+        title: String,
+    ) = Directory().apply {
         this.key = key
         this.type = type
         this.title = title
@@ -54,22 +58,24 @@ class LibraryClientTest {
     @Test
     fun keepsOnlyMusicSections() {
         // Plex reports a music library's type as "artist", not "music".
-        val sections = LibraryClient.musicSections(
-            response(
-                section("1", "movie", "Films"),
-                section("2", "artist", "Music"),
-                section("3", "show", "TV")
+        val sections =
+            LibraryClient.musicSections(
+                response(
+                    section("1", "movie", "Films"),
+                    section("2", "artist", "Music"),
+                    section("3", "show", "TV"),
+                ),
             )
-        )
         assertEquals(1, sections.size)
         assertEquals("Music", sections.single().title)
     }
 
     @Test
     fun keepsEveryMusicSectionWhenThereAreSeveral() {
-        val sections = LibraryClient.musicSections(
-            response(section("1", "artist", "Music"), section("2", "artist", "Podcasts"))
-        )
+        val sections =
+            LibraryClient.musicSections(
+                response(section("1", "artist", "Music"), section("2", "artist", "Podcasts")),
+            )
         assertEquals(2, sections.size)
     }
 
@@ -83,42 +89,45 @@ class LibraryClientTest {
     @Test
     fun ignoresSectionsMissingAKey() {
         // A section we cannot address is not browsable.
-        val sections = LibraryClient.musicSections(
-            response(section("", "artist", "Broken"), section("2", "artist", "Music"))
-        )
+        val sections =
+            LibraryClient.musicSections(
+                response(section("", "artist", "Broken"), section("2", "artist", "Music")),
+            )
         assertEquals(1, sections.size)
         assertEquals("2", sections.single().key)
     }
 
     @Test
-    fun getByHubKeyCapsTheContainerAtMaxItems() = runTest {
-        // The one browse call in this app with no bound of its own -- a
-        // followed key answers with everything a matching library holds,
-        // measured at 1,322 albums for one real "Recently Added" hub. See
-        // LibraryService.getByPath's KDoc for the full measurement; this pins
-        // that LibraryClient actually asks for the cap rather than leaving it
-        // to callers.
-        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+    fun getByHubKeyCapsTheContainerAtMaxItems() =
+        runTest {
+            // The one browse call in this app with no bound of its own -- a
+            // followed key answers with everything a matching library holds,
+            // measured at 1,322 albums for one real "Recently Added" hub. See
+            // LibraryService.getByPath's KDoc for the full measurement; this pins
+            // that LibraryClient actually asks for the cap rather than leaving it
+            // to callers.
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
 
-        clientAgainstServer().getByHubKey("/library/sections/7/all?type=9")
+            clientAgainstServer().getByHubKey("/library/sections/7/all?type=9")
 
-        val request = server.takeRequest()
-        assertEquals("0", request.getHeader("X-Plex-Container-Start"))
-        assertEquals(Constants.MAX_ITEMS.toString(), request.getHeader("X-Plex-Container-Size"))
-    }
+            val request = server.takeRequest()
+            assertEquals("0", request.getHeader("X-Plex-Container-Start"))
+            assertEquals(Constants.MAX_ITEMS.toString(), request.getHeader("X-Plex-Container-Size"))
+        }
 
     @Test
-    fun getByHubKeyNeverReachesTheServerWhenTheGuardRefusesTheKey() = runTest {
-        // isSafeHubKey and getByPath are each tested on their own -- this is
-        // the only thing that proves getByHubKey runs the guard *before* the
-        // request, which is the actual security boundary: the account token
-        // rides on every request PlexRetrofitFactory builds, so a request that
-        // reaches the server at all has already lost, regardless of what
-        // getByPath does with it. requestCount stays 0 rather than the enqueued
-        // response going unread, which would pass even if the guard ran after.
-        val result = clientAgainstServer().getByHubKey("//evil.example/library/sections/7/all")
+    fun getByHubKeyNeverReachesTheServerWhenTheGuardRefusesTheKey() =
+        runTest {
+            // isSafeHubKey and getByPath are each tested on their own -- this is
+            // the only thing that proves getByHubKey runs the guard *before* the
+            // request, which is the actual security boundary: the account token
+            // rides on every request PlexRetrofitFactory builds, so a request that
+            // reaches the server at all has already lost, regardless of what
+            // getByPath does with it. requestCount stays 0 rather than the enqueued
+            // response going unread, which would pass even if the guard ran after.
+            val result = clientAgainstServer().getByHubKey("//evil.example/library/sections/7/all")
 
-        assertNull(result)
-        assertEquals(0, server.requestCount)
-    }
+            assertNull(result)
+            assertEquals(0, server.requestCount)
+        }
 }

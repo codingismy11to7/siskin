@@ -36,9 +36,8 @@ import com.cappielloantonio.tempo.plex.PlexApi
  */
 @UnstableApi
 class StreamingCacheKeyFactory(
-    private val api: PlexApi = PlexApi()
+    private val api: PlexApi = PlexApi(),
 ) : CacheKeyFactory {
-
     override fun buildCacheKey(dataSpec: DataSpec): String {
         dataSpec.key?.let { return it }
 
@@ -52,7 +51,11 @@ class StreamingCacheKeyFactory(
             return "$machineIdentifier$path"
         }
 
-        return dataSpec.uri.buildUpon().clearQuery().build().toString()
+        return dataSpec.uri
+            .buildUpon()
+            .clearQuery()
+            .build()
+            .toString()
     }
 
     companion object {

@@ -33,7 +33,6 @@ import org.robolectric.RuntimeEnvironment
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class MediaLibrarySessionCallbackSignedOutTest {
-
     private val browseRepository = mock<PlexBrowseRepository>()
     private val sessionMediaItemRepository = mock<SessionMediaItemRepository>()
     private val controller = mock<MediaSession.ControllerInfo>()
@@ -50,12 +49,13 @@ class MediaLibrarySessionCallbackSignedOutTest {
             accountToken = null
         }
 
-        callback = MediaLibrarySessionCallback(
-            RuntimeEnvironment.getApplication(),
-            mock<BaseMediaService>(),
-            browseRepository,
-            sessionMediaItemRepository
-        )
+        callback =
+            MediaLibrarySessionCallback(
+                RuntimeEnvironment.getApplication(),
+                mock<BaseMediaService>(),
+                browseRepository,
+                sessionMediaItemRepository,
+            )
 
         // Mirrors the real media3 lifecycle -- the root is always requested
         // before anything subscribes to it -- and is what populates
@@ -72,9 +72,9 @@ class MediaLibrarySessionCallbackSignedOutTest {
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
-                Constants.MORE_ID
+                Constants.MORE_ID,
             ),
-            children
+            children,
         )
     }
 
@@ -84,17 +84,17 @@ class MediaLibrarySessionCallbackSignedOutTest {
             Constants.PLAYLIST_ID,
             Constants.ARTISTS_ID,
             Constants.ALBUMS_ID,
-            Constants.MORE_ID
+            Constants.MORE_ID,
         ).forEach { parentId ->
             val row = getChildren(parentId).single()
 
             assertEquals(
                 RuntimeEnvironment.getApplication().getString(R.string.car_sign_in_required),
-                row.mediaMetadata.title?.toString()
+                row.mediaMetadata.title?.toString(),
             )
             assertEquals(
                 RuntimeEnvironment.getApplication().getString(R.string.car_sign_in_hint),
-                row.mediaMetadata.artist?.toString()
+                row.mediaMetadata.artist?.toString(),
             )
             assertEquals(true, row.mediaMetadata.isBrowsable)
             assertEquals(false, row.mediaMetadata.isPlayable)
@@ -102,12 +102,14 @@ class MediaLibrarySessionCallbackSignedOutTest {
     }
 
     private fun getChildren(parentId: String) =
-        callback.onGetChildren(
-            mock<MediaLibraryService.MediaLibrarySession>(),
-            controller,
-            parentId,
-            0,
-            Constants.MAX_ITEMS,
-            null
-        ).get().value!!
+        callback
+            .onGetChildren(
+                mock<MediaLibraryService.MediaLibrarySession>(),
+                controller,
+                parentId,
+                0,
+                Constants.MAX_ITEMS,
+                null,
+            ).get()
+            .value!!
 }

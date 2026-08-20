@@ -61,12 +61,14 @@ package com.cappielloantonio.tempo.util
  * call sites parsing it the same way.
  */
 object DecadeKey {
-
     private const val SEPARATOR = '|'
 
     /** The row id payload for [decade] in the library [scope] names. */
     @JvmStatic
-    fun of(scope: String, decade: String): String = "$scope$SEPARATOR$decade"
+    fun of(
+        scope: String,
+        decade: String,
+    ): String = "$scope$SEPARATOR$decade"
 
     /**
      * The bare decade to filter Plex on.

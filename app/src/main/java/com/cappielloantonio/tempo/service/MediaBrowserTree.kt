@@ -38,7 +38,9 @@ object MediaBrowserTree {
 
     private fun iconUri(resId: Int): Uri = ResourceUris.forResource(resId)
 
-    private class MediaItemNode(val item: MediaItem) {
+    private class MediaItemNode(
+        val item: MediaItem,
+    ) {
         private val children: MutableList<MediaItem> = ArrayList()
 
         fun addChild(childID: String) {
@@ -65,32 +67,36 @@ object MediaBrowserTree {
         artist: String? = null,
         genre: String? = null,
         sourceUri: Uri? = null,
-        imageUri: Uri? = null
+        imageUri: Uri? = null,
     ): MediaItem {
-        val extras = Bundle().apply {
-            putInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-                BrowseContentStyle.browsableChildStyle(browsableChildrenAsGrid)
-            )
-            putInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-                BrowseContentStyle.PLAYABLE_CHILD_STYLE
-            )
-        }
+        val extras =
+            Bundle().apply {
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                    BrowseContentStyle.browsableChildStyle(browsableChildrenAsGrid),
+                )
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                    BrowseContentStyle.PLAYABLE_CHILD_STYLE,
+                )
+            }
 
-        val metadata = MediaMetadata.Builder()
-            .setAlbumTitle(album)
-            .setTitle(title)
-            .setArtist(artist)
-            .setGenre(genre)
-            .setIsBrowsable(isBrowsable)
-            .setIsPlayable(isPlayable)
-            .setArtworkUri(imageUri)
-            .setMediaType(mediaType)
-            .setExtras(extras)
-            .build()
+        val metadata =
+            MediaMetadata
+                .Builder()
+                .setAlbumTitle(album)
+                .setTitle(title)
+                .setArtist(artist)
+                .setGenre(genre)
+                .setIsBrowsable(isBrowsable)
+                .setIsPlayable(isPlayable)
+                .setArtworkUri(imageUri)
+                .setMediaType(mediaType)
+                .setExtras(extras)
+                .build()
 
-        return MediaItem.Builder()
+        return MediaItem
+            .Builder()
             .setMediaId(mediaId)
             .setSubtitleConfigurations(subtitleConfigurations)
             .setMediaMetadata(metadata)
@@ -98,7 +104,10 @@ object MediaBrowserTree {
             .build()
     }
 
-    fun initialize(context: Context, browseRepository: PlexBrowseRepository) {
+    fun initialize(
+        context: Context,
+        browseRepository: PlexBrowseRepository,
+    ) {
         this.browseRepository = browseRepository
         appContext = context.applicationContext
         if (isInitialized) return
@@ -138,8 +147,8 @@ object MediaBrowserTree {
                     mediaId = Constants.ROOT_ID,
                     isPlayable = false,
                     isBrowsable = true,
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
-                )
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+                ),
             )
 
         treeNodes[Constants.PLAYLIST_ID] =
@@ -151,8 +160,8 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(R.drawable.ic_browse_playlist),
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS
-                )
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_PLAYLISTS,
+                ),
             )
 
         treeNodes[Constants.ARTISTS_ID] =
@@ -164,8 +173,8 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(R.drawable.ic_browse_artists),
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS
-                )
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS,
+                ),
             )
 
         treeNodes[Constants.ALBUMS_ID] =
@@ -177,8 +186,8 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(R.drawable.ic_browse_albums),
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS
-                )
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS,
+                ),
             )
 
         treeNodes[Constants.MORE_ID] =
@@ -190,8 +199,8 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(R.drawable.ic_browse_more),
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
-                )
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+                ),
             )
 
         treeNodes[Constants.DISCOVER_ID] =
@@ -208,8 +217,8 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(R.drawable.ic_browse_discover),
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
-                )
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+                ),
             )
 
         treeNodes[Constants.DECADES_ID] =
@@ -224,8 +233,8 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(R.drawable.ic_browse_decades),
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
-                )
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+                ),
             )
 
         treeNodes[Constants.SELECT_LIBRARY_ID] =
@@ -237,8 +246,8 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(R.drawable.ic_browse_library),
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED
-                )
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+                ),
             )
 
         // The root and More are both decided by one resolved list, so a
@@ -257,9 +266,7 @@ object MediaBrowserTree {
         root.addChild(Constants.MORE_ID)
     }
 
-    fun getRootItem(): MediaItem {
-        return treeNodes[Constants.ROOT_ID]!!.item
-    }
+    fun getRootItem(): MediaItem = treeNodes[Constants.ROOT_ID]!!.item
 
     /**
      * Looks up a single node's [MediaItem] by id, for `onGetItem`.
@@ -290,7 +297,7 @@ object MediaBrowserTree {
         ) {
             return LibraryPickerRepository.browsableRow(
                 mediaId = mediaId,
-                title = appContext.getString(R.string.browse_select_library)
+                title = appContext.getString(R.string.browse_select_library),
             )
         }
 
@@ -320,42 +327,58 @@ object MediaBrowserTree {
 
     fun getChildren(id: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return when (id) {
-            Constants.ROOT_ID -> treeNodes[Constants.ROOT_ID]!!.getChildren()
+            Constants.ROOT_ID -> {
+                treeNodes[Constants.ROOT_ID]!!.getChildren()
+            }
 
-            Constants.PLAYLIST_ID -> browseRepository.getPlaylists(Constants.PLAYLIST_ID)
+            Constants.PLAYLIST_ID -> {
+                browseRepository.getPlaylists(Constants.PLAYLIST_ID)
+            }
 
             // The one place the by-initial preference is read. The tab's own
             // style does not depend on it -- see buildTree -- so nothing about
             // the root has to change when it is toggled; only this list does.
-            Constants.ARTISTS_ID -> if (Preferences.isArtistsByInitialEnabled()) {
-                browseRepository.getArtistLetters(
-                    Constants.ARTIST_LETTER_ID,
-                    Constants.ARTIST_ID
-                )
-            } else {
-                browseRepository.getArtistWindows(
-                    Constants.ARTIST_WINDOW_ID,
-                    Constants.ARTIST_ID
+            Constants.ARTISTS_ID -> {
+                if (Preferences.isArtistsByInitialEnabled()) {
+                    browseRepository.getArtistLetters(
+                        Constants.ARTIST_LETTER_ID,
+                        Constants.ARTIST_ID,
+                    )
+                } else {
+                    browseRepository.getArtistWindows(
+                        Constants.ARTIST_WINDOW_ID,
+                        Constants.ARTIST_ID,
+                    )
+                }
+            }
+
+            Constants.ALBUMS_ID -> {
+                browseRepository.getAlbumWindows(
+                    Constants.ALBUM_WINDOW_ID,
+                    Constants.ALBUM_ID,
                 )
             }
 
-            Constants.ALBUMS_ID -> browseRepository.getAlbumWindows(
-                Constants.ALBUM_WINDOW_ID,
-                Constants.ALBUM_ID
-            )
+            Constants.MORE_ID -> {
+                treeNodes[Constants.MORE_ID]!!.getChildren()
+            }
 
-            Constants.MORE_ID -> treeNodes[Constants.MORE_ID]!!.getChildren()
+            Constants.SELECT_LIBRARY_ID -> {
+                pickerRepository.getServers()
+            }
 
-            Constants.SELECT_LIBRARY_ID -> pickerRepository.getServers()
+            Constants.DECADES_ID -> {
+                browseRepository.getDecades(Constants.DECADE_ID)
+            }
 
-            Constants.DECADES_ID -> browseRepository.getDecades(Constants.DECADE_ID)
-
-            Constants.DISCOVER_ID -> browseRepository.getHubs(Constants.HUB_ID)
+            Constants.DISCOVER_ID -> {
+                browseRepository.getHubs(Constants.HUB_ID)
+            }
 
             else -> {
                 if (id.startsWith(Constants.PLAYLIST_ID)) {
                     return browseRepository.getPlaylistTracks(
-                        id.removePrefix(Constants.PLAYLIST_ID)
+                        id.removePrefix(Constants.PLAYLIST_ID),
                     )
                 }
                 // Before the ARTIST_ID/ALBUM_ID tests below: no window or letter
@@ -365,19 +388,19 @@ object MediaBrowserTree {
                 if (id.startsWith(Constants.ARTIST_WINDOW_ID)) {
                     return browseRepository.getArtistWindow(
                         id.removePrefix(Constants.ARTIST_WINDOW_ID).toIntOrNull() ?: 0,
-                        Constants.ARTIST_ID
+                        Constants.ARTIST_ID,
                     )
                 }
                 if (id.startsWith(Constants.ALBUM_WINDOW_ID)) {
                     return browseRepository.getAlbumWindow(
                         id.removePrefix(Constants.ALBUM_WINDOW_ID).toIntOrNull() ?: 0,
-                        Constants.ALBUM_ID
+                        Constants.ALBUM_ID,
                     )
                 }
                 if (id.startsWith(Constants.ARTIST_LETTER_ID)) {
                     return browseRepository.getArtistLetter(
                         id.removePrefix(Constants.ARTIST_LETTER_ID),
-                        Constants.ARTIST_ID
+                        Constants.ARTIST_ID,
                     )
                 }
                 // Before the ALBUM_ID/ARTIST_ID tests below, for the same
@@ -390,18 +413,18 @@ object MediaBrowserTree {
                     // repository builds must carry the same string the
                     // callback's cache guard rebuilds.
                     return browseRepository.getHubContent(
-                        id.removePrefix(Constants.HUB_ID)
+                        id.removePrefix(Constants.HUB_ID),
                     )
                 }
                 if (id.startsWith(Constants.ALBUM_ID)) {
                     return browseRepository.getAlbumTracks(
-                        id.removePrefix(Constants.ALBUM_ID)
+                        id.removePrefix(Constants.ALBUM_ID),
                     )
                 }
                 if (id.startsWith(Constants.ARTIST_ID)) {
                     return browseRepository.getArtistAlbums(
                         Constants.ALBUM_ID,
-                        id.removePrefix(Constants.ARTIST_ID)
+                        id.removePrefix(Constants.ARTIST_ID),
                     )
                 }
                 if (id.startsWith(Constants.DECADE_ID)) {
@@ -410,7 +433,7 @@ object MediaBrowserTree {
                     // shuffle row the repository builds from it has to carry the
                     // same string the callback's cache guard rebuilds.
                     return browseRepository.getDecadeTracks(
-                        id.removePrefix(Constants.DECADE_ID)
+                        id.removePrefix(Constants.DECADE_ID),
                     )
                 }
                 if (id.startsWith(Constants.PICK_LIBRARY_ID)) {
@@ -424,19 +447,19 @@ object MediaBrowserTree {
                                 ImmutableList.of(
                                     pickerRepository.confirmationRow(
                                         payload.removeSuffix(
-                                            LibraryPickerRepository.CONFIRMED_SUFFIX
-                                        )
-                                    )
+                                            LibraryPickerRepository.CONFIRMED_SUFFIX,
+                                        ),
+                                    ),
                                 ),
-                                null
-                            )
+                                null,
+                            ),
                         )
                     }
                     return pickerRepository.selectLibrary(payload)
                 }
                 if (id.startsWith(Constants.PICK_SERVER_ID)) {
                     return pickerRepository.getLibraries(
-                        id.removePrefix(Constants.PICK_SERVER_ID)
+                        id.removePrefix(Constants.PICK_SERVER_ID),
                     )
                 }
                 if (id.startsWith(Constants.PICK_MESSAGE_ID)) {
@@ -455,11 +478,11 @@ object MediaBrowserTree {
                         LibraryResult.ofItemList(
                             ImmutableList.of(
                                 LibraryPickerRepository.messageRow(
-                                    id.removePrefix(Constants.PICK_MESSAGE_ID)
-                                )
+                                    id.removePrefix(Constants.PICK_MESSAGE_ID),
+                                ),
                             ),
-                            null
-                        )
+                            null,
+                        ),
                     )
                 }
                 if (id == SIGNED_OUT_ROW_ID) {
@@ -479,7 +502,7 @@ object MediaBrowserTree {
                     // the state it described has already changed underneath
                     // it.
                     return Futures.immediateFuture(
-                        LibraryResult.ofItemList(signedOutRow(appContext), null)
+                        LibraryResult.ofItemList(signedOutRow(appContext), null),
                     )
                 }
                 return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
@@ -568,27 +591,28 @@ object MediaBrowserTree {
      * that -- drilling into it only shows the same row again, never a
      * stream.
      */
-    fun signedOutRow(context: Context): ImmutableList<MediaItem> = ImmutableList.of(
-        MediaItem.Builder()
-            .setMediaId(SIGNED_OUT_ROW_ID)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(context.getString(R.string.car_sign_in_required))
-                    // The browse list's second line, the same one an album
-                    // uses for its artist.
-                    .setArtist(context.getString(R.string.car_sign_in_hint))
-                    .setIsBrowsable(true)
-                    .setIsPlayable(false)
-                    .build()
-            )
-            .build()
-    )
+    fun signedOutRow(context: Context): ImmutableList<MediaItem> =
+        ImmutableList.of(
+            MediaItem
+                .Builder()
+                .setMediaId(SIGNED_OUT_ROW_ID)
+                .setMediaMetadata(
+                    MediaMetadata
+                        .Builder()
+                        .setTitle(context.getString(R.string.car_sign_in_required))
+                        // The browse list's second line, the same one an album
+                        // uses for its artist.
+                        .setArtist(context.getString(R.string.car_sign_in_hint))
+                        .setIsBrowsable(true)
+                        .setIsPlayable(false)
+                        .build(),
+                ).build(),
+        )
 
-    fun search(query: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        return browseRepository.search(
+    fun search(query: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        browseRepository.search(
             query,
             Constants.ALBUM_ID,
-            Constants.ARTIST_ID
+            Constants.ARTIST_ID,
         )
-    }
 }

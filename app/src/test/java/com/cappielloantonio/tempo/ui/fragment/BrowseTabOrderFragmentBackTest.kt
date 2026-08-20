@@ -35,7 +35,6 @@ import org.robolectric.Shadows.shadowOf
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class BrowseTabOrderFragmentBackTest {
-
     private val session = mock<MediaLibrarySession>()
 
     @Before
@@ -61,7 +60,8 @@ class BrowseTabOrderFragmentBackTest {
         // container and add to the back stack. addToBackStack matters here --
         // it is what lets FragmentManager's own back-stack-pop callback take
         // over once this fragment's callback disables itself and re-dispatches.
-        activity.supportFragmentManager.beginTransaction()
+        activity.supportFragmentManager
+            .beginTransaction()
             .replace(R.id.car_host_container, BrowseTabOrderFragment())
             .addToBackStack(null)
             .commit()

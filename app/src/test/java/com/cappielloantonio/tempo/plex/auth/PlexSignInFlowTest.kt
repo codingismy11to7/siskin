@@ -6,24 +6,24 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PlexSignInFlowTest {
-
     private fun createdPin(
         id: Long = 1L,
         code: String = "ABCD",
         qrUrl: String? = null,
-        expiresAtEpochSeconds: Long? = null
+        expiresAtEpochSeconds: Long? = null,
     ) = CreatedPin(id, code, qrUrl, expiresAtEpochSeconds)
 
     @Test
     fun awaitsApprovalOnceAPinExists() {
-        val awaiting = PlexSignInFlow.afterPinCreated(
-            createdPin(
-                id = 1L,
-                code = "ABCD",
-                qrUrl = "https://plex.tv/qr",
-                expiresAtEpochSeconds = 1785153600L
+        val awaiting =
+            PlexSignInFlow.afterPinCreated(
+                createdPin(
+                    id = 1L,
+                    code = "ABCD",
+                    qrUrl = "https://plex.tv/qr",
+                    expiresAtEpochSeconds = 1785153600L,
+                ),
             )
-        )
         assertEquals("ABCD", awaiting.code)
         assertEquals("https://plex.tv/qr", awaiting.qrUrl)
         assertEquals(1785153600L, awaiting.expiresAtEpochSeconds)

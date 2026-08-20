@@ -19,12 +19,16 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class PreferencesContinuousPlayTest {
-
     @Before
     fun setUp() {
         // Robolectric keeps App's SharedPreferences in a static field between
         // methods, so without this an earlier method's write decides this one.
-        App.getInstance().preferences.edit().remove("continuous_play").commit()
+        App
+            .getInstance()
+            .preferences
+            .edit()
+            .remove("continuous_play")
+            .commit()
     }
 
     @Test

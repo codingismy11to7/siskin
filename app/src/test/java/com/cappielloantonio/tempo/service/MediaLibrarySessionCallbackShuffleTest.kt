@@ -60,7 +60,6 @@ import org.robolectric.RuntimeEnvironment
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class MediaLibrarySessionCallbackShuffleTest {
-
     private val browseRepository = mock<PlexBrowseRepository>()
     private val sessionMediaItemRepository = mock<SessionMediaItemRepository>()
     private val session = mock<MediaSession>()
@@ -83,12 +82,13 @@ class MediaLibrarySessionCallbackShuffleTest {
         }
         whenever(session.player).thenReturn(player)
 
-        callback = MediaLibrarySessionCallback(
-            RuntimeEnvironment.getApplication(),
-            mock<BaseMediaService>(),
-            browseRepository,
-            sessionMediaItemRepository
-        )
+        callback =
+            MediaLibrarySessionCallback(
+                RuntimeEnvironment.getApplication(),
+                mock<BaseMediaService>(),
+                browseRepository,
+                sessionMediaItemRepository,
+            )
     }
 
     /**
@@ -125,9 +125,10 @@ class MediaLibrarySessionCallbackShuffleTest {
             .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
 
         setMediaItems(
-            MediaItem.Builder()
+            MediaItem
+                .Builder()
                 .setMediaId(Constants.MIX_PLAYLIST_ID + PLAYLIST)
-                .build()
+                .build(),
         )
 
         assertShuffleUntouched()
@@ -140,9 +141,10 @@ class MediaLibrarySessionCallbackShuffleTest {
             .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
 
         setMediaItems(
-            MediaItem.Builder()
+            MediaItem
+                .Builder()
                 .setMediaId(Constants.MIX_DECADE_ID + DECADE)
-                .build()
+                .build(),
         )
 
         assertShuffleUntouched()
@@ -171,7 +173,7 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         assertEquals(
             tracks.map { it.mediaId }.sorted(),
-            result.mediaItems.map { it.mediaId }.sorted()
+            result.mediaItems.map { it.mediaId }.sorted(),
         )
         verify(browseRepository, never()).getDecadeTracksForShuffle(DECADE)
     }
@@ -190,7 +192,7 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         assertTrue(
             "queue must not contain the Mix row: ${result.mediaItems.map { it.mediaId }}",
-            result.mediaItems.none { it.mediaId == Constants.MIX_DECADE_ID + DECADE }
+            result.mediaItems.none { it.mediaId == Constants.MIX_DECADE_ID + DECADE },
         )
     }
 
@@ -215,7 +217,7 @@ class MediaLibrarySessionCallbackShuffleTest {
         // A multiset, for the same reason as the cache-hit test above.
         assertEquals(
             freshTracks.map { it.mediaId }.sorted(),
-            result.mediaItems.map { it.mediaId }.sorted()
+            result.mediaItems.map { it.mediaId }.sorted(),
         )
     }
 
@@ -242,11 +244,11 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         assertEquals(
             tracks.map { it.mediaId }.sorted(),
-            result.mediaItems.map { it.mediaId }.sorted()
+            result.mediaItems.map { it.mediaId }.sorted(),
         )
         assertNotEquals(
             tracks.map { it.mediaId },
-            result.mediaItems.map { it.mediaId }
+            result.mediaItems.map { it.mediaId },
         )
     }
 
@@ -274,21 +276,23 @@ class MediaLibrarySessionCallbackShuffleTest {
         whenever(browseRepository.getPlaylistTracksForShuffle(PLAYLIST))
             .thenReturn(itemList(tracks))
 
-        val result = setMediaItems(
-            MediaItem.Builder()
-                .setMediaId(Constants.MIX_PLAYLIST_ID + PLAYLIST)
-                .build()
-        )
+        val result =
+            setMediaItems(
+                MediaItem
+                    .Builder()
+                    .setMediaId(Constants.MIX_PLAYLIST_ID + PLAYLIST)
+                    .build(),
+            )
 
         assertShuffleUntouched()
         assertEquals(0, result.startIndex)
         assertEquals(
             tracks.map { it.mediaId }.sorted(),
-            result.mediaItems.map { it.mediaId }.sorted()
+            result.mediaItems.map { it.mediaId }.sorted(),
         )
         assertNotEquals(
             tracks.map { it.mediaId },
-            result.mediaItems.map { it.mediaId }
+            result.mediaItems.map { it.mediaId },
         )
     }
 
@@ -379,14 +383,15 @@ class MediaLibrarySessionCallbackShuffleTest {
         whenever(browseRepository.getHubTracksForIds(listOf("111"), emptyList()))
             .thenReturn(itemList(tracks))
 
-        val queued = callback
-            .onAddMediaItems(session, controller, listOf(mixRow(Constants.MIX_HUB_ID + hubKey)))
-            .get()
+        val queued =
+            callback
+                .onAddMediaItems(session, controller, listOf(mixRow(Constants.MIX_HUB_ID + hubKey)))
+                .get()
 
         assertTrue(queued.none { it.mediaMetadata.isBrowsable == true })
         assertEquals(
             tracks.map { it.mediaId }.sorted(),
-            queued.map { it.mediaId }.sorted()
+            queued.map { it.mediaId }.sorted(),
         )
     }
 
@@ -433,15 +438,16 @@ class MediaLibrarySessionCallbackShuffleTest {
 
     private fun setMediaItems(tapped: MediaItem): MediaSession.MediaItemsWithStartPosition =
         mockConstruction(QueueRepository::class.java).use {
-            callback.onSetMediaItems(
-                session,
-                controller,
-                listOf(tapped),
-                // What the car sends for a browse tap: it names the track and
-                // says nothing about where to start.
-                C.INDEX_UNSET,
-                C.TIME_UNSET
-            ).get()
+            callback
+                .onSetMediaItems(
+                    session,
+                    controller,
+                    listOf(tapped),
+                    // What the car sends for a browse tap: it names the track and
+                    // says nothing about where to start.
+                    C.INDEX_UNSET,
+                    C.TIME_UNSET,
+                ).get()
         }
 
     /**
@@ -454,46 +460,53 @@ class MediaLibrarySessionCallbackShuffleTest {
         verify(player, never()).shuffleModeEnabled = false
     }
 
-    private fun mixArtistRow() = MediaItem.Builder()
-        .setMediaId(Constants.MIX_ARTIST_ID + ARTIST)
-        .build()
+    private fun mixArtistRow() =
+        MediaItem
+            .Builder()
+            .setMediaId(Constants.MIX_ARTIST_ID + ARTIST)
+            .build()
 
     /** A bare tapped Mix row, the shape the car echoes back on any Mix tap. */
-    private fun mixRow(mediaId: String) = MediaItem.Builder()
-        .setMediaId(mediaId)
-        .build()
+    private fun mixRow(mediaId: String) =
+        MediaItem
+            .Builder()
+            .setMediaId(mediaId)
+            .build()
 
     /**
      * Built with the same [PlexMediaMapper.mixRowToMediaItem] the real row
      * uses, for the same reason [decadeMixRow] is: [browseHub] runs it through
      * `LibraryResult.ofItemList`, which requires `isBrowsable` on every item.
      */
-    private fun hubMixRow(hubKey: String) =
-        PlexMediaMapper.mixRowToMediaItem(Constants.MIX_HUB_ID + hubKey, "Hub Mix")
+    private fun hubMixRow(hubKey: String) = PlexMediaMapper.mixRowToMediaItem(Constants.MIX_HUB_ID + hubKey, "Hub Mix")
 
     /** A hub's album container row, as `PlexBrowseRepository.getHubContent` builds one. */
-    private fun albumRow(ratingKey: String) = MediaItem.Builder()
-        .setMediaId(Constants.ALBUM_ID + ratingKey)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle("Album $ratingKey")
-                .setIsBrowsable(true)
-                .setIsPlayable(false)
-                .build()
-        )
-        .build()
+    private fun albumRow(ratingKey: String) =
+        MediaItem
+            .Builder()
+            .setMediaId(Constants.ALBUM_ID + ratingKey)
+            .setMediaMetadata(
+                MediaMetadata
+                    .Builder()
+                    .setTitle("Album $ratingKey")
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .build(),
+            ).build()
 
     /** A hub's artist container row, as `PlexBrowseRepository.getHubContent` builds one. */
-    private fun artistRow(ratingKey: String) = MediaItem.Builder()
-        .setMediaId(Constants.ARTIST_ID + ratingKey)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle("Artist $ratingKey")
-                .setIsBrowsable(true)
-                .setIsPlayable(false)
-                .build()
-        )
-        .build()
+    private fun artistRow(ratingKey: String) =
+        MediaItem
+            .Builder()
+            .setMediaId(Constants.ARTIST_ID + ratingKey)
+            .setMediaMetadata(
+                MediaMetadata
+                    .Builder()
+                    .setTitle("Artist $ratingKey")
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .build(),
+            ).build()
 
     /**
      * Built with the same [PlexMediaMapper.mixRowToMediaItem] the real row
@@ -501,8 +514,7 @@ class MediaLibrarySessionCallbackShuffleTest {
      * through `LibraryResult.ofItemList`, which requires `isBrowsable` to be
      * set on every item, and a bare builder trips that check.
      */
-    private fun decadeMixRow(decade: String) =
-        PlexMediaMapper.mixRowToMediaItem(Constants.MIX_DECADE_ID + decade, "Decade Mix")
+    private fun decadeMixRow(decade: String) = PlexMediaMapper.mixRowToMediaItem(Constants.MIX_DECADE_ID + decade, "Decade Mix")
 
     /**
      * What a real browse of a decade leaves in `queueSourceCache`: the shuffle
@@ -512,18 +524,23 @@ class MediaLibrarySessionCallbackShuffleTest {
      * `browseAlbum` does, rather than reaching into the private top-level cache
      * directly.
      */
-    private fun browseDecade(decade: String, tracks: List<MediaItem>) {
+    private fun browseDecade(
+        decade: String,
+        tracks: List<MediaItem>,
+    ) {
         whenever(browseRepository.getDecadeTracks(decade))
             .thenReturn(itemList(listOf(decadeMixRow(decade)) + tracks))
 
-        val children = callback.onGetChildren(
-            mock<MediaLibraryService.MediaLibrarySession>(),
-            controller,
-            Constants.DECADE_ID + decade,
-            0,
-            Constants.MAX_ITEMS,
-            null
-        ).get()
+        val children =
+            callback
+                .onGetChildren(
+                    mock<MediaLibraryService.MediaLibrarySession>(),
+                    controller,
+                    Constants.DECADE_ID + decade,
+                    0,
+                    Constants.MAX_ITEMS,
+                    null,
+                ).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, children.resultCode)
     }
@@ -538,20 +555,22 @@ class MediaLibrarySessionCallbackShuffleTest {
     private fun browseHub(
         hubKey: String,
         albumIds: List<String> = emptyList(),
-        artistIds: List<String> = emptyList()
+        artistIds: List<String> = emptyList(),
     ) {
         val containers = albumIds.map { albumRow(it) } + artistIds.map { artistRow(it) }
         whenever(browseRepository.getHubContent(hubKey))
             .thenReturn(itemList(listOf(hubMixRow(hubKey)) + containers))
 
-        val children = callback.onGetChildren(
-            mock<MediaLibraryService.MediaLibrarySession>(),
-            controller,
-            Constants.HUB_ID + hubKey,
-            0,
-            Constants.MAX_ITEMS,
-            null
-        ).get()
+        val children =
+            callback
+                .onGetChildren(
+                    mock<MediaLibraryService.MediaLibrarySession>(),
+                    controller,
+                    Constants.HUB_ID + hubKey,
+                    0,
+                    Constants.MAX_ITEMS,
+                    null,
+                ).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, children.resultCode)
     }
@@ -563,33 +582,33 @@ class MediaLibrarySessionCallbackShuffleTest {
                 SessionMediaItem().apply {
                     id = track.mediaId
                     timestamp = GROUP
-                }
+                },
             )
         }
         whenever(sessionMediaItemRepository.getSiblings(GROUP)).thenReturn(tracks)
     }
 
-    private fun itemList(tracks: List<MediaItem>) =
-        Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(tracks), null))
+    private fun itemList(tracks: List<MediaItem>) = Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(tracks), null))
 
-    private fun albumTracks(vararg ratingKeys: String) = ratingKeys.map { key ->
-        PlexMediaMapper.buildTrackMediaItem(
-            ratingKey = key,
-            title = "Track $key",
-            albumTitle = "AMEN Remixes",
-            artist = "Artist",
-            thumb = null,
-            partKey = "/library/parts/$key/file.flac",
-            durationMs = null,
-            trackIndex = null,
-            year = null,
-            grandparentRatingKey = ARTIST,
-            isHearted = false,
-            parentId = Constants.QUEUE_CACHED_SOURCE,
-            serverUri = SERVER,
-            token = "server-token"
-        )
-    }
+    private fun albumTracks(vararg ratingKeys: String) =
+        ratingKeys.map { key ->
+            PlexMediaMapper.buildTrackMediaItem(
+                ratingKey = key,
+                title = "Track $key",
+                albumTitle = "AMEN Remixes",
+                artist = "Artist",
+                thumb = null,
+                partKey = "/library/parts/$key/file.flac",
+                durationMs = null,
+                trackIndex = null,
+                year = null,
+                grandparentRatingKey = ARTIST,
+                isHearted = false,
+                parentId = Constants.QUEUE_CACHED_SOURCE,
+                serverUri = SERVER,
+                token = "server-token",
+            )
+        }
 
     private companion object {
         const val SERVER = "https://plex.example"

@@ -6,27 +6,31 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LibraryPickerRepositoryTest {
-
-    private fun resource(name: String, id: String, provides: String, uri: String?) =
-        Resource().apply {
-            this.name = name
-            clientIdentifier = id
-            this.provides = provides
-            connections = uri?.let { listOf(Connection().apply { this.uri = it }) }
-        }
+    private fun resource(
+        name: String,
+        id: String,
+        provides: String,
+        uri: String?,
+    ) = Resource().apply {
+        this.name = name
+        clientIdentifier = id
+        this.provides = provides
+        connections = uri?.let { listOf(Connection().apply { this.uri = it }) }
+    }
 
     @Test
     fun `keeps only media servers with a usable connection`() {
-        val rows = LibraryPickerRepository.serverRows(
-            listOf(
-                resource("Basement", "a", "server", "https://pms:32400"),
-                resource("Phone", "b", "player", "https://phone:32400"),
-                resource("Unreachable", "c", "server", null),
-                // The app permits no cleartext traffic, so this one could never be
-                // opened -- listing it would only defer the failure to the tap.
-                resource("Cleartext", "d", "server", "http://pms:32400")
+        val rows =
+            LibraryPickerRepository.serverRows(
+                listOf(
+                    resource("Basement", "a", "server", "https://pms:32400"),
+                    resource("Phone", "b", "player", "https://phone:32400"),
+                    resource("Unreachable", "c", "server", null),
+                    // The app permits no cleartext traffic, so this one could never be
+                    // opened -- listing it would only defer the failure to the tap.
+                    resource("Cleartext", "d", "server", "http://pms:32400"),
+                ),
             )
-        )
         assertEquals(listOf("Basement"), rows.map { it.name })
         assertEquals(listOf("a"), rows.map { it.machineIdentifier })
     }
@@ -46,7 +50,7 @@ class LibraryPickerRepositoryTest {
     fun `library ids carry both server and section`() {
         assertEquals(
             "abc123|3",
-            LibraryPickerRepository.libraryIdPayload("abc123", "3")
+            LibraryPickerRepository.libraryIdPayload("abc123", "3"),
         )
     }
 }

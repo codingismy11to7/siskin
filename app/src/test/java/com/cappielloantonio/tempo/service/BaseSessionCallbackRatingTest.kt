@@ -40,13 +40,16 @@ import java.util.concurrent.TimeUnit
  */
 @RunWith(RobolectricTestRunner::class)
 class BaseSessionCallbackRatingTest {
-
     private lateinit var server: MockWebServer
     private lateinit var session: MediaSession
     private lateinit var player: Player
     private lateinit var callback: BaseSessionCallback
 
-    private fun trackItem(mediaId: String, hearted: Boolean) = MediaItem.Builder()
+    private fun trackItem(
+        mediaId: String,
+        hearted: Boolean,
+    ) = MediaItem
+        .Builder()
         .setMediaId(mediaId)
         .setMediaMetadata(MediaMetadata.Builder().setUserRating(HeartRating(hearted)).build())
         .build()
@@ -139,7 +142,7 @@ class BaseSessionCallbackRatingTest {
         assertEquals("42", replaced.firstValue.mediaId)
         assertEquals(
             HeartRating(true),
-            replaced.firstValue.mediaMetadata.userRating
+            replaced.firstValue.mediaMetadata.userRating,
         )
     }
 
