@@ -119,6 +119,9 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+        // Off, the resValue calls above generate nothing at all -- silently, and
+        // plex_account_type with them.
+        resValues = true
     }
 
     // See docs/decisions/2026-08-13-build-hygiene-design.md.
@@ -140,6 +143,13 @@ kotlin {
     compilerOptions {
         allWarningsAsErrors = true
     }
+}
+
+// javac's half of the same rule. -Werror alone is inert: without -Xlint, javac
+// reports deprecated and unchecked use as a "Note:" rather than a warning, so
+// there is nothing for it to catch. See the 2026-08-19 warnings-as-errors design.
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-Xlint:deprecation' << '-Xlint:unchecked' << '-Werror'
 }
 
 // A tag now publishes straight to internal testing, with the "what's new" text
@@ -220,6 +230,7 @@ dependencies {
     implementation libs.media3.common
     implementation libs.media3.exoplayer
     implementation libs.media3.exoplayer.hls
+    implementation libs.media3.inspector
 
     // Room Compiler
     annotationProcessor libs.androidx.room.compiler

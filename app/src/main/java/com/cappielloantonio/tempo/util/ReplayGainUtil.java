@@ -16,7 +16,6 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.Player;
 import androidx.media3.common.Timeline;
 import androidx.media3.datasource.DataSource;
-import androidx.media3.exoplayer.MetadataRetriever;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.TrackGroupArray;
@@ -24,6 +23,7 @@ import androidx.media3.extractor.DefaultExtractorsFactory;
 import androidx.media3.extractor.metadata.id3.InternalFrame;
 import androidx.media3.extractor.metadata.id3.TextInformationFrame;
 import androidx.media3.extractor.mp4.Mp4Extractor;
+import androidx.media3.inspector.MetadataRetriever;
 
 import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.model.ReplayGain;

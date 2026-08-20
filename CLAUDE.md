@@ -54,9 +54,12 @@ account (this file's
 "Credentials" section) dropped two of those `SharedPreferences.edit()` warnings
 along with the preferences themselves.
 
-**Kotlin compiles with `-Werror`**, test sources included. Configuration-time
-Gradle warnings are outside its reach. See
-`docs/decisions/2026-08-13-build-hygiene-design.md`.
+**Both compilers treat warnings as errors**, main and test sources alike —
+Kotlin via `allWarningsAsErrors`, javac via `-Werror` plus the `-Xlint` flags
+without which it catches nothing. Configuration-time Gradle warnings are outside
+the reach of both; `gradle.properties` carries no deprecated options, and
+exactly one warning is expected there, so a second means something changed. See
+`docs/decisions/2026-08-19-warnings-as-errors-design.md`.
 
 **`MissingTranslation` is not in that baseline, and a new one is a real defect.**
 Siskin ships five locales — English, German, Spanish, French, Italian — and all
@@ -332,6 +335,19 @@ throwaway and must never be committed.
 Existing comments that explain *why* are load-bearing and frequently document a
 real hazard. When a type removes the hazard, delete the comment with it; when it
 does not, keep it.
+
+**Write new comments the same way, and sparingly.** A comment earns its place by
+documenting a hazard the code cannot state itself. Three that do not:
+
+- **What the code used to be.** "Was X before Y deprecated it" is the commit
+  message's job, and the PR's. The file describes what is, not how it got here.
+- **What the reader can see.** If the line says it, the comment repeats it.
+- **The whole story.** State the hazard in a sentence or two and link to
+  `docs/decisions/` for the reasoning. Length is a cost paid on every read.
+
+This applies double to **this file**, which is loaded into every session in
+full. A paragraph here has to prevent a mistake, not merely be true; detail
+belongs in a decision doc with a link from here.
 
 ## Landing work
 
