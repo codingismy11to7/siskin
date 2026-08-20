@@ -46,7 +46,7 @@ object BrowseTreeInvalidator {
      * Rebuilds the tree and tells every browser currently *subscribed* to the root
      * that its children changed. Verified end-to-end against the AAOS emulator's
      * `com.android.car.media`: with a live root subscription in place (see
-     * [MediaLibraryServiceCallback.onGetItem], which lets `onSubscribe` succeed),
+     * [MediaLibrarySessionCallback.onGetItem], which lets `onSubscribe` succeed),
      * this call makes the car re-fetch and redisplay the root without backing out.
      *
      * Delivery depends on a subscription actually existing at call time -- there are

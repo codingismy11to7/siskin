@@ -26,7 +26,7 @@ public interface SessionMediaItemDao {
     SessionMediaItem get(String id);
 
     // The returned order IS the play order: SessionMediaItemRepository.getSiblings
-    // hands these rows straight to MediaLibraryServiceCallback.resolveQueueForItem,
+    // hands these rows straight to MediaLibrarySessionCallback.resolveQueueForItem,
     // which treats the list order as the queue order and computes the start index
     // as indexOfFirst { it.mediaId == firstItem.mediaId } against it. Without this
     // ORDER BY, an unordered scan can return siblings out of track order -- it

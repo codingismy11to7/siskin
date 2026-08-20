@@ -243,7 +243,7 @@ class PlexSignInFragment : Fragment() {
             // the one on screen for this emission. Drawing anything would be
             // drawing a screen about to be replaced; the cleared views above
             // are the right thing to leave behind.
-            is PlexSignInState.Connected -> Unit
+            is PlexSignInState.Connected -> {}
         }
     }
 

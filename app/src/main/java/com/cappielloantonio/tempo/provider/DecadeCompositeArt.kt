@@ -65,7 +65,7 @@ object DecadeCompositeArt {
      * missing tile into one Plex query rather than N.
      *
      * A 401 here deliberately does not raise the sign-in affordance: a
-     * ContentProvider has no route to MediaLibraryServiceCallback's
+     * ContentProvider has no route to MediaLibrarySessionCallback's
      * PendingIntent, and needs none, because the browse call that produced the
      * list being drawn would have hit the same 401 first and raised it there.
      */

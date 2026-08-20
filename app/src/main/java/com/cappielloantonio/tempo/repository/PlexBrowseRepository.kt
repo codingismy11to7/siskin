@@ -271,7 +271,7 @@ class PlexBrowseRepository {
      * served from the browse cache.
      *
      * Two requests, chained as one `Either` so a failure in either reaches
-     * `resultFor` unchanged. `MediaLibraryServiceCallback.cachedHubTracks`
+     * `resultFor` unchanged. `MediaLibrarySessionCallback.cachedHubTracks`
      * exists to avoid the first of them -- and, for a hub whose key carries
      * `sort=random`, to mix what the driver is looking at rather than a fresh
      * draw.
@@ -338,7 +338,7 @@ class PlexBrowseRepository {
      * this node was the one browse call with no cap of its own, so a server
      * that ignored the header, or answered through some other path, could
      * still hand back an unbounded list and, downstream, an oversized mix URL
-     * from `MediaLibraryServiceCallback.cachedHubTracks`. Capped again here
+     * from `MediaLibrarySessionCallback.cachedHubTracks`. Capped again here
      * independently, the same belt-and-suspenders every other bounded node
      * applies to its own response.
      */
@@ -401,7 +401,7 @@ class PlexBrowseRepository {
      * [decadeKey] is the whole [DecadeKey] payload -- library and decade -- as
      * it came off the tapped row's media id, and it stays whole here. The
      * shuffle row is built from it unsplit so that the guard in
-     * `MediaLibraryServiceCallback.cachedDecadeTracks`, which reconstructs
+     * `MediaLibrarySessionCallback.cachedDecadeTracks`, which reconstructs
      * `MIX_DECADE_ID + key` from what the car sends back, matches by
      * construction.
      */
@@ -413,7 +413,7 @@ class PlexBrowseRepository {
      * The same query with no shuffle row, for when the row's tap cannot be
      * served from what is already on screen.
      *
-     * `MediaLibraryServiceCallback.cachedDecadeTracks` tries the cached browse
+     * `MediaLibrarySessionCallback.cachedDecadeTracks` tries the cached browse
      * list first -- the tap should queue what the user was looking at, not
      * spend a round trip drawing a second uniform random 500 that is
      * statistically identical for the purpose but not the same tracks. This
@@ -928,7 +928,7 @@ class PlexBrowseRepository {
 
     /**
      * The one browse call shape. An HTTP failure becomes a LibraryResult error so
-     * MediaLibraryServiceCallback can offer the sign-in resolution on a 401; a
+     * MediaLibrarySessionCallback can offer the sign-in resolution on a 401; a
      * transport failure stays a Left and reaches [launchInto], which completes
      * the future exceptionally so the callback reads it as "unreachable" rather
      * than "rejected".
@@ -951,7 +951,7 @@ class PlexBrowseRepository {
      *
      * The [Constants.QUEUE_CACHED_SOURCE] tag is what lets a tap partway down
      * the list open the queue at that position instead of playing one track
-     * alone -- see MediaLibraryServiceCallback.resolveQueueForItem. It is
+     * alone -- see MediaLibrarySessionCallback.resolveQueueForItem. It is
      * decided here, once, rather than at each node that wants that behaviour.
      *
      * [decorate] is where a node adds its shuffle row, and is the identity

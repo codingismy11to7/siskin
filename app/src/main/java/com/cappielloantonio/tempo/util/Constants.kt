@@ -113,7 +113,7 @@ object Constants {
      * Prefixes of the synthetic Mix rows, each carrying the ratingKey of the
      * thing to mix after it -- or, for [MIX_DECADE_ID] and [MIX_HUB_ID], the same
      * [DecadeKey] or [HubKey] payload [DECADE_ID] and [HUB_ID] carry, whole and
-     * unsplit. That is what lets `MediaLibraryServiceCallback.cachedDecadeTracks`
+     * unsplit. That is what lets `MediaLibrarySessionCallback.cachedDecadeTracks`
      * rebuild the row's id from what the car sends back and match it against
      * the browse list it cached. Nothing on the server answers to these ids:
      * they are playable rows with no stream, and MediaLibrarySessionCallback

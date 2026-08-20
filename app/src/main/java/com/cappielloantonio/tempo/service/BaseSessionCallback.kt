@@ -42,7 +42,7 @@ open class BaseSessionCallback(
     // onCustomCommand held the only `service.` call in this class, and it is
     // gone from the overflow. Kept rather than deleted: it is `protected` and
     // every construction site already supplies it, so removing it means
-    // touching BaseMediaService's factory, MediaLibraryServiceCallback, and
+    // touching BaseMediaService's factory, MediaLibrarySessionCallback, and
     // four test files -- a wider refactor than this change asked for.
     protected val service: BaseMediaService) :
     MediaLibraryService.MediaLibrarySession.Callback {

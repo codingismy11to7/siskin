@@ -56,7 +56,7 @@ package com.cappielloantonio.tempo.util
  * The composite is opaque everywhere except [decadeIn], which
  * `PlexBrowseRepository.decadeTracks` calls to build the Plex filter. That is
  * deliberate: the shuffle row `getDecadeTracks` puts at index 0 and the guard
- * `MediaLibraryServiceCallback.cachedDecadeTracks` matches it against are both
+ * `MediaLibrarySessionCallback.cachedDecadeTracks` matches it against are both
  * built from the whole key, so they agree by construction rather than by two
  * call sites parsing it the same way.
  */
