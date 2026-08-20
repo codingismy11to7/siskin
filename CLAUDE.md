@@ -54,84 +54,12 @@ account (this file's
 "Credentials" section) dropped two of those `SharedPreferences.edit()` warnings
 along with the preferences themselves.
 
-**Both compilers treat warnings as errors, across main *and* test sources** —
-Kotlin via `allWarningsAsErrors`, javac via `-Werror`. The `kotlin { }` block
-that sets it is at the top level of `app/build.gradle` for that reason; the same
-block written inside `android { }` would cover main and silently miss test.
-javac's is a `tasks.withType(JavaCompile).configureEach`, which is why it reaches
-the release variant as well.
-
-**All five compilations were verified by probe rather than assumed** — a
-deprecated call planted in each, confirmed to fail the build, then removed:
-`compileDebugKotlin`, `compileDebugUnitTestKotlin`, `compileDebugJavaWithJavac`,
-`compileReleaseJavaWithJavac`, `compileDebugUnitTestJavaWithJavac`. The last has
-no sources today, so nothing else would have told you whether the flags were
-waiting there; they are. A javac probe needs the deprecated declaration and its
-caller in **different** classes, because javac exempts uses inside the same
-outermost class and a single-file probe passes while proving nothing.
-
-Kotlin's half is narrower than "any code smell", which is worth knowing before
-trusting it: the K2 *command-line* compiler does not emit `UNUSED_VARIABLE`, so
-an unused local compiles clean here and lights up only in the IDE. Deprecation
-warnings do fire, which is the case that matters.
-
-The javac half carries
-`-Xlint:deprecation -Xlint:unchecked` with it and that pairing is the load-bearing
-part: on its own `-Werror` catches nothing, because javac reports deprecated and
-unchecked use as a single `Note: Recompile with -Xlint:deprecation for details`
-rather than as warnings. A deprecation that only shows up as that note is one
-nobody is forced to read, which is the thing this exists to prevent.
-
-Configuration-time Gradle warnings are outside the reach of both, so a
-deprecated `android.*` option in `gradle.properties` stays a warning no matter
-what `-Werror` says. **There are now none, and that is the point of the count:
-a deprecation warning at configuration time is a countdown, not noise.** AGP
-deprecates one of these flags when the behaviour it toggles is being removed —
-the flag is an opt-out from a new default during a migration window — so a
-deprecated option set to a non-default value is an escape hatch AGP intends to
-weld shut, and it fails whenever they get round to it rather than when you are
-ready.
-
-`android.newDsl=false` was the last one and is **gone**. It opted out of AGP 9's
-new DSL to keep the legacy variant API alive for the Gradle Play Publisher
-plugin — but it was set defensively, from a closed GPP issue saying AGP 9 needs
-"either a forward-port in the plugin or `android.newDsl=false`", and no failure
-was ever observed here. On GPP 4.0.0 it is not needed: `publishBundle`,
-`promoteArtifact` and `publishListing` all register, `bundleRelease` produces a
-valid AAB, and `-Pandroid.debug.obsoleteApi=true` — the flag that names
-legacy-variant-API callers — reports nobody.
-
-**What that check could not cover is `publishBundle`'s execution**, which needs
-Play credentials. If GPP resolves the artifact through a removed API at upload
-time, the first sign is a failed release rather than a failed build, so watch
-the next cut.
-
-`android.dependency.useConstraints=true` is gone as well, and it is worth
-knowing why, because the warning it caused named a *different* property.
-AGP nagged four times a build that
-`android.dependency.excludeLibraryComponentsFromConstraints` "should be enabled
-to improve performance" — advice for very large projects, which this is not. The
-suppression flag AGP suggests is
-`android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false`, and its name
-is the tell: the nag exists *because* library constraints were enabled, so
-removing the opt-in silences it at the source rather than muting the symptom.
-Safe here because resolution does not depend on it — `releaseRuntimeClasspath`
-and `debugRuntimeClasspath` are identical line for line, all 519 of each, with
-and without it. Do not "fix" this by adding the suppression flag or by enabling
-the property AGP asks for; neither is needed.
-
-**The one remaining configuration warning is `android.aapt2FromMavenOverride`**,
-which is **experimental rather than deprecated** and is not in
-`gradle.properties` at all — it comes from `GRADLE_OPTS` in `flake.nix`, and
-without it AGP downloads an aapt2 that cannot run on NixOS. That one warns
-forever and should, which makes it the whole expected output of a configuration
-phase: anything else appearing there is new and is yours. See
-`docs/decisions/2026-08-13-build-hygiene-design.md`.
-
-`resValues` is now declared in `buildFeatures` rather than defaulted on by
-`android.defaults.buildfeatures.resvalues`. It is not cosmetic — `resValue`
-generates `plex_account_type`, and with the feature off it would silently
-generate nothing and take the system account type with it.
+**Both compilers treat warnings as errors**, main and test sources alike —
+Kotlin via `allWarningsAsErrors`, javac via `-Werror` plus the `-Xlint` flags
+without which it catches nothing. Configuration-time Gradle warnings are outside
+the reach of both; `gradle.properties` carries no deprecated options, and
+exactly one warning is expected there, so a second means something changed. See
+`docs/decisions/2026-08-19-warnings-as-errors-design.md`.
 
 **`MissingTranslation` is not in that baseline, and a new one is a real defect.**
 Siskin ships five locales — English, German, Spanish, French, Italian — and all
@@ -407,6 +335,19 @@ throwaway and must never be committed.
 Existing comments that explain *why* are load-bearing and frequently document a
 real hazard. When a type removes the hazard, delete the comment with it; when it
 does not, keep it.
+
+**Write new comments the same way, and sparingly.** A comment earns its place by
+documenting a hazard the code cannot state itself. Three that do not:
+
+- **What the code used to be.** "Was X before Y deprecated it" is the commit
+  message's job, and the PR's. The file describes what is, not how it got here.
+- **What the reader can see.** If the line says it, the comment repeats it.
+- **The whole story.** State the hazard in a sentence or two and link to
+  `docs/decisions/` for the reasoning. Length is a cost paid on every read.
+
+This applies double to **this file**, which is loaded into every session in
+full. A paragraph here has to prevent a mistake, not merely be true; detail
+belongs in a decision doc with a link from here.
 
 ## Landing work
 
