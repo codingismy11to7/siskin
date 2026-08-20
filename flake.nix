@@ -202,6 +202,22 @@
         echo "rendering:"
         render privacy-policy "Siskin Privacy Policy" privacy.html
       '';
+
+      # `./gradlew` from anywhere in the tree. The wrapper is what pins the
+      # Gradle version, so this resolves to it rather than to a `gradle` on
+      # PATH -- the point is to save the relative path, not to bypass it.
+      #
+      # No cd: Gradle picks the project from the working directory, so `gr lint`
+      # in app/ means `:app:lint`, exactly as `../gradlew lint` would.
+      gr = pkgs.writeShellScriptBin "gr" ''
+        set -euo pipefail
+        root="$(${pkgs.git}/bin/git rev-parse --show-toplevel)"
+        if [ ! -x "$root/gradlew" ]; then
+          echo "gr: no executable gradlew at $root" >&2
+          exit 1
+        fi
+        exec "$root/gradlew" "$@"
+      '';
     in
     {
       devShells.${system}.default = pkgs.mkShell {
@@ -211,6 +227,7 @@
           siskin-avd
           siskin-emulator
           siskin-render-web
+          gr
           # Siskin is developed on GitHub — PRs, CI logs and issues are all read
           # through gh, so it belongs in the shell rather than being reached for
           # ad hoc via `nix run`.

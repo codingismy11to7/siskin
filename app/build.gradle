@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.play.publisher)
+    alias(libs.plugins.ktlint)
 }
 
 // Release signing is driven entirely by the environment so that one code path
@@ -143,6 +144,35 @@ kotlin {
     compilerOptions {
         allWarningsAsErrors = true
     }
+}
+
+// ktlintCheck reports, ktlintFormat rewrites. The version is pinned rather than
+// left to the plugin's own default so it tracks flake.nix instead of the
+// plugin's release schedule -- see the note in libs.versions.toml.
+ktlint {
+    version = libs.versions.ktlint.get()
+}
+
+// AGP's own `lint` and `lintFix` are thin umbrellas over lintDebug and
+// lintFixDebug, so hanging ktlint off them makes one command cover both halves:
+// correctness from Android lint, style from ktlint.
+//
+// CI runs lintDebug, which is *underneath* these -- so it does not pick ktlint
+// up from here and needs ktlintCheck named explicitly, or to move up to `lint`.
+tasks.named('lint') { dependsOn 'ktlintCheck' }
+tasks.named('lintFix') { dependsOn 'ktlintFormat' }
+
+// The style-only half, named to mirror lint/lintFix. The plugin's own
+// ktlintCheck/ktlintFormat still work and are what its documentation says.
+tasks.register('ktlint') {
+    group = 'verification'
+    description = 'Runs ktlint on all Kotlin sources. The style half of `lint`.'
+    dependsOn 'ktlintCheck'
+}
+tasks.register('ktlintFix') {
+    group = 'formatting'
+    description = 'Rewrites all Kotlin sources with ktlint. The style half of `lintFix`.'
+    dependsOn 'ktlintFormat'
 }
 
 // javac's half of the same rule. -Werror alone is inert: without -Xlint, javac
