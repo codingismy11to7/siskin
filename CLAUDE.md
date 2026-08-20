@@ -19,17 +19,25 @@ deleted rather than ported.
     ./gradlew testDebugUnitTest          # unit tests (what CI gates on)
     ./gradlew assembleDebug              # debug APK
     ./gradlew assembleRelease            # R8 + ABI splits; use to check size deltas
-    ./gradlew lintDebug                  # also gates CI
+    ./gradlew lint                       # Android lint + ktlint; also gates CI
+    ./gradlew lintFix                    # the same two, applying what each can fix
+
+    ./gradlew ktlint                     # style alone
+    ./gradlew ktlintFix                  # style alone, rewriting
+
+`gr` is `./gradlew` from anywhere in the tree, and comes from the dev shell.
 
 Single test class or method:
 
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest*'
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
-**`lintDebug` is clean and CI runs it, so a lint error is yours.** Errors are
-fatal; warnings are not, and 18 of those remain (#99). Four dependency-freshness
-checks are disabled — they report on other people's release schedules, not on
-this repository.
+**`lint` is clean and CI runs it, so a failure there is yours.** It covers
+Android lint and ktlint both. Android lint's errors are fatal; warnings are not,
+and 18 of those remain (#99). Four dependency-freshness checks are disabled —
+they report on other people's release schedules, not on this repository. ktlint
+has no warnings tier: every violation fails, and `./gradlew ktlintFix` clears
+the mechanical ones. See `docs/decisions/2026-08-19-ktlint-design.md`.
 
 **That number is load-bearing, so move it when you move it.** It is how anyone
 tells a warning they introduced from one that was already there, and it had
@@ -82,8 +90,9 @@ claim 88 languages.
 ## Toolchain
 
 `flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, `gh` and
-`ktlint` — `nix develop`, or direnv via `.envrc`. Two helper scripts come from
-the shell:
+`ktlint` — `nix develop`, or direnv via `.envrc`. `gr` runs `./gradlew` from
+anywhere in the tree, `siskin-render-web` renders the privacy policy to HTML,
+and two more scripts drive the emulator:
 
     siskin-avd                    # create the AAOS AVD (idempotent)
     siskin-emulator               # boot it

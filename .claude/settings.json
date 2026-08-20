@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sed -n 's/.*\"file_path\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | { read -r f; case \"$f\" in *.kt) ;; *) exit 0 ;; esac; command -v ktlint >/dev/null || exit 0; ktlint --format \"$f\"; }",
+            "timeout": 30,
+            "statusMessage": "ktlint --format"
+          }
+        ]
+      }
+    ]
+  }
+}
