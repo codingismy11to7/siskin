@@ -725,7 +725,7 @@ class PlexBrowseRepositoryTest {
         assertEquals(LibraryClient.SORT_RANDOM, request.requestUrl?.queryParameter("sort"))
 
         // The row carries the whole key it was asked for, library included --
-        // MediaLibraryServiceCallback.cachedDecadeTracks rebuilds exactly this
+        // MediaLibrarySessionCallback.cachedDecadeTracks rebuilds exactly this
         // string from what the car sends back and compares it against index 0
         // of the cached browse list, so the two agree only if neither splits it.
         val row = result.value!!.first()

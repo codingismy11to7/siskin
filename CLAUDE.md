@@ -296,7 +296,7 @@ always fourth. Four is still the maximum the car renders and it silently drops
 a fifth, so a new destination joins `BrowseTabOrder.DEFAULT_ORDER` rather than
 being added to the root directly. See
 `docs/decisions/2026-08-14-customizable-browse-tabs-design.md`.
-`PlexBrowseRepository` serves their contents, and `MediaLibraryServiceCallback`
+`PlexBrowseRepository` serves their contents, and `MediaLibrarySessionCallback`
 turns a 401/403 into the "sign in again" affordance via
 `CarSignInResolution`'s `PendingIntent`.
 

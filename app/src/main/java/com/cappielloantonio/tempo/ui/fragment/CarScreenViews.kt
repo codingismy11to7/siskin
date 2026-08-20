@@ -11,7 +11,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.materialswitch.MaterialSwitch
 
-/**
+/*
  * The rows both car screens build into their `choice_container`.
  *
  * One file rather than two because all three functions here answer the same

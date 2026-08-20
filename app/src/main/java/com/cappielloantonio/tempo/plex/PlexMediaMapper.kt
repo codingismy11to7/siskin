@@ -27,7 +27,7 @@ import com.cappielloantonio.tempo.util.ResourceUris
  * extras bundle carries.
  *
  * The bundle is this codebase's domain model: MediaManager, BaseMediaService,
- * BaseSessionCallback and MediaLibraryServiceCallback all read it, and nothing
+ * BaseSessionCallback and MediaLibrarySessionCallback all read it, and nothing
  * reads a domain object. That is why there is no intermediate track type -- see
  * docs/decisions/2026-07-28-plex-browse-playback-design.md.
  *
@@ -525,7 +525,7 @@ object PlexMediaMapper {
     /**
      * Deliberately does not call setUri: media3's setUri(String) parses even
      * "" to a non-null Uri, which would give this item a non-null
-     * localConfiguration. MediaLibraryServiceCallback.resolveQueueForItem
+     * localConfiguration. MediaLibrarySessionCallback.resolveQueueForItem
      * treats item.localConfiguration?.uri?.let { item } as "already
      * resolved, use as-is" -- a browsable item carrying that would bypass
      * queue resolution entirely. Matches MediaBrowserTree.buildMediaItem,

@@ -333,7 +333,7 @@ class MediaLibrarySessionCallbackShuffleTest {
      * The hub Mix's cache hit: the ids of the containers already on screen,
      * expanded to tracks in one request rather than following the hub's key a
      * second time. Unlike the decade cache hit, this still issues a request --
-     * see `MediaLibraryServiceCallback.cachedHubTracks`'s KDoc for why a hub's
+     * see `MediaLibrarySessionCallback.cachedHubTracks`'s KDoc for why a hub's
      * browse list (albums and artists) cannot be replayed the way a decade's
      * (tracks) can.
      *

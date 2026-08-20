@@ -14,8 +14,6 @@ import androidx.media3.datasource.cache.ContentMetadata
 class StreamingCacheDataSource private constructor(
     private val cacheDataSource: CacheDataSource,
 ): DataSource {
-    private val TAG = "StreamingCacheDataSource"
-
     private var currentDataSpec: DataSpec? = null
 
     class Factory(private val cacheDatasourceFactory: CacheDataSource.Factory): DataSource.Factory {
@@ -58,5 +56,9 @@ class StreamingCacheDataSource private constructor(
                 Log.d(TAG, "Key $cacheKey has been fully cached")
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "StreamingCacheDataSource"
     }
 }

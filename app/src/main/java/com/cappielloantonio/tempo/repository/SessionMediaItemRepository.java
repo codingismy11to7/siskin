@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * Reads ({@link #get}, {@link #getSiblings}) block their caller on a scratch
  * thread. That is a choice, not a constraint: both callers are inside
- * MediaLibraryServiceCallback's onSetMediaItems/onAddMediaItems, which return a
+ * MediaLibrarySessionCallback's onSetMediaItems/onAddMediaItems, which return a
  * ListenableFuture and so are free to complete later. It is kept because the
  * read is a single indexed lookup against a table bounded to five browse nodes,
  * and because the alternative -- threading a future back out through

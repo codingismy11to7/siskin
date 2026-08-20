@@ -9,7 +9,7 @@ import java.io.IOException
  *
  * The failure is a value everywhere else in this layer. It only becomes a
  * throwable here because `SettableFuture.setException` takes a `Throwable` and
- * nothing else, and MediaLibraryServiceCallback distinguishes "unreachable" from
+ * nothing else, and MediaLibrarySessionCallback distinguishes "unreachable" from
  * "rejected" by whether the future completed exceptionally. Extends IOException
  * so anything already treating an exceptionally-completed browse future as a
  * network problem keeps working.

@@ -187,7 +187,7 @@ class MediaBrowserTreeTest {
      * Reachable while signed in, not just while signed out: drill into this
      * row signed out, sign in through the gear, and the car re-requests the
      * same node it was already showing -- now signed in, so
-     * [MediaLibraryServiceCallback.onGetChildren]'s no-credentials guard no
+     * [MediaLibrarySessionCallback.onGetChildren]'s no-credentials guard no
      * longer intercepts it and the request reaches [MediaBrowserTree.getChildren]
      * directly. Every sibling ad-hoc row (the picker's confirmation row, the
      * message row) answers its own id with itself rather than an error; this

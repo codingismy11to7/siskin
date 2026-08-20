@@ -108,7 +108,7 @@ class RoomEntityRoundTripTest {
     fun aRestoredEntryDropsTheBrowseParentTag() {
         // Deliberate: parent_id names the browse node an item was tapped in, and a
         // restored queue was not tapped in one. Keeping it would send
-        // MediaLibraryServiceCallback.resolveQueueForItem back to the in-memory
+        // MediaLibrarySessionCallback.resolveQueueForItem back to the in-memory
         // browse cache for a queue that is already resolved.
         val restored = Queue.fromMediaItem(track())!!.toMediaItem()
 
