@@ -52,10 +52,9 @@ data class PlexSession(
      * written before this field existed, and for that reason every reader must
      * tolerate its absence rather than treat it as a different server.
      */
-    val machineIdentifier: String? = null
+    val machineIdentifier: String? = null,
 ) {
     companion object {
-
         /**
          * Builds a session from stored values, or null if any required one is
          * absent. [serverToken] is not required; see its KDoc.
@@ -66,7 +65,7 @@ data class PlexSession(
             serverUri: String?,
             musicSectionKey: String?,
             serverToken: String?,
-            machineIdentifier: String? = null
+            machineIdentifier: String? = null,
         ): PlexSession? {
             if (accountToken.isNullOrBlank()) return null
             if (serverUri.isNullOrBlank()) return null
@@ -76,7 +75,7 @@ data class PlexSession(
                 serverUri,
                 SectionKey(musicSectionKey),
                 serverToken,
-                machineIdentifier
+                machineIdentifier,
             )
         }
     }

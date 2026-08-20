@@ -9,7 +9,6 @@ import org.junit.Test
  * so nothing here can be hollowed out by unitTests.returnDefaultValues.
  */
 class DecadeKeyTest {
-
     @Test
     fun aKeyRoundTripsToItsDecade() {
         assertEquals("1980", DecadeKey.decadeIn(DecadeKey.of("abc123-4", "1980")))
@@ -21,7 +20,7 @@ class DecadeKeyTest {
         // must not be one row to the car's DiffUtil.
         assertNotEquals(
             DecadeKey.of("serverA-4", "1980"),
-            DecadeKey.of("serverB-4", "1980")
+            DecadeKey.of("serverB-4", "1980"),
         )
     }
 

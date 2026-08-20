@@ -19,7 +19,6 @@ import org.robolectric.Shadows.shadowOf
 // PlexSignInViewModelTest as a whole needs it.
 @RunWith(RobolectricTestRunner::class)
 class PlexSignInRestrictedProfileTest {
-
     // connect() sets _state.value directly (not postValue), but LiveData's
     // setValue still asserts it is called from the main thread, and without
     // this rule Robolectric's test thread does not read as one -- the same
@@ -40,7 +39,7 @@ class PlexSignInRestrictedProfileTest {
             .setUserRestriction(
                 Process.myUserHandle(),
                 UserManager.DISALLOW_MODIFY_ACCOUNTS,
-                true
+                true,
             )
 
         val viewModel = PlexSignInViewModel(mock<Application>())

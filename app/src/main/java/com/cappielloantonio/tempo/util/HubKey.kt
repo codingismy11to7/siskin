@@ -25,12 +25,14 @@ package com.cappielloantonio.tempo.util
  * no such guarantee.
  */
 object HubKey {
-
     private const val SEPARATOR = '|'
 
     /** The row id payload for the hub [key] in the library [scope] names. */
     @JvmStatic
-    fun of(scope: String, key: String): String = "$scope$SEPARATOR$key"
+    fun of(
+        scope: String,
+        key: String,
+    ): String = "$scope$SEPARATOR$key"
 
     /**
      * The bare server path to follow.
@@ -40,8 +42,7 @@ object HubKey {
      * path.
      */
     @JvmStatic
-    fun keyIn(payload: String): String =
-        if (payload.contains(SEPARATOR)) payload.substringAfter(SEPARATOR) else payload
+    fun keyIn(payload: String): String = if (payload.contains(SEPARATOR)) payload.substringAfter(SEPARATOR) else payload
 
     /**
      * The scope half of the payload, or null when there is none to read.
@@ -57,6 +58,5 @@ object HubKey {
      * either, and no real minted id takes this shape today.
      */
     @JvmStatic
-    fun scopeIn(payload: String): String? =
-        if (payload.contains(SEPARATOR)) payload.substringBefore(SEPARATOR) else null
+    fun scopeIn(payload: String): String? = if (payload.contains(SEPARATOR)) payload.substringBefore(SEPARATOR) else null
 }

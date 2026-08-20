@@ -11,7 +11,6 @@ package com.cappielloantonio.tempo.provider
  * surfaces agree.
  */
 object CompositeGrid {
-
     /** The composite's edge, in pixels. Matches AlbumArtContentProvider's
      * DEFAULT_ARTWORK_SIZE so a decade tile costs the car no more than an album
      * one. */
@@ -42,7 +41,12 @@ object CompositeGrid {
      * java.net.URLEncoder over android.net.Uri. Conversion happens at the draw
      * call, which is not unit-tested anyway.
      */
-    data class Cell(val left: Int, val top: Int, val right: Int, val bottom: Int)
+    data class Cell(
+        val left: Int,
+        val top: Int,
+        val right: Int,
+        val bottom: Int,
+    )
 
     /**
      * Where [count] covers go, in fill order: the draw loop pairs cell *n* with
@@ -77,7 +81,10 @@ object CompositeGrid {
      * odd size leaves neither a seam nor an overhang.
      */
     @JvmStatic
-    fun cells(count: Int, size: Int): List<Cell> {
+    fun cells(
+        count: Int,
+        size: Int,
+    ): List<Cell> {
         if (count <= 0) return emptyList()
         if (count == 1) return listOf(Cell(0, 0, size, size))
 

@@ -44,9 +44,8 @@ open class BaseSessionCallback(
     // every construction site already supplies it, so removing it means
     // touching BaseMediaService's factory, MediaLibrarySessionCallback, and
     // four test files -- a wider refactor than this change asked for.
-    protected val service: BaseMediaService) :
-    MediaLibraryService.MediaLibrarySession.Callback {
-
+    protected val service: BaseMediaService,
+) : MediaLibraryService.MediaLibrarySession.Callback {
     // ─────────────────────────────────────────────────────────────
     // CommandButtons
     // ─────────────────────────────────────────────────────────────
@@ -65,35 +64,40 @@ open class BaseSessionCallback(
     // worded as state -- the two sets are not meant to line up.
 
     private val customCommandToggleShuffleModeOn =
-        CommandButton.Builder(CommandButton.ICON_SHUFFLE_OFF)
+        CommandButton
+            .Builder(CommandButton.ICON_SHUFFLE_OFF)
             .setDisplayName(context.getString(R.string.shuffle_enable_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
     private val customCommandToggleShuffleModeOff =
-        CommandButton.Builder(CommandButton.ICON_SHUFFLE_ON)
+        CommandButton
+            .Builder(CommandButton.ICON_SHUFFLE_ON)
             .setDisplayName(context.getString(R.string.shuffle_disable_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
     private val customCommandToggleRepeatModeOff =
-        CommandButton.Builder(CommandButton.ICON_REPEAT_OFF)
+        CommandButton
+            .Builder(CommandButton.ICON_REPEAT_OFF)
             .setDisplayName(context.getString(R.string.exo_controls_repeat_off_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_OFF, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
     private val customCommandToggleRepeatModeOne =
-        CommandButton.Builder(CommandButton.ICON_REPEAT_ONE)
+        CommandButton
+            .Builder(CommandButton.ICON_REPEAT_ONE)
             .setDisplayName(context.getString(R.string.exo_controls_repeat_one_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_ONE, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
             .build()
 
     private val customCommandToggleRepeatModeAll =
-        CommandButton.Builder(CommandButton.ICON_REPEAT_ALL)
+        CommandButton
+            .Builder(CommandButton.ICON_REPEAT_ALL)
             .setDisplayName(context.getString(R.string.exo_controls_repeat_all_description))
             .setSessionCommand(SessionCommand(Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_ALL, Bundle.EMPTY))
             .setSlots(CommandButton.SLOT_OVERFLOW)
@@ -106,31 +110,36 @@ open class BaseSessionCallback(
     // Transport controls are deliberately *not* declared here -- see
     // buildMediaButtonPreferences for why the car draws its own.
 
-    private val customLayoutCommandButtons = listOf(
-        customCommandToggleShuffleModeOn,
-        customCommandToggleShuffleModeOff,
-        customCommandToggleRepeatModeOff,
-        customCommandToggleRepeatModeOne,
-        customCommandToggleRepeatModeAll
-    )
+    private val customLayoutCommandButtons =
+        listOf(
+            customCommandToggleShuffleModeOn,
+            customCommandToggleShuffleModeOff,
+            customCommandToggleRepeatModeOff,
+            customCommandToggleRepeatModeOne,
+            customCommandToggleRepeatModeAll,
+        )
 
-    private val playerListener = object : Player.Listener {
-        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-            currentSession?.let { updateMediaNotificationCustomLayout(it) }
-        }
+    private val playerListener =
+        object : Player.Listener {
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                currentSession?.let { updateMediaNotificationCustomLayout(it) }
+            }
 
-        override fun onRepeatModeChanged(repeatMode: Int) {
-            currentSession?.let { updateMediaNotificationCustomLayout(it) }
-        }
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                currentSession?.let { updateMediaNotificationCustomLayout(it) }
+            }
 
-        override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-            currentSession?.let { updateMediaNotificationCustomLayout(it) }
-        }
+            override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+                currentSession?.let { updateMediaNotificationCustomLayout(it) }
+            }
 
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            currentSession?.let { updateMediaNotificationCustomLayout(it) }
+            override fun onMediaItemTransition(
+                mediaItem: MediaItem?,
+                reason: Int,
+            ) {
+                currentSession?.let { updateMediaNotificationCustomLayout(it) }
+            }
         }
-    }
 
     private var currentSession: MediaSession? = null
 
@@ -160,7 +169,10 @@ open class BaseSessionCallback(
     /**
      * Updates the player listener when the session's player changes.
      */
-    fun handlePlayerChanged(oldPlayer: Player?, newPlayer: Player) {
+    fun handlePlayerChanged(
+        oldPlayer: Player?,
+        newPlayer: Player,
+    ) {
         oldPlayer?.removeListener(playerListener)
         if (currentSession != null) {
             newPlayer.addListener(playerListener)
@@ -169,7 +181,8 @@ open class BaseSessionCallback(
 
     @OptIn(UnstableApi::class)
     val mediaNotificationSessionCommands =
-        MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
+        MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+            .buildUpon()
             .also { builder ->
                 customLayoutCommandButtons.forEach { commandButton ->
                     commandButton.sessionCommand?.let { builder.add(it) }
@@ -183,13 +196,14 @@ open class BaseSessionCallback(
     @OptIn(UnstableApi::class)
     override fun onConnect(
         session: MediaSession,
-        controller: MediaSession.ControllerInfo
+        controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
         // Reset listener on every AA connection to avoid stale state after reconnection.
         // AA may call onConnect multiple times (double gearhead event observed in logs).
-        if (currentSession == null
-            || session.isAutomotiveController(controller)
-            || session.isAutoCompanionController(controller)) {
+        if (currentSession == null ||
+            session.isAutomotiveController(controller) ||
+            session.isAutoCompanionController(controller)
+        ) {
             Log.d(TAG, "onConnect: remove and add listener")
             currentSession?.let { session.player.removeListener(playerListener) }
             currentSession = session
@@ -200,7 +214,8 @@ open class BaseSessionCallback(
             session.isAutomotiveController(controller) ||
             session.isAutoCompanionController(controller)
         ) {
-            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+            return MediaSession.ConnectionResult
+                .AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(mediaNotificationSessionCommands)
                 .setMediaButtonPreferences(buildMediaButtonPreferences(session.player))
                 .build()
@@ -218,7 +233,7 @@ open class BaseSessionCallback(
         val controller = session.mediaNotificationControllerInfo ?: return
         session.setMediaButtonPreferences(
             controller,
-            buildMediaButtonPreferences(session.player)
+            buildMediaButtonPreferences(session.player),
         )
     }
 
@@ -272,8 +287,11 @@ open class BaseSessionCallback(
                 Player.REPEAT_MODE_ALL -> customCommandToggleRepeatModeAll
                 else -> customCommandToggleRepeatModeOff
             },
-            if (player.shuffleModeEnabled) customCommandToggleShuffleModeOff
-            else customCommandToggleShuffleModeOn
+            if (player.shuffleModeEnabled) {
+                customCommandToggleShuffleModeOff
+            } else {
+                customCommandToggleShuffleModeOn
+            },
         )
 
     // ─────────────────────────────────────────────────────────────
@@ -283,15 +301,16 @@ open class BaseSessionCallback(
     override fun onSetRating(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
-        rating: Rating
+        rating: Rating,
     ): ListenableFuture<SessionResult> {
         // The car rates the current track and nothing else, but it is the only
         // caller now that the heart button is gone, so an empty queue reaches this
         // as a plain null rather than as anything we control.
-        val mediaId = session.player.currentMediaItem?.mediaId
-            ?: return Futures.immediateFuture(
-                SessionResult(SessionError(SessionError.ERROR_INVALID_STATE, "No current track to rate"))
-            )
+        val mediaId =
+            session.player.currentMediaItem?.mediaId
+                ?: return Futures.immediateFuture(
+                    SessionResult(SessionError(SessionError.ERROR_INVALID_STATE, "No current track to rate")),
+                )
 
         return onSetRating(session, controller, mediaId, rating)
     }
@@ -300,7 +319,7 @@ open class BaseSessionCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
         mediaId: String,
-        rating: Rating
+        rating: Rating,
     ): ListenableFuture<SessionResult> {
         // A checked cast, because the car is the only source of these now. It sends
         // back the type we publish -- a HeartRating, since that is the one the car
@@ -310,8 +329,8 @@ open class BaseSessionCallback(
         if (rating !is HeartRating) {
             return Futures.immediateFuture(
                 SessionResult(
-                    SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unsupported rating: ${rating.javaClass.simpleName}")
-                )
+                    SessionError(SessionError.ERROR_NOT_SUPPORTED, "Unsupported rating: ${rating.javaClass.simpleName}"),
+                ),
             )
         }
 
@@ -319,28 +338,30 @@ open class BaseSessionCallback(
         val future = SettableFuture.create<SessionResult>()
 
         scope.launch {
-            val result = try {
-                // Plex rates 0-10; 10 is the five stars it collects into its
-                // heart-named playlist, which is why the car shows a heart for a
-                // field Plex renders as stars everywhere else.
-                SearchClient(PlexApi()).rate(
-                    RatingKey(mediaId),
-                    if (isStarring) SearchClient.RATING_HEARTED else SearchClient.RATING_CLEARED
-                ).fold(
-                    { failure -> sessionResultFor(failure) },
-                    {
-                        applyRatingToQueue(session, mediaId, isStarring)
-                        SessionResult(SessionResult.RESULT_SUCCESS)
-                    }
-                )
-            } catch (failure: Throwable) {
-                // The rate call's own failure is a value now, so this only covers
-                // applyRatingToQueue and anything else that still throws. Outside
-                // any `either { }`, so there is no `raise` to swallow.
-                SessionResult(
-                    SessionError(SessionError.ERROR_UNKNOWN, "Transport failure: ${failure.message}")
-                )
-            }
+            val result =
+                try {
+                    // Plex rates 0-10; 10 is the five stars it collects into its
+                    // heart-named playlist, which is why the car shows a heart for a
+                    // field Plex renders as stars everywhere else.
+                    SearchClient(PlexApi())
+                        .rate(
+                            RatingKey(mediaId),
+                            if (isStarring) SearchClient.RATING_HEARTED else SearchClient.RATING_CLEARED,
+                        ).fold(
+                            { failure -> sessionResultFor(failure) },
+                            {
+                                applyRatingToQueue(session, mediaId, isStarring)
+                                SessionResult(SessionResult.RESULT_SUCCESS)
+                            },
+                        )
+                } catch (failure: Throwable) {
+                    // The rate call's own failure is a value now, so this only covers
+                    // applyRatingToQueue and anything else that still throws. Outside
+                    // any `either { }`, so there is no `raise` to swallow.
+                    SessionResult(
+                        SessionError(SessionError.ERROR_UNKNOWN, "Transport failure: ${failure.message}"),
+                    )
+                }
 
             // No layout rebuild here. It used to be unconditional because the heart
             // button was rebuilt from the rating; the overflow no longer varies with
@@ -371,19 +392,23 @@ open class BaseSessionCallback(
      * on purpose, so the two failure modes stay distinguishable in logs instead
      * of both reading as an HTTP error that never happened.
      */
-    private fun sessionResultFor(failure: PlexTransportFailure): SessionResult = when (failure) {
-        is PlexTransportFailure.Http -> {
-            val code = when (failure.code) {
-                401, 403 -> SessionError.ERROR_PERMISSION_DENIED
-                else -> SessionError.ERROR_UNKNOWN
+    private fun sessionResultFor(failure: PlexTransportFailure): SessionResult =
+        when (failure) {
+            is PlexTransportFailure.Http -> {
+                val code =
+                    when (failure.code) {
+                        401, 403 -> SessionError.ERROR_PERMISSION_DENIED
+                        else -> SessionError.ERROR_UNKNOWN
+                    }
+                SessionResult(SessionError(code, "HTTP ${failure.code}"))
             }
-            SessionResult(SessionError(code, "HTTP ${failure.code}"))
-        }
 
-        else -> SessionResult(
-            SessionError(SessionError.ERROR_UNKNOWN, "Transport failure: $failure")
-        )
-    }
+            else -> {
+                SessionResult(
+                    SessionError(SessionError.ERROR_UNKNOWN, "Transport failure: $failure"),
+                )
+            }
+        }
 
     /**
      * Carries the new rating into the queue so the car's control survives a track
@@ -394,15 +419,22 @@ open class BaseSessionCallback(
      * control after a tap, now that nothing about the button preferences depends on
      * the rating.
      */
-    private fun applyRatingToQueue(session: MediaSession, mediaId: String, isStarring: Boolean) {
+    private fun applyRatingToQueue(
+        session: MediaSession,
+        mediaId: String,
+        isStarring: Boolean,
+    ) {
         for (i in 0 until session.player.mediaItemCount) {
             val mediaItem = session.player.getMediaItemAt(i)
             if (mediaItem.mediaId == mediaId) {
-                val newMetadata = mediaItem.mediaMetadata.buildUpon()
-                    .setUserRating(HeartRating(isStarring)).build()
+                val newMetadata =
+                    mediaItem.mediaMetadata
+                        .buildUpon()
+                        .setUserRating(HeartRating(isStarring))
+                        .build()
                 session.player.replaceMediaItem(
                     i,
-                    mediaItem.buildUpon().setMediaMetadata(newMetadata).build()
+                    mediaItem.buildUpon().setMediaMetadata(newMetadata).build(),
                 )
             }
         }
@@ -417,7 +449,7 @@ open class BaseSessionCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
         customCommand: SessionCommand,
-        args: Bundle
+        args: Bundle,
     ): ListenableFuture<SessionResult> {
         Log.d(TAG, "onCustomCommand: ${customCommand.customAction}")
 
@@ -427,26 +459,33 @@ open class BaseSessionCallback(
                 updateMediaNotificationCustomLayout(session)
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
+
             Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF -> {
                 session.player.shuffleModeEnabled = false
                 updateMediaNotificationCustomLayout(session)
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
+
             Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_OFF,
             Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_ONE,
-            Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_ALL -> {
-                val nextMode = when (session.player.repeatMode) {
-                    Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_ALL
-                    Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ONE
-                    else -> Player.REPEAT_MODE_OFF
-                }
+            Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_ALL,
+            -> {
+                val nextMode =
+                    when (session.player.repeatMode) {
+                        Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_ALL
+                        Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ONE
+                        else -> Player.REPEAT_MODE_OFF
+                    }
                 session.player.repeatMode = nextMode
                 updateMediaNotificationCustomLayout(session)
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
-            else -> Futures.immediateFuture(
-                SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, customCommand.customAction))
-            )
+
+            else -> {
+                Futures.immediateFuture(
+                    SessionResult(SessionError(SessionError.ERROR_NOT_SUPPORTED, customCommand.customAction)),
+                )
+            }
         }
     }
 
@@ -458,24 +497,27 @@ open class BaseSessionCallback(
     override fun onAddMediaItems(
         mediaSession: MediaSession,
         controller: MediaSession.ControllerInfo,
-        mediaItems: List<MediaItem>
+        mediaItems: List<MediaItem>,
     ): ListenableFuture<List<MediaItem>> {
         Log.d(TAG, "onAddMediaItems")
-        val updatedMediaItems = mediaItems.map { mediaItem ->
-            val mediaMetadata = mediaItem.mediaMetadata
-            val newMetadata = mediaMetadata.buildUpon()
-                .setArtist(
-                    mediaMetadata.artist
-                        ?: mediaMetadata.extras?.getString(PlexMediaMapper.EXTRA_URI)
-                        ?: ""
-                )
-                .build()
-            mediaItem.buildUpon()
-                .setUri(mediaItem.requestMetadata.mediaUri)
-                .setMediaMetadata(newMetadata)
-                .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
-                .build()
-        }
+        val updatedMediaItems =
+            mediaItems.map { mediaItem ->
+                val mediaMetadata = mediaItem.mediaMetadata
+                val newMetadata =
+                    mediaMetadata
+                        .buildUpon()
+                        .setArtist(
+                            mediaMetadata.artist
+                                ?: mediaMetadata.extras?.getString(PlexMediaMapper.EXTRA_URI)
+                                ?: "",
+                        ).build()
+                mediaItem
+                    .buildUpon()
+                    .setUri(mediaItem.requestMetadata.mediaUri)
+                    .setMediaMetadata(newMetadata)
+                    .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
+                    .build()
+            }
         return Futures.immediateFuture(updatedMediaItems)
     }
 }

@@ -7,10 +7,11 @@ package com.cappielloantonio.tempo.plex.auth
  * can be tested without a network or an Android framework class in sight.
  */
 sealed interface PlexPinState {
-
     data object Pending : PlexPinState
 
-    data class Authorized(val authToken: String) : PlexPinState
+    data class Authorized(
+        val authToken: String,
+    ) : PlexPinState
 
     data object Expired : PlexPinState
 
@@ -19,7 +20,7 @@ sealed interface PlexPinState {
         fun evaluate(
             authToken: String?,
             expiresAtEpochSeconds: Long?,
-            nowEpochSeconds: Long
+            nowEpochSeconds: Long,
         ): PlexPinState {
             // A token that arrived outranks the clock: the poll already succeeded.
             if (!authToken.isNullOrBlank()) return Authorized(authToken)
@@ -45,7 +46,7 @@ sealed interface PlexPinState {
         fun shouldKeepPolling(
             startedAtEpochSeconds: Long,
             nowEpochSeconds: Long,
-            expiresAtEpochSeconds: Long?
+            expiresAtEpochSeconds: Long?,
         ): Boolean {
             if (nowEpochSeconds - startedAtEpochSeconds >= HARD_CAP_SECONDS) return false
             if (expiresAtEpochSeconds == null) return true
@@ -69,10 +70,11 @@ sealed interface PlexPinState {
          * can least afford it.
          */
         @JvmStatic
-        fun pollDelayMillis(elapsedSeconds: Long): Long = when {
-            elapsedSeconds < 60L -> 2_000L
-            elapsedSeconds < 180L -> 5_000L
-            else -> 15_000L
-        }
+        fun pollDelayMillis(elapsedSeconds: Long): Long =
+            when {
+                elapsedSeconds < 60L -> 2_000L
+                elapsedSeconds < 180L -> 5_000L
+                else -> 15_000L
+            }
     }
 }

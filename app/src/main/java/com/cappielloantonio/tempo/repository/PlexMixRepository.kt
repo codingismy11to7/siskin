@@ -30,7 +30,6 @@ private const val TAG = "PlexMixRepository"
  */
 @OptIn(UnstableApi::class)
 class PlexMixRepository {
-
     fun interface TracksCallback {
         fun onTracks(tracks: List<MediaItem>)
     }
@@ -74,11 +73,18 @@ class PlexMixRepository {
     private val token: String?
         get() = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
 
-    fun similarTracks(ratingKey: String, count: Int, callback: TracksCallback) {
+    fun similarTracks(
+        ratingKey: String,
+        count: Int,
+        callback: TracksCallback,
+    ) {
         deliver(callback) { libraryClient.getNearest(RatingKey(ratingKey), count) }
     }
 
-    fun randomTracks(count: Int, callback: TracksCallback) {
+    fun randomTracks(
+        count: Int,
+        callback: TracksCallback,
+    ) {
         val key: SectionKey? = api.session?.musicSectionKey
         if (key == null) {
             Log.w(TAG, "no music section selected")
@@ -87,7 +93,11 @@ class PlexMixRepository {
         }
         deliver(callback) {
             libraryClient.getSectionContent(
-                key, PlexItemType.TRACK, 0, count, LibraryClient.SORT_RANDOM
+                key,
+                PlexItemType.TRACK,
+                0,
+                count,
+                LibraryClient.SORT_RANDOM,
             )
         }
     }
@@ -118,25 +128,26 @@ class PlexMixRepository {
      */
     private fun deliver(
         callback: TracksCallback,
-        request: suspend () -> Either<PlexTransportFailure, PlexResponse>
+        request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
     ) {
         scope.launch {
-            val tracks = try {
-                addressBook.withAddressRecovery(request).fold(
-                    { failure ->
-                        Log.w(TAG, "mix request failed: $failure")
-                        emptyList()
-                    },
-                    { response ->
-                        PlexBrowseRepository.tracksOf(response).mapNotNull {
-                            PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
-                        }
-                    }
-                )
-            } catch (failure: Throwable) {
-                Log.w(TAG, "mix mapping failed", failure)
-                emptyList()
-            }
+            val tracks =
+                try {
+                    addressBook.withAddressRecovery(request).fold(
+                        { failure ->
+                            Log.w(TAG, "mix request failed: $failure")
+                            emptyList()
+                        },
+                        { response ->
+                            PlexBrowseRepository.tracksOf(response).mapNotNull {
+                                PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
+                            }
+                        },
+                    )
+                } catch (failure: Throwable) {
+                    Log.w(TAG, "mix mapping failed", failure)
+                    emptyList()
+                }
             callback.onTracks(tracks)
         }
     }

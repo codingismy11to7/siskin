@@ -28,7 +28,6 @@ import com.google.common.util.concurrent.MoreExecutors
  */
 @UnstableApi
 object BrowseTreeInvalidator {
-
     private const val TAG = "BrowseTreeInvalidator"
 
     @Volatile
@@ -93,7 +92,7 @@ object BrowseTreeInvalidator {
                     current.notifyChildrenChanged(Constants.ROOT_ID, 0, null)
                 }
             },
-            MoreExecutors.directExecutor()
+            MoreExecutors.directExecutor(),
         )
     }
 
@@ -109,11 +108,15 @@ object BrowseTreeInvalidator {
      * [invalidateRoot], whose callers are Activity callbacks, this one is called
      * from PlexBrowseRepository's IO scope.
      */
-    fun invalidateNode(nodeId: String, childCount: Int) {
-        val current = session ?: run {
-            Log.d(TAG, "no live session; nothing to invalidate for $nodeId")
-            return
-        }
+    fun invalidateNode(
+        nodeId: String,
+        childCount: Int,
+    ) {
+        val current =
+            session ?: run {
+                Log.d(TAG, "no live session; nothing to invalidate for $nodeId")
+                return
+            }
         Handler(Looper.getMainLooper()).post {
             Log.d(TAG, "notifyChildrenChanged($nodeId, $childCount)")
             current.notifyChildrenChanged(nodeId, childCount, null)
@@ -181,10 +184,11 @@ object BrowseTreeInvalidator {
      * on.
      */
     fun stopPlayback() {
-        val current = session ?: run {
-            Log.d(TAG, "no live session; nothing to stop")
-            return
-        }
+        val current =
+            session ?: run {
+                Log.d(TAG, "no live session; nothing to stop")
+                return
+            }
         Handler(Looper.getMainLooper()).post {
             Log.d(TAG, "stopping playback and clearing the player's items")
             current.player.stop()

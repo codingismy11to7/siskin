@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.service
 
+import android.os.Looper
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.cappielloantonio.tempo.repository.PlexBrowseRepository
@@ -17,7 +18,6 @@ import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
-import android.os.Looper
 
 /**
  * A reorder must invalidate More as well as the root.
@@ -30,7 +30,6 @@ import android.os.Looper
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class BrowseTreeInvalidatorTabOrderTest {
-
     private val session = mock<MediaLibrarySession>()
 
     @Before

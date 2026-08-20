@@ -41,7 +41,6 @@ import com.cappielloantonio.tempo.util.ResourceUris
  */
 @OptIn(UnstableApi::class)
 object PlexMediaMapper {
-
     const val EXTRA_ID = "id"
     const val EXTRA_ARTIST_ID = "artistId"
     const val EXTRA_TYPE = "type"
@@ -77,12 +76,13 @@ object PlexMediaMapper {
      * then the artist's. Without this a whole album renders as placeholders.
      */
     @JvmStatic
-    fun artworkThumb(metadata: Metadata): String? = when {
-        !metadata.thumb.isNullOrBlank() -> metadata.thumb
-        !metadata.parentThumb.isNullOrBlank() -> metadata.parentThumb
-        !metadata.grandparentThumb.isNullOrBlank() -> metadata.grandparentThumb
-        else -> null
-    }
+    fun artworkThumb(metadata: Metadata): String? =
+        when {
+            !metadata.thumb.isNullOrBlank() -> metadata.thumb
+            !metadata.parentThumb.isNullOrBlank() -> metadata.parentThumb
+            !metadata.grandparentThumb.isNullOrBlank() -> metadata.grandparentThumb
+            else -> null
+        }
 
     /**
      * Without this a browsed track always showed an empty heart no matter
@@ -104,8 +104,7 @@ object PlexMediaMapper {
      * `grandparentRatingKey` -- which is also what continuous play follows.
      */
     @JvmStatic
-    fun trackArtist(metadata: Metadata): String? =
-        metadata.originalTitle?.takeIf { it.isNotBlank() } ?: metadata.grandparentTitle
+    fun trackArtist(metadata: Metadata): String? = metadata.originalTitle?.takeIf { it.isNotBlank() } ?: metadata.grandparentTitle
 
     // ── MediaItem builders ────────────────────────────────────
 
@@ -134,51 +133,57 @@ object PlexMediaMapper {
         isHearted: Boolean,
         parentId: String?,
         serverUri: String?,
-        token: String?
+        token: String?,
     ): MediaItem {
         val streamUrl = MediaUrlBuilder.streamUrl(serverUri, partKey, token)
         val uri = if (streamUrl != null) Uri.parse(streamUrl) else Uri.EMPTY
-        val artworkUri = thumb?.takeIf { it.isNotBlank() }
-            ?.let { AlbumArtContentProvider.contentUri(it) }
+        val artworkUri =
+            thumb
+                ?.takeIf { it.isNotBlank() }
+                ?.let { AlbumArtContentProvider.contentUri(it) }
 
-        val bundle = Bundle().apply {
-            putString(EXTRA_ID, ratingKey)
-            putString(EXTRA_ARTIST_ID, grandparentRatingKey)
-            putString(EXTRA_TYPE, Constants.MEDIA_TYPE_MUSIC)
-            putString(EXTRA_URI, uri.toString())
-            putString(EXTRA_PART_KEY, partKey)
-            putString(EXTRA_THUMB, thumb)
-            if (parentId != null) putString(EXTRA_PARENT_ID, parentId)
-        }
+        val bundle =
+            Bundle().apply {
+                putString(EXTRA_ID, ratingKey)
+                putString(EXTRA_ARTIST_ID, grandparentRatingKey)
+                putString(EXTRA_TYPE, Constants.MEDIA_TYPE_MUSIC)
+                putString(EXTRA_URI, uri.toString())
+                putString(EXTRA_PART_KEY, partKey)
+                putString(EXTRA_THUMB, thumb)
+                if (parentId != null) putString(EXTRA_PARENT_ID, parentId)
+            }
 
-        val metadata = MediaMetadata.Builder()
-            .setTitle(title)
-            .setAlbumTitle(albumTitle)
-            .setArtist(artist)
-            .setTrackNumber(trackIndex ?: 0)
-            .setReleaseYear(year ?: 0)
-            .setDurationMs(durationMs)
-            .setArtworkUri(artworkUri)
-            // Publishing the rating is what asks com.android.car.media for its own
-            // rating control left of transport -- it reads the type off this Rating
-            // subtype, so a HeartRating gets the on/off star and a StarRating gets
-            // nothing at all. See the 2026-08-02 car star rating design.
-            .setUserRating(HeartRating(isHearted))
-            .setExtras(bundle)
-            .setIsBrowsable(false)
-            .setIsPlayable(true)
-            .build()
+        val metadata =
+            MediaMetadata
+                .Builder()
+                .setTitle(title)
+                .setAlbumTitle(albumTitle)
+                .setArtist(artist)
+                .setTrackNumber(trackIndex ?: 0)
+                .setReleaseYear(year ?: 0)
+                .setDurationMs(durationMs)
+                .setArtworkUri(artworkUri)
+                // Publishing the rating is what asks com.android.car.media for its own
+                // rating control left of transport -- it reads the type off this Rating
+                // subtype, so a HeartRating gets the on/off star and a StarRating gets
+                // nothing at all. See the 2026-08-02 car star rating design.
+                .setUserRating(HeartRating(isHearted))
+                .setExtras(bundle)
+                .setIsBrowsable(false)
+                .setIsPlayable(true)
+                .build()
 
-        return MediaItem.Builder()
+        return MediaItem
+            .Builder()
             .setMediaId(ratingKey)
             .setMediaMetadata(metadata)
             .setRequestMetadata(
-                MediaItem.RequestMetadata.Builder()
+                MediaItem.RequestMetadata
+                    .Builder()
                     .setMediaUri(uri)
                     .setExtras(bundle)
-                    .build()
-            )
-            .setMimeType(MimeTypes.BASE_TYPE_AUDIO)
+                    .build(),
+            ).setMimeType(MimeTypes.BASE_TYPE_AUDIO)
             .setUri(uri)
             .build()
     }
@@ -188,7 +193,7 @@ object PlexMediaMapper {
         metadata: Metadata,
         parentId: String?,
         serverUri: String?,
-        token: String?
+        token: String?,
     ): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
         return buildTrackMediaItem(
@@ -205,7 +210,7 @@ object PlexMediaMapper {
             isHearted = isHearted(metadata),
             parentId = parentId,
             serverUri = serverUri,
-            token = token
+            token = token,
         )
     }
 
@@ -228,7 +233,7 @@ object PlexMediaMapper {
         val trackIndex: Int?,
         val year: Int?,
         val grandparentRatingKey: String?,
-        val isHearted: Boolean
+        val isHearted: Boolean,
     )
 
     @JvmStatic
@@ -249,7 +254,7 @@ object PlexMediaMapper {
             trackIndex = item.mediaMetadata.trackNumber,
             year = item.mediaMetadata.releaseYear,
             grandparentRatingKey = extras?.getString(EXTRA_ARTIST_ID),
-            isHearted = (item.mediaMetadata.userRating as? HeartRating)?.isHeart == true
+            isHearted = (item.mediaMetadata.userRating as? HeartRating)?.isHeart == true,
         )
     }
 
@@ -260,7 +265,10 @@ object PlexMediaMapper {
      * car opens it.
      */
     @JvmStatic
-    fun albumToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
+    fun albumToMediaItem(
+        metadata: Metadata,
+        idPrefix: String,
+    ): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
         return browsableItem(
             mediaId = idPrefix + ratingKey,
@@ -269,13 +277,16 @@ object PlexMediaMapper {
             thumb = artworkThumb(metadata),
             mediaType = MediaMetadata.MEDIA_TYPE_ALBUM,
             fallbackIcon = R.drawable.ic_browse_albums,
-            browsableChildrenAsGrid = true
+            browsableChildrenAsGrid = true,
         )
     }
 
     /** Credential-free for the same reason as [albumToMediaItem]. */
     @JvmStatic
-    fun artistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
+    fun artistToMediaItem(
+        metadata: Metadata,
+        idPrefix: String,
+    ): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
         return browsableItem(
             mediaId = idPrefix + ratingKey,
@@ -284,7 +295,7 @@ object PlexMediaMapper {
             thumb = artworkThumb(metadata),
             mediaType = MediaMetadata.MEDIA_TYPE_ARTIST,
             fallbackIcon = R.drawable.ic_browse_artists,
-            browsableChildrenAsGrid = true
+            browsableChildrenAsGrid = true,
         )
     }
 
@@ -308,19 +319,23 @@ object PlexMediaMapper {
      * it is acceptable.
      */
     @JvmStatic
-    fun mixRowToMediaItem(mediaId: String, title: String?): MediaItem =
-        MediaItem.Builder()
+    fun mixRowToMediaItem(
+        mediaId: String,
+        title: String?,
+    ): MediaItem =
+        MediaItem
+            .Builder()
             .setMediaId(mediaId)
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata
+                    .Builder()
                     .setTitle(title)
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                     .setArtworkUri(ResourceUris.forResource(R.drawable.media3_icon_shuffle_on))
-                    .build()
-            )
-            .build()
+                    .build(),
+            ).build()
 
     /**
      * A decade row, from the `Directory` entries
@@ -357,7 +372,7 @@ object PlexMediaMapper {
         directory: Directory,
         idPrefix: String,
         scope: String,
-        bucket: Long
+        bucket: Long,
     ): MediaItem? {
         val key = directory.key?.takeIf { it.isNotBlank() } ?: return null
         val title = directory.title?.takeIf { it.isNotBlank() } ?: return null
@@ -367,26 +382,28 @@ object PlexMediaMapper {
         // browsable -- so EXTRAS_KEY_CONTENT_STYLE_BROWSABLE would be a hint
         // about a grid that never renders here. See BrowseContentStyle's KDoc:
         // these keys describe an item's children, not the item itself.
-        val extras = Bundle().apply {
-            putInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-                BrowseContentStyle.PLAYABLE_CHILD_STYLE
-            )
-        }
+        val extras =
+            Bundle().apply {
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                    BrowseContentStyle.PLAYABLE_CHILD_STYLE,
+                )
+            }
 
-        return MediaItem.Builder()
+        return MediaItem
+            .Builder()
             .setMediaId(idPrefix + DecadeKey.of(scope, key))
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata
+                    .Builder()
                     .setTitle(title)
                     .setIsBrowsable(true)
                     .setIsPlayable(false)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                     .setArtworkUri(AlbumArtContentProvider.decadeContentUri(scope, key, bucket))
                     .setExtras(extras)
-                    .build()
-            )
-            .build()
+                    .build(),
+            ).build()
     }
 
     /**
@@ -410,37 +427,48 @@ object PlexMediaMapper {
      * [Hub.title] arrives localised, because the client sends X-Plex-Language.
      */
     @JvmStatic
-    fun hubToMediaItem(hub: Hub, idPrefix: String, scope: String, bucket: Long): MediaItem? {
+    fun hubToMediaItem(
+        hub: Hub,
+        idPrefix: String,
+        scope: String,
+        bucket: Long,
+    ): MediaItem? {
         val key = hub.key?.takeIf { it.isNotBlank() } ?: return null
         val title = hub.title?.takeIf { it.isNotBlank() } ?: return null
 
-        val extras = Bundle().apply {
-            putInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-                BrowseContentStyle.browsableChildStyle(true)
-            )
-            putInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-                BrowseContentStyle.PLAYABLE_CHILD_STYLE
-            )
-        }
+        val extras =
+            Bundle().apply {
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                    BrowseContentStyle.browsableChildStyle(true),
+                )
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                    BrowseContentStyle.PLAYABLE_CHILD_STYLE,
+                )
+            }
 
-        val pool = hub.metadata.orEmpty()
-            .mapNotNull { artworkThumb(it) }
-            .distinct()
-            .take(HubCoverPool.MAX)
+        val pool =
+            hub.metadata
+                .orEmpty()
+                .mapNotNull { artworkThumb(it) }
+                .distinct()
+                .take(HubCoverPool.MAX)
 
-        val metadataBuilder = MediaMetadata.Builder()
-            .setTitle(title)
-            .setIsBrowsable(true)
-            .setIsPlayable(false)
-            .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-            .setExtras(extras)
+        val metadataBuilder =
+            MediaMetadata
+                .Builder()
+                .setTitle(title)
+                .setIsBrowsable(true)
+                .setIsPlayable(false)
+                .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                .setExtras(extras)
         if (pool.isNotEmpty()) {
             metadataBuilder.setArtworkUri(AlbumArtContentProvider.hubContentUri(scope, bucket, pool))
         }
 
-        return MediaItem.Builder()
+        return MediaItem
+            .Builder()
             .setMediaId(idPrefix + HubKey.of(scope, key))
             .setMediaMetadata(metadataBuilder.build())
             .build()
@@ -475,19 +503,22 @@ object PlexMediaMapper {
         mediaId: String,
         title: String,
         icon: Int,
-        subtitle: String? = null
+        subtitle: String? = null,
     ): MediaItem {
-        val extras = Bundle().apply {
-            putInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-                BrowseContentStyle.browsableChildStyle(true)
-            )
-        }
+        val extras =
+            Bundle().apply {
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                    BrowseContentStyle.browsableChildStyle(true),
+                )
+            }
 
-        return MediaItem.Builder()
+        return MediaItem
+            .Builder()
             .setMediaId(mediaId)
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata
+                    .Builder()
                     .setTitle(title)
                     .setArtist(subtitle)
                     .setIsBrowsable(true)
@@ -495,13 +526,15 @@ object PlexMediaMapper {
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                     .setArtworkUri(ResourceUris.forResource(icon))
                     .setExtras(extras)
-                    .build()
-            )
-            .build()
+                    .build(),
+            ).build()
     }
 
     @JvmStatic
-    fun playlistToMediaItem(metadata: Metadata, idPrefix: String): MediaItem? {
+    fun playlistToMediaItem(
+        metadata: Metadata,
+        idPrefix: String,
+    ): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
         // Plex never sets thumb on a playlist -- it generates composite, a
         // mosaic of the playlist's own contents, in its place. artworkThumb
@@ -518,7 +551,7 @@ object PlexMediaMapper {
             thumb = thumb,
             mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
             fallbackIcon = R.drawable.ic_browse_playlist,
-            browsableChildrenAsGrid = false
+            browsableChildrenAsGrid = false,
         )
     }
 
@@ -538,27 +571,32 @@ object PlexMediaMapper {
         thumb: String?,
         mediaType: Int,
         fallbackIcon: Int,
-        browsableChildrenAsGrid: Boolean
+        browsableChildrenAsGrid: Boolean,
     ): MediaItem {
-        val artworkUri = thumb?.takeIf { it.isNotBlank() }
-            ?.let { AlbumArtContentProvider.contentUri(it) }
-            ?: ResourceUris.forResource(fallbackIcon)
+        val artworkUri =
+            thumb
+                ?.takeIf { it.isNotBlank() }
+                ?.let { AlbumArtContentProvider.contentUri(it) }
+                ?: ResourceUris.forResource(fallbackIcon)
 
-        val extras = Bundle().apply {
-            putInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-                BrowseContentStyle.browsableChildStyle(browsableChildrenAsGrid)
-            )
-            putInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-                BrowseContentStyle.PLAYABLE_CHILD_STYLE
-            )
-        }
+        val extras =
+            Bundle().apply {
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+                    BrowseContentStyle.browsableChildStyle(browsableChildrenAsGrid),
+                )
+                putInt(
+                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
+                    BrowseContentStyle.PLAYABLE_CHILD_STYLE,
+                )
+            }
 
-        return MediaItem.Builder()
+        return MediaItem
+            .Builder()
             .setMediaId(mediaId)
             .setMediaMetadata(
-                MediaMetadata.Builder()
+                MediaMetadata
+                    .Builder()
                     .setTitle(title)
                     .setArtist(subtitle)
                     .setAlbumTitle(subtitle)
@@ -567,8 +605,7 @@ object PlexMediaMapper {
                     .setMediaType(mediaType)
                     .setArtworkUri(artworkUri)
                     .setExtras(extras)
-                    .build()
-            )
-            .build()
+                    .build(),
+            ).build()
     }
 }

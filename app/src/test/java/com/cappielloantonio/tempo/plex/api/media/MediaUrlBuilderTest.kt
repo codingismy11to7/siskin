@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaUrlBuilderTest {
-
     private val server = "https://192-168-1-5.abc123.plex.direct:32400"
     private val token = "tok123"
 
@@ -18,7 +17,7 @@ class MediaUrlBuilderTest {
                 "?width=600&height=600&minSize=1" +
                 "&url=%2Flibrary%2Fmetadata%2F42%2Fthumb%2F1" +
                 "&X-Plex-Token=tok123",
-            url
+            url,
         )
     }
 
@@ -28,7 +27,7 @@ class MediaUrlBuilderTest {
         val url = MediaUrlBuilder.artworkUrl("$server/", "/thumb", token, 100, 100)
         assertEquals(
             "$server/photo/:/transcode?width=100&height=100&minSize=1&url=%2Fthumb&X-Plex-Token=tok123",
-            url
+            url,
         )
     }
 

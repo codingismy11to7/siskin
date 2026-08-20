@@ -40,34 +40,36 @@ import org.robolectric.android.controller.ActivityController
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class CarDebugFragmentTest {
-
     @Before
     fun setUp() {
         // Robolectric caches SharedPreferences statically across methods, and
         // the session is what routes the activity to Settings in the first
         // place.
-        PlexApi().session = PlexSession(
-            accountToken = "t",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
+        PlexApi().session =
+            PlexSession(
+                accountToken = "t",
+                serverUri = "https://example.invalid",
+                musicSectionKey = SectionKey("1"),
+                serverToken = null,
+            )
     }
 
     @Before
     fun stubTheAccountsServers() {
-        CarHostActivity.viewModelFactoryForTest = object : ViewModelProvider.Factory {
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val authClient = mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+        CarHostActivity.viewModelFactoryForTest =
+            object : ViewModelProvider.Factory {
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val authClient =
+                        mock<AuthClient>().stub {
+                            onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+                        }
+                    @Suppress("UNCHECKED_CAST")
+                    return PlexSignInViewModel(
+                        RuntimeEnvironment.getApplication(),
+                        authClient = authClient,
+                    ) as T
                 }
-                @Suppress("UNCHECKED_CAST")
-                return PlexSignInViewModel(
-                    RuntimeEnvironment.getApplication(),
-                    authClient = authClient
-                ) as T
             }
-        }
     }
 
     @After
@@ -86,17 +88,20 @@ class CarDebugFragmentTest {
         controller.get().supportFragmentManager.findFragmentById(R.id.car_host_container)
 
     private fun viewsIn(view: View): List<View> =
-        listOf(view) + if (view is ViewGroup) {
-            (0 until view.childCount).flatMap { viewsIn(view.getChildAt(it)) }
-        } else {
-            emptyList()
-        }
+        listOf(view) +
+            if (view is ViewGroup) {
+                (0 until view.childCount).flatMap { viewsIn(view.getChildAt(it)) }
+            } else {
+                emptyList()
+            }
 
     /** The row carrying [label], found by its text rather than its position. */
-    private fun rowLabelled(controller: ActivityController<CarHostActivity>, label: String) =
-        viewsIn(controller.get().findViewById(R.id.car_host_container))
-            .filterIsInstance<MaterialButton>()
-            .single { it.text.toString() == label }
+    private fun rowLabelled(
+        controller: ActivityController<CarHostActivity>,
+        label: String,
+    ) = viewsIn(controller.get().findViewById(R.id.car_host_container))
+        .filterIsInstance<MaterialButton>()
+        .single { it.text.toString() == label }
 
     private fun openDebugScreen(controller: ActivityController<CarHostActivity>) {
         controller.get().findViewById<View>(R.id.version_text).performClick()

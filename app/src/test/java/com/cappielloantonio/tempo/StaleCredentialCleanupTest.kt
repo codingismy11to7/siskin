@@ -10,16 +10,18 @@ import org.robolectric.RuntimeEnvironment
 
 @RunWith(RobolectricTestRunner::class)
 class StaleCredentialCleanupTest {
-
     @Before
     fun setUp() {
         // Robolectric caches SharedPreferences statically across test methods, so
         // every field this test depends on is reset rather than assumed absent.
         val context = RuntimeEnvironment.getApplication()
-        val prefs = context.getSharedPreferences(
-            context.packageName + "_preferences", Context.MODE_PRIVATE
-        )
-        prefs.edit()
+        val prefs =
+            context.getSharedPreferences(
+                context.packageName + "_preferences",
+                Context.MODE_PRIVATE,
+            )
+        prefs
+            .edit()
             .remove("plex_token")
             .remove("plex_server_token")
             .commit()
@@ -28,10 +30,14 @@ class StaleCredentialCleanupTest {
     @Test
     fun theOldTokenKeysAreDeletedRatherThanLeftToOutliveTheirReason() {
         val context = RuntimeEnvironment.getApplication()
-        val prefs = context.getSharedPreferences(
-            context.packageName + "_preferences", Context.MODE_PRIVATE
-        )
-        prefs.edit().putString("plex_token", "left-behind")
+        val prefs =
+            context.getSharedPreferences(
+                context.packageName + "_preferences",
+                Context.MODE_PRIVATE,
+            )
+        prefs
+            .edit()
+            .putString("plex_token", "left-behind")
             .putString("plex_server_token", "also-left-behind")
             .apply()
 

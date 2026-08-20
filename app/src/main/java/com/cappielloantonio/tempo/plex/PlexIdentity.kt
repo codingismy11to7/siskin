@@ -9,7 +9,6 @@ package com.cappielloantonio.tempo.plex
  * unitTests.returnDefaultValues = true, which would stub anything framework-bound.
  */
 object PlexIdentity {
-
     private const val PRODUCT = "Siskin"
     private const val PLATFORM = "Android"
 
@@ -22,17 +21,18 @@ object PlexIdentity {
         clientIdentifier: String,
         appVersion: String,
         token: String?,
-        language: String
+        language: String,
     ): Map<String, String> {
-        val headers = linkedMapOf(
-            "X-Plex-Client-Identifier" to clientIdentifier,
-            "X-Plex-Product" to PRODUCT,
-            "X-Plex-Version" to appVersion,
-            "X-Plex-Platform" to PLATFORM,
-            "X-Plex-Device" to DEVICE,
-            "X-Plex-Model" to MODEL,
-            "Accept" to "application/json"
-        )
+        val headers =
+            linkedMapOf(
+                "X-Plex-Client-Identifier" to clientIdentifier,
+                "X-Plex-Product" to PRODUCT,
+                "X-Plex-Version" to appVersion,
+                "X-Plex-Platform" to PLATFORM,
+                "X-Plex-Device" to DEVICE,
+                "X-Plex-Model" to MODEL,
+                "Accept" to "application/json",
+            )
 
         // Plex builds hub titles server-side and translates them -- "Keine
         // Wiedergabe seit 4 Monaten" -- so this is what keeps the Discover rows

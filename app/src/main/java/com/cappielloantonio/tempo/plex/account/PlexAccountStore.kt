@@ -24,8 +24,9 @@ private const val TAG = "PlexAccountStore"
  * holder. A constant is also a stable key, so "exactly one account" needs no
  * enforcement beyond addressing it by name.
  */
-class PlexAccountStore(private val context: Context = App.getContext()) {
-
+class PlexAccountStore(
+    private val context: Context = App.getContext(),
+) {
     private val manager: AccountManager get() = AccountManager.get(context)
 
     private val accountType: String get() = context.getString(R.string.plex_account_type)
@@ -48,7 +49,10 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
     fun setAccountToken(value: String?) {
         val existing = account
         when {
-            value == null -> existing?.let { manager.removeAccountExplicitly(it) }
+            value == null -> {
+                existing?.let { manager.removeAccountExplicitly(it) }
+            }
+
             existing == null -> {
                 val added =
                     manager.addAccountExplicitly(Account(ACCOUNT_NAME, accountType), value, null)
@@ -63,11 +67,14 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
                         TAG,
                         "addAccountExplicitly returned false; no Plex account was " +
                             "created, so sign-in will appear to finish but the browse " +
-                            "gate will keep asking to sign in again"
+                            "gate will keep asking to sign in again",
                     )
                 }
             }
-            else -> manager.setPassword(existing, value)
+
+            else -> {
+                manager.setPassword(existing, value)
+            }
         }
     }
 
@@ -76,10 +83,12 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
      * *that* server -- which is also what a server the account owns looks
      * like, and every reader already handles.
      */
-    fun serverToken(machineIdentifier: String?): String? =
-        account?.let { manager.peekAuthToken(it, authTokenType(machineIdentifier)) }
+    fun serverToken(machineIdentifier: String?): String? = account?.let { manager.peekAuthToken(it, authTokenType(machineIdentifier)) }
 
-    fun setServerToken(machineIdentifier: String?, value: String?) {
+    fun setServerToken(
+        machineIdentifier: String?,
+        value: String?,
+    ) {
         val existing = account ?: return
         val type = authTokenType(machineIdentifier)
 
@@ -167,7 +176,10 @@ class PlexAccountStore(private val context: Context = App.getContext()) {
          * in-memory read to two Binder round trips without changing its kind.
          */
         fun authTokenType(machineIdentifier: String?): String =
-            if (machineIdentifier.isNullOrBlank()) SERVER_TOKEN_TYPE
-            else "$SERVER_TOKEN_TYPE:$machineIdentifier"
+            if (machineIdentifier.isNullOrBlank()) {
+                SERVER_TOKEN_TYPE
+            } else {
+                "$SERVER_TOKEN_TYPE:$machineIdentifier"
+            }
     }
 }

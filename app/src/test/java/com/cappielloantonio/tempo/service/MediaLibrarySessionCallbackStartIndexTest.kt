@@ -47,7 +47,6 @@ import org.robolectric.RuntimeEnvironment
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class MediaLibrarySessionCallbackStartIndexTest {
-
     private val browseRepository = mock<PlexBrowseRepository>()
     private val sessionMediaItemRepository = mock<SessionMediaItemRepository>()
     private val session = mock<MediaSession>()
@@ -67,12 +66,13 @@ class MediaLibrarySessionCallbackStartIndexTest {
         }
         whenever(session.player).thenReturn(mock<Player>())
 
-        callback = MediaLibrarySessionCallback(
-            RuntimeEnvironment.getApplication(),
-            mock<BaseMediaService>(),
-            browseRepository,
-            sessionMediaItemRepository
-        )
+        callback =
+            MediaLibrarySessionCallback(
+                RuntimeEnvironment.getApplication(),
+                mock<BaseMediaService>(),
+                browseRepository,
+                sessionMediaItemRepository,
+            )
     }
 
     /**
@@ -91,7 +91,7 @@ class MediaLibrarySessionCallbackStartIndexTest {
 
         assertEquals(
             tracks.map { it.mediaId },
-            result.mediaItems.map { it.mediaId }
+            result.mediaItems.map { it.mediaId },
         )
         assertEquals(2, result.startIndex)
     }
@@ -122,9 +122,11 @@ class MediaLibrarySessionCallbackStartIndexTest {
         val tracks = albumTracks("1", "2", "3", "4")
         whenever(browseRepository.getArtistTracks(ARTIST)).thenReturn(itemList(tracks))
 
-        val row = MediaItem.Builder()
-            .setMediaId(Constants.MIX_ARTIST_ID + ARTIST)
-            .build()
+        val row =
+            MediaItem
+                .Builder()
+                .setMediaId(Constants.MIX_ARTIST_ID + ARTIST)
+                .build()
         val result = setMediaItems(row)
 
         assertEquals(tracks.size, result.mediaItems.size)
@@ -150,15 +152,16 @@ class MediaLibrarySessionCallbackStartIndexTest {
 
     private fun setMediaItems(tapped: MediaItem): MediaSession.MediaItemsWithStartPosition =
         mockConstruction(QueueRepository::class.java).use {
-            callback.onSetMediaItems(
-                session,
-                controller,
-                listOf(tapped),
-                // What the car sends for a browse tap: it names the track and
-                // says nothing about where to start.
-                C.INDEX_UNSET,
-                C.TIME_UNSET
-            ).get()
+            callback
+                .onSetMediaItems(
+                    session,
+                    controller,
+                    listOf(tapped),
+                    // What the car sends for a browse tap: it names the track and
+                    // says nothing about where to start.
+                    C.INDEX_UNSET,
+                    C.TIME_UNSET,
+                ).get()
         }
 
     /** What a browse list leaves in the session cache for a later tap. */
@@ -168,7 +171,7 @@ class MediaLibrarySessionCallbackStartIndexTest {
                 SessionMediaItem().apply {
                     id = track.mediaId
                     timestamp = GROUP
-                }
+                },
             )
         }
         whenever(sessionMediaItemRepository.getSiblings(GROUP)).thenReturn(tracks)
@@ -178,14 +181,16 @@ class MediaLibrarySessionCallbackStartIndexTest {
     private fun browseAlbum(tracks: List<MediaItem>) {
         whenever(browseRepository.getAlbumTracks(ALBUM)).thenReturn(itemList(tracks))
 
-        val children = callback.onGetChildren(
-            mock<MediaLibraryService.MediaLibrarySession>(),
-            controller,
-            Constants.ALBUM_ID + ALBUM,
-            0,
-            Constants.MAX_ITEMS,
-            null
-        ).get()
+        val children =
+            callback
+                .onGetChildren(
+                    mock<MediaLibraryService.MediaLibrarySession>(),
+                    controller,
+                    Constants.ALBUM_ID + ALBUM,
+                    0,
+                    Constants.MAX_ITEMS,
+                    null,
+                ).get()
 
         assertEquals(LibraryResult.RESULT_SUCCESS, children.resultCode)
     }
@@ -205,32 +210,34 @@ class MediaLibrarySessionCallbackStartIndexTest {
      * exist. This fixture is simulating the car specifically, not controllers in
      * general.
      */
-    private fun withParentTag(item: MediaItem) = MediaItem.Builder()
-        .setMediaId(item.mediaId)
-        .setRequestMetadata(item.requestMetadata)
-        .build()
+    private fun withParentTag(item: MediaItem) =
+        MediaItem
+            .Builder()
+            .setMediaId(item.mediaId)
+            .setRequestMetadata(item.requestMetadata)
+            .build()
 
-    private fun itemList(tracks: List<MediaItem>) =
-        Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(tracks), null))
+    private fun itemList(tracks: List<MediaItem>) = Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(tracks), null))
 
-    private fun albumTracks(vararg ratingKeys: String) = ratingKeys.map { key ->
-        PlexMediaMapper.buildTrackMediaItem(
-            ratingKey = key,
-            title = "Track $key",
-            albumTitle = "AMEN Remixes",
-            artist = "Artist",
-            thumb = null,
-            partKey = "/library/parts/$key/file.flac",
-            durationMs = null,
-            trackIndex = null,
-            year = null,
-            grandparentRatingKey = ARTIST,
-            isHearted = false,
-            parentId = Constants.QUEUE_CACHED_SOURCE,
-            serverUri = SERVER,
-            token = "server-token"
-        )
-    }
+    private fun albumTracks(vararg ratingKeys: String) =
+        ratingKeys.map { key ->
+            PlexMediaMapper.buildTrackMediaItem(
+                ratingKey = key,
+                title = "Track $key",
+                albumTitle = "AMEN Remixes",
+                artist = "Artist",
+                thumb = null,
+                partKey = "/library/parts/$key/file.flac",
+                durationMs = null,
+                trackIndex = null,
+                year = null,
+                grandparentRatingKey = ARTIST,
+                isHearted = false,
+                parentId = Constants.QUEUE_CACHED_SOURCE,
+                serverUri = SERVER,
+                token = "server-token",
+            )
+        }
 
     private companion object {
         const val SERVER = "https://plex.example"

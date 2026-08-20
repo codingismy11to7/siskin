@@ -14,4 +14,6 @@ import java.io.IOException
  * so anything already treating an exceptionally-completed browse future as a
  * network problem keeps working.
  */
-class PlexTransportException(val failure: PlexTransportFailure) : IOException(failure.toString())
+class PlexTransportException(
+    val failure: PlexTransportFailure,
+) : IOException(failure.toString())

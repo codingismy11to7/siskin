@@ -22,15 +22,16 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class SessionMediaItemDaoTest {
-
     private lateinit var db: AppDatabase
     private lateinit var dao: SessionMediaItemDao
 
     @Before
     fun createDb() {
-        db = Room.inMemoryDatabaseBuilder(App.getContext(), AppDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
+        db =
+            Room
+                .inMemoryDatabaseBuilder(App.getContext(), AppDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
         dao = db.sessionMediaItemDao()
     }
 
@@ -39,7 +40,11 @@ class SessionMediaItemDaoTest {
         db.close()
     }
 
-    private fun row(id: String, index: Int, timestamp: Long) = SessionMediaItem().apply {
+    private fun row(
+        id: String,
+        index: Int,
+        timestamp: Long,
+    ) = SessionMediaItem().apply {
         this.index = index
         this.id = id
         this.timestamp = timestamp
@@ -71,8 +76,8 @@ class SessionMediaItemDaoTest {
             listOf(
                 row(id = "third", index = 30, timestamp = 1L),
                 row(id = "first", index = 10, timestamp = 1L),
-                row(id = "second", index = 20, timestamp = 1L)
-            )
+                row(id = "second", index = 20, timestamp = 1L),
+            ),
         )
 
         val siblings = dao.get(1L)

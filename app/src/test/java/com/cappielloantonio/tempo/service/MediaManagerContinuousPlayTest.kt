@@ -17,9 +17,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.mock
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.atLeastOnce
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 @OptIn(UnstableApi::class)
 @RunWith(RobolectricTestRunner::class)
 class MediaManagerContinuousPlayTest {
-
     private lateinit var server: MockWebServer
 
     @Before
@@ -58,7 +57,10 @@ class MediaManagerContinuousPlayTest {
         // methods, and isInstantMixUsable() throttles to one mix per 10s -- an
         // earlier method's setLastInstantMix() would otherwise make this one
         // return before doing anything.
-        com.cappielloantonio.tempo.App.getInstance().preferences.edit()
+        com.cappielloantonio.tempo.App
+            .getInstance()
+            .preferences
+            .edit()
             .putLong("last_instant_mix", 0L)
             .putBoolean("fallback_to_random_tracks", true)
             .commit()
@@ -96,7 +98,7 @@ class MediaManagerContinuousPlayTest {
         mainLooper().idle()
         assertTrue(
             "the mix request never reached the server",
-            server.takeRequest(10, TimeUnit.SECONDS) != null
+            server.takeRequest(10, TimeUnit.SECONDS) != null,
         )
         // The resumption is posted by an OkHttp thread once the body is read;
         // wait for it to land so the browser completion below is queued behind
@@ -130,12 +132,13 @@ class MediaManagerContinuousPlayTest {
         val finished = CountDownLatch(1)
         val rescued = AtomicBoolean(false)
 
-        val watchdog = Thread {
-            if (!finished.await(5, TimeUnit.SECONDS)) {
-                rescued.set(true)
-                future.set(browser)
+        val watchdog =
+            Thread {
+                if (!finished.await(5, TimeUnit.SECONDS)) {
+                    rescued.set(true)
+                    future.set(browser)
+                }
             }
-        }
         watchdog.start()
 
         MediaManager.continuousPlay(playedItem(), future) { finished.countDown() }
@@ -147,7 +150,7 @@ class MediaManagerContinuousPlayTest {
 
         assertFalse(
             "dedupAgainstQueue blocked the application thread on a future only that thread could complete",
-            rescued.get()
+            rescued.get(),
         )
         assertEquals(0, finished.count)
         assertFalse("continuousPlayIsRunning was left set", MediaManager.continuousPlayIsRunning.get())

@@ -53,7 +53,6 @@ import java.util.concurrent.TimeUnit
 // identically either way.
 @RunWith(RobolectricTestRunner::class)
 class PlexBrowseRepositoryTest {
-
     private val fixture = PlexBrowseTestServer()
     private val server: MockWebServer get() = fixture.server
 
@@ -67,11 +66,15 @@ class PlexBrowseRepositoryTest {
         fixture.stop()
     }
 
-    private fun response(vararg items: Metadata) = PlexResponse().apply {
-        mediaContainer = MediaContainer().apply { metadata = items.toList() }
-    }
+    private fun response(vararg items: Metadata) =
+        PlexResponse().apply {
+            mediaContainer = MediaContainer().apply { metadata = items.toList() }
+        }
 
-    private fun item(ratingKey: String?, type: String) = Metadata().apply {
+    private fun item(
+        ratingKey: String?,
+        type: String,
+    ) = Metadata().apply {
         this.ratingKey = ratingKey
         this.type = type
     }
@@ -90,23 +93,27 @@ class PlexBrowseRepositoryTest {
      * production lambdas too and would prove nothing.
      */
     private val trackMapThatMustNotBuildAnyItem: suspend (PlexResponse) -> List<MediaItem> =
-        { body -> PlexBrowseRepository.tracksOf(body).map { error("built a MediaItem from $it, but the narrowed list should have been empty") } }
+        { body ->
+            PlexBrowseRepository.tracksOf(body).map { error("built a MediaItem from $it, but the narrowed list should have been empty") }
+        }
 
     @Test
     fun tracksOfKeepsOnlyTracks() {
         // A playlist or album listing can carry non-track entries; anything the
         // player cannot stream must not reach the queue.
-        val tracks = PlexBrowseRepository.tracksOf(
-            response(item("1", "track"), item("2", "album"), item("3", "track"))
-        )
+        val tracks =
+            PlexBrowseRepository.tracksOf(
+                response(item("1", "track"), item("2", "album"), item("3", "track")),
+            )
         assertEquals(listOf("1", "3"), tracks.map { it.ratingKey })
     }
 
     @Test
     fun tracksOfDropsEntriesWithoutARatingKey() {
-        val tracks = PlexBrowseRepository.tracksOf(
-            response(item(null, "track"), item("", "track"), item("3", "track"))
-        )
+        val tracks =
+            PlexBrowseRepository.tracksOf(
+                response(item(null, "track"), item("", "track"), item("3", "track")),
+            )
         assertEquals(listOf("3"), tracks.map { it.ratingKey })
     }
 
@@ -123,10 +130,11 @@ class PlexBrowseRepositoryTest {
 
     @Test
     fun itemsOfNarrowsToTheRequestedType() {
-        val albums = PlexBrowseRepository.itemsOf(
-            response(item("1", "album"), item("2", "artist"), item("3", "album")),
-            "album"
-        )
+        val albums =
+            PlexBrowseRepository.itemsOf(
+                response(item("1", "album"), item("2", "artist"), item("3", "album")),
+                "album",
+            )
         assertEquals(listOf("1", "3"), albums.map { it.ratingKey })
     }
 
@@ -145,62 +153,75 @@ class PlexBrowseRepositoryTest {
     // mapping in isolation from Retrofit and the network.
 
     @Test
-    fun resultForAnEmptyLibrarySucceedsWithAnEmptyListRatherThanErroring() = runTest {
-        // The regression this whole task exists to catch: Plex answers a
-        // no-match listing with HTTP 200, MediaContainer present, Metadata
-        // absent. The Subsonic implementation this replaces mistook that shape
-        // for a failure and showed "Something went wrong" on the first of
-        // three browse tabs for every user with no playlists.
-        val result = PlexBrowseRepository.resultFor(
-            { PlexResponse().apply { mediaContainer = MediaContainer() }.right() },
-            trackMapThatMustNotBuildAnyItem
-        ).getOrNull()!!
+    fun resultForAnEmptyLibrarySucceedsWithAnEmptyListRatherThanErroring() =
+        runTest {
+            // The regression this whole task exists to catch: Plex answers a
+            // no-match listing with HTTP 200, MediaContainer present, Metadata
+            // absent. The Subsonic implementation this replaces mistook that shape
+            // for a failure and showed "Something went wrong" on the first of
+            // three browse tabs for every user with no playlists.
+            val result =
+                PlexBrowseRepository
+                    .resultFor(
+                        { PlexResponse().apply { mediaContainer = MediaContainer() }.right() },
+                        trackMapThatMustNotBuildAnyItem,
+                    ).getOrNull()!!
 
-        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
-        assertTrue(result.value!!.isEmpty())
-    }
-
-    @Test
-    fun resultForHttp401IsPermissionDenied() = runTest {
-        val result = PlexBrowseRepository.resultFor(
-            { PlexTransportFailure.Http(PlexHost.Server, 401).left() },
-            mapThatMustNotRun
-        ).getOrNull()!!
-
-        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
-    }
+            assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+            assertTrue(result.value!!.isEmpty())
+        }
 
     @Test
-    fun resultForHttp403IsPermissionDenied() = runTest {
-        val result = PlexBrowseRepository.resultFor(
-            { PlexTransportFailure.Http(PlexHost.Server, 403).left() },
-            mapThatMustNotRun
-        ).getOrNull()!!
+    fun resultForHttp401IsPermissionDenied() =
+        runTest {
+            val result =
+                PlexBrowseRepository
+                    .resultFor(
+                        { PlexTransportFailure.Http(PlexHost.Server, 401).left() },
+                        mapThatMustNotRun,
+                    ).getOrNull()!!
 
-        assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
-    }
-
-    @Test
-    fun resultForHttp500IsBadValue() = runTest {
-        val result = PlexBrowseRepository.resultFor(
-            { PlexTransportFailure.Http(PlexHost.Server, 500).left() },
-            mapThatMustNotRun
-        ).getOrNull()!!
-
-        assertEquals(SessionError.ERROR_BAD_VALUE, result.resultCode)
-    }
+            assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
+        }
 
     @Test
-    fun resultForKeepsATransportFailureAsALeftRatherThanTurningItIntoAnError() = runTest {
-        // The distinction resultFor has to keep: an unreachable server must not
-        // reach the user as "rejected". Staying Left is what makes launchInto
-        // complete the future exceptionally instead of with a LibraryResult.
-        val failure = PlexTransportFailure.Unreachable(PlexHost.Server)
+    fun resultForHttp403IsPermissionDenied() =
+        runTest {
+            val result =
+                PlexBrowseRepository
+                    .resultFor(
+                        { PlexTransportFailure.Http(PlexHost.Server, 403).left() },
+                        mapThatMustNotRun,
+                    ).getOrNull()!!
 
-        val result = PlexBrowseRepository.resultFor({ failure.left() }, mapThatMustNotRun)
+            assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
+        }
 
-        assertEquals(failure.left(), result)
-    }
+    @Test
+    fun resultForHttp500IsBadValue() =
+        runTest {
+            val result =
+                PlexBrowseRepository
+                    .resultFor(
+                        { PlexTransportFailure.Http(PlexHost.Server, 500).left() },
+                        mapThatMustNotRun,
+                    ).getOrNull()!!
+
+            assertEquals(SessionError.ERROR_BAD_VALUE, result.resultCode)
+        }
+
+    @Test
+    fun resultForKeepsATransportFailureAsALeftRatherThanTurningItIntoAnError() =
+        runTest {
+            // The distinction resultFor has to keep: an unreachable server must not
+            // reach the user as "rejected". Staying Left is what makes launchInto
+            // complete the future exceptionally instead of with a LibraryResult.
+            val failure = PlexTransportFailure.Unreachable(PlexHost.Server)
+
+            val result = PlexBrowseRepository.resultFor({ failure.left() }, mapThatMustNotRun)
+
+            assertEquals(failure.left(), result)
+        }
 
     // ── end to end, through real Retrofit ───────────────────────────
     //
@@ -209,21 +230,22 @@ class PlexBrowseRepositoryTest {
     // launch, plexCall actually folding a real HttpException/IOException that
     // Retrofit raises into a PlexTransportFailure, and the SettableFuture completion.
 
-    private fun tracksBody(vararg ratingKeys: String) = """
+    private fun tracksBody(vararg ratingKeys: String) =
+        """
         {"MediaContainer":{"Metadata":[${
-        ratingKeys.joinToString(",") { """{"ratingKey":"$it","type":"track","title":"Track $it"}""" }
-    }]}}
-    """.trimIndent()
+            ratingKeys.joinToString(",") { """{"ratingKey":"$it","type":"track","title":"Track $it"}""" }
+        }]}}
+        """.trimIndent()
 
-    private fun albumsBody(vararg ratingKeys: String) = """
+    private fun albumsBody(vararg ratingKeys: String) =
+        """
         {"MediaContainer":{"Metadata":[${
-        ratingKeys.joinToString(",") { """{"ratingKey":"$it","type":"album","title":"Album $it"}""" }
-    }]}}
-    """.trimIndent()
+            ratingKeys.joinToString(",") { """{"ratingKey":"$it","type":"album","title":"Album $it"}""" }
+        }]}}
+        """.trimIndent()
 
     /** Bounded so a bridge that never completes its future fails instead of hanging. */
-    private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) =
-        future.get(10, TimeUnit.SECONDS)
+    private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) = future.get(10, TimeUnit.SECONDS)
 
     @Test
     fun anArtistsAlbumsComeFromTheSectionFilteredByArtistNotFromItsChildren() {
@@ -250,7 +272,7 @@ class PlexBrowseRepositoryTest {
         assertEquals(PlexItemType.ALBUM, request.requestUrl?.queryParameter("type")?.toInt())
         assertEquals(
             listOf(Constants.MIX_ARTIST_ID + "15100", Constants.ALBUM_ID + "77"),
-            result.value!!.map { it.mediaId }
+            result.value!!.map { it.mediaId },
         )
     }
 
@@ -352,9 +374,10 @@ class PlexBrowseRepositoryTest {
         // a user whose credentials are fine.
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
 
-        val thrown = assertThrows(ExecutionException::class.java) {
-            await(PlexBrowseRepository().getAlbumTracks("5"))
-        }
+        val thrown =
+            assertThrows(ExecutionException::class.java) {
+                await(PlexBrowseRepository().getAlbumTracks("5"))
+            }
 
         assertTrue("cause was ${thrown.cause}", thrown.cause is IOException)
     }
@@ -368,9 +391,10 @@ class PlexBrowseRepositoryTest {
         // way on a real endpoint, this test is the record of what the user sees.
         server.enqueue(MockResponse().setResponseCode(200).setBody(""))
 
-        val thrown = assertThrows(ExecutionException::class.java) {
-            await(PlexBrowseRepository().getAlbumTracks("5"))
-        }
+        val thrown =
+            assertThrows(ExecutionException::class.java) {
+                await(PlexBrowseRepository().getAlbumTracks("5"))
+            }
 
         assertTrue("cause was ${thrown.cause}", thrown.cause !is HttpException)
     }
@@ -398,9 +422,10 @@ class PlexBrowseRepositoryTest {
 
         // Placeholder base URL, so this must fail rather than reach the mock
         // server -- same shape as anUnreachableServerCompletesTheFutureExceptionally.
-        val beforeSignIn = assertThrows(ExecutionException::class.java) {
-            await(repository.getAlbumTracks("5"))
-        }
+        val beforeSignIn =
+            assertThrows(ExecutionException::class.java) {
+                await(repository.getAlbumTracks("5"))
+            }
         assertTrue("cause was ${beforeSignIn.cause}", beforeSignIn.cause is IOException)
         assertEquals("a placeholder-bound client must never reach the mock server", 0, server.requestCount)
 
@@ -439,17 +464,19 @@ class PlexBrowseRepositoryTest {
     }
 
     /** Answers /identity like a reachable Plex server, and everything else with [body]. */
-    private fun liveServer(body: String) = MockWebServer().apply {
-        dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest) =
-                if (request.requestUrl?.encodedPath == "/identity") {
-                    MockResponse().setResponseCode(200)
-                } else {
-                    MockResponse().setResponseCode(200).setBody(body)
+    private fun liveServer(body: String) =
+        MockWebServer().apply {
+            dispatcher =
+                object : Dispatcher() {
+                    override fun dispatch(request: RecordedRequest) =
+                        if (request.requestUrl?.encodedPath == "/identity") {
+                            MockResponse().setResponseCode(200)
+                        } else {
+                            MockResponse().setResponseCode(200).setBody(body)
+                        }
                 }
+            start()
         }
-        start()
-    }
 
     @Test
     fun aBrowseRecoversWhenTheStoredAddressDiesButAnotherStillAnswers() {
@@ -466,12 +493,13 @@ class PlexBrowseRepositoryTest {
         ServerAddressBook.shared.adopt(
             Resource().apply {
                 clientIdentifier = "machine-a"
-                connections = listOf(
-                    Connection().apply { uri = dead },
-                    Connection().apply { uri = liveUri }
-                )
+                connections =
+                    listOf(
+                        Connection().apply { uri = dead },
+                        Connection().apply { uri = liveUri },
+                    )
             },
-            dead
+            dead,
         )
 
         val result = await(PlexBrowseRepository().getAlbumTracks("5"))
@@ -481,7 +509,7 @@ class PlexBrowseRepositoryTest {
         assertEquals(
             "the re-probe must move the session onto the address that answered",
             liveUri,
-            PlexApi().serverUri
+            PlexApi().serverUri,
         )
         live.shutdown()
     }
@@ -491,22 +519,29 @@ class PlexBrowseRepositoryTest {
      * so a merge that mismatched a tier's response would show up as the wrong
      * mediaId prefix instead of silently passing.
      */
-    private fun searchDispatcher(failingType: Int? = null) = object : Dispatcher() {
-        override fun dispatch(request: RecordedRequest): MockResponse {
-            val type = request.requestUrl?.queryParameter("type")?.toInt()
-            if (type == failingType) return MockResponse().setResponseCode(500)
-            val (name, key) = when (type) {
-                PlexItemType.ARTIST -> "artist" to "a1"
-                PlexItemType.ALBUM -> "album" to "b1"
-                else -> "track" to "t1"
+    private fun searchDispatcher(failingType: Int? = null) =
+        object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                val type = request.requestUrl?.queryParameter("type")?.toInt()
+                if (type == failingType) return MockResponse().setResponseCode(500)
+                val (name, key) =
+                    when (type) {
+                        PlexItemType.ARTIST -> "artist" to "a1"
+                        PlexItemType.ALBUM -> "album" to "b1"
+                        else -> "track" to "t1"
+                    }
+                return MockResponse().setResponseCode(200).setBody(typedBody(name, key))
             }
-            return MockResponse().setResponseCode(200).setBody(typedBody(name, key))
         }
-    }
 
-    private fun requestedTypes() = (0 until server.requestCount).map {
-        server.takeRequest().requestUrl?.queryParameter("type")?.toInt()
-    }
+    private fun requestedTypes() =
+        (0 until server.requestCount).map {
+            server
+                .takeRequest()
+                .requestUrl
+                ?.queryParameter("type")
+                ?.toInt()
+        }
 
     @Test
     fun searchIssuesTheThreeTiersInOrderAndMergesThemInThatOrder() {
@@ -524,7 +559,7 @@ class PlexBrowseRepositoryTest {
         assertEquals(listOf("artist-a1", "album-b1", "t1"), result.value!!.map { it.mediaId })
         assertEquals(
             listOf(PlexItemType.ARTIST, PlexItemType.ALBUM, PlexItemType.TRACK),
-            requestedTypes()
+            requestedTypes(),
         )
     }
 
@@ -561,24 +596,28 @@ class PlexBrowseRepositoryTest {
         // track, so a tier that does not narrow by its own type produces
         // "artist-a1"/"album-b1" rows for them.
         PlexApi().musicSectionKey = "1"
-        server.dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse {
-                val body = when (request.requestUrl?.queryParameter("type")?.toInt()) {
-                    PlexItemType.ARTIST -> typedBody("album", "a1")
-                    PlexItemType.ALBUM -> typedBody("track", "b1")
-                    else -> typedBody("track", "t1")
+        server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse {
+                    val body =
+                        when (request.requestUrl?.queryParameter("type")?.toInt()) {
+                            PlexItemType.ARTIST -> typedBody("album", "a1")
+                            PlexItemType.ALBUM -> typedBody("track", "b1")
+                            else -> typedBody("track", "t1")
+                        }
+                    return MockResponse().setResponseCode(200).setBody(body)
                 }
-                return MockResponse().setResponseCode(200).setBody(body)
             }
-        }
 
         val result = await(PlexBrowseRepository().search("q", "album-", "artist-"))
 
         assertEquals(listOf("t1"), result.value!!.map { it.mediaId })
     }
 
-    private fun typedBody(type: String, ratingKey: String) =
-        """{"MediaContainer":{"Metadata":[{"ratingKey":"$ratingKey","type":"$type","title":"$ratingKey"}]}}"""
+    private fun typedBody(
+        type: String,
+        ratingKey: String,
+    ) = """{"MediaContainer":{"Metadata":[{"ratingKey":"$ratingKey","type":"$type","title":"$ratingKey"}]}}"""
 
     // ── getPlaylists: section scoping ───────────────────────────
 
@@ -620,11 +659,12 @@ class PlexBrowseRepositoryTest {
 
     // ── getDecades / decade tracks ──────────────────────────────
 
-    private fun decadesBody(vararg decades: String) = """
+    private fun decadesBody(vararg decades: String) =
+        """
         {"MediaContainer":{"Directory":[${
-        decades.joinToString(",") { """{"fastKey":"/x","key":"$it","title":"${it}s"}""" }
-    }]}}
-    """.trimIndent()
+            decades.joinToString(",") { """{"fastKey":"/x","key":"$it","title":"${it}s"}""" }
+        }]}}
+        """.trimIndent()
 
     @Test
     fun decadesComeFromTheSectionsDecadeIndexInServerOrder() {
@@ -643,9 +683,9 @@ class PlexBrowseRepositoryTest {
         assertEquals(
             listOf(
                 Constants.DECADE_ID + DecadeKey.of(scope(), "2000"),
-                Constants.DECADE_ID + DecadeKey.of(scope(), "1990")
+                Constants.DECADE_ID + DecadeKey.of(scope(), "1990"),
             ),
-            result.value!!.map { it.mediaId }
+            result.value!!.map { it.mediaId },
         )
         // Server order is preserved -- Plex returns newest first, which is the
         // order the car should show, so nothing re-sorts it.
@@ -671,17 +711,21 @@ class PlexBrowseRepositoryTest {
 
         val result = await(PlexBrowseRepository().getDecades(Constants.DECADE_ID))
 
-        val artwork = result.value!!.single().mediaMetadata.artworkUri!!
+        val artwork =
+            result.value!!
+                .single()
+                .mediaMetadata.artworkUri!!
         assertEquals(AlbumArtContentProvider.AUTHORITY, artwork.authority)
         assertEquals(
             listOf(AlbumArtContentProvider.DECADE_ART, scope(), "2000"),
-            artwork.pathSegments.dropLast(1)
+            artwork.pathSegments.dropLast(1),
         )
         assertTrue(
             "artwork bucket must be live: $artwork",
             CompositeArtBucket.isLive(
-                artwork.lastPathSegment!!.toLong(), System.currentTimeMillis()
-            )
+                artwork.lastPathSegment!!.toLong(),
+                System.currentTimeMillis(),
+            ),
         )
     }
 
@@ -697,8 +741,7 @@ class PlexBrowseRepositoryTest {
      * -- a payload scoped to some *other* library -- has its own tests below,
      * where a foreign scope is the point rather than an accident.
      */
-    private fun hubKey(rawKey: String = "/library/sections/7/all?type=9"): String =
-        HubKey.of(scope(), rawKey)
+    private fun hubKey(rawKey: String = "/library/sections/7/all?type=9"): String = HubKey.of(scope(), rawKey)
 
     @Test
     fun directoriesOfReturnsEmptyForAnAbsentOrEmptyContainer() {
@@ -791,8 +834,8 @@ class PlexBrowseRepositoryTest {
                   {"hubIdentifier":"music.evil.7","title":"Elsewhere",
                    "type":"album","size":6,"key":"https://elsewhere.example/x"}
                 ]}}
-                """.trimIndent()
-            )
+                """.trimIndent(),
+            ),
         )
 
         val result = await(PlexBrowseRepository().getHubs(Constants.HUB_ID))
@@ -800,10 +843,15 @@ class PlexBrowseRepositoryTest {
         val request = server.takeRequest()
         assertEquals("/hubs/sections/1", request.requestUrl?.encodedPath)
         assertEquals(1, result.value!!.size)
-        assertEquals("Recently Added", result.value!!.single().mediaMetadata.title)
+        assertEquals(
+            "Recently Added",
+            result.value!!
+                .single()
+                .mediaMetadata.title,
+        )
         assertEquals(
             Constants.HUB_ID + HubKey.of(scope(), "/library/sections/7/all?type=9"),
-            result.value!!.single().mediaId
+            result.value!!.single().mediaId,
         )
     }
 
@@ -834,23 +882,27 @@ class PlexBrowseRepositoryTest {
                    "type":"album","size":1,"key":"/library/sections/7/all?type=9",
                    "Metadata":[{"ratingKey":"51","thumb":"/library/metadata/51/thumb/1"}]}
                 ]}}
-                """.trimIndent()
-            )
+                """.trimIndent(),
+            ),
         )
 
         val result = await(PlexBrowseRepository().getHubs(Constants.HUB_ID))
 
-        val artwork = result.value!!.single().mediaMetadata.artworkUri!!
+        val artwork =
+            result.value!!
+                .single()
+                .mediaMetadata.artworkUri!!
         assertEquals(AlbumArtContentProvider.AUTHORITY, artwork.authority)
         assertEquals(
             listOf(AlbumArtContentProvider.HUB_ART, scope()),
-            artwork.pathSegments.take(2)
+            artwork.pathSegments.take(2),
         )
         assertTrue(
             "artwork bucket must be live: $artwork",
             CompositeArtBucket.isLive(
-                artwork.pathSegments[2].toLong(), System.currentTimeMillis()
-            )
+                artwork.pathSegments[2].toLong(),
+                System.currentTimeMillis(),
+            ),
         )
     }
 
@@ -875,8 +927,8 @@ class PlexBrowseRepositoryTest {
                   {"hubIdentifier":"music.touring.7","title":"Artists on Tour",
                    "type":"artist","size":0,"key":"/library/sections/7/all?type=8"}
                 ]}}
-                """.trimIndent()
-            )
+                """.trimIndent(),
+            ),
         )
 
         val result = await(PlexBrowseRepository().getHubs(Constants.HUB_ID))
@@ -886,30 +938,31 @@ class PlexBrowseRepositoryTest {
         assertTrue(items[0].mediaId.startsWith(Constants.PICK_MESSAGE_ID))
         assertEquals(
             App.getContext().getString(R.string.browse_discover_empty),
-            items[0].mediaMetadata.title
+            items[0].mediaMetadata.title,
         )
         assertEquals(
             App.getContext().getString(R.string.browse_discover_empty_hint),
-            items[0].mediaMetadata.artist
+            items[0].mediaMetadata.artist,
         )
     }
 
     // ── getHubContent / getHubTracksForShuffle / getHubTracksForIds ─────
 
-    private fun hubItemsBody(vararg items: Pair<String, String>) = """
+    private fun hubItemsBody(vararg items: Pair<String, String>) =
+        """
         {"MediaContainer":{"Metadata":[${
-        items.joinToString(",") { (ratingKey, type) ->
-            """{"ratingKey":"$ratingKey","type":"$type","title":"$ratingKey"}"""
-        }
-    }]}}
-    """.trimIndent()
+            items.joinToString(",") { (ratingKey, type) ->
+                """{"ratingKey":"$ratingKey","type":"$type","title":"$ratingKey"}"""
+            }
+        }]}}
+        """.trimIndent()
 
     @Test
     fun opensAHubOnItsMixRowThenItsContainers() {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
-                hubItemsBody("111" to "album", "222" to "artist")
-            )
+                hubItemsBody("111" to "album", "222" to "artist"),
+            ),
         )
 
         val result = await(PlexBrowseRepository().getHubContent(hubKey()))
@@ -939,9 +992,10 @@ class PlexBrowseRepositoryTest {
         // safety guard rather than the library-switch guard tested below --
         // the two are different failures with different renderings, and this
         // test is about the one that has always errored.
-        val result = await(
-            PlexBrowseRepository().getHubContent(hubKey("https://elsewhere.example/x"))
-        )
+        val result =
+            await(
+                PlexBrowseRepository().getHubContent(hubKey("https://elsewhere.example/x")),
+            )
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
         assertEquals(0, server.requestCount)
@@ -969,7 +1023,7 @@ class PlexBrowseRepositoryTest {
         assertEquals(
             "a stale scope must never reach the server -- it may not even own this section",
             0,
-            server.requestCount
+            server.requestCount,
         )
     }
 
@@ -1002,10 +1056,10 @@ class PlexBrowseRepositoryTest {
     @Test
     fun theShuffleVariantCarriesNoMixRow() {
         server.enqueue(
-            MockResponse().setResponseCode(200).setBody(hubItemsBody("111" to "album"))
+            MockResponse().setResponseCode(200).setBody(hubItemsBody("111" to "album")),
         )
         server.enqueue(
-            MockResponse().setResponseCode(200).setBody(tracksBody("900"))
+            MockResponse().setResponseCode(200).setBody(tracksBody("900")),
         )
 
         val result = await(PlexBrowseRepository().getHubTracksForShuffle(hubKey()))
@@ -1020,8 +1074,8 @@ class PlexBrowseRepositoryTest {
     fun theShuffleVariantFiltersTheSecondRequestByTheFirstResponsesContainers() {
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
-                hubItemsBody("111" to "album", "222" to "artist")
-            )
+                hubItemsBody("111" to "album", "222" to "artist"),
+            ),
         )
         server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("900")))
 
@@ -1060,7 +1114,7 @@ class PlexBrowseRepositoryTest {
     @Test
     fun theShuffleVariantsSecondRequestFailureReachesTheCaller() {
         server.enqueue(
-            MockResponse().setResponseCode(200).setBody(hubItemsBody("111" to "album"))
+            MockResponse().setResponseCode(200).setBody(hubItemsBody("111" to "album")),
         )
         server.enqueue(MockResponse().setResponseCode(500))
 
@@ -1085,8 +1139,10 @@ class PlexBrowseRepositoryTest {
     fun getHubTracksForIdsWithNoSectionSelectedReturnsPermissionDenied() {
         PlexApi().musicSectionKey = null
 
-        val result = PlexBrowseRepository().getHubTracksForIds(listOf("1"), emptyList())
-            .get(2, TimeUnit.SECONDS)
+        val result =
+            PlexBrowseRepository()
+                .getHubTracksForIds(listOf("1"), emptyList())
+                .get(2, TimeUnit.SECONDS)
 
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }

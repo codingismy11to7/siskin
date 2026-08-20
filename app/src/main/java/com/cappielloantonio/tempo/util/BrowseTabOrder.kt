@@ -13,7 +13,6 @@ package com.cappielloantonio.tempo.util
  * See docs/decisions/2026-08-14-customizable-browse-tabs-design.md.
  */
 object BrowseTabOrder {
-
     /**
      * The car renders four root children and silently drops a fifth, and the
      * fourth is always More -- so three are the user's to choose.
@@ -35,13 +34,14 @@ object BrowseTabOrder {
      * an upgrade gets it last -- because inserting it at that rank for an
      * existing user could demote a tab they deliberately chose. See the spec.
      */
-    val DEFAULT_ORDER: List<String> = listOf(
-        Constants.PLAYLIST_ID,
-        Constants.ARTISTS_ID,
-        Constants.ALBUMS_ID,
-        Constants.DISCOVER_ID,
-        Constants.DECADES_ID
-    )
+    val DEFAULT_ORDER: List<String> =
+        listOf(
+            Constants.PLAYLIST_ID,
+            Constants.ARTISTS_ID,
+            Constants.ALBUMS_ID,
+            Constants.DISCOVER_ID,
+            Constants.DECADES_ID,
+        )
 
     /**
      * Reconciles what was saved with what this build actually knows.
@@ -59,7 +59,10 @@ object BrowseTabOrder {
      *
      * Duplicates in a corrupt save collapse to the first occurrence.
      */
-    fun resolve(saved: List<String>, known: List<String> = DEFAULT_ORDER): List<String> {
+    fun resolve(
+        saved: List<String>,
+        known: List<String> = DEFAULT_ORDER,
+    ): List<String> {
         val kept = saved.distinct().filter { known.contains(it) }
         return kept + known.filterNot { kept.contains(it) }
     }

@@ -28,7 +28,6 @@ import java.io.FileNotFoundException
  */
 @RunWith(RobolectricTestRunner::class)
 class AlbumArtContentProviderTest {
-
     private lateinit var provider: AlbumArtContentProvider
 
     @Before
@@ -44,7 +43,8 @@ class AlbumArtContentProviderTest {
         // The account token goes through PlexApi rather than the raw
         // preference key: it now lives in the system account, not preferences.
         val context = App.getContext()
-        context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
+        context
+            .getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
             .edit()
             .putString("plex_server_uri", "https://plex.example")
             .putString("plex_music_section_key", "4")
@@ -88,7 +88,7 @@ class AlbumArtContentProviderTest {
             "http://internal-host/secret",
             "https://internal-host/secret",
             "//internal-host/secret",
-            "library/metadata/42/thumb/1"
+            "library/metadata/42/thumb/1",
         ).forEach { hostile ->
             assertThrows(hostile, FileNotFoundException::class.java) {
                 provider.openFile(AlbumArtContentProvider.contentUri(hostile), "r")
@@ -111,10 +111,11 @@ class AlbumArtContentProviderTest {
      */
     @Test
     fun acceptsARealPlexThumbPath() {
-        val descriptor = provider.openFile(
-            AlbumArtContentProvider.contentUri("/library/metadata/1234/thumb/1699999999"),
-            "r"
-        )
+        val descriptor =
+            provider.openFile(
+                AlbumArtContentProvider.contentUri("/library/metadata/1234/thumb/1699999999"),
+                "r",
+            )
 
         assertNotNull(descriptor)
         descriptor!!.close()
@@ -140,16 +141,24 @@ class AlbumArtContentProviderTest {
         // one of those two.
         val live = CompositeArtBucket.current(System.currentTimeMillis())
 
-        val hostile = listOf(
-            "..", "../..", "198", "19800", "abcd", "19 0", "", "%2e%2e",
-            // The one that actually escapes: Uri.getPathSegments() decodes
-            // percent-escapes, so this arrives as the single segment
-            // "/../../evil" -- the UriMatcher's `*` accepts a segment
-            // containing a decoded separator, and unguarded that would put
-            // "/../../evil" straight into the cache filename, resolving
-            // above cacheDir.
-            "%2f..%2f..%2fevil",
-        )
+        val hostile =
+            listOf(
+                "..",
+                "../..",
+                "198",
+                "19800",
+                "abcd",
+                "19 0",
+                "",
+                "%2e%2e",
+                // The one that actually escapes: Uri.getPathSegments() decodes
+                // percent-escapes, so this arrives as the single segment
+                // "/../../evil" -- the UriMatcher's `*` accepts a segment
+                // containing a decoded separator, and unguarded that would put
+                // "/../../evil" straight into the cache filename, resolving
+                // above cacheDir.
+                "%2f..%2f..%2fevil",
+            )
 
         // Collected rather than asserted one at a time, so removing the guard
         // reports every segment that got through. Only the last of these is
@@ -163,20 +172,22 @@ class AlbumArtContentProviderTest {
         // and disarm the one case that carries this test's weight. The scope
         // is the live one, so it is the decade guard that has to do the
         // refusing here and not the scope check.
-        val accepted = hostile.filter { segment ->
-            try {
-                provider.openFile(
-                    Uri.parse(
-                        "content://${AlbumArtContentProvider.AUTHORITY}/" +
-                            "${AlbumArtContentProvider.DECADE_ART}/${scope()}/$segment/$live"
-                    ),
-                    "r"
-                )?.close()
-                true
-            } catch (_: FileNotFoundException) {
-                false
+        val accepted =
+            hostile.filter { segment ->
+                try {
+                    provider
+                        .openFile(
+                            Uri.parse(
+                                "content://${AlbumArtContentProvider.AUTHORITY}/" +
+                                    "${AlbumArtContentProvider.DECADE_ART}/${scope()}/$segment/$live",
+                            ),
+                            "r",
+                        )?.close()
+                    true
+                } catch (_: FileNotFoundException) {
+                    false
+                }
             }
-        }
 
         assertEquals(emptyList<String>(), accepted)
     }
@@ -191,7 +202,8 @@ class AlbumArtContentProviderTest {
         listOf(live - 2, live + 1, 0L).forEach { bucket ->
             assertThrows("bucket=$bucket", FileNotFoundException::class.java) {
                 provider.openFile(
-                    AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket), "r"
+                    AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket),
+                    "r",
                 )
             }
         }
@@ -211,9 +223,11 @@ class AlbumArtContentProviderTest {
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         writeCachedComposite("1980", bucket, bytes = 3)
 
-        val descriptor = provider.openFile(
-            AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket), "r"
-        )
+        val descriptor =
+            provider.openFile(
+                AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket),
+                "r",
+            )
 
         assertNotNull(descriptor)
         assertEquals(3L, descriptor!!.statSize)
@@ -244,15 +258,19 @@ class AlbumArtContentProviderTest {
         // Every decade is opened before anything is asserted, so a narrowed
         // pattern names all of the decades it broke rather than only the first
         // one the loop reached.
-        val served: Map<String, Any?> = sizes.keys.associateWith { decade ->
-            try {
-                provider.openFile(
-                    AlbumArtContentProvider.decadeContentUri(scope(), decade, bucket), "r"
-                )!!.use { it.statSize }
-            } catch (e: FileNotFoundException) {
-                "refused: ${e.message}"
+        val served: Map<String, Any?> =
+            sizes.keys.associateWith { decade ->
+                try {
+                    provider
+                        .openFile(
+                            AlbumArtContentProvider.decadeContentUri(scope(), decade, bucket),
+                            "r",
+                        )!!
+                        .use { it.statSize }
+                } catch (e: FileNotFoundException) {
+                    "refused: ${e.message}"
+                }
             }
-        }
 
         assertEquals(sizes.mapValues { (_, bytes) -> bytes.toLong() }, served)
     }
@@ -263,7 +281,7 @@ class AlbumArtContentProviderTest {
 
         assertEquals(
             listOf(AlbumArtContentProvider.DECADE_ART, "abc123def456-4", "1980", "487234"),
-            uri.pathSegments
+            uri.pathSegments,
         )
     }
 
@@ -283,7 +301,7 @@ class AlbumArtContentProviderTest {
     fun twoLibrariesMintDifferentUrisForTheSameDecadeAndBucket() {
         assertNotEquals(
             AlbumArtContentProvider.decadeContentUri("serverA-4", "1980", 487234L),
-            AlbumArtContentProvider.decadeContentUri("serverB-4", "1980", 487234L)
+            AlbumArtContentProvider.decadeContentUri("serverB-4", "1980", 487234L),
         )
     }
 
@@ -305,13 +323,17 @@ class AlbumArtContentProviderTest {
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         writeCachedComposite("1980", bucket, bytes = 3)
 
-        provider.openFile(
-            AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket), "r"
-        )!!.use { assertEquals(3L, it.statSize) }
+        provider
+            .openFile(
+                AlbumArtContentProvider.decadeContentUri(scope(), "1980", bucket),
+                "r",
+            )!!
+            .use { assertEquals(3L, it.statSize) }
 
         assertThrows(FileNotFoundException::class.java) {
             provider.openFile(
-                AlbumArtContentProvider.decadeContentUri("f00dcafe-9", "1980", bucket), "r"
+                AlbumArtContentProvider.decadeContentUri("f00dcafe-9", "1980", bucket),
+                "r",
             )
         }
     }
@@ -324,7 +346,7 @@ class AlbumArtContentProviderTest {
 
         assertEquals(
             listOf("hubArt", "abc123def456-4", "487234", HubCoverPool.encode(hubPool)),
-            uri.pathSegments
+            uri.pathSegments,
         )
         // The pool survives as one segment with its slashes intact, which is
         // the property openAlbumArt already relies on and the reason the pool
@@ -336,7 +358,7 @@ class AlbumArtContentProviderTest {
     fun twoLibrariesMintDifferentUrisForTheSamePoolAndBucket() {
         assertNotEquals(
             AlbumArtContentProvider.hubContentUri("serverA-4", 487234L, hubPool),
-            AlbumArtContentProvider.hubContentUri("serverB-4", 487234L, hubPool)
+            AlbumArtContentProvider.hubContentUri("serverB-4", 487234L, hubPool),
         )
     }
 
@@ -348,9 +370,11 @@ class AlbumArtContentProviderTest {
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         writeCachedHubComposite(hubPool, bucket, bytes = 321)
 
-        provider.openFile(
-            AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool), "r"
-        ).use { assertEquals(321L, it!!.statSize) }
+        provider
+            .openFile(
+                AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool),
+                "r",
+            ).use { assertEquals(321L, it!!.statSize) }
     }
 
     @Test
@@ -360,7 +384,8 @@ class AlbumArtContentProviderTest {
 
         assertThrows(FileNotFoundException::class.java) {
             provider.openFile(
-                AlbumArtContentProvider.hubContentUri("f00dcafe-9", bucket, hubPool), "r"
+                AlbumArtContentProvider.hubContentUri("f00dcafe-9", bucket, hubPool),
+                "r",
             )
         }
     }
@@ -371,7 +396,8 @@ class AlbumArtContentProviderTest {
         listOf(current - 2, current + 1).forEach { bucket ->
             assertThrows(FileNotFoundException::class.java) {
                 provider.openFile(
-                    AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool), "r"
+                    AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool),
+                    "r",
                 )
             }
         }
@@ -384,17 +410,19 @@ class AlbumArtContentProviderTest {
         // still be handed a tile; refusing whole costs real traffic nothing,
         // because a pool this app minted is valid in every position.
         val bucket = CompositeArtBucket.current(System.currentTimeMillis())
-        val hostile = listOf(
-            "https://evil.example/x",       // absolute, the open-proxy shape
-            "//evil.example/x",             // protocol-relative
-            "/\\evil.example/x",            // OkHttp normalises the backslash
-            "library/metadata/1/thumb/1",   // not rooted
-            ""                              // a blank component
-        )
+        val hostile =
+            listOf(
+                "https://evil.example/x", // absolute, the open-proxy shape
+                "//evil.example/x", // protocol-relative
+                "/\\evil.example/x", // OkHttp normalises the backslash
+                "library/metadata/1/thumb/1", // not rooted
+                "", // a blank component
+            )
         hostile.forEach { bad ->
             assertThrows(bad, FileNotFoundException::class.java) {
                 provider.openFile(
-                    AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool + bad), "r"
+                    AlbumArtContentProvider.hubContentUri(scope(), bucket, hubPool + bad),
+                    "r",
                 )
             }
         }
@@ -410,7 +438,8 @@ class AlbumArtContentProviderTest {
 
         assertThrows(FileNotFoundException::class.java) {
             provider.openFile(
-                AlbumArtContentProvider.hubContentUri(scope(), bucket, tooMany), "r"
+                AlbumArtContentProvider.hubContentUri(scope(), bucket, tooMany),
+                "r",
             )
         }
     }
@@ -426,9 +455,11 @@ class AlbumArtContentProviderTest {
         val six = (1..HubCoverPool.MAX).map { "/library/metadata/$it/thumb/170000000$it" }
         writeCachedHubComposite(six, bucket, bytes = 654)
 
-        provider.openFile(
-            AlbumArtContentProvider.hubContentUri(scope(), bucket, six), "r"
-        ).use { assertEquals(654L, it!!.statSize) }
+        provider
+            .openFile(
+                AlbumArtContentProvider.hubContentUri(scope(), bucket, six),
+                "r",
+            ).use { assertEquals(654L, it!!.statSize) }
     }
 
     @Test
@@ -455,10 +486,11 @@ class AlbumArtContentProviderTest {
         val decoded = listOf("/../../evil")
         writeCachedHubComposite(decoded, bucket, bytes = 222)
 
-        val uri = Uri.parse(
-            "content://" + AlbumArtContentProvider.AUTHORITY +
-                "/hubArt/" + scope() + "/" + bucket + "/%2f..%2f..%2fevil"
-        )
+        val uri =
+            Uri.parse(
+                "content://" + AlbumArtContentProvider.AUTHORITY +
+                    "/hubArt/" + scope() + "/" + bucket + "/%2f..%2f..%2fevil",
+            )
 
         provider.openFile(uri, "r").use { assertEquals(222L, it!!.statSize) }
     }
@@ -473,24 +505,38 @@ class AlbumArtContentProviderTest {
      * with [MACHINE_IDENTIFIER], matching what setUp() wrote as the signed-in
      * session's, so the provider's read of the session resolves to the same
      * cache file this writes. */
-    private fun writeCachedComposite(decade: String, bucket: Long, bytes: Int) {
+    private fun writeCachedComposite(
+        decade: String,
+        bucket: Long,
+        bytes: Int,
+    ) {
         val file = CompositeArt.cacheFile(App.getContext(), MACHINE_IDENTIFIER, "4", decade, bucket)
         file.parentFile!!.mkdirs()
         file.writeBytes(ByteArray(bytes))
     }
 
-    private fun writeCachedHubComposite(pool: List<String>, bucket: Long, bytes: Int) {
-        val file = CompositeArt.cacheFile(
-            App.getContext(), MACHINE_IDENTIFIER, "4", HubCompositeArt.idFor(pool), bucket
-        )
+    private fun writeCachedHubComposite(
+        pool: List<String>,
+        bucket: Long,
+        bytes: Int,
+    ) {
+        val file =
+            CompositeArt.cacheFile(
+                App.getContext(),
+                MACHINE_IDENTIFIER,
+                "4",
+                HubCompositeArt.idFor(pool),
+                bucket,
+            )
         file.parentFile?.mkdirs()
         file.writeBytes(ByteArray(bytes))
     }
 
-    private val hubPool = listOf(
-        "/library/metadata/51/thumb/1699999999",
-        "/library/metadata/77/thumb/1700000000"
-    )
+    private val hubPool =
+        listOf(
+            "/library/metadata/51/thumb/1699999999",
+            "/library/metadata/77/thumb/1700000000",
+        )
 
     private companion object {
         /** The signed-in session's machine identifier, per setUp(). */

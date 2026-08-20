@@ -13,7 +13,6 @@ import java.util.UUID
  * ties the PIN grant to it, so regenerating it silently invalidates the session.
  */
 class PlexApi {
-
     private val preferences get() = App.getInstance().preferences
 
     /**
@@ -27,11 +26,12 @@ class PlexApi {
 
     /** Stable per install; generated once on first use. */
     val clientIdentifier: String
-        get() = synchronized(IDENTITY_LOCK) {
-            preferences.getString(KEY_CLIENT_ID, null) ?: UUID.randomUUID().toString().also {
-                preferences.edit().putString(KEY_CLIENT_ID, it).apply()
+        get() =
+            synchronized(IDENTITY_LOCK) {
+                preferences.getString(KEY_CLIENT_ID, null) ?: UUID.randomUUID().toString().also {
+                    preferences.edit().putString(KEY_CLIENT_ID, it).apply()
+                }
             }
-        }
 
     /** From the approved PIN. Authenticates plex.tv calls. */
     var accountToken: String?
@@ -105,9 +105,14 @@ class PlexApi {
      * considered".
      */
     var session: PlexSession?
-        get() = PlexSession.from(
-            accountToken, serverUri, musicSectionKey, serverToken, machineIdentifier
-        )
+        get() =
+            PlexSession.from(
+                accountToken,
+                serverUri,
+                musicSectionKey,
+                serverToken,
+                machineIdentifier,
+            )
         set(value) {
             // Read before the preferences write below overwrites it. Switching
             // servers has to clear the previous one's access token: the tag
@@ -121,17 +126,19 @@ class PlexApi {
             // explicit arguments rather than re-reading the machineIdentifier
             // property, so nothing here depends on this edit having landed
             // yet -- only previousMachineIdentifier, captured above, does.
-            preferences.edit().apply {
-                if (value == null) {
-                    remove(KEY_SERVER_URI)
-                    remove(KEY_MUSIC_SECTION_KEY)
-                    remove(KEY_MACHINE_IDENTIFIER)
-                } else {
-                    putString(KEY_SERVER_URI, value.serverUri)
-                    putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
-                    putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
-                }
-            }.apply()
+            preferences
+                .edit()
+                .apply {
+                    if (value == null) {
+                        remove(KEY_SERVER_URI)
+                        remove(KEY_MUSIC_SECTION_KEY)
+                        remove(KEY_MACHINE_IDENTIFIER)
+                    } else {
+                        putString(KEY_SERVER_URI, value.serverUri)
+                        putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
+                        putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
+                    }
+                }.apply()
 
             if (value == null) {
                 // Clearing the session deliberately leaves accountToken alone --
@@ -157,10 +164,12 @@ class PlexApi {
      * rather than from Preferences: the head unit's language is the car's
      * setting, and this app has no language setting of its own.
      */
-    val language: String get() = java.util.Locale.getDefault().language
+    val language: String get() =
+        java.util.Locale
+            .getDefault()
+            .language
 
-    fun plexTvHeaders(): Map<String, String> =
-        PlexIdentity.headers(clientIdentifier, appVersion, accountToken, language)
+    fun plexTvHeaders(): Map<String, String> = PlexIdentity.headers(clientIdentifier, appVersion, accountToken, language)
 
     companion object {
         private const val KEY_CLIENT_ID = "plex_client_identifier"
@@ -183,7 +192,9 @@ class PlexApi {
          * PlexApi itself reads SharedPreferences, which unit tests cannot observe.
          */
         @JvmStatic
-        fun serverTokenOrAccount(serverToken: String?, accountToken: String?): String? =
-            if (serverToken.isNullOrBlank()) accountToken else serverToken
+        fun serverTokenOrAccount(
+            serverToken: String?,
+            accountToken: String?,
+        ): String? = if (serverToken.isNullOrBlank()) accountToken else serverToken
     }
 }

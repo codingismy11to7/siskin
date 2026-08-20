@@ -6,7 +6,5 @@ import android.os.IBinder
 
 /** How the system reaches [PlexAuthenticator]; it binds this and nothing else. */
 class PlexAuthenticatorService : Service() {
-
-    override fun onBind(intent: Intent?): IBinder =
-        PlexAuthenticator(this).iBinder
+    override fun onBind(intent: Intent?): IBinder = PlexAuthenticator(this).iBinder
 }

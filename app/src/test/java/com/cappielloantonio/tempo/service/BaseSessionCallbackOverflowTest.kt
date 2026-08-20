@@ -27,30 +27,31 @@ import org.robolectric.RuntimeEnvironment
  */
 @RunWith(RobolectricTestRunner::class)
 class BaseSessionCallbackOverflowTest {
-
     private fun overflowOf(player: Player): List<String> {
-        val callback = object : BaseSessionCallback(RuntimeEnvironment.getApplication(), mock()) {
-            fun overflow() = buildMediaButtonPreferences(player)
-        }
+        val callback =
+            object : BaseSessionCallback(RuntimeEnvironment.getApplication(), mock()) {
+                fun overflow() = buildMediaButtonPreferences(player)
+            }
         return callback.overflow().map { it.sessionCommand!!.customAction }
     }
 
     private fun player(
         repeatMode: Int = Player.REPEAT_MODE_OFF,
-        shuffle: Boolean = false
-    ): Player = mock<Player>().also {
-        whenever(it.repeatMode).thenReturn(repeatMode)
-        whenever(it.shuffleModeEnabled).thenReturn(shuffle)
-    }
+        shuffle: Boolean = false,
+    ): Player =
+        mock<Player>().also {
+            whenever(it.repeatMode).thenReturn(repeatMode)
+            whenever(it.shuffleModeEnabled).thenReturn(shuffle)
+        }
 
     @Test
     fun theOverflowIsRepeatThenShuffle() {
         assertEquals(
             listOf(
                 Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_OFF,
-                Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON
+                Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_ON,
             ),
-            overflowOf(player())
+            overflowOf(player()),
         )
     }
 
@@ -61,9 +62,9 @@ class BaseSessionCallbackOverflowTest {
         assertEquals(
             listOf(
                 Constants.CUSTOM_COMMAND_TOGGLE_REPEAT_MODE_ALL,
-                Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF
+                Constants.CUSTOM_COMMAND_TOGGLE_SHUFFLE_MODE_OFF,
             ),
-            overflowOf(player(repeatMode = Player.REPEAT_MODE_ALL, shuffle = true))
+            overflowOf(player(repeatMode = Player.REPEAT_MODE_ALL, shuffle = true)),
         )
     }
 
@@ -71,11 +72,12 @@ class BaseSessionCallbackOverflowTest {
     fun noRatingButtonIsOfferedAtAll() {
         // The regression this catches is a heart coming back beside the car's own
         // control, which is the redundancy the 2026-08-02 design removed.
-        val everyState = listOf(
-            player(),
-            player(repeatMode = Player.REPEAT_MODE_ONE),
-            player(repeatMode = Player.REPEAT_MODE_ALL, shuffle = true)
-        ).flatMap { overflowOf(it) }
+        val everyState =
+            listOf(
+                player(),
+                player(repeatMode = Player.REPEAT_MODE_ONE),
+                player(repeatMode = Player.REPEAT_MODE_ALL, shuffle = true),
+            ).flatMap { overflowOf(it) }
 
         assertEquals(emptyList<String>(), everyState.filter { "HEART" in it })
     }
@@ -85,11 +87,12 @@ class BaseSessionCallbackOverflowTest {
         // The ⊖ half of the old pair had no branch in onCustomCommand and returned
         // ERROR_NOT_SUPPORTED; the ⚡ half truncated the queue after the current
         // track on a single tap, in a menu used at speed. Neither comes back.
-        val everyState = listOf(
-            player(),
-            player(repeatMode = Player.REPEAT_MODE_ONE),
-            player(repeatMode = Player.REPEAT_MODE_ALL, shuffle = true)
-        ).flatMap { overflowOf(it) }
+        val everyState =
+            listOf(
+                player(),
+                player(repeatMode = Player.REPEAT_MODE_ONE),
+                player(repeatMode = Player.REPEAT_MODE_ALL, shuffle = true),
+            ).flatMap { overflowOf(it) }
 
         assertEquals(emptyList<String>(), everyState.filter { "INSTANT_MIX" in it })
     }

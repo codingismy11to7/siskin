@@ -16,5 +16,5 @@ data class CreatedPin(
     /** Null when Plex omitted it or sent it blank; the screen shows the code alone. */
     val qrUrl: String?,
     /** Null when absent or unparseable; PlexPinState.shouldKeepPolling bounds the loop. */
-    val expiresAtEpochSeconds: Long?
+    val expiresAtEpochSeconds: Long?,
 )

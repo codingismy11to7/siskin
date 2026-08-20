@@ -9,7 +9,10 @@ import com.cappielloantonio.tempo.plex.models.Directory
  * PlexMediaMapperTest and PlexMediaMapperAssemblyTest, which both build one to
  * exercise the mapper from a different angle.
  */
-fun decade(key: String? = "1980", title: String? = "1980s") = Directory().apply {
+fun decade(
+    key: String? = "1980",
+    title: String? = "1980s",
+) = Directory().apply {
     this.key = key
     this.title = title
 }

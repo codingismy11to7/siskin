@@ -20,18 +20,18 @@ import org.robolectric.RobolectricTestRunner
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class BrowseTabOrderMoveTest {
-
     @Before
     fun setUp() = BrowseTabOrderFixture.clearSavedOrder()
 
     @Test
     fun `dragging a row down moves it and shifts the rest up`() {
-        val order = mutableListOf(
-            Constants.PLAYLIST_ID,
-            Constants.ARTISTS_ID,
-            Constants.ALBUMS_ID,
-            Constants.DECADES_ID
-        )
+        val order =
+            mutableListOf(
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.DECADES_ID,
+            )
 
         BrowseTabOrderFragment.moveAndPersist(order, 0, 2)
 
@@ -40,20 +40,21 @@ class BrowseTabOrderMoveTest {
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
                 Constants.PLAYLIST_ID,
-                Constants.DECADES_ID
+                Constants.DECADES_ID,
             ),
-            order
+            order,
         )
     }
 
     @Test
     fun `dragging a row up from More promotes it into the tabs`() {
-        val order = mutableListOf(
-            Constants.PLAYLIST_ID,
-            Constants.ARTISTS_ID,
-            Constants.ALBUMS_ID,
-            Constants.DECADES_ID
-        )
+        val order =
+            mutableListOf(
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.DECADES_ID,
+            )
 
         BrowseTabOrderFragment.moveAndPersist(order, 3, 0)
 
@@ -70,17 +71,18 @@ class BrowseTabOrderMoveTest {
      */
     @Test
     fun `the move is persisted immediately`() {
-        val order = mutableListOf(
-            Constants.PLAYLIST_ID,
-            Constants.ARTISTS_ID,
-            Constants.ALBUMS_ID
-        )
+        val order =
+            mutableListOf(
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+            )
 
         BrowseTabOrderFragment.moveAndPersist(order, 2, 0)
 
         assertEquals(
             listOf(Constants.ALBUMS_ID, Constants.PLAYLIST_ID, Constants.ARTISTS_ID),
-            Preferences.getBrowseTabOrder()
+            Preferences.getBrowseTabOrder(),
         )
     }
 
@@ -93,35 +95,37 @@ class BrowseTabOrderMoveTest {
      */
     @Test
     fun `a NO_POSITION move is rejected and leaves the order untouched`() {
-        val order = mutableListOf(
-            Constants.PLAYLIST_ID,
-            Constants.ARTISTS_ID,
-            Constants.ALBUMS_ID
-        )
+        val order =
+            mutableListOf(
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+            )
 
         val moved = BrowseTabOrderFragment.moveIfValid(order, RecyclerView.NO_POSITION, 0)
 
         assertFalse(moved)
         assertEquals(
             listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
-            order
+            order,
         )
     }
 
     @Test
     fun `a NO_POSITION to is rejected and leaves the order untouched`() {
-        val order = mutableListOf(
-            Constants.PLAYLIST_ID,
-            Constants.ARTISTS_ID,
-            Constants.ALBUMS_ID
-        )
+        val order =
+            mutableListOf(
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+            )
 
         val moved = BrowseTabOrderFragment.moveIfValid(order, 0, RecyclerView.NO_POSITION)
 
         assertFalse(moved)
         assertEquals(
             listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
-            order
+            order,
         )
     }
 }

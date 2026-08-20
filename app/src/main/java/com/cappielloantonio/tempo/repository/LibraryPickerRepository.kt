@@ -12,7 +12,6 @@ import androidx.media3.session.SessionError
 import arrow.core.getOrElse
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.util.ResourceUris
 import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexIdentity
@@ -26,14 +25,15 @@ import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.CarSignInResolution
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.ResourceUris
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "LibraryPickerRepository"
 
@@ -48,7 +48,6 @@ private const val TAG = "LibraryPickerRepository"
  */
 @OptIn(UnstableApi::class)
 class LibraryPickerRepository {
-
     private val api = PlexApi()
     private val authClient = AuthClient(api)
     private val addressBook = ServerAddressBook.shared
@@ -96,11 +95,11 @@ class LibraryPickerRepository {
      * failure. See [messageRow] for why this is not a [LibraryResult] error.
      */
     private fun messageResult(
-        @StringRes messageRes: Int
+        @StringRes messageRes: Int,
     ): LibraryResult<ImmutableList<MediaItem>> =
         LibraryResult.ofItemList(
             ImmutableList.of(messageRow(App.getContext().getString(messageRes))),
-            null
+            null,
         )
 
     fun getServers(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
@@ -120,18 +119,20 @@ class LibraryPickerRepository {
                     },
                     { resources ->
                         val session = api.session
-                        val items = serverRows(resources).map { row ->
-                            browsableRow(
-                                mediaId = Constants.PICK_SERVER_ID + row.machineIdentifier,
-                                title = rowTitle(
-                                    row.name,
-                                    LibrarySelection.isCurrentServer(session, row.machineIdentifier)
-                                ),
-                                iconRes = R.drawable.ic_browse_server
-                            )
-                        }
+                        val items =
+                            serverRows(resources).map { row ->
+                                browsableRow(
+                                    mediaId = Constants.PICK_SERVER_ID + row.machineIdentifier,
+                                    title =
+                                        rowTitle(
+                                            row.name,
+                                            LibrarySelection.isCurrentServer(session, row.machineIdentifier),
+                                        ),
+                                    iconRes = R.drawable.ic_browse_server,
+                                )
+                            }
                         future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), null))
-                    }
+                    },
                 )
             } catch (t: Throwable) {
                 // Outside any either { } block, so this swallows no raise. media3
@@ -152,22 +153,26 @@ class LibraryPickerRepository {
                 // outage, a server that has left the account, and a server that
                 // will not answer are indistinguishable to the user if they all
                 // land on the car's generic failure screen.
-                val resources = authClient.getResources().getOrElse { failure ->
-                    Log.d(TAG, "could not re-list servers: $failure")
-                    future.set(messageResult(R.string.browse_library_picker_offline))
-                    return@launch
-                }
-                val resource = AuthClient.mediaServers(resources)
-                    .firstOrNull { it.clientIdentifier == machineIdentifier }
+                val resources =
+                    authClient.getResources().getOrElse { failure ->
+                        Log.d(TAG, "could not re-list servers: $failure")
+                        future.set(messageResult(R.string.browse_library_picker_offline))
+                        return@launch
+                    }
+                val resource =
+                    AuthClient
+                        .mediaServers(resources)
+                        .firstOrNull { it.clientIdentifier == machineIdentifier }
                 if (resource == null) {
                     Log.d(TAG, "server $machineIdentifier is no longer on the account")
                     future.set(messageResult(R.string.browse_library_picker_server_gone))
                     return@launch
                 }
 
-                val probe = ServerProbe(
-                    headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null, api.language)
-                )
+                val probe =
+                    ServerProbe(
+                        headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null, api.language),
+                    )
                 val uri = probe.bestConnectionUri(resource)
                 if (uri == null) {
                     Log.d(TAG, "no advertised connection answered for ${resource.name}")
@@ -177,16 +182,17 @@ class LibraryPickerRepository {
 
                 candidates[machineIdentifier] = uri to resource
 
-                val sections = LibraryClient(api, uri, resource.accessToken)
-                    .getSections()
-                    .getOrElse { failure ->
-                        // It answered ServerProbe a moment ago, so this is the
-                        // server going away mid-navigation rather than a wrong
-                        // address -- the same sentence either way.
-                        Log.d(TAG, "could not list sections for ${resource.name}: $failure")
-                        future.set(messageResult(R.string.browse_library_picker_server_unreachable))
-                        return@launch
-                    }
+                val sections =
+                    LibraryClient(api, uri, resource.accessToken)
+                        .getSections()
+                        .getOrElse { failure ->
+                            // It answered ServerProbe a moment ago, so this is the
+                            // server going away mid-navigation rather than a wrong
+                            // address -- the same sentence either way.
+                            Log.d(TAG, "could not list sections for ${resource.name}: $failure")
+                            future.set(messageResult(R.string.browse_library_picker_server_unreachable))
+                            return@launch
+                        }
                 val musicSections = LibraryClient.musicSections(sections)
                 if (musicSections.isEmpty()) {
                     // A photo-and-video-only server is a real answer rather than
@@ -196,22 +202,24 @@ class LibraryPickerRepository {
                     return@launch
                 }
                 val session = api.session
-                val items = musicSections.map { directory ->
-                    val key = directory.key.orEmpty()
-                    val payload = libraryIdPayload(machineIdentifier, key)
-                    val plainName = directory.title.orEmpty().ifBlank { "Library $key" }
-                    // Recorded before ticking so selectLibrary never has to
-                    // strip the tick back off later.
-                    libraryNames[payload] = plainName
-                    browsableRow(
-                        mediaId = Constants.PICK_LIBRARY_ID + payload,
-                        title = rowTitle(
-                            plainName,
-                            LibrarySelection.isCurrent(session, machineIdentifier, uri, key)
-                        ),
-                        iconRes = R.drawable.ic_browse_library
-                    )
-                }
+                val items =
+                    musicSections.map { directory ->
+                        val key = directory.key.orEmpty()
+                        val payload = libraryIdPayload(machineIdentifier, key)
+                        val plainName = directory.title.orEmpty().ifBlank { "Library $key" }
+                        // Recorded before ticking so selectLibrary never has to
+                        // strip the tick back off later.
+                        libraryNames[payload] = plainName
+                        browsableRow(
+                            mediaId = Constants.PICK_LIBRARY_ID + payload,
+                            title =
+                                rowTitle(
+                                    plainName,
+                                    LibrarySelection.isCurrent(session, machineIdentifier, uri, key),
+                                ),
+                            iconRes = R.drawable.ic_browse_library,
+                        )
+                    }
                 future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), null))
             } catch (t: Throwable) {
                 Log.w(TAG, "listing libraries failed", t)
@@ -257,20 +265,22 @@ class LibraryPickerRepository {
             // See its KDoc -- a plain ofError here is a dead end.
             future.set(
                 CarSignInResolution.errorResult(
-                    App.getContext(), R.string.car_sign_in_again
-                )
+                    App.getContext(),
+                    R.string.car_sign_in_again,
+                ),
             )
             return future
         }
 
         val previous = api.session
-        val next = PlexSession(
-            accountToken = accountToken,
-            serverUri = uri,
-            musicSectionKey = SectionKey(sectionKey),
-            serverToken = resource.accessToken,
-            machineIdentifier = resource.clientIdentifier
-        )
+        val next =
+            PlexSession(
+                accountToken = accountToken,
+                serverUri = uri,
+                musicSectionKey = SectionKey(sectionKey),
+                serverToken = resource.accessToken,
+                machineIdentifier = resource.clientIdentifier,
+            )
 
         if (LibrarySelection.invalidatesQueue(previous, next)) {
             // Rating keys are server-wide, so only a server change makes the
@@ -304,7 +314,7 @@ class LibraryPickerRepository {
         BrowseTreeInvalidator.invalidateRoot()
         BrowseTreeInvalidator.invalidateNode(
             Constants.PICK_SERVER_ID + machineIdentifier,
-            0
+            0,
         )
 
         future.set(LibraryResult.ofItemList(ImmutableList.of(confirmationRow(payload)), null))
@@ -337,15 +347,16 @@ class LibraryPickerRepository {
             mediaId = Constants.PICK_LIBRARY_ID + payload + CONFIRMED_SUFFIX,
             // Browsable purely so the car draws it: an item with neither
             // isBrowsable nor isPlayable set is dropped from the list entirely.
-            title = if (serverName.isNullOrBlank()) {
-                // Reachable after a process restart between listing the
-                // libraries and tapping one, when the candidate is gone.
-                context.getString(R.string.browse_now_browsing_no_server, name)
-            } else {
-                context.getString(R.string.browse_now_browsing, name, serverName)
-            },
+            title =
+                if (serverName.isNullOrBlank()) {
+                    // Reachable after a process restart between listing the
+                    // libraries and tapping one, when the candidate is gone.
+                    context.getString(R.string.browse_now_browsing_no_server, name)
+                } else {
+                    context.getString(R.string.browse_now_browsing, name, serverName)
+                },
             // Info, not warning: this row reports a selection that succeeded.
-            iconRes = R.drawable.ic_browse_info
+            iconRes = R.drawable.ic_browse_info,
         )
     }
 
@@ -365,18 +376,21 @@ class LibraryPickerRepository {
         uri: String,
         resource: Resource,
         sectionKey: String,
-        libraryName: String
+        libraryName: String,
     ) {
-        val machineIdentifier = requireNotNull(resource.clientIdentifier) {
-            "test resource needs a clientIdentifier"
-        }
+        val machineIdentifier =
+            requireNotNull(resource.clientIdentifier) {
+                "test resource needs a clientIdentifier"
+            }
         candidates[machineIdentifier] = uri to resource
         libraryNames[libraryIdPayload(machineIdentifier, sectionKey)] = libraryName
     }
 
     companion object {
-
-        data class ServerRow(val machineIdentifier: String?, val name: String)
+        data class ServerRow(
+            val machineIdentifier: String?,
+            val name: String,
+        )
 
         /**
          * Marks the row [selectLibrary] answers with, so tapping it is
@@ -388,14 +402,18 @@ class LibraryPickerRepository {
         /** U+2713 CHECK MARK. The tick is the only signal of which library is in use. */
         private const val TICK = "✓ "
 
-        @JvmStatic
         /** Shared by the server rows and the library rows inside one. */
-        fun rowTitle(name: String, current: Boolean): String =
-            if (current) TICK + name else name
+        @JvmStatic
+        fun rowTitle(
+            name: String,
+            current: Boolean,
+        ): String = if (current) TICK + name else name
 
         @JvmStatic
-        fun libraryIdPayload(machineIdentifier: String, sectionKey: String): String =
-            "$machineIdentifier|$sectionKey"
+        fun libraryIdPayload(
+            machineIdentifier: String,
+            sectionKey: String,
+        ): String = "$machineIdentifier|$sectionKey"
 
         /**
          * Narrows /resources to servers this app could talk to, reusing the same
@@ -407,7 +425,7 @@ class LibraryPickerRepository {
             AuthClient.mediaServers(resources).map { resource ->
                 ServerRow(
                     machineIdentifier = resource.clientIdentifier,
-                    name = resource.name.orEmpty().ifBlank { "Plex server" }
+                    name = resource.name.orEmpty().ifBlank { "Plex server" },
                 )
             }
 
@@ -439,7 +457,10 @@ class LibraryPickerRepository {
          */
         @JvmStatic
         @JvmOverloads
-        fun messageRow(message: String, subtitle: String? = null): MediaItem =
+        fun messageRow(
+            message: String,
+            subtitle: String? = null,
+        ): MediaItem =
             browsableRow(
                 mediaId = Constants.PICK_MESSAGE_ID + message,
                 title = message,
@@ -453,7 +474,7 @@ class LibraryPickerRepository {
                 // from the id alone when it is tapped, so a per-message severity
                 // would have to be encoded into the id to survive that.
                 iconRes = R.drawable.ic_browse_warning,
-                subtitle = subtitle
+                subtitle = subtitle,
             )
 
         /**
@@ -473,12 +494,14 @@ class LibraryPickerRepository {
             mediaId: String,
             title: String,
             iconRes: Int? = null,
-            subtitle: String? = null
+            subtitle: String? = null,
         ): MediaItem =
-            MediaItem.Builder()
+            MediaItem
+                .Builder()
                 .setMediaId(mediaId)
                 .setMediaMetadata(
-                    MediaMetadata.Builder()
+                    MediaMetadata
+                        .Builder()
                         .setTitle(title)
                         .setArtist(subtitle)
                         .setIsBrowsable(true)
@@ -487,8 +510,7 @@ class LibraryPickerRepository {
                         .setIsPlayable(false)
                         .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                         .setArtworkUri(iconRes?.let { ResourceUris.forResource(it) })
-                        .build()
-                )
-                .build()
+                        .build(),
+                ).build()
     }
 }

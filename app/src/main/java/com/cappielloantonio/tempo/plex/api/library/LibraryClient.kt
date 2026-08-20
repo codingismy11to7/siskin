@@ -24,8 +24,11 @@ private const val TAG = "LibraryClient"
  * parameter is what lets sign-in read a candidate server's sections before it
  * has committed a [com.cappielloantonio.tempo.plex.PlexSession].
  */
-class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
-
+class LibraryClient(
+    api: PlexApi,
+    serverUri: String?,
+    serverToken: String?,
+) {
     /** Uses whatever server the persisted session names. */
     constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken)
 
@@ -46,17 +49,25 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         artistId: String? = null,
         trackDecade: String? = null,
         albumDecade: String? = null,
-        albumId: String? = null
+        albumId: String? = null,
     ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(
             TAG,
             "getSectionContent($sectionKey, type=$type, start=$start, size=$size, " +
                 "sort=$sort, artistId=$artistId, trackDecade=$trackDecade, " +
-                "albumDecade=$albumDecade, albumId=$albumId)"
+                "albumDecade=$albumDecade, albumId=$albumId)",
         )
         return plexCall(PlexHost.Server) {
             service.getSectionContent(
-                sectionKey.value, type, start, size, sort, artistId, trackDecade, albumDecade, albumId
+                sectionKey.value,
+                type,
+                start,
+                size,
+                sort,
+                artistId,
+                trackDecade,
+                albumDecade,
+                albumId,
             )
         }
     }
@@ -64,11 +75,13 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
     suspend fun getChildren(
         ratingKey: RatingKey,
         start: Int,
-        size: Int
-    ): Either<PlexTransportFailure, PlexResponse> =
-        plexCall(PlexHost.Server) { service.getChildren(ratingKey.value, start, size) }
+        size: Int,
+    ): Either<PlexTransportFailure, PlexResponse> = plexCall(PlexHost.Server) { service.getChildren(ratingKey.value, start, size) }
 
-    suspend fun getNearest(ratingKey: RatingKey, limit: Int): Either<PlexTransportFailure, PlexResponse> {
+    suspend fun getNearest(
+        ratingKey: RatingKey,
+        limit: Int,
+    ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getNearest($ratingKey, limit=$limit)")
         return plexCall(PlexHost.Server) { service.getNearest(ratingKey.value, limit) }
     }
@@ -112,12 +125,16 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
         sectionKey: SectionKey,
         key: String,
         start: Int,
-        size: Int
+        size: Int,
     ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getFirstCharacterContent($sectionKey, key=$key, start=$start, size=$size)")
         return plexCall(PlexHost.Server) {
             service.getFirstCharacterContent(
-                sectionKey.value, key, PlexItemType.ARTIST, start, size
+                sectionKey.value,
+                key,
+                PlexItemType.ARTIST,
+                start,
+                size,
             )
         }
     }
@@ -169,8 +186,7 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
          * a slash.
          */
         @JvmStatic
-        fun isSafeHubKey(key: String?): Boolean =
-            key != null && key.startsWith("/") && !key.startsWith("//") && !key.contains('\\')
+        fun isSafeHubKey(key: String?): Boolean = key != null && key.startsWith("/") && !key.startsWith("//") && !key.contains('\\')
 
         /**
          * Sorts by the name actually shown, rather than by Plex's sort title.
@@ -213,7 +229,9 @@ class LibraryClient(api: PlexApi, serverUri: String?, serverToken: String?) {
          */
         @JvmStatic
         fun musicSections(response: PlexResponse?): List<Directory> =
-            response?.mediaContainer?.directory
+            response
+                ?.mediaContainer
+                ?.directory
                 ?.filter { it.type == MUSIC_SECTION_TYPE && !it.key.isNullOrBlank() }
                 ?: emptyList()
     }

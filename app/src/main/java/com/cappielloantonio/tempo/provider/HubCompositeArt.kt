@@ -19,7 +19,6 @@ import java.security.MessageDigest
  * Discover node in `MediaBrowserTree.buildTree`.
  */
 object HubCompositeArt {
-
     /**
      * How much of the digest becomes the filename. Sixteen hex characters is
      * 64 bits, against a cache holding tens of files: a collision would cost
@@ -45,15 +44,19 @@ object HubCompositeArt {
      */
     @JvmStatic
     fun idFor(pool: List<String>): String =
-        MessageDigest.getInstance("SHA-1")
+        MessageDigest
+            .getInstance("SHA-1")
             .digest(HubCoverPool.encode(pool).toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
             .take(ID_LENGTH)
 
     /** @see CompositeArt.cached */
     @JvmStatic
-    fun cached(context: Context, pool: List<String>, bucket: Long): File? =
-        CompositeArt.cached(context, idFor(pool), bucket)
+    fun cached(
+        context: Context,
+        pool: List<String>,
+        bucket: Long,
+    ): File? = CompositeArt.cached(context, idFor(pool), bucket)
 
     /**
      * @see CompositeArt.build
@@ -64,6 +67,9 @@ object HubCompositeArt {
      * nothing is the reason one core can serve both.
      */
     @JvmStatic
-    fun build(context: Context, pool: List<String>, bucket: Long): File? =
-        CompositeArt.build(context, idFor(pool), bucket) { _, _ -> pool }
+    fun build(
+        context: Context,
+        pool: List<String>,
+        bucket: Long,
+    ): File? = CompositeArt.build(context, idFor(pool), bucket) { _, _ -> pool }
 }

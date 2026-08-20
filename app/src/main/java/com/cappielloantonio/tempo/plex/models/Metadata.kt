@@ -50,6 +50,7 @@ class Metadata {
 
     /** Milliseconds. */
     var duration: Long? = null
+
     /** Track number within its album. */
     var index: Int? = null
     var year: Int? = null

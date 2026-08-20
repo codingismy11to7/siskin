@@ -29,7 +29,7 @@ class MediaLibrarySessionCallback(
     context: Context,
     service: BaseMediaService,
     private val browseRepository: PlexBrowseRepository,
-    private val sessionMediaItemRepository: SessionMediaItemRepository
+    private val sessionMediaItemRepository: SessionMediaItemRepository,
 ) : BaseSessionCallback(context, service) {
     init {
         MediaBrowserTree.initialize(context, browseRepository)
@@ -42,7 +42,7 @@ class MediaLibrarySessionCallback(
     override fun onGetLibraryRoot(
         session: MediaLibraryService.MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
-        params: MediaLibraryService.LibraryParams?
+        params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<MediaItem>> {
         Log.d(TAG, "onGetLibraryRoot Start pkg=${browser.packageName}")
         MediaBrowserTree.buildTree()
@@ -69,7 +69,7 @@ class MediaLibrarySessionCallback(
     override fun onGetItem(
         session: MediaLibraryService.MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
-        mediaId: String
+        mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
         val item = MediaBrowserTree.getItem(mediaId)
         Log.d(TAG, "onGetItem mediaId=$mediaId found=${item != null}")
@@ -86,7 +86,7 @@ class MediaLibrarySessionCallback(
         parentId: String,
         page: Int,
         pageSize: Int,
-        params: MediaLibraryService.LibraryParams?
+        params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         if (!CredentialGate.isSignedIn() && parentId != Constants.ROOT_ID) {
             Log.d(TAG, "onGetChildren blocked for $parentId: no usable credentials")
@@ -106,8 +106,8 @@ class MediaLibrarySessionCallback(
             return Futures.immediateFuture(
                 LibraryResult.ofItemList(
                     MediaBrowserTree.signedOutRow(context),
-                    null
-                )
+                    null,
+                ),
             )
         }
 
@@ -148,9 +148,10 @@ class MediaLibrarySessionCallback(
         // no stream, so caching it would put a row in session_media_item that
         // round-trips into an unplayable MediaItem -- the same reason browsable
         // rows are excluded here.
-        val tracks = items.filter {
-            it.mediaMetadata.isPlayable == true && !isMixRow(it)
-        }
+        val tracks =
+            items.filter {
+                it.mediaMetadata.isPlayable == true && !isMixRow(it)
+            }
         if (tracks.isNotEmpty()) sessionMediaItemRepository.cache(tracks)
     }
 
@@ -178,9 +179,7 @@ class MediaLibrarySessionCallback(
      * it rebuilds the item from the media id alone, so the extras the row was
      * built with are gone by the time it arrives here.
      */
-    private fun mixTracksFor(
-        item: MediaItem
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
+    private fun mixTracksFor(item: MediaItem): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
         val id = item.mediaId
         return when {
             id.startsWith(Constants.MIX_ARTIST_ID) -> {
@@ -216,7 +215,9 @@ class MediaLibrarySessionCallback(
                     }
             }
 
-            else -> null
+            else -> {
+                null
+            }
         }
     }
 
@@ -255,15 +256,13 @@ class MediaLibrarySessionCallback(
      * must not contain the Mix row -- it is playable with no stream, and a
      * queue holding it would "play" a track that does not exist.
      */
-    private fun cachedDecadeTracks(
-        decadeKey: String
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
+    private fun cachedDecadeTracks(decadeKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
         val cached = queueSourceCache[Constants.QUEUE_CACHED_SOURCE]
         if (cached?.firstOrNull()?.mediaId != Constants.MIX_DECADE_ID + decadeKey) return null
 
         Log.d(TAG, "Serving decade $decadeKey shuffle from the cached browse list")
         return Futures.immediateFuture(
-            LibraryResult.ofItemList(ImmutableList.copyOf(cached.drop(1)), null)
+            LibraryResult.ofItemList(ImmutableList.copyOf(cached.drop(1)), null),
         )
     }
 
@@ -294,17 +293,19 @@ class MediaLibrarySessionCallback(
      * [PlexBrowseRepository.getHubTracksForIds] sends neither filter, which
      * Plex answers by shuffling the whole library rather than the hub.
      */
-    private fun cachedHubTracks(
-        hubKey: String
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
+    private fun cachedHubTracks(hubKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
         val cached = queueSourceCache[Constants.QUEUE_CACHED_SOURCE]
         if (cached?.firstOrNull()?.mediaId != Constants.MIX_HUB_ID + hubKey) return null
 
         val rows = cached.drop(1)
-        val albums = rows.filter { it.mediaId.startsWith(Constants.ALBUM_ID) }
-            .map { it.mediaId.removePrefix(Constants.ALBUM_ID) }
-        val artists = rows.filter { it.mediaId.startsWith(Constants.ARTIST_ID) }
-            .map { it.mediaId.removePrefix(Constants.ARTIST_ID) }
+        val albums =
+            rows
+                .filter { it.mediaId.startsWith(Constants.ALBUM_ID) }
+                .map { it.mediaId.removePrefix(Constants.ALBUM_ID) }
+        val artists =
+            rows
+                .filter { it.mediaId.startsWith(Constants.ARTIST_ID) }
+                .map { it.mediaId.removePrefix(Constants.ARTIST_ID) }
         if (albums.isEmpty() && artists.isEmpty()) return null
 
         Log.d(TAG, "Mixing hub $hubKey from the ${rows.size} rows already browsed")
@@ -327,7 +328,7 @@ class MediaLibrarySessionCallback(
      * learn this. Plex does not.
      */
     private fun classifyFailure(
-        original: LibraryResult<ImmutableList<MediaItem>>?
+        original: LibraryResult<ImmutableList<MediaItem>>?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val rejected = original?.resultCode == SessionError.ERROR_PERMISSION_DENIED
         return Futures.immediateFuture(
@@ -336,7 +337,7 @@ class MediaLibrarySessionCallback(
                 CarSignInResolution.errorResult(context, R.string.car_sign_in_again)
             } else {
                 original ?: LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
-            }
+            },
         )
     }
 
@@ -349,11 +350,12 @@ class MediaLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         mediaItems: List<MediaItem>,
         startIndex: Int,
-        startPositionMs: Long
+        startPositionMs: Long,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         Log.d(TAG, "onSetMediaItems")
-        val firstItem = mediaItems.firstOrNull()
-            ?: return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
+        val firstItem =
+            mediaItems.firstOrNull()
+                ?: return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
 
         Log.d(TAG, "mediaId = ${firstItem.mediaId}, startIndex = $startIndex, startPositionMs = $startPositionMs")
 
@@ -389,14 +391,14 @@ class MediaLibrarySessionCallback(
 
                 MediaSession.MediaItemsWithStartPosition(items, opening, startPositionMs)
             },
-            MoreExecutors.directExecutor()
+            MoreExecutors.directExecutor(),
         )
     }
 
     override fun onAddMediaItems(
         mediaSession: MediaSession,
         controller: MediaSession.ControllerInfo,
-        mediaItems: List<MediaItem>
+        mediaItems: List<MediaItem>,
     ): ListenableFuture<List<MediaItem>> {
         Log.d(TAG, "onAddMediaItems")
         val firstItem = mediaItems.firstOrNull() ?: return Futures.immediateFuture(mediaItems)
@@ -444,17 +446,27 @@ class MediaLibrarySessionCallback(
         items: List<MediaItem>,
         tapped: MediaItem,
         mixRow: Boolean,
-        carStartIndex: Int
-    ): Int = when {
-        items.isEmpty() -> carStartIndex
-        // The queue arrived shuffled, so its head is already a random draw.
-        mixRow -> 0
-        // Absent means the queue this resolved to is not the list the row was
-        // tapped in -- a stale browse cache is how that happens. The player's
-        // default position is a better answer than a made-up one.
-        else -> items.indexOfFirst { it.mediaId == tapped.mediaId }
-            .takeIf { it >= 0 } ?: carStartIndex
-    }
+        carStartIndex: Int,
+    ): Int =
+        when {
+            items.isEmpty() -> {
+                carStartIndex
+            }
+
+            // The queue arrived shuffled, so its head is already a random draw.
+            mixRow -> {
+                0
+            }
+
+            // Absent means the queue this resolved to is not the list the row was
+            // tapped in -- a stale browse cache is how that happens. The player's
+            // default position is a better answer than a made-up one.
+            else -> {
+                items
+                    .indexOfFirst { it.mediaId == tapped.mediaId }
+                    .takeIf { it >= 0 } ?: carStartIndex
+            }
+        }
 
     /**
      * Resolves what a tapped row actually plays, shuffling a Mix row's tracks on
@@ -481,7 +493,7 @@ class MediaLibrarySessionCallback(
      */
     private fun resolveQueueForItem(
         firstItem: MediaItem,
-        mediaItems: List<MediaItem>
+        mediaItems: List<MediaItem>,
     ): ListenableFuture<List<MediaItem>> {
         Log.d(TAG, "Resolve queue for item")
 
@@ -491,71 +503,81 @@ class MediaLibrarySessionCallback(
         // Resolved once: this issues the request.
         val mixTracks = mixTracksFor(firstItem)
 
-        val futureQueue: ListenableFuture<List<MediaItem>> = when {
-            // Before the parent-tag branches: a Mix row carries no parent tag
-            // and is not in any cache, so it would otherwise fall through to the
-            // fallback below and "play" itself -- a row with no stream.
-            //
-            // The one place the artist row and the playlist row meet, which is
-            // why the shuffle lives here rather than in either repository call.
-            // The order handed over is the order heard, and it is the order the
-            // car will show in the queue.
-            mixTracks != null -> Futures.transform(
-                mixTracks,
-                { result -> (result?.value ?: emptyList()).shuffled() },
-                MoreExecutors.directExecutor()
-            )
+        val futureQueue: ListenableFuture<List<MediaItem>> =
+            when {
+                // Before the parent-tag branches: a Mix row carries no parent tag
+                // and is not in any cache, so it would otherwise fall through to the
+                // fallback below and "play" itself -- a row with no stream.
+                //
+                // The one place the artist row and the playlist row meet, which is
+                // why the shuffle lives here rather than in either repository call.
+                // The order handed over is the order heard, and it is the order the
+                // car will show in the queue.
+                mixTracks != null -> {
+                    Futures.transform(
+                        mixTracks,
+                        { result -> (result?.value ?: emptyList()).shuffled() },
+                        MoreExecutors.directExecutor(),
+                    )
+                }
 
-            parentId?.startsWith(Constants.QUEUE_CACHED_SOURCE) == true -> {
-                Log.d(TAG, "Fetching AA list source tracks for $parentId")
-                val cachedItems = queueSourceCache[Constants.QUEUE_CACHED_SOURCE] ?: emptyList()
-                Futures.immediateFuture(cachedItems)
-            }
+                parentId?.startsWith(Constants.QUEUE_CACHED_SOURCE) == true -> {
+                    Log.d(TAG, "Fetching AA list source tracks for $parentId")
+                    val cachedItems = queueSourceCache[Constants.QUEUE_CACHED_SOURCE] ?: emptyList()
+                    Futures.immediateFuture(cachedItems)
+                }
 
-            // Two unrelated callers land here, and the `localConfiguration` test
-            // below is what separates them.
-            //
-            // A **browse tap** arrives from com.android.car.media, a different
-            // process, so media3 has Bundle-serialized it and dropped the stream:
-            // one item with no localConfiguration, which the session cache expands
-            // into the list it was tapped in. That is the case the branch was
-            // written for.
-            //
-            // **Continuous play** appends instant-mix tracks through
-            // `browser.addMediaItems` (MediaManager.enqueue) and reaches the very
-            // same code, but those MediaItems never leave this process and arrive
-            // with their streams intact, so each one matches the first clause and
-            // passes through untouched. Measured on an API 33 AAOS emulator: an
-            // append of 25 mix tracks arrived as 25, all 25 carrying a URI, and
-            // returned 25. See issue #70, which was filed on the assumption that
-            // it collapsed to one and closed once this was measured.
-            //
-            // So the correct behaviour of continuous play rests on
-            // localConfiguration surviving an in-process addMediaItems. If that
-            // ever stopped holding, every mix track would miss both clauses,
-            // resolvedItems would come out empty, and the `isEmpty` guard below
-            // would append `firstItem` alone -- a mix that silently adds one song,
-            // diagnosed three layers from here.
-            else -> {
-                Log.d(TAG, "Fallback queue for item ${firstItem.mediaId}")
-                val resolvedItems = ArrayList<MediaItem>()
-                mediaItems.forEach { item ->
-                    val sessionItem = item.localConfiguration?.uri?.let { item }
-                        ?: sessionMediaItemRepository.get(item.mediaId)?.let { session ->
-                            sessionMediaItemRepository.getSiblings(session.timestamp!!)
-                        }
-                    sessionItem?.let { resolved ->
-                        when (resolved) {
-                            is List<*> -> resolvedItems.addAll(resolved.filterIsInstance<MediaItem>())
-                            is MediaItem -> resolvedItems.add(resolved)
-                            else -> { /* ignore */ }
+                // Two unrelated callers land here, and the `localConfiguration` test
+                // below is what separates them.
+                //
+                // A **browse tap** arrives from com.android.car.media, a different
+                // process, so media3 has Bundle-serialized it and dropped the stream:
+                // one item with no localConfiguration, which the session cache expands
+                // into the list it was tapped in. That is the case the branch was
+                // written for.
+                //
+                // **Continuous play** appends instant-mix tracks through
+                // `browser.addMediaItems` (MediaManager.enqueue) and reaches the very
+                // same code, but those MediaItems never leave this process and arrive
+                // with their streams intact, so each one matches the first clause and
+                // passes through untouched. Measured on an API 33 AAOS emulator: an
+                // append of 25 mix tracks arrived as 25, all 25 carrying a URI, and
+                // returned 25. See issue #70, which was filed on the assumption that
+                // it collapsed to one and closed once this was measured.
+                //
+                // So the correct behaviour of continuous play rests on
+                // localConfiguration surviving an in-process addMediaItems. If that
+                // ever stopped holding, every mix track would miss both clauses,
+                // resolvedItems would come out empty, and the `isEmpty` guard below
+                // would append `firstItem` alone -- a mix that silently adds one song,
+                // diagnosed three layers from here.
+                else -> {
+                    Log.d(TAG, "Fallback queue for item ${firstItem.mediaId}")
+                    val resolvedItems = ArrayList<MediaItem>()
+                    mediaItems.forEach { item ->
+                        val sessionItem =
+                            item.localConfiguration?.uri?.let { item }
+                                ?: sessionMediaItemRepository.get(item.mediaId)?.let { session ->
+                                    sessionMediaItemRepository.getSiblings(session.timestamp!!)
+                                }
+                        sessionItem?.let { resolved ->
+                            when (resolved) {
+                                is List<*> -> {
+                                    resolvedItems.addAll(resolved.filterIsInstance<MediaItem>())
+                                }
+
+                                is MediaItem -> {
+                                    resolvedItems.add(resolved)
+                                }
+
+                                else -> { /* ignore */ }
+                            }
                         }
                     }
+                    if (resolvedItems.isEmpty()) resolvedItems.add(firstItem)
+                    Futures.immediateFuture(resolvedItems)
                 }
-                if (resolvedItems.isEmpty()) resolvedItems.add(firstItem)
-                Futures.immediateFuture(resolvedItems)
             }
-        }
 
         return futureQueue
     }
@@ -568,7 +590,7 @@ class MediaLibrarySessionCallback(
         session: MediaLibraryService.MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
         query: String,
-        params: MediaLibraryService.LibraryParams?
+        params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<Void>> {
         session.notifySearchResultChanged(browser, query, 60, params)
         return Futures.immediateFuture(LibraryResult.ofVoid())
@@ -580,7 +602,7 @@ class MediaLibrarySessionCallback(
         query: String,
         page: Int,
         pageSize: Int,
-        params: MediaLibraryService.LibraryParams?
+        params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         // Search tracks carry no parent tag, so remembering them here is the only
         // thing that lets tapping one play the rest of the results after it --
@@ -593,7 +615,7 @@ class MediaLibrarySessionCallback(
                 }
                 result
             },
-            MoreExecutors.directExecutor()
+            MoreExecutors.directExecutor(),
         )
     }
 }

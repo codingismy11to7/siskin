@@ -20,11 +20,11 @@ import org.robolectric.RobolectricTestRunner
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class MediaBrowserTreePickerTest {
-
     @Test
     fun tappingTheConfirmationRowReturnsTheRow() {
-        val id = Constants.PICK_LIBRARY_ID + "abc123|7" +
-            LibraryPickerRepository.CONFIRMED_SUFFIX
+        val id =
+            Constants.PICK_LIBRARY_ID + "abc123|7" +
+                LibraryPickerRepository.CONFIRMED_SUFFIX
 
         val result = MediaBrowserTree.getChildren(id).get()
 
@@ -38,7 +38,7 @@ class MediaBrowserTreePickerTest {
             // and the candidate's server name are gone -- the state a tap after a
             // process restart arrives in, and why the no-server string exists.
             App.getContext().getString(R.string.browse_now_browsing_no_server, "Library 7"),
-            row.mediaMetadata.title?.toString()
+            row.mediaMetadata.title?.toString(),
         )
         assertEquals(true, row.mediaMetadata.isBrowsable)
         assertEquals(false, row.mediaMetadata.isPlayable)

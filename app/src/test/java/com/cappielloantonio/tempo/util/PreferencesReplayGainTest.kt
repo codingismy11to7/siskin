@@ -21,12 +21,16 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class PreferencesReplayGainTest {
-
     @Before
     fun setUp() {
         // Robolectric keeps App's SharedPreferences in a static field between
         // methods, so without this an earlier method's write decides this one.
-        App.getInstance().preferences.edit().remove("replay_gain_mode").commit()
+        App
+            .getInstance()
+            .preferences
+            .edit()
+            .remove("replay_gain_mode")
+            .commit()
     }
 
     @Test
@@ -59,7 +63,12 @@ class PreferencesReplayGainTest {
     fun `an explicit track or album mode still reads as enabled`() {
         // The key stays four-way even though the UI is boolean, so a value this
         // app cannot yet write must not read as off.
-        App.getInstance().preferences.edit().putString("replay_gain_mode", "album").commit()
+        App
+            .getInstance()
+            .preferences
+            .edit()
+            .putString("replay_gain_mode", "album")
+            .commit()
 
         assertTrue(Preferences.isReplayGainEnabled())
     }

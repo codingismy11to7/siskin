@@ -37,7 +37,6 @@ import org.robolectric.Shadows.shadowOf
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class PlexSignInFragmentBackTest {
-
     @Before
     fun signedOut() {
         // Robolectric caches SharedPreferences statically across classes, so a
@@ -58,7 +57,7 @@ class PlexSignInFragmentBackTest {
         // than driven through a real sign-in: the press, not the flow that
         // reached it, is what this test is about.
         viewModel.setStateForTest(
-            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer()))
+            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer())),
         )
         idle()
 

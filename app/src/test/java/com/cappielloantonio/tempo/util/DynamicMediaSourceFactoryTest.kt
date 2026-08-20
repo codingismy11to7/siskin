@@ -43,7 +43,6 @@ import org.robolectric.RuntimeEnvironment
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class DynamicMediaSourceFactoryTest {
-
     private lateinit var factory: DynamicMediaSourceFactory
     private val fixture = ResolvedStreamFixture()
 
@@ -67,7 +66,8 @@ class DynamicMediaSourceFactoryTest {
         assertEquals(
             "request must have landed on the live server the resolver rewrote it onto, " +
                 "not the dead port it was built with",
-            1, fixture.requestCount
+            1,
+            fixture.requestCount,
         )
     }
 
@@ -80,7 +80,8 @@ class DynamicMediaSourceFactoryTest {
         assertEquals(
             "request must have landed on the live server the resolver rewrote it onto, " +
                 "not the dead port it was built with",
-            1, fixture.requestCount
+            1,
+            fixture.requestCount,
         )
     }
 }

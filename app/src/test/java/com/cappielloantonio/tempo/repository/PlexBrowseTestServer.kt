@@ -20,7 +20,6 @@ import okhttp3.mockwebserver.MockWebServer
  * to the placeholder base URL exactly like a missing one.
  */
 class PlexBrowseTestServer {
-
     lateinit var server: MockWebServer
         private set
 

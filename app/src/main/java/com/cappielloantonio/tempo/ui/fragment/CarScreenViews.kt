@@ -40,34 +40,36 @@ import com.google.android.material.materialswitch.MaterialSwitch
 internal fun addChoice(
     container: ViewGroup,
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ): MaterialButton {
     val resources = container.resources
-    val button = MaterialButton(container.context).apply {
-        text = label
-        minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
-        // MaterialButton's default 6dp insets would shave 12dp off that
-        // minHeight. Same reasoning as retry_button in the layout: the
-        // oversized target is the point on a head unit.
-        insetTop = 0
-        insetBottom = 0
-        setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
-        // setTextAppearance carries its own textColor, which clobbers the
-        // colorOnPrimary a filled button would otherwise use -- leaving pale
-        // text on a pale fill. Restore it after, not before.
-        setTextColor(
-            MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary)
-        )
-        setOnClickListener { onClick() }
-    }
+    val button =
+        MaterialButton(container.context).apply {
+            text = label
+            minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+            // MaterialButton's default 6dp insets would shave 12dp off that
+            // minHeight. Same reasoning as retry_button in the layout: the
+            // oversized target is the point on a head unit.
+            insetTop = 0
+            insetBottom = 0
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+            // setTextAppearance carries its own textColor, which clobbers the
+            // colorOnPrimary a filled button would otherwise use -- leaving pale
+            // text on a pale fill. Restore it after, not before.
+            setTextColor(
+                MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary),
+            )
+            setOnClickListener { onClick() }
+        }
     container.addView(
         button,
-        LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply {
-            bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
-        }
+        LinearLayout
+            .LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
+            },
     )
     return button
 }
@@ -100,71 +102,75 @@ internal fun addToggle(
     container: ViewGroup,
     label: String,
     initial: Boolean,
-    onChange: (Boolean) -> Unit
+    onChange: (Boolean) -> Unit,
 ) {
     val context = container.context
     val resources = container.resources
 
-    val toggle = MaterialSwitch(context).apply {
-        isChecked = initial
-        isClickable = false
-        isFocusable = false
-    }
-
-    val text = TextView(context).apply {
-        this.text = label
-        setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
-    }
-
-    val row = LinearLayout(context).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
-
-        // A bare LinearLayout draws nothing when pressed. At arm's length a
-        // 72dp target that does not acknowledge the press reads as a dead
-        // control -- and addChoice's filled button ripples right beneath
-        // this one, so the row has to as well.
-        applyPressFeedback(this)
-
-        // setOnClickListener makes a view clickable but not focusable, and a
-        // rotary controller stops only on focusable views -- without this it
-        // skips the toggle entirely on its way to the Sign out button below.
-        isFocusable = true
-
-        // choice_container is a bare 480dp column with no padding of its
-        // own, so unpadded the label would start flush at x=0 while Sign
-        // out's text is centred inside its button -- two rows that do not
-        // read as one list. Symmetric, so the switch is inset from the far
-        // edge by the same amount.
-        val pad = resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
-        setPaddingRelative(pad, 0, pad, 0)
-
-        addView(
-            text,
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        )
-        addView(
-            toggle,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-        setOnClickListener {
-            toggle.isChecked = !toggle.isChecked
-            onChange(toggle.isChecked)
+    val toggle =
+        MaterialSwitch(context).apply {
+            isChecked = initial
+            isClickable = false
+            isFocusable = false
         }
-    }
+
+    val text =
+        TextView(context).apply {
+            this.text = label
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+        }
+
+    val row =
+        LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+
+            // A bare LinearLayout draws nothing when pressed. At arm's length a
+            // 72dp target that does not acknowledge the press reads as a dead
+            // control -- and addChoice's filled button ripples right beneath
+            // this one, so the row has to as well.
+            applyPressFeedback(this)
+
+            // setOnClickListener makes a view clickable but not focusable, and a
+            // rotary controller stops only on focusable views -- without this it
+            // skips the toggle entirely on its way to the Sign out button below.
+            isFocusable = true
+
+            // choice_container is a bare 480dp column with no padding of its
+            // own, so unpadded the label would start flush at x=0 while Sign
+            // out's text is centred inside its button -- two rows that do not
+            // read as one list. Symmetric, so the switch is inset from the far
+            // edge by the same amount.
+            val pad = resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
+            setPaddingRelative(pad, 0, pad, 0)
+
+            addView(
+                text,
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+            )
+            addView(
+                toggle,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+            setOnClickListener {
+                toggle.isChecked = !toggle.isChecked
+                onChange(toggle.isChecked)
+            }
+        }
 
     container.addView(
         row,
-        LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply {
-            bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
-        }
+        LinearLayout
+            .LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
+            },
     )
 }
 
@@ -177,7 +183,9 @@ internal fun addToggle(
 internal fun applyPressFeedback(view: View) {
     val ripple = TypedValue()
     view.context.theme.resolveAttribute(
-        com.google.android.material.R.attr.selectableItemBackground, ripple, true
+        com.google.android.material.R.attr.selectableItemBackground,
+        ripple,
+        true,
     )
     view.setBackgroundResource(ripple.resourceId)
 }

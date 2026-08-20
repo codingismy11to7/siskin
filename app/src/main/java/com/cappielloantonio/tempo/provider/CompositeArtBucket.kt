@@ -18,7 +18,6 @@ package com.cappielloantonio.tempo.provider
  * test does not have to wait an hour.
  */
 object CompositeArtBucket {
-
     /** One hour. Long enough that a drive rarely crosses two, short enough that
      * a morning commute and an evening one differ -- artwork that never changes
      * is the thing this feature exists to avoid. */
@@ -38,7 +37,10 @@ object CompositeArtBucket {
      * user's token, so an unbounded bucket space is an unbounded request space.
      */
     @JvmStatic
-    fun isLive(bucket: Long, nowMs: Long): Boolean {
+    fun isLive(
+        bucket: Long,
+        nowMs: Long,
+    ): Boolean {
         val now = current(nowMs)
         return bucket == now || bucket == now - 1
     }

@@ -11,12 +11,13 @@ class MediaService : BaseMediaService() {
 
     override fun getMediaLibrarySessionCallback(): MediaLibrarySession.Callback {
         if (sessionCallback == null) {
-            sessionCallback = MediaLibrarySessionCallback(
-                baseContext,
-                this,
-                browseRepository,
-                sessionMediaItemRepository
-            )
+            sessionCallback =
+                MediaLibrarySessionCallback(
+                    baseContext,
+                    this,
+                    browseRepository,
+                    sessionMediaItemRepository,
+                )
         }
         return sessionCallback!!
     }

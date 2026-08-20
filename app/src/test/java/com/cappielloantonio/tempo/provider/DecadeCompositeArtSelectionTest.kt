@@ -12,36 +12,41 @@ import org.junit.Test
  * rather than through the network, so the fetch around it can stay thin.
  */
 class DecadeCompositeArtSelectionTest {
-
-    private fun album(ratingKey: String?, thumb: String?, parentThumb: String? = null) = Metadata().apply {
+    private fun album(
+        ratingKey: String?,
+        thumb: String?,
+        parentThumb: String? = null,
+    ) = Metadata().apply {
         this.type = "album"
         this.ratingKey = ratingKey
         this.thumb = thumb
         this.parentThumb = parentThumb
     }
 
-    private fun response(vararg items: Metadata) = PlexResponse().apply {
-        mediaContainer = MediaContainer().apply { metadata = items.toList() }
-    }
+    private fun response(vararg items: Metadata) =
+        PlexResponse().apply {
+            mediaContainer = MediaContainer().apply { metadata = items.toList() }
+        }
 
     @Test
     fun takesTheFirstFourThumbs() {
-        val body = response(
-            album("1", "/library/metadata/1/thumb/1"),
-            album("2", "/library/metadata/2/thumb/1"),
-            album("3", "/library/metadata/3/thumb/1"),
-            album("4", "/library/metadata/4/thumb/1"),
-            album("5", "/library/metadata/5/thumb/1")
-        )
+        val body =
+            response(
+                album("1", "/library/metadata/1/thumb/1"),
+                album("2", "/library/metadata/2/thumb/1"),
+                album("3", "/library/metadata/3/thumb/1"),
+                album("4", "/library/metadata/4/thumb/1"),
+                album("5", "/library/metadata/5/thumb/1"),
+            )
 
         assertEquals(
             listOf(
                 "/library/metadata/1/thumb/1",
                 "/library/metadata/2/thumb/1",
                 "/library/metadata/3/thumb/1",
-                "/library/metadata/4/thumb/1"
+                "/library/metadata/4/thumb/1",
             ),
-            DecadeCompositeArt.coverThumbs(body, want = 4)
+            DecadeCompositeArt.coverThumbs(body, want = 4),
         )
     }
 
@@ -49,16 +54,17 @@ class DecadeCompositeArtSelectionTest {
     fun skipsAlbumsWithNoThumbSoTheOverFetchEarnsItsKeep() {
         // The request asks for OVER_FETCH albums precisely so a thumb-less one
         // does not leave a hole in the grid.
-        val body = response(
-            album("1", null),
-            album("2", "  "),
-            album("3", "/library/metadata/3/thumb/1"),
-            album("4", "/library/metadata/4/thumb/1")
-        )
+        val body =
+            response(
+                album("1", null),
+                album("2", "  "),
+                album("3", "/library/metadata/3/thumb/1"),
+                album("4", "/library/metadata/4/thumb/1"),
+            )
 
         assertEquals(
             listOf("/library/metadata/3/thumb/1", "/library/metadata/4/thumb/1"),
-            DecadeCompositeArt.coverThumbs(body, want = 4)
+            DecadeCompositeArt.coverThumbs(body, want = 4),
         )
     }
 
@@ -73,18 +79,19 @@ class DecadeCompositeArtSelectionTest {
 
     @Test
     fun ignoresEntriesThatAreNotAlbums() {
-        val body = response(
-            album("1", "/library/metadata/1/thumb/1"),
-            Metadata().apply {
-                type = "track"
-                ratingKey = "2"
-                thumb = "/library/metadata/2/thumb/1"
-            }
-        )
+        val body =
+            response(
+                album("1", "/library/metadata/1/thumb/1"),
+                Metadata().apply {
+                    type = "track"
+                    ratingKey = "2"
+                    thumb = "/library/metadata/2/thumb/1"
+                },
+            )
 
         assertEquals(
             listOf("/library/metadata/1/thumb/1"),
-            DecadeCompositeArt.coverThumbs(body, want = 4)
+            DecadeCompositeArt.coverThumbs(body, want = 4),
         )
     }
 
@@ -98,7 +105,7 @@ class DecadeCompositeArtSelectionTest {
 
         assertEquals(
             listOf("/library/metadata/9/thumb/1"),
-            DecadeCompositeArt.coverThumbs(body, want = 4)
+            DecadeCompositeArt.coverThumbs(body, want = 4),
         )
     }
 }

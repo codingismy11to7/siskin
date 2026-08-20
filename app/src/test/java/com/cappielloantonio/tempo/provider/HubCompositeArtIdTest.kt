@@ -10,11 +10,11 @@ import org.junit.Test
  * is testable without Robolectric.
  */
 class HubCompositeArtIdTest {
-
-    private val pool = listOf(
-        "/library/metadata/51/thumb/1699999999",
-        "/library/metadata/77/thumb/1700000000"
-    )
+    private val pool =
+        listOf(
+            "/library/metadata/51/thumb/1699999999",
+            "/library/metadata/77/thumb/1700000000",
+        )
 
     @Test
     fun anIdIsHexAndFixedWidthSoItCanBeAFilename() {
@@ -33,7 +33,7 @@ class HubCompositeArtIdTest {
     fun aDifferentPoolGetsADifferentId() {
         assertNotEquals(
             HubCompositeArt.idFor(pool),
-            HubCompositeArt.idFor(pool + "/library/metadata/92/thumb/1700000001")
+            HubCompositeArt.idFor(pool + "/library/metadata/92/thumb/1700000001"),
         )
     }
 
@@ -48,7 +48,7 @@ class HubCompositeArtIdTest {
         // Reached only if the provider's guards were bypassed, which is the
         // point: nothing caller-shaped survives the digest.
         assertTrue(
-            HubCompositeArt.idFor(listOf("../../evil", "/x\\y")).matches(Regex("[0-9a-f]{16}"))
+            HubCompositeArt.idFor(listOf("../../evil", "/x\\y")).matches(Regex("[0-9a-f]{16}")),
         )
     }
 }

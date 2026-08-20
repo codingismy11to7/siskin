@@ -11,18 +11,17 @@ import org.junit.Test
  * provider.
  */
 class CompositeArtBucketTest {
-
     @Test
     fun theBucketIsStableWithinAnHourAndChangesAcrossOne() {
         val hour = CompositeArtBucket.BUCKET_MS
 
         assertEquals(
             CompositeArtBucket.current(3 * hour),
-            CompositeArtBucket.current(3 * hour + hour - 1)
+            CompositeArtBucket.current(3 * hour + hour - 1),
         )
         assertEquals(
             CompositeArtBucket.current(3 * hour) + 1,
-            CompositeArtBucket.current(3 * hour + hour)
+            CompositeArtBucket.current(3 * hour + hour),
         )
     }
 

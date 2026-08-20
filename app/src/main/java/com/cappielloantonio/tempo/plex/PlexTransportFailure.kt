@@ -25,11 +25,12 @@ enum class PlexHost { PlexTv, Server }
  * account for a PIN failure it cannot receive.
  */
 sealed interface PlexTransportFailure {
-
     val host: PlexHost
 
     /** The request never got an HTTP response: no route, refused, timed out. */
-    data class Unreachable(override val host: PlexHost) : PlexTransportFailure
+    data class Unreachable(
+        override val host: PlexHost,
+    ) : PlexTransportFailure
 
     /**
      * A non-2xx response.
@@ -38,5 +39,8 @@ sealed interface PlexTransportFailure {
      * and should drive re-authentication, where every other status should not.
      * Collapsing them loses the only distinction consumers act on.
      */
-    data class Http(override val host: PlexHost, val code: Int) : PlexTransportFailure
+    data class Http(
+        override val host: PlexHost,
+        val code: Int,
+    ) : PlexTransportFailure
 }

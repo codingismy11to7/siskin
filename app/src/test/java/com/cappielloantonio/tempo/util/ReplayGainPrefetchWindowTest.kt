@@ -36,15 +36,16 @@ import org.robolectric.RobolectricTestRunner
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class ReplayGainPrefetchWindowTest {
-
-    private fun item(id: String): MediaItem =
-        MediaItem.Builder().setMediaId(id).build()
+    private fun item(id: String): MediaItem = MediaItem.Builder().setMediaId(id).build()
 
     /**
      * A player over [ids] sitting on [currentIndex], whose timeline advances in
      * plain index order and stops at the end.
      */
-    private fun playerOver(ids: List<String>, currentIndex: Int): Player {
+    private fun playerOver(
+        ids: List<String>,
+        currentIndex: Int,
+    ): Player {
         val timeline = mock<Timeline>()
         whenever(timeline.windowCount).thenReturn(ids.size)
         whenever(timeline.getNextWindowIndex(any(), any(), any()))

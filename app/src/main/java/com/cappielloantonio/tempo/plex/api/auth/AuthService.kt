@@ -23,7 +23,6 @@ import retrofit2.http.Query
  * this API has beyond transport.
  */
 interface AuthService {
-
     /**
      * No `strong` query param: that asks for a 25-character code, but this
      * screen's copy promises one typable at plex.tv/link as an alternative to
@@ -36,11 +35,13 @@ interface AuthService {
     suspend fun createPin(): Pin
 
     @GET("pins/{pinId}")
-    suspend fun getPin(@Path("pinId") pinId: Long): Pin
+    suspend fun getPin(
+        @Path("pinId") pinId: Long,
+    ): Pin
 
     @GET("resources")
     suspend fun getResources(
         @Query("includeHttps") includeHttps: Int = 1,
-        @Query("includeRelay") includeRelay: Int = 1
+        @Query("includeRelay") includeRelay: Int = 1,
     ): List<Resource>
 }

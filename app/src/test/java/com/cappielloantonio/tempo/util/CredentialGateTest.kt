@@ -16,13 +16,13 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class CredentialGateTest {
-
-    private val completeSession = PlexSession(
-        accountToken = "plex-account-token",
-        serverUri = "https://192.168.1.10:32400",
-        musicSectionKey = SectionKey("3"),
-        serverToken = null
-    )
+    private val completeSession =
+        PlexSession(
+            accountToken = "plex-account-token",
+            serverUri = "https://192.168.1.10:32400",
+            musicSectionKey = SectionKey("3"),
+            serverToken = null,
+        )
 
     // App caches SharedPreferences in a static field Robolectric does not reset
     // between methods, so every field is cleared explicitly before each test

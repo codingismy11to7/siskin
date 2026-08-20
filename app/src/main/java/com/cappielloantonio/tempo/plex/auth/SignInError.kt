@@ -15,9 +15,10 @@ import com.cappielloantonio.tempo.plex.PlexTransportFailure
  * already says it.
  */
 sealed interface SignInError {
-
     /** The API failed. [PlexTransportFailure.host] decides how it reads to the user. */
-    data class Api(val failure: PlexTransportFailure) : SignInError
+    data class Api(
+        val failure: PlexTransportFailure,
+    ) : SignInError
 
     /**
      * plex.tv answered when creating a PIN, but not with a usable one. A

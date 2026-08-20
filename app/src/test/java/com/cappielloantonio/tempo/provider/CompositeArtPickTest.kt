@@ -17,12 +17,10 @@ import org.junit.Test
  * let pass while measuring nothing.
  */
 class CompositeArtPickTest {
-
     private val pool = listOf("a", "b", "c", "d", "e", "f")
 
     /** Loads everything except the named failures, echoing the thumb back. */
-    private fun loader(vararg failing: String): (String) -> String? =
-        { thumb -> thumb.takeUnless { it in failing } }
+    private fun loader(vararg failing: String): (String) -> String? = { thumb -> thumb.takeUnless { it in failing } }
 
     @Test
     fun aCleanPoolYieldsTheFirstFour() {
@@ -51,7 +49,10 @@ class CompositeArtPickTest {
         // through Glide, and loading the fifth and sixth candidates after four
         // have landed would spend two of them per tile for nothing.
         val attempted = mutableListOf<String>()
-        CompositeArt.pick(pool, 4) { thumb -> attempted.add(thumb); thumb }
+        CompositeArt.pick(pool, 4) { thumb ->
+            attempted.add(thumb)
+            thumb
+        }
         assertEquals(listOf("a", "b", "c", "d"), attempted)
     }
 
@@ -63,7 +64,11 @@ class CompositeArtPickTest {
         // stops is `take(-1)`, which throws; this test just pins the boundary
         // input's behaviour, not the guard's necessity.
         val attempted = mutableListOf<String>()
-        val picked = CompositeArt.pick(pool, 0) { thumb -> attempted.add(thumb); thumb }
+        val picked =
+            CompositeArt.pick(pool, 0) { thumb ->
+                attempted.add(thumb)
+                thumb
+            }
         assertEquals(emptyList<String>(), picked)
         assertEquals(emptyList<String>(), attempted)
     }

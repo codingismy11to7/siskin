@@ -38,9 +38,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
  */
 @UnstableApi
 class ServerAddressResolver(
-    private val book: ServerAddressBook
+    private val book: ServerAddressBook,
 ) : ResolvingDataSource.Resolver {
-
     override fun resolveDataSpec(dataSpec: DataSpec): DataSpec {
         val scheme = dataSpec.uri.scheme
         if (scheme != "http" && scheme != "https") return dataSpec
@@ -50,10 +49,12 @@ class ServerAddressResolver(
 
         val base = book.current()?.toHttpUrlOrNull() ?: return dataSpec
 
-        val rewritten: Uri = dataSpec.uri.buildUpon()
-            .scheme(base.scheme)
-            .encodedAuthority("${base.host}:${base.port}")
-            .build()
+        val rewritten: Uri =
+            dataSpec.uri
+                .buildUpon()
+                .scheme(base.scheme)
+                .encodedAuthority("${base.host}:${base.port}")
+                .build()
 
         // Compared as rebuilt URI strings rather than short-circuited on a
         // host/port equality check. encodedAuthority above always writes an

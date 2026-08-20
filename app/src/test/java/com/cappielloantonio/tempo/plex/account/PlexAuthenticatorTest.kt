@@ -14,7 +14,6 @@ import org.robolectric.RuntimeEnvironment
 
 @RunWith(RobolectricTestRunner::class)
 class PlexAuthenticatorTest {
-
     // androidx.test:core (ApplicationProvider) is not on this module's test
     // classpath -- only androidx.test:monitor arrives transitively via
     // Robolectric. RuntimeEnvironment.getApplication() is the same app Context
@@ -33,8 +32,9 @@ class PlexAuthenticatorTest {
 
     @Test
     fun addAccountSendsTheUserToTheHostActivityAskingForSignIn() {
-        val bundle = PlexAuthenticator(context)
-            .addAccount(null, context.getString(R.string.plex_account_type), null, null, null)
+        val bundle =
+            PlexAuthenticator(context)
+                .addAccount(null, context.getString(R.string.plex_account_type), null, null, null)
 
         // Bundle.getParcelable(String) is deprecated as of API 33 (compileSdk
         // here); BundleCompat.getParcelable is the minSdk-28-safe replacement

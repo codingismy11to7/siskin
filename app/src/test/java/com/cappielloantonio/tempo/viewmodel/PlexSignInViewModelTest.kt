@@ -69,7 +69,6 @@ import org.robolectric.Shadows.shadowOf
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class PlexSignInViewModelTest {
-
     @get:Rule
     val instantTaskRule = InstantTaskExecutorRule()
 
@@ -126,18 +125,18 @@ class PlexSignInViewModelTest {
         BrowseTreeInvalidator.detach()
     }
 
-    private val created = CreatedPin(
-        id = 42L,
-        code = "ABCD",
-        qrUrl = null,
-        expiresAtEpochSeconds = null
-    )
+    private val created =
+        CreatedPin(
+            id = 42L,
+            code = "ABCD",
+            qrUrl = null,
+            expiresAtEpochSeconds = null,
+        )
 
     private fun approvedPin() = Pin().apply { authToken = "granted" }
 
     /** A minimal getSections() body with one music (type "artist") section. */
-    private fun sectionsBody(key: String) =
-        """{"MediaContainer":{"Directory":[{"key":"$key","type":"artist","title":"Music"}]}}"""
+    private fun sectionsBody(key: String) = """{"MediaContainer":{"Directory":[{"key":"$key","type":"artist","title":"Music"}]}}"""
 
     /**
      * chooseServer's getSections() call is real Retrofit/OkHttp traffic to
@@ -163,39 +162,42 @@ class PlexSignInViewModelTest {
     }
 
     @Test
-    fun aDroppedPollDoesNotFailTheSignIn() = runTest(dispatcher) {
-        // The behaviour the recover-versus-bind decision exists to protect: on
-        // car Wi-Fi a poll gets dropped routinely, and abandoning a live PIN for
-        // one blip would make sign-in unusable in a moving vehicle.
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { createPin() } doReturn created.right()
-            onBlocking { getPin(42L) } doReturnConsecutively listOf(
-                PlexTransportFailure.Unreachable(PlexHost.PlexTv).left(),
-                PlexTransportFailure.Http(PlexHost.PlexTv, 500).left(),
-                approvedPin().right()
+    fun aDroppedPollDoesNotFailTheSignIn() =
+        runTest(dispatcher) {
+            // The behaviour the recover-versus-bind decision exists to protect: on
+            // car Wi-Fi a poll gets dropped routinely, and abandoning a live PIN for
+            // one blip would make sign-in unusable in a moving vehicle.
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { createPin() } doReturn created.right()
+                    onBlocking { getPin(42L) } doReturnConsecutively
+                        listOf(
+                            PlexTransportFailure.Unreachable(PlexHost.PlexTv).left(),
+                            PlexTransportFailure.Http(PlexHost.PlexTv, 500).left(),
+                            approvedPin().right(),
+                        )
+                    onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+                }
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+            viewModel.connect()
+            advanceUntilIdle()
+
+            // Two dropped polls did not end the sign-in: it reached the real
+            // server picker rather than Failed. A bound (not recovered) poll would
+            // turn the first Unreachable into Failed, so only ChoosingServer here
+            // proves the loop survived both blips.
+            val state = viewModel.state.value
+            assertTrue(
+                "expected the loop to survive two dropped polls and reach the server picker, got $state",
+                state is PlexSignInState.ChoosingServer,
             )
-            onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+
+            // Proves the two dropped polls were actually retried rather than
+            // skipped: one call per doReturnConsecutively entry, including both
+            // failures.
+            verify(authClient, times(3)).getPin(42L)
         }
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-        viewModel.connect()
-        advanceUntilIdle()
-
-        // Two dropped polls did not end the sign-in: it reached the real
-        // server picker rather than Failed. A bound (not recovered) poll would
-        // turn the first Unreachable into Failed, so only ChoosingServer here
-        // proves the loop survived both blips.
-        val state = viewModel.state.value
-        assertTrue(
-            "expected the loop to survive two dropped polls and reach the server picker, got $state",
-            state is PlexSignInState.ChoosingServer
-        )
-
-        // Proves the two dropped polls were actually retried rather than
-        // skipped: one call per doReturnConsecutively entry, including both
-        // failures.
-        verify(authClient, times(3)).getPin(42L)
-    }
 
     // ── the atomic-session invariant ──────────────────────────────────
     //
@@ -214,183 +216,192 @@ class PlexSignInViewModelTest {
         }
 
     @Test
-    fun chooseServerPersistsNothing() = runTest(dispatcher) {
-        // Drives chooseServer all the way to a successful ChoosingLibrary and
-        // asserts that none of the four session-backing values moved, even
-        // though chooseServer now knows the candidate server's URI and access
-        // token perfectly well. This is the assertion that fails if a mid-flow
-        // write like the deleted `api.serverUri = uri` is ever reintroduced.
-        val accessToken = "resource-access-token"
-        val resource = aMediaServer(accessToken = accessToken)
-        val serverUri = server.url("/").toString()
-        val authClient = setUpToChoosingServer(resource)
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+    fun chooseServerPersistsNothing() =
+        runTest(dispatcher) {
+            // Drives chooseServer all the way to a successful ChoosingLibrary and
+            // asserts that none of the four session-backing values moved, even
+            // though chooseServer now knows the candidate server's URI and access
+            // token perfectly well. This is the assertion that fails if a mid-flow
+            // write like the deleted `api.serverUri = uri` is ever reintroduced.
+            val accessToken = "resource-access-token"
+            val resource = aMediaServer(accessToken = accessToken)
+            val serverUri = server.url("/").toString()
+            val authClient = setUpToChoosingServer(resource)
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+
+            val stateAfterSignIn = viewModel.state.value
+            assertTrue(
+                "setup did not reach ChoosingServer, got $stateAfterSignIn",
+                stateAfterSignIn is PlexSignInState.ChoosingServer,
+            )
+
+            // Snapshot immediately before the call under test -- all null here,
+            // since nothing has touched these four keys yet, but read back
+            // explicitly rather than assumed so the assertion below is "unchanged"
+            // and not just "still null".
+            val serverUriBefore = PlexApi().serverUri
+            val sectionKeyBefore = PlexApi().musicSectionKey
+            val serverTokenBefore = PlexApi().serverToken
+            val machineIdentifierBefore = PlexApi().machineIdentifier
+
+            viewModel.chooseServer(resource)
+            awaitSettled(viewModel)
+
+            val state = viewModel.state.value
+            assertTrue(
+                "expected ChoosingLibrary once the probed server answered, got $state",
+                state is PlexSignInState.ChoosingLibrary,
+            )
+
+            assertNull("chooseServer must not persist a session", PlexApi().session)
+            assertEquals(serverUriBefore, PlexApi().serverUri)
+            assertEquals(sectionKeyBefore, PlexApi().musicSectionKey)
+            assertEquals(serverTokenBefore, PlexApi().serverToken)
+            // aMediaServer() defaults clientIdentifier to a non-null value, so a
+            // regression that wrote api.machineIdentifier directly (bypassing the
+            // atomic session setter) would leave PlexApi().session reading null
+            // (the other required fields are still absent) while this individual
+            // key silently changed -- only checking it here catches that.
+            assertEquals(machineIdentifierBefore, PlexApi().machineIdentifier)
         }
-        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.connect()
-        advanceUntilIdle()
-
-        val stateAfterSignIn = viewModel.state.value
-        assertTrue(
-            "setup did not reach ChoosingServer, got $stateAfterSignIn",
-            stateAfterSignIn is PlexSignInState.ChoosingServer
-        )
-
-        // Snapshot immediately before the call under test -- all null here,
-        // since nothing has touched these four keys yet, but read back
-        // explicitly rather than assumed so the assertion below is "unchanged"
-        // and not just "still null".
-        val serverUriBefore = PlexApi().serverUri
-        val sectionKeyBefore = PlexApi().musicSectionKey
-        val serverTokenBefore = PlexApi().serverToken
-        val machineIdentifierBefore = PlexApi().machineIdentifier
-
-        viewModel.chooseServer(resource)
-        awaitSettled(viewModel)
-
-        val state = viewModel.state.value
-        assertTrue(
-            "expected ChoosingLibrary once the probed server answered, got $state",
-            state is PlexSignInState.ChoosingLibrary
-        )
-
-        assertNull("chooseServer must not persist a session", PlexApi().session)
-        assertEquals(serverUriBefore, PlexApi().serverUri)
-        assertEquals(sectionKeyBefore, PlexApi().musicSectionKey)
-        assertEquals(serverTokenBefore, PlexApi().serverToken)
-        // aMediaServer() defaults clientIdentifier to a non-null value, so a
-        // regression that wrote api.machineIdentifier directly (bypassing the
-        // atomic session setter) would leave PlexApi().session reading null
-        // (the other required fields are still absent) while this individual
-        // key silently changed -- only checking it here catches that.
-        assertEquals(machineIdentifierBefore, PlexApi().machineIdentifier)
-    }
 
     @Test
-    fun chooseLibraryCommitsAllValuesTogether() = runTest(dispatcher) {
-        // The other half: once a library is picked, all five values land in
-        // one write, matching the account token from sign-in, the URI the
-        // probe returned (not something chooseLibrary re-derives), the
-        // section the user picked, that server's own access token, and its
-        // machine identifier.
-        val accessToken = "resource-access-token"
-        val machineIdentifier = "machine-id"
-        val resource = aMediaServer(accessToken = accessToken, clientIdentifier = machineIdentifier)
-        val serverUri = server.url("/").toString()
-        val sectionKey = "5"
-        val authClient = setUpToChoosingServer(resource)
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+    fun chooseLibraryCommitsAllValuesTogether() =
+        runTest(dispatcher) {
+            // The other half: once a library is picked, all five values land in
+            // one write, matching the account token from sign-in, the URI the
+            // probe returned (not something chooseLibrary re-derives), the
+            // section the user picked, that server's own access token, and its
+            // machine identifier.
+            val accessToken = "resource-access-token"
+            val machineIdentifier = "machine-id"
+            val resource = aMediaServer(accessToken = accessToken, clientIdentifier = machineIdentifier)
+            val serverUri = server.url("/").toString()
+            val sectionKey = "5"
+            val authClient = setUpToChoosingServer(resource)
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+            viewModel.chooseServer(resource)
+            awaitSettled(viewModel)
+
+            val stateAfterChoosingServer = viewModel.state.value
+            assertTrue(
+                "setup did not reach ChoosingLibrary, got $stateAfterChoosingServer",
+                stateAfterChoosingServer is PlexSignInState.ChoosingLibrary,
+            )
+            val section = (stateAfterChoosingServer as PlexSignInState.ChoosingLibrary).sections.head
+
+            viewModel.chooseLibrary(section)
+
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            assertEquals(
+                // "granted" is approvedPin()'s authToken -- the account token
+                // signIn() wrote before any server was even chosen.
+                PlexSession(
+                    accountToken = "granted",
+                    serverUri = serverUri,
+                    musicSectionKey = SectionKey(sectionKey),
+                    serverToken = accessToken,
+                    machineIdentifier = machineIdentifier,
+                ),
+                PlexApi().session,
+            )
         }
-        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.connect()
-        advanceUntilIdle()
-        viewModel.chooseServer(resource)
-        awaitSettled(viewModel)
-
-        val stateAfterChoosingServer = viewModel.state.value
-        assertTrue(
-            "setup did not reach ChoosingLibrary, got $stateAfterChoosingServer",
-            stateAfterChoosingServer is PlexSignInState.ChoosingLibrary
-        )
-        val section = (stateAfterChoosingServer as PlexSignInState.ChoosingLibrary).sections.head
-
-        viewModel.chooseLibrary(section)
-
-        assertEquals(PlexSignInState.Done, viewModel.state.value)
-        assertEquals(
-            // "granted" is approvedPin()'s authToken -- the account token
-            // signIn() wrote before any server was even chosen.
-            PlexSession(
-                accountToken = "granted",
-                serverUri = serverUri,
-                musicSectionKey = SectionKey(sectionKey),
-                serverToken = accessToken,
-                machineIdentifier = machineIdentifier
-            ),
-            PlexApi().session
-        )
-    }
 
     @Test
-    fun chooseLibraryRecordsTheServersOtherAddresses() = runTest(dispatcher) {
-        // Without this, a fresh sign-in has no list to race, so the first
-        // recovery after driving away has to go through plex.tv -- exactly the
-        // round trip the stored list exists to avoid.
-        val machineIdentifier = "machine-id"
-        val resource = aMediaServer(
-            accessToken = "resource-access-token",
-            clientIdentifier = machineIdentifier
-        )
-        val serverUri = server.url("/").toString()
-        val authClient = setUpToChoosingServer(resource)
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+    fun chooseLibraryRecordsTheServersOtherAddresses() =
+        runTest(dispatcher) {
+            // Without this, a fresh sign-in has no list to race, so the first
+            // recovery after driving away has to go through plex.tv -- exactly the
+            // round trip the stored list exists to avoid.
+            val machineIdentifier = "machine-id"
+            val resource =
+                aMediaServer(
+                    accessToken = "resource-access-token",
+                    clientIdentifier = machineIdentifier,
+                )
+            val serverUri = server.url("/").toString()
+            val authClient = setUpToChoosingServer(resource)
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+            viewModel.chooseServer(resource)
+            awaitSettled(viewModel)
+
+            val section = (viewModel.state.value as PlexSignInState.ChoosingLibrary).sections.head
+            viewModel.chooseLibrary(section)
+
+            val stored = ServerAddressBook.newForTest(PlexApi()).storedCandidates(machineIdentifier)
+            assertNotNull("sign-in must record the address list", stored)
+            assertTrue(
+                "the addresses aMediaServer advertises must be stored",
+                stored!!.direct.isNotEmpty(),
+            )
         }
-        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.connect()
-        advanceUntilIdle()
-        viewModel.chooseServer(resource)
-        awaitSettled(viewModel)
-
-        val section = (viewModel.state.value as PlexSignInState.ChoosingLibrary).sections.head
-        viewModel.chooseLibrary(section)
-
-        val stored = ServerAddressBook.newForTest(PlexApi()).storedCandidates(machineIdentifier)
-        assertNotNull("sign-in must record the address list", stored)
-        assertTrue(
-            "the addresses aMediaServer advertises must be stored",
-            stored!!.direct.isNotEmpty()
-        )
-    }
 
     @Test
-    fun chooseLibraryAcceptsAServerWithNoMachineIdentifier() = runTest(dispatcher) {
-        // aMediaServer() defaults clientIdentifier to a non-null value for
-        // every other test in this file, so none of them exercise a Resource
-        // whose clientIdentifier is null -- the "optional field" property the
-        // whole design rests on. This is that case: the session must still
-        // commit, just with machineIdentifier absent.
-        val accessToken = "resource-access-token"
-        val resource = aMediaServer(accessToken = accessToken, clientIdentifier = null)
-        val serverUri = server.url("/").toString()
-        val sectionKey = "5"
-        val authClient = setUpToChoosingServer(resource)
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+    fun chooseLibraryAcceptsAServerWithNoMachineIdentifier() =
+        runTest(dispatcher) {
+            // aMediaServer() defaults clientIdentifier to a non-null value for
+            // every other test in this file, so none of them exercise a Resource
+            // whose clientIdentifier is null -- the "optional field" property the
+            // whole design rests on. This is that case: the session must still
+            // commit, just with machineIdentifier absent.
+            val accessToken = "resource-access-token"
+            val resource = aMediaServer(accessToken = accessToken, clientIdentifier = null)
+            val serverUri = server.url("/").toString()
+            val sectionKey = "5"
+            val authClient = setUpToChoosingServer(resource)
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+            viewModel.chooseServer(resource)
+            awaitSettled(viewModel)
+
+            val stateAfterChoosingServer = viewModel.state.value
+            assertTrue(
+                "setup did not reach ChoosingLibrary, got $stateAfterChoosingServer",
+                stateAfterChoosingServer is PlexSignInState.ChoosingLibrary,
+            )
+            val section = (stateAfterChoosingServer as PlexSignInState.ChoosingLibrary).sections.head
+
+            viewModel.chooseLibrary(section)
+
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            val session = PlexApi().session
+            assertNotNull(
+                "a missing machineIdentifier must not block the rest of the session from persisting",
+                session,
+            )
+            assertNull(session?.machineIdentifier)
         }
-        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.connect()
-        advanceUntilIdle()
-        viewModel.chooseServer(resource)
-        awaitSettled(viewModel)
-
-        val stateAfterChoosingServer = viewModel.state.value
-        assertTrue(
-            "setup did not reach ChoosingLibrary, got $stateAfterChoosingServer",
-            stateAfterChoosingServer is PlexSignInState.ChoosingLibrary
-        )
-        val section = (stateAfterChoosingServer as PlexSignInState.ChoosingLibrary).sections.head
-
-        viewModel.chooseLibrary(section)
-
-        assertEquals(PlexSignInState.Done, viewModel.state.value)
-        val session = PlexApi().session
-        assertNotNull(
-            "a missing machineIdentifier must not block the rest of the session from persisting",
-            session
-        )
-        assertNull(session?.machineIdentifier)
-    }
 
     // ── chooseLibrary's invalidatesQueue guard ─────────────────────────
     //
@@ -404,34 +415,48 @@ class PlexSignInViewModelTest {
     // does -- these three prove it, on both the reachable-while-signed-in
     // journey and the original sign-in journey.
 
-    private fun track(ratingKey: String) = PlexMediaMapper.buildTrackMediaItem(
-        ratingKey = ratingKey,
-        title = "Track $ratingKey",
-        albumTitle = null,
-        artist = null,
-        thumb = null,
-        partKey = "/library/parts/$ratingKey/file.flac",
-        durationMs = null,
-        trackIndex = null,
-        year = null,
-        grandparentRatingKey = null,
-        isHearted = false,
-        parentId = null,
-        serverUri = "http://old-server:32400",
-        token = "tok"
-    )
+    private fun track(ratingKey: String) =
+        PlexMediaMapper.buildTrackMediaItem(
+            ratingKey = ratingKey,
+            title = "Track $ratingKey",
+            albumTitle = null,
+            artist = null,
+            thumb = null,
+            partKey = "/library/parts/$ratingKey/file.flac",
+            durationMs = null,
+            trackIndex = null,
+            year = null,
+            grandparentRatingKey = null,
+            isHearted = false,
+            parentId = null,
+            serverUri = "http://old-server:32400",
+            token = "tok",
+        )
 
     private fun queueIds(): List<String?> {
         var ids: List<String?> = emptyList()
         // Off the test thread: AppDatabase is not built with
         // allowMainThreadQueries() and Robolectric runs the test method on the
         // "main" thread (see LibraryPickerCommitTest for the same pattern).
-        Thread { ids = AppDatabase.getInstance().queueDao().getAllSimple().map { it.id } }
-            .apply { start(); join() }
+        Thread {
+            ids =
+                AppDatabase
+                    .getInstance()
+                    .queueDao()
+                    .getAllSimple()
+                    .map { it.id }
+        }.apply {
+            start()
+            join()
+        }
         return ids
     }
 
-    private fun pollUntilQueueContains(id: String, timeoutMs: Long = 3000, intervalMs: Long = 10) {
+    private fun pollUntilQueueContains(
+        id: String,
+        timeoutMs: Long = 3000,
+        intervalMs: Long = 10,
+    ) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             if (queueIds().contains(id)) return
@@ -460,14 +485,13 @@ class PlexSignInViewModelTest {
     }
 
     /** Drives connect() through chooseServer to a ready-to-commit ChoosingLibrary. */
-    private suspend fun TestScope.setUpToChoosingLibrary(
-        resource: Resource
-    ): Pair<PlexSignInViewModel, Directory> {
+    private suspend fun TestScope.setUpToChoosingLibrary(resource: Resource): Pair<PlexSignInViewModel, Directory> {
         val serverUri = server.url("/").toString()
         val authClient = setUpToChoosingServer(resource)
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(resource) } doReturn serverUri
-        }
+        val probe =
+            mock<ServerProbe>().stub {
+                onBlocking { bestConnectionUri(resource) } doReturn serverUri
+            }
         server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
@@ -479,82 +503,87 @@ class PlexSignInViewModelTest {
         val state = viewModel.state.value
         assertTrue(
             "setup did not reach ChoosingLibrary, got $state",
-            state is PlexSignInState.ChoosingLibrary
+            state is PlexSignInState.ChoosingLibrary,
         )
         return viewModel to (state as PlexSignInState.ChoosingLibrary).sections.head
     }
 
     @Test
-    fun chooseLibraryOnADifferentServerStopsPlaybackAndClearsTheQueue() = runTest(dispatcher) {
-        seedQueue("keep-me")
-        PlexApi().session = PlexSession(
-            accountToken = "old-token",
-            serverUri = "http://old-server:32400",
-            musicSectionKey = SectionKey("9"),
-            serverToken = "old-server-tok",
-            machineIdentifier = "old-machine"
-        )
+    fun chooseLibraryOnADifferentServerStopsPlaybackAndClearsTheQueue() =
+        runTest(dispatcher) {
+            seedQueue("keep-me")
+            PlexApi().session =
+                PlexSession(
+                    accountToken = "old-token",
+                    serverUri = "http://old-server:32400",
+                    musicSectionKey = SectionKey("9"),
+                    serverToken = "old-server-tok",
+                    machineIdentifier = "old-machine",
+                )
 
-        // aMediaServer()'s default clientIdentifier is "machine-id", which
-        // disagrees with the "old-machine" session above -- a genuine server
-        // change.
-        val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
+            // aMediaServer()'s default clientIdentifier is "machine-id", which
+            // disagrees with the "old-machine" session above -- a genuine server
+            // change.
+            val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
 
-        viewModel.chooseLibrary(section)
-        // stopPlayback() posts to the main thread, and Robolectric's looper is
-        // paused, so without this the queued Player calls never run and the
-        // verifications below would fail whether or not the fix is present.
-        shadowOf(Looper.getMainLooper()).idle()
+            viewModel.chooseLibrary(section)
+            // stopPlayback() posts to the main thread, and Robolectric's looper is
+            // paused, so without this the queued Player calls never run and the
+            // verifications below would fail whether or not the fix is present.
+            shadowOf(Looper.getMainLooper()).idle()
 
-        assertEquals(PlexSignInState.Done, viewModel.state.value)
-        verify(player).stop()
-        verify(player).clearMediaItems()
-        assertFalse(queueIdsAfterBarrier().contains("keep-me"))
-    }
-
-    @Test
-    fun chooseLibraryOnTheSameServerLeavesPlaybackAndTheQueueAlone() = runTest(dispatcher) {
-        seedQueue("keep-me")
-        PlexApi().session = PlexSession(
-            accountToken = "old-token",
-            serverUri = "http://somewhere-else:32400",
-            musicSectionKey = SectionKey("9"),
-            serverToken = "old-server-tok",
-            // Matches aMediaServer()'s default clientIdentifier below: same
-            // server, different library.
-            machineIdentifier = "machine-id"
-        )
-
-        val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
-
-        viewModel.chooseLibrary(section)
-        shadowOf(Looper.getMainLooper()).idle()
-
-        assertEquals(PlexSignInState.Done, viewModel.state.value)
-        verify(player, never()).stop()
-        verify(player, never()).clearMediaItems()
-        assertTrue(queueIdsAfterBarrier().contains("keep-me"))
-    }
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            verify(player).stop()
+            verify(player).clearMediaItems()
+            assertFalse(queueIdsAfterBarrier().contains("keep-me"))
+        }
 
     @Test
-    fun chooseLibraryOnTheSignInJourneyLeavesPlaybackAndTheQueueAlone() = runTest(dispatcher) {
-        // No preset session: clearSession() already left PlexApi().session
-        // null, which is the only way chooseLibrary was ever reachable before
-        // the debug screen existed. invalidatesQueue(old = null, ...) is
-        // false by construction, so this is the case the guard must leave
-        // alone.
-        seedQueue("keep-me")
+    fun chooseLibraryOnTheSameServerLeavesPlaybackAndTheQueueAlone() =
+        runTest(dispatcher) {
+            seedQueue("keep-me")
+            PlexApi().session =
+                PlexSession(
+                    accountToken = "old-token",
+                    serverUri = "http://somewhere-else:32400",
+                    musicSectionKey = SectionKey("9"),
+                    serverToken = "old-server-tok",
+                    // Matches aMediaServer()'s default clientIdentifier below: same
+                    // server, different library.
+                    machineIdentifier = "machine-id",
+                )
 
-        val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
+            val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
 
-        viewModel.chooseLibrary(section)
-        shadowOf(Looper.getMainLooper()).idle()
+            viewModel.chooseLibrary(section)
+            shadowOf(Looper.getMainLooper()).idle()
 
-        assertEquals(PlexSignInState.Done, viewModel.state.value)
-        verify(player, never()).stop()
-        verify(player, never()).clearMediaItems()
-        assertTrue(queueIdsAfterBarrier().contains("keep-me"))
-    }
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            verify(player, never()).stop()
+            verify(player, never()).clearMediaItems()
+            assertTrue(queueIdsAfterBarrier().contains("keep-me"))
+        }
+
+    @Test
+    fun chooseLibraryOnTheSignInJourneyLeavesPlaybackAndTheQueueAlone() =
+        runTest(dispatcher) {
+            // No preset session: clearSession() already left PlexApi().session
+            // null, which is the only way chooseLibrary was ever reachable before
+            // the debug screen existed. invalidatesQueue(old = null, ...) is
+            // false by construction, so this is the case the guard must leave
+            // alone.
+            seedQueue("keep-me")
+
+            val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
+
+            viewModel.chooseLibrary(section)
+            shadowOf(Looper.getMainLooper()).idle()
+
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            verify(player, never()).stop()
+            verify(player, never()).clearMediaItems()
+            assertTrue(queueIdsAfterBarrier().contains("keep-me"))
+        }
 
     // ── recovering from a bad server pick (#18) ────────────────────────
     //
@@ -566,138 +595,144 @@ class PlexSignInViewModelTest {
     // same thing a third time.
 
     /** A getSections() body whose only section is not music. */
-    private fun noMusicSectionsBody() =
-        """{"MediaContainer":{"Directory":[{"key":"1","type":"movie","title":"Films"}]}}"""
+    private fun noMusicSectionsBody() = """{"MediaContainer":{"Directory":[{"key":"1","type":"movie","title":"Films"}]}}"""
 
     @Test
-    fun aServerWithNoMusicReturnsToThePickerInsteadOfFailing() = runTest(dispatcher) {
-        val resource = aMediaServer()
-        val serverUri = server.url("/").toString()
-        val authClient = setUpToChoosingServer(resource)
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+    fun aServerWithNoMusicReturnsToThePickerInsteadOfFailing() =
+        runTest(dispatcher) {
+            val resource = aMediaServer()
+            val serverUri = server.url("/").toString()
+            val authClient = setUpToChoosingServer(resource)
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+
+            // Snapshot immediately before the call under test, same as
+            // chooseServerPersistsNothing: uri, resource and candidate are all in
+            // scope inside chooseServer's onLeft, so the rejection path is
+            // exactly where a partial credential write would be tempting to add
+            // later.
+            val serverUriBefore = PlexApi().serverUri
+            val sectionKeyBefore = PlexApi().musicSectionKey
+            val serverTokenBefore = PlexApi().serverToken
+
+            viewModel.chooseServer(resource)
+            awaitSettled(viewModel)
+
+            // Failed here is the bug: its only exit calls retry() -> signIn() ->
+            // createPin(), which makes the user approve a new PIN to recover from
+            // a statement about a server.
+            val state = viewModel.state.value
+            assertTrue(
+                "expected to land back on the server picker, got $state",
+                state is PlexSignInState.ChoosingServer,
+            )
+            state as PlexSignInState.ChoosingServer
+            assertEquals(listOf(resource), state.servers)
+            assertEquals(R.string.plex_sign_in_error_no_libraries, state.messageRes)
+
+            assertNull("the rejection path must not persist a session", PlexApi().session)
+            assertEquals(serverUriBefore, PlexApi().serverUri)
+            assertEquals(sectionKeyBefore, PlexApi().musicSectionKey)
+            assertEquals(serverTokenBefore, PlexApi().serverToken)
         }
-        server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.connect()
-        advanceUntilIdle()
-
-        // Snapshot immediately before the call under test, same as
-        // chooseServerPersistsNothing: uri, resource and candidate are all in
-        // scope inside chooseServer's onLeft, so the rejection path is
-        // exactly where a partial credential write would be tempting to add
-        // later.
-        val serverUriBefore = PlexApi().serverUri
-        val sectionKeyBefore = PlexApi().musicSectionKey
-        val serverTokenBefore = PlexApi().serverToken
-
-        viewModel.chooseServer(resource)
-        awaitSettled(viewModel)
-
-        // Failed here is the bug: its only exit calls retry() -> signIn() ->
-        // createPin(), which makes the user approve a new PIN to recover from
-        // a statement about a server.
-        val state = viewModel.state.value
-        assertTrue(
-            "expected to land back on the server picker, got $state",
-            state is PlexSignInState.ChoosingServer
-        )
-        state as PlexSignInState.ChoosingServer
-        assertEquals(listOf(resource), state.servers)
-        assertEquals(R.string.plex_sign_in_error_no_libraries, state.messageRes)
-
-        assertNull("the rejection path must not persist a session", PlexApi().session)
-        assertEquals(serverUriBefore, PlexApi().serverUri)
-        assertEquals(sectionKeyBefore, PlexApi().musicSectionKey)
-        assertEquals(serverTokenBefore, PlexApi().serverToken)
-    }
 
     @Test
-    fun anUnreachableServerReturnsToThePickerInsteadOfFailing() = runTest(dispatcher) {
-        // The probe answering with nothing: no connection the server
-        // advertised responded. No MockWebServer traffic -- the flow never
-        // gets as far as a sections call.
-        val resource = aMediaServer()
-        val authClient = setUpToChoosingServer(resource)
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(resource) } doReturn null
+    fun anUnreachableServerReturnsToThePickerInsteadOfFailing() =
+        runTest(dispatcher) {
+            // The probe answering with nothing: no connection the server
+            // advertised responded. No MockWebServer traffic -- the flow never
+            // gets as far as a sections call.
+            val resource = aMediaServer()
+            val authClient = setUpToChoosingServer(resource)
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(resource) } doReturn null
+                }
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+            viewModel.chooseServer(resource)
+            awaitSettled(viewModel)
+
+            val state = viewModel.state.value
+            assertTrue(
+                "expected to land back on the server picker, got $state",
+                state is PlexSignInState.ChoosingServer,
+            )
+            assertEquals(
+                R.string.plex_sign_in_error_server_unreachable,
+                (state as PlexSignInState.ChoosingServer).messageRes,
+            )
         }
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.connect()
-        advanceUntilIdle()
-        viewModel.chooseServer(resource)
-        awaitSettled(viewModel)
-
-        val state = viewModel.state.value
-        assertTrue(
-            "expected to land back on the server picker, got $state",
-            state is PlexSignInState.ChoosingServer
-        )
-        assertEquals(
-            R.string.plex_sign_in_error_server_unreachable,
-            (state as PlexSignInState.ChoosingServer).messageRes
-        )
-    }
 
     @Test
-    fun aSecondPickAfterARejectedOneStillSignsIn() = runTest(dispatcher) {
-        // The actual fix. The message alone was already correct before this
-        // change; what was broken is that the list underneath it was gone.
-        //
-        // bad and good resolve to the same MockWebServer and its two enqueued
-        // responses are dequeued FIFO regardless of which Resource triggered
-        // the call, so reaching ChoosingLibrary alone would not prove index 1
-        // (good) was actually probed rather than bad again. The verify calls
-        // below are what pin that down.
-        val bad = aMediaServer()
-        val good = aMediaServer(accessToken = "good-token")
-        val serverUri = server.url("/").toString()
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { createPin() } doReturn created.right()
-            onBlocking { getPin(42L) } doReturn approvedPin().right()
-            onBlocking { getResources() } doReturn listOf(bad, good).right()
+    fun aSecondPickAfterARejectedOneStillSignsIn() =
+        runTest(dispatcher) {
+            // The actual fix. The message alone was already correct before this
+            // change; what was broken is that the list underneath it was gone.
+            //
+            // bad and good resolve to the same MockWebServer and its two enqueued
+            // responses are dequeued FIFO regardless of which Resource triggered
+            // the call, so reaching ChoosingLibrary alone would not prove index 1
+            // (good) was actually probed rather than bad again. The verify calls
+            // below are what pin that down.
+            val bad = aMediaServer()
+            val good = aMediaServer(accessToken = "good-token")
+            val serverUri = server.url("/").toString()
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { createPin() } doReturn created.right()
+                    onBlocking { getPin(42L) } doReturn approvedPin().right()
+                    onBlocking { getResources() } doReturn listOf(bad, good).right()
+                }
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(bad) } doReturn serverUri
+                    onBlocking { bestConnectionUri(good) } doReturn serverUri
+                }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+
+            viewModel.chooseServer(bad)
+            awaitSettled(viewModel)
+            val afterRejection = viewModel.state.value
+            assertTrue(
+                "expected the picker back after a bad pick, got $afterRejection",
+                afterRejection is PlexSignInState.ChoosingServer,
+            )
+
+            // Picked straight off the state the user is actually looking at: the
+            // list survived rejection, so index 1 (good) is there to pick.
+            viewModel.chooseServer((afterRejection as PlexSignInState.ChoosingServer).servers[1])
+            awaitSettled(viewModel)
+
+            val state = viewModel.state.value
+            assertTrue(
+                "expected the second pick to reach the library picker, got $state",
+                state is PlexSignInState.ChoosingLibrary,
+            )
+
+            // The two things the state assertion above cannot tell apart on its
+            // own: that the second pick actually probed good and not bad again
+            // (a re-pick of bad would still reach ChoosingLibrary off the second
+            // queued response -- see the comment at the top of this test), and
+            // that recovering from the rejection did not mint a fresh PIN.
+            verify(probe, times(1)).bestConnectionUri(bad)
+            verify(probe, times(1)).bestConnectionUri(good)
+            verify(authClient, times(1)).createPin()
         }
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(bad) } doReturn serverUri
-            onBlocking { bestConnectionUri(good) } doReturn serverUri
-        }
-        server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
-        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.connect()
-        advanceUntilIdle()
-
-        viewModel.chooseServer(bad)
-        awaitSettled(viewModel)
-        val afterRejection = viewModel.state.value
-        assertTrue(
-            "expected the picker back after a bad pick, got $afterRejection",
-            afterRejection is PlexSignInState.ChoosingServer
-        )
-
-        // Picked straight off the state the user is actually looking at: the
-        // list survived rejection, so index 1 (good) is there to pick.
-        viewModel.chooseServer((afterRejection as PlexSignInState.ChoosingServer).servers[1])
-        awaitSettled(viewModel)
-
-        val state = viewModel.state.value
-        assertTrue(
-            "expected the second pick to reach the library picker, got $state",
-            state is PlexSignInState.ChoosingLibrary
-        )
-
-        // The two things the state assertion above cannot tell apart on its
-        // own: that the second pick actually probed good and not bad again
-        // (a re-pick of bad would still reach ChoosingLibrary off the second
-        // queued response -- see the comment at the top of this test), and
-        // that recovering from the rejection did not mint a fresh PIN.
-        verify(probe, times(1)).bestConnectionUri(bad)
-        verify(probe, times(1)).bestConnectionUri(good)
-        verify(authClient, times(1)).createPin()
-    }
 
     // ── in-flow back navigation ─────────────────────────────────────────
     //
@@ -709,210 +744,232 @@ class PlexSignInViewModelTest {
     // backPressed() has a list to return to instead of an empty screen.
 
     @Test
-    fun backPressedDoesNothingFromDisconnected() = runTest {
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = PlexApi(),
-            authClient = mock(),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-        assertFalse(viewModel.handlesBackPress(PlexSignInState.Disconnected))
+    fun backPressedDoesNothingFromDisconnected() =
+        runTest {
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = PlexApi(),
+                    authClient = mock(),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+            assertFalse(viewModel.handlesBackPress(PlexSignInState.Disconnected))
 
-        val consumed = viewModel.backPressed()
+            val consumed = viewModel.backPressed()
 
-        assertFalse("Disconnected has nowhere to go back to", consumed)
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-    }
-
-    @Test
-    fun backPressedDoesNothingFromConnected() = runTest {
-        val api = PlexApi()
-        api.session = PlexSession(
-            accountToken = "t",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = api,
-            authClient = mock(),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
-        viewModel.open(forceSignIn = false)
-        assertEquals(PlexSignInState.Connected, viewModel.state.value)
-        assertFalse(viewModel.handlesBackPress(PlexSignInState.Connected))
-
-        val consumed = viewModel.backPressed()
-
-        // Settings (Connected) is a leaf, not a step of the flow -- back
-        // leaves the activity, the same as Disconnected.
-        assertFalse(consumed)
-        assertEquals(PlexSignInState.Connected, viewModel.state.value)
-    }
+            assertFalse("Disconnected has nowhere to go back to", consumed)
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+        }
 
     @Test
-    fun handlesBackPressMatchesEveryOtherState() = runTest {
-        // The three "leaves the activity" states are pinned directly above by
-        // their own dedicated tests; this covers the five states that do
-        // consume the press, including Done, which the transition table in
-        // the task brief omits because it is a one-tick pass-through to
-        // onLoginSuccess() rather than a state a user is ever looking at --
-        // see the KDoc on handlesBackPress for why "leave" is still the right
-        // answer there.
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = PlexApi(),
-            authClient = mock(),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
-        val servers = nonEmptyListOf(aMediaServer())
-        val sections = nonEmptyListOf(Directory().apply { key = "5"; title = "Music" })
+    fun backPressedDoesNothingFromConnected() =
+        runTest {
+            val api = PlexApi()
+            api.session =
+                PlexSession(
+                    accountToken = "t",
+                    serverUri = "https://example.invalid",
+                    musicSectionKey = SectionKey("1"),
+                    serverToken = null,
+                )
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = api,
+                    authClient = mock(),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
+            viewModel.open(forceSignIn = false)
+            assertEquals(PlexSignInState.Connected, viewModel.state.value)
+            assertFalse(viewModel.handlesBackPress(PlexSignInState.Connected))
 
-        assertTrue(viewModel.handlesBackPress(PlexSignInState.Working))
-        assertTrue(
-            viewModel.handlesBackPress(
-                PlexSignInState.AwaitingApproval(code = "ABCD", qrUrl = null, expiresAtEpochSeconds = null)
+            val consumed = viewModel.backPressed()
+
+            // Settings (Connected) is a leaf, not a step of the flow -- back
+            // leaves the activity, the same as Disconnected.
+            assertFalse(consumed)
+            assertEquals(PlexSignInState.Connected, viewModel.state.value)
+        }
+
+    @Test
+    fun handlesBackPressMatchesEveryOtherState() =
+        runTest {
+            // The three "leaves the activity" states are pinned directly above by
+            // their own dedicated tests; this covers the five states that do
+            // consume the press, including Done, which the transition table in
+            // the task brief omits because it is a one-tick pass-through to
+            // onLoginSuccess() rather than a state a user is ever looking at --
+            // see the KDoc on handlesBackPress for why "leave" is still the right
+            // answer there.
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = PlexApi(),
+                    authClient = mock(),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
+            val servers = nonEmptyListOf(aMediaServer())
+            val sections =
+                nonEmptyListOf(
+                    Directory().apply {
+                        key = "5"
+                        title = "Music"
+                    },
+                )
+
+            assertTrue(viewModel.handlesBackPress(PlexSignInState.Working))
+            assertTrue(
+                viewModel.handlesBackPress(
+                    PlexSignInState.AwaitingApproval(code = "ABCD", qrUrl = null, expiresAtEpochSeconds = null),
+                ),
             )
-        )
-        assertTrue(viewModel.handlesBackPress(PlexSignInState.ChoosingServer(servers)))
-        assertTrue(viewModel.handlesBackPress(PlexSignInState.ChoosingLibrary(sections, servers)))
-        assertTrue(viewModel.handlesBackPress(PlexSignInState.Failed(R.string.plex_sign_in_error_expired)))
-        assertFalse(viewModel.handlesBackPress(PlexSignInState.Done))
-    }
-
-    @Test
-    fun backPressedFromWorkingCancelsTheAttemptAndReturnsToDisconnected() = runTest(dispatcher) {
-        val resource = aMediaServer()
-        val serverUri = server.url("/").toString()
-        val authClient = setUpToChoosingServer(resource)
-        val probe = mock<ServerProbe>().stub {
-            onBlocking { bestConnectionUri(resource) } doReturn serverUri
+            assertTrue(viewModel.handlesBackPress(PlexSignInState.ChoosingServer(servers)))
+            assertTrue(viewModel.handlesBackPress(PlexSignInState.ChoosingLibrary(sections, servers)))
+            assertTrue(viewModel.handlesBackPress(PlexSignInState.Failed(R.string.plex_sign_in_error_expired)))
+            assertFalse(viewModel.handlesBackPress(PlexSignInState.Done))
         }
-        server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
-        viewModel.connect()
-        advanceUntilIdle()
-        viewModel.chooseServer(resource)
-
-        // chooseServer sets Working synchronously, before the coroutine that
-        // would probe and fetch sections has had a chance to run on
-        // `dispatcher` -- so this is genuinely mid-attempt, not a settled
-        // state that merely happens to be named Working.
-        assertEquals(PlexSignInState.Working, viewModel.state.value)
-
-        val consumed = viewModel.backPressed()
-
-        assertTrue(consumed)
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-
-        // Proves the probe/getSections attempt was actually cancelled rather
-        // than merely papered over: left running, it would complete once
-        // given the chance below and overwrite Disconnected with
-        // ChoosingLibrary.
-        advanceUntilIdle()
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-    }
 
     @Test
-    fun backPressedFromAwaitingApprovalAbandonsThePinAndReturnsToDisconnected() = runTest(dispatcher) {
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { createPin() } doReturn created.right()
-            // Always pending: nothing here should matter, since the whole
-            // point is that backPressed() stops the loop before it ever
-            // calls this.
-            onBlocking { getPin(42L) } doReturn Pin().right()
+    fun backPressedFromWorkingCancelsTheAttemptAndReturnsToDisconnected() =
+        runTest(dispatcher) {
+            val resource = aMediaServer()
+            val serverUri = server.url("/").toString()
+            val authClient = setUpToChoosingServer(resource)
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
+            viewModel.connect()
+            advanceUntilIdle()
+            viewModel.chooseServer(resource)
+
+            // chooseServer sets Working synchronously, before the coroutine that
+            // would probe and fetch sections has had a chance to run on
+            // `dispatcher` -- so this is genuinely mid-attempt, not a settled
+            // state that merely happens to be named Working.
+            assertEquals(PlexSignInState.Working, viewModel.state.value)
+
+            val consumed = viewModel.backPressed()
+
+            assertTrue(consumed)
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+            // Proves the probe/getSections attempt was actually cancelled rather
+            // than merely papered over: left running, it would complete once
+            // given the chance below and overwrite Disconnected with
+            // ChoosingLibrary.
+            advanceUntilIdle()
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
         }
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            authClient = authClient,
-            nowMillis = { currentTime }
-        )
-        viewModel.connect()
-        // runCurrent(), not advanceUntilIdle(): the poll loop's while(true)
-        // always has another delay() queued, so advanceUntilIdle() would fast
-        // -forward straight through every iteration to the hard cap and
-        // Failed (exactly what anUnapprovedPinGivesUpAtTheHardCap exercises)
-        // instead of stopping at the first one. runCurrent() drains only
-        // what is due at the current virtual time, which is enough to reach
-        // AwaitingApproval and then suspend on that first delay().
-        runCurrent()
-        assertTrue(viewModel.state.value is PlexSignInState.AwaitingApproval)
-
-        val consumed = viewModel.backPressed()
-
-        assertTrue(consumed)
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-
-        // Abandons the pin: the poll loop's first delay() -- not yet elapsed
-        // when backPressed() ran, so getPin() had not been called even
-        // once -- must never resume and start polling. Advancing well past
-        // the hard cap and letting the scheduler drain proves the loop is
-        // truly gone rather than merely not yet due.
-        advanceTimeBy(PlexPinState.HARD_CAP_SECONDS * 2_000L)
-        advanceUntilIdle()
-        verify(authClient, times(0)).getPin(42L)
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-    }
 
     @Test
-    fun backPressedFromFailedReturnsToDisconnected() = runTest(dispatcher) {
-        // Same setup as anUnapprovedPinGivesUpAtTheHardCap: no expiry on the
-        // created pin, so the hard cap is the only way this reaches Failed.
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { createPin() } doReturn created.right()
-            onBlocking { getPin(42L) } doReturn Pin().right()
+    fun backPressedFromAwaitingApprovalAbandonsThePinAndReturnsToDisconnected() =
+        runTest(dispatcher) {
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { createPin() } doReturn created.right()
+                    // Always pending: nothing here should matter, since the whole
+                    // point is that backPressed() stops the loop before it ever
+                    // calls this.
+                    onBlocking { getPin(42L) } doReturn Pin().right()
+                }
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = authClient,
+                    nowMillis = { currentTime },
+                )
+            viewModel.connect()
+            // runCurrent(), not advanceUntilIdle(): the poll loop's while(true)
+            // always has another delay() queued, so advanceUntilIdle() would fast
+            // -forward straight through every iteration to the hard cap and
+            // Failed (exactly what anUnapprovedPinGivesUpAtTheHardCap exercises)
+            // instead of stopping at the first one. runCurrent() drains only
+            // what is due at the current virtual time, which is enough to reach
+            // AwaitingApproval and then suspend on that first delay().
+            runCurrent()
+            assertTrue(viewModel.state.value is PlexSignInState.AwaitingApproval)
+
+            val consumed = viewModel.backPressed()
+
+            assertTrue(consumed)
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+            // Abandons the pin: the poll loop's first delay() -- not yet elapsed
+            // when backPressed() ran, so getPin() had not been called even
+            // once -- must never resume and start polling. Advancing well past
+            // the hard cap and letting the scheduler drain proves the loop is
+            // truly gone rather than merely not yet due.
+            advanceTimeBy(PlexPinState.HARD_CAP_SECONDS * 2_000L)
+            advanceUntilIdle()
+            verify(authClient, times(0)).getPin(42L)
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
         }
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            authClient = authClient,
-            nowMillis = { currentTime }
-        )
-        viewModel.connect()
-        advanceUntilIdle()
-        assertEquals(PlexSignInState.Failed(R.string.plex_sign_in_error_expired), viewModel.state.value)
-
-        val consumed = viewModel.backPressed()
-
-        // signIn()'s coroutine has already run to completion by the time
-        // Failed is published, so there is nothing left for attempt?.cancel()
-        // to actually stop -- this is exercising that the call is still safe
-        // (a no-op on a finished Job) and that Failed still goes to
-        // Disconnected regardless.
-        assertTrue(consumed)
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-    }
 
     @Test
-    fun backPressedFromChoosingServerReturnsToDisconnectedAndAllowsReconnecting() = runTest(dispatcher) {
-        val authClient = setUpToChoosingServer(aMediaServer())
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-        viewModel.connect()
-        advanceUntilIdle()
-        assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+    fun backPressedFromFailedReturnsToDisconnected() =
+        runTest(dispatcher) {
+            // Same setup as anUnapprovedPinGivesUpAtTheHardCap: no expiry on the
+            // created pin, so the hard cap is the only way this reaches Failed.
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { createPin() } doReturn created.right()
+                    onBlocking { getPin(42L) } doReturn Pin().right()
+                }
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = authClient,
+                    nowMillis = { currentTime },
+                )
+            viewModel.connect()
+            advanceUntilIdle()
+            assertEquals(PlexSignInState.Failed(R.string.plex_sign_in_error_expired), viewModel.state.value)
 
-        val consumed = viewModel.backPressed()
+            val consumed = viewModel.backPressed()
 
-        assertTrue(consumed)
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+            // signIn()'s coroutine has already run to completion by the time
+            // Failed is published, so there is nothing left for attempt?.cancel()
+            // to actually stop -- this is exercising that the call is still safe
+            // (a no-op on a finished Job) and that Failed still goes to
+            // Disconnected regardless.
+            assertTrue(consumed)
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+        }
 
-        // The point of the misclick recovery: connect()'s own two guards
-        // (attempt?.isActive, state != Disconnected) must not silently eat
-        // the next Connect tap. Without cancelling attempt above, isActive
-        // would still read true here (signIn() had already run to
-        // completion, so this is really the state guard being proven, but
-        // both are checked by simply confirming the flow restarts).
-        viewModel.connect()
-        advanceUntilIdle()
+    @Test
+    fun backPressedFromChoosingServerReturnsToDisconnectedAndAllowsReconnecting() =
+        runTest(dispatcher) {
+            val authClient = setUpToChoosingServer(aMediaServer())
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+            viewModel.connect()
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
 
-        verify(authClient, times(2)).createPin()
-        assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
-    }
+            val consumed = viewModel.backPressed()
+
+            assertTrue(consumed)
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+            // The point of the misclick recovery: connect()'s own two guards
+            // (attempt?.isActive, state != Disconnected) must not silently eat
+            // the next Connect tap. Without cancelling attempt above, isActive
+            // would still read true here (signIn() had already run to
+            // completion, so this is really the state guard being proven, but
+            // both are checked by simply confirming the flow restarts).
+            viewModel.connect()
+            advanceUntilIdle()
+
+            verify(authClient, times(2)).createPin()
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+        }
 
     @Test
     fun backPressedFromChoosingLibraryReturnsToChoosingServerWithTheSameServersAndNoMessage() =
@@ -920,9 +977,10 @@ class PlexSignInViewModelTest {
             val resource = aMediaServer()
             val serverUri = server.url("/").toString()
             val authClient = setUpToChoosingServer(resource)
-            val probe = mock<ServerProbe>().stub {
-                onBlocking { bestConnectionUri(resource) } doReturn serverUri
-            }
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
@@ -938,7 +996,7 @@ class PlexSignInViewModelTest {
             val state = viewModel.state.value
             assertTrue(
                 "expected back to return to the server picker, got $state",
-                state is PlexSignInState.ChoosingServer
+                state is PlexSignInState.ChoosingServer,
             )
             state as PlexSignInState.ChoosingServer
             assertEquals(listOf(resource), state.servers)
@@ -958,15 +1016,17 @@ class PlexSignInViewModelTest {
             val wrong = aMediaServer()
             val right = aMediaServer(accessToken = "right-token")
             val serverUri = server.url("/").toString()
-            val authClient = mock<AuthClient>().stub {
-                onBlocking { createPin() } doReturn created.right()
-                onBlocking { getPin(42L) } doReturn approvedPin().right()
-                onBlocking { getResources() } doReturn listOf(wrong, right).right()
-            }
-            val probe = mock<ServerProbe>().stub {
-                onBlocking { bestConnectionUri(wrong) } doReturn serverUri
-                onBlocking { bestConnectionUri(right) } doReturn serverUri
-            }
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { createPin() } doReturn created.right()
+                    onBlocking { getPin(42L) } doReturn approvedPin().right()
+                    onBlocking { getResources() } doReturn listOf(wrong, right).right()
+                }
+            val probe =
+                mock<ServerProbe>().stub {
+                    onBlocking { bestConnectionUri(wrong) } doReturn serverUri
+                    onBlocking { bestConnectionUri(right) } doReturn serverUri
+                }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("1")))
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
@@ -979,7 +1039,7 @@ class PlexSignInViewModelTest {
             val misclick = viewModel.state.value
             assertTrue(
                 "setup did not reach ChoosingLibrary, got $misclick",
-                misclick is PlexSignInState.ChoosingLibrary
+                misclick is PlexSignInState.ChoosingLibrary,
             )
 
             val consumed = viewModel.backPressed()
@@ -987,7 +1047,7 @@ class PlexSignInViewModelTest {
             val corrected = viewModel.state.value
             assertTrue(
                 "expected back to return to the server picker, got $corrected",
-                corrected is PlexSignInState.ChoosingServer
+                corrected is PlexSignInState.ChoosingServer,
             )
             corrected as PlexSignInState.ChoosingServer
             assertEquals(listOf(wrong, right), corrected.servers)
@@ -998,7 +1058,7 @@ class PlexSignInViewModelTest {
             val state = viewModel.state.value
             assertTrue(
                 "expected the corrected pick to reach the library picker, got $state",
-                state is PlexSignInState.ChoosingLibrary
+                state is PlexSignInState.ChoosingLibrary,
             )
 
             // Confirms `right`, not `wrong` again, was actually probed the
@@ -1020,119 +1080,129 @@ class PlexSignInViewModelTest {
     // fragment's dispatch to be the only path in.
 
     @Test
-    fun connectDoesNotBeginAgainOnceAPickerIsShowing() = runTest(dispatcher) {
-        // A direct second call, standing in for whatever future caller might
-        // make one -- the fragment itself no longer produces this, since its
-        // dispatch only reaches connect() from Disconnected.
-        val authClient = setUpToChoosingServer(aMediaServer())
+    fun connectDoesNotBeginAgainOnceAPickerIsShowing() =
+        runTest(dispatcher) {
+            // A direct second call, standing in for whatever future caller might
+            // make one -- the fragment itself no longer produces this, since its
+            // dispatch only reaches connect() from Disconnected.
+            val authClient = setUpToChoosingServer(aMediaServer())
 
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-        viewModel.connect()
-        advanceUntilIdle()
-        val picker = viewModel.state.value
-        assertTrue("setup did not reach ChoosingServer, got $picker", picker is PlexSignInState.ChoosingServer)
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+            viewModel.connect()
+            advanceUntilIdle()
+            val picker = viewModel.state.value
+            assertTrue("setup did not reach ChoosingServer, got $picker", picker is PlexSignInState.ChoosingServer)
 
-        // The second call.
-        viewModel.connect()
-        advanceUntilIdle()
+            // The second call.
+            viewModel.connect()
+            advanceUntilIdle()
 
-        // Guarding on attempt?.isActive alone is not enough: signIn() has run to
-        // COMPLETION by now, so isActive is false, and without the state check
-        // this would fall through to createPin() -- discarding an account
-        // token that is still good.
-        verify(authClient, times(1)).createPin()
-        assertEquals(picker, viewModel.state.value)
-    }
-
-    @Test
-    fun connectStillBeginsWhenNothingHasBeenPublishedYet() = runTest(dispatcher) {
-        // The other half, and the reason the guard keys on Disconnected rather
-        // than on "not null": Disconnected is the initial value, so a first
-        // connect() must still sign in.
-        val authClient = setUpToChoosingServer(aMediaServer())
-
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-
-        viewModel.connect()
-        advanceUntilIdle()
-
-        verify(authClient, times(1)).createPin()
-        assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
-    }
-
-    @Test
-    fun anUnapprovedPinGivesUpAtTheHardCap() = runTest(dispatcher) {
-        // `created` carries no expiry, so PlexPinState.evaluate returns Pending
-        // forever and HARD_CAP_SECONDS is the only thing that can end this loop.
-        // evaluate's KDoc says "the caller bounds the poll loop" -- this is the
-        // first test that watches the caller actually do it, which only became
-        // possible once the loop stopped reading the wall clock.
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { createPin() } doReturn created.right()
-            onBlocking { getPin(42L) } doReturn Pin().right()
+            // Guarding on attempt?.isActive alone is not enough: signIn() has run to
+            // COMPLETION by now, so isActive is false, and without the state check
+            // this would fall through to createPin() -- discarding an account
+            // token that is still good.
+            verify(authClient, times(1)).createPin()
+            assertEquals(picker, viewModel.state.value)
         }
 
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            authClient = authClient,
-            nowMillis = { currentTime }
-        )
-        viewModel.connect()
-        advanceUntilIdle()
-
-        assertEquals(
-            PlexSignInState.Failed(R.string.plex_sign_in_error_expired),
-            viewModel.state.value
-        )
-
-        // At the cap, not before it and not after: a loop that gave up early
-        // would abandon a pin the user could still approve.
-        assertEquals(PlexPinState.HARD_CAP_SECONDS * 1_000L, currentTime)
-    }
-
     @Test
-    fun thePollSlowsDownWhenNobodyApproves() = runTest(dispatcher) {
-        // The executable statement of the backoff: an abandoned sign-in is what
-        // this whole change exists to stop paying for. plex.tv is not rate
-        // limiting us -- 174 consecutive polls came back 200 -- so nothing but
-        // this test will notice if the ladder is ever reverted to a flat rate.
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { createPin() } doReturn created.right()
-            onBlocking { getPin(42L) } doReturn Pin().right()
+    fun connectStillBeginsWhenNothingHasBeenPublishedYet() =
+        runTest(dispatcher) {
+            // The other half, and the reason the guard keys on Disconnected rather
+            // than on "not null": Disconnected is the initial value, so a first
+            // connect() must still sign in.
+            val authClient = setUpToChoosingServer(aMediaServer())
+
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+            viewModel.connect()
+            advanceUntilIdle()
+
+            verify(authClient, times(1)).createPin()
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
         }
 
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            authClient = authClient,
-            nowMillis = { currentTime }
-        )
-        viewModel.connect()
+    @Test
+    fun anUnapprovedPinGivesUpAtTheHardCap() =
+        runTest(dispatcher) {
+            // `created` carries no expiry, so PlexPinState.evaluate returns Pending
+            // forever and HARD_CAP_SECONDS is the only thing that can end this loop.
+            // evaluate's KDoc says "the caller bounds the poll loop" -- this is the
+            // first test that watches the caller actually do it, which only became
+            // possible once the loop stopped reading the wall clock.
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { createPin() } doReturn created.right()
+                    onBlocking { getPin(42L) } doReturn Pin().right()
+                }
 
-        // Three minutes and one second: 30 polls at 2s (t=2s..60s), then 24 at
-        // 5s (t=65s..180s). A flat 2s cadence would make this 90.
-        advanceTimeBy(181_000L)
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = authClient,
+                    nowMillis = { currentTime },
+                )
+            viewModel.connect()
+            advanceUntilIdle()
 
-        verify(authClient, times(54)).getPin(42L)
-    }
+            assertEquals(
+                PlexSignInState.Failed(R.string.plex_sign_in_error_expired),
+                viewModel.state.value,
+            )
+
+            // At the cap, not before it and not after: a loop that gave up early
+            // would abandon a pin the user could still approve.
+            assertEquals(PlexPinState.HARD_CAP_SECONDS * 1_000L, currentTime)
+        }
 
     @Test
-    fun `starts disconnected and stays there until connect is called`() = runTest {
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = PlexApi(),
-            authClient = mock(),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
+    fun thePollSlowsDownWhenNobodyApproves() =
+        runTest(dispatcher) {
+            // The executable statement of the backoff: an abandoned sign-in is what
+            // this whole change exists to stop paying for. plex.tv is not rate
+            // limiting us -- 174 consecutive polls came back 200 -- so nothing but
+            // this test will notice if the ladder is ever reverted to a flat rate.
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { createPin() } doReturn created.right()
+                    onBlocking { getPin(42L) } doReturn Pin().right()
+                }
 
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = authClient,
+                    nowMillis = { currentTime },
+                )
+            viewModel.connect()
 
-        // If construction had dialled out, the state would have moved off
-        // Disconnected by the time the scheduler drains.
-        advanceUntilIdle()
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-    }
+            // Three minutes and one second: 30 polls at 2s (t=2s..60s), then 24 at
+            // 5s (t=65s..180s). A flat 2s cadence would make this 90.
+            advanceTimeBy(181_000L)
+
+            verify(authClient, times(54)).getPin(42L)
+        }
+
+    @Test
+    fun `starts disconnected and stays there until connect is called`() =
+        runTest {
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = PlexApi(),
+                    authClient = mock(),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
+
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+
+            // If construction had dialled out, the state would have moved off
+            // Disconnected by the time the scheduler drains.
+            advanceUntilIdle()
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+        }
 
     // ── open()'s two entry points ──────────────────────────────────────
     //
@@ -1143,105 +1213,116 @@ class PlexSignInViewModelTest {
     // to fix itself -- see docs/decisions/2026-08-01-car-sign-in-entry-point-design.md.
 
     @Test
-    fun `open goes straight to work when sign-in is forced even with a session present`() = runTest {
-        val api = PlexApi()
-        api.session = PlexSession(
-            accountToken = "t",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
+    fun `open goes straight to work when sign-in is forced even with a session present`() =
+        runTest {
+            val api = PlexApi()
+            api.session =
+                PlexSession(
+                    accountToken = "t",
+                    serverUri = "https://example.invalid",
+                    musicSectionKey = SectionKey("1"),
+                    serverToken = null,
+                )
 
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = api,
-            // A bare mock() (as the brief's snippet used) leaves createPin()
-            // returning null, and runTest drains the coroutine connect()
-            // launches before this test finishes -- so an unstubbed
-            // authClient turns into a NoWhenBranchMatchedException here even
-            // though the assertion below is checked synchronously, before
-            // that coroutine gets to run at all. Stubbed the same way
-            // connectStillBeginsWhenNothingHasBeenPublishedYet does so the
-            // background attempt has somewhere harmless to land.
-            authClient = setUpToChoosingServer(aMediaServer()),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = api,
+                    // A bare mock() (as the brief's snippet used) leaves createPin()
+                    // returning null, and runTest drains the coroutine connect()
+                    // launches before this test finishes -- so an unstubbed
+                    // authClient turns into a NoWhenBranchMatchedException here even
+                    // though the assertion below is checked synchronously, before
+                    // that coroutine gets to run at all. Stubbed the same way
+                    // connectStillBeginsWhenNothingHasBeenPublishedYet does so the
+                    // background attempt has somewhere harmless to land.
+                    authClient = setUpToChoosingServer(aMediaServer()),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
 
-        viewModel.open(forceSignIn = true)
+            viewModel.open(forceSignIn = true)
 
-        assertTrue(viewModel.state.value is PlexSignInState.Working)
-    }
-
-    @Test
-    fun `open without forcing lands on Disconnected when no session exists`() = runTest {
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = PlexApi(),
-            authClient = mock(),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
-
-        viewModel.open(forceSignIn = false)
-
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-    }
+            assertTrue(viewModel.state.value is PlexSignInState.Working)
+        }
 
     @Test
-    fun `open forces work even when the viewmodel already reports Connected`() = runTest {
-        // The failure this guards against does not need a fresh ViewModel to
-        // reproduce: open(false) first, landing on Connected because a
-        // session exists (exactly what a hypothetical onNewIntent forwarding
-        // to an existing ViewModel would see), and only then force sign-in.
-        // Before the fix, connect()'s own Disconnected guard silently ate
-        // this call.
-        val api = PlexApi()
-        api.session = PlexSession(
-            accountToken = "t",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
+    fun `open without forcing lands on Disconnected when no session exists`() =
+        runTest {
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = PlexApi(),
+                    authClient = mock(),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
 
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = api,
-            authClient = setUpToChoosingServer(aMediaServer()),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
+            viewModel.open(forceSignIn = false)
 
-        viewModel.open(forceSignIn = false)
-        assertEquals(PlexSignInState.Connected, viewModel.state.value)
-
-        viewModel.open(forceSignIn = true)
-
-        assertTrue(viewModel.state.value is PlexSignInState.Working)
-    }
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+        }
 
     @Test
-    fun `open without forcing lands on Connected when a session exists`() = runTest {
-        val api = PlexApi()
-        api.session = PlexSession(
-            accountToken = "t",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
+    fun `open forces work even when the viewmodel already reports Connected`() =
+        runTest {
+            // The failure this guards against does not need a fresh ViewModel to
+            // reproduce: open(false) first, landing on Connected because a
+            // session exists (exactly what a hypothetical onNewIntent forwarding
+            // to an existing ViewModel would see), and only then force sign-in.
+            // Before the fix, connect()'s own Disconnected guard silently ate
+            // this call.
+            val api = PlexApi()
+            api.session =
+                PlexSession(
+                    accountToken = "t",
+                    serverUri = "https://example.invalid",
+                    musicSectionKey = SectionKey("1"),
+                    serverToken = null,
+                )
 
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = api,
-            authClient = mock(),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = api,
+                    authClient = setUpToChoosingServer(aMediaServer()),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
 
-        viewModel.open(forceSignIn = false)
+            viewModel.open(forceSignIn = false)
+            assertEquals(PlexSignInState.Connected, viewModel.state.value)
 
-        assertEquals(PlexSignInState.Connected, viewModel.state.value)
-    }
+            viewModel.open(forceSignIn = true)
+
+            assertTrue(viewModel.state.value is PlexSignInState.Working)
+        }
+
+    @Test
+    fun `open without forcing lands on Connected when a session exists`() =
+        runTest {
+            val api = PlexApi()
+            api.session =
+                PlexSession(
+                    accountToken = "t",
+                    serverUri = "https://example.invalid",
+                    musicSectionKey = SectionKey("1"),
+                    serverToken = null,
+                )
+
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = api,
+                    authClient = mock(),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
+
+            viewModel.open(forceSignIn = false)
+
+            assertEquals(PlexSignInState.Connected, viewModel.state.value)
+        }
 
     // ── signOut() ────────────────────────────────────────────────────────
     //
@@ -1252,63 +1333,69 @@ class PlexSignInViewModelTest {
     // this class's, so they are out of scope for this test.
 
     @Test
-    fun `signing out clears the session and returns to disconnected`() = runTest {
-        val api = PlexApi()
-        api.session = PlexSession(
-            accountToken = "t",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
+    fun `signing out clears the session and returns to disconnected`() =
+        runTest {
+            val api = PlexApi()
+            api.session =
+                PlexSession(
+                    accountToken = "t",
+                    serverUri = "https://example.invalid",
+                    musicSectionKey = SectionKey("1"),
+                    serverToken = null,
+                )
 
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = api,
-            authClient = mock(),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
-        viewModel.open(forceSignIn = false)
-        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = api,
+                    authClient = mock(),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
+            viewModel.open(forceSignIn = false)
+            assertEquals(PlexSignInState.Connected, viewModel.state.value)
 
-        viewModel.signOut()
+            viewModel.signOut()
 
-        assertNull(api.session)
-        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
-    }
+            assertNull(api.session)
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+        }
 
     @Test
-    fun `signing out also clears the account token, unlike a library switch`() = runTest {
-        // PlexApi's session setter deliberately leaves accountToken alone when
-        // clearing a session -- correct for chooseLibrary's library-switch
-        // case, where the account is not changing. Sign out means the account
-        // itself is being disowned, so signOut() must go further than the
-        // setter it calls: a token left behind would make the next
-        // createPin()/getPin() carry the previous account's X-Plex-Token
-        // while CredentialGate.isSignedIn() already reads false.
-        val api = PlexApi()
-        api.accountToken = "granted"
-        api.session = PlexSession(
-            accountToken = "granted",
-            serverUri = "https://example.invalid",
-            musicSectionKey = SectionKey("1"),
-            serverToken = null
-        )
+    fun `signing out also clears the account token, unlike a library switch`() =
+        runTest {
+            // PlexApi's session setter deliberately leaves accountToken alone when
+            // clearing a session -- correct for chooseLibrary's library-switch
+            // case, where the account is not changing. Sign out means the account
+            // itself is being disowned, so signOut() must go further than the
+            // setter it calls: a token left behind would make the next
+            // createPin()/getPin() carry the previous account's X-Plex-Token
+            // while CredentialGate.isSignedIn() already reads false.
+            val api = PlexApi()
+            api.accountToken = "granted"
+            api.session =
+                PlexSession(
+                    accountToken = "granted",
+                    serverUri = "https://example.invalid",
+                    musicSectionKey = SectionKey("1"),
+                    serverToken = null,
+                )
 
-        val viewModel = PlexSignInViewModel(
-            mock<Application>(),
-            api = api,
-            authClient = mock(),
-            probe = mock(),
-            nowMillis = { 0L }
-        )
-        viewModel.open(forceSignIn = false)
-        assertEquals(PlexSignInState.Connected, viewModel.state.value)
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    api = api,
+                    authClient = mock(),
+                    probe = mock(),
+                    nowMillis = { 0L },
+                )
+            viewModel.open(forceSignIn = false)
+            assertEquals(PlexSignInState.Connected, viewModel.state.value)
 
-        viewModel.signOut()
+            viewModel.signOut()
 
-        assertNull("sign out must not leave the previous account's token behind", api.accountToken)
-    }
+            assertNull("sign out must not leave the previous account's token behind", api.accountToken)
+        }
 
     /**
      * The flow's answer, and it is the same one whichever screen opened the
@@ -1320,7 +1407,7 @@ class PlexSignInViewModelTest {
     fun `back out of the server picker abandons the flow`() {
         val viewModel = PlexSignInViewModel(mock<Application>())
         viewModel.setStateForTest(
-            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer()))
+            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer())),
         )
 
         assertTrue(viewModel.backPressed())
@@ -1329,46 +1416,52 @@ class PlexSignInViewModelTest {
     }
 
     @Test
-    fun `reopening the picker publishes the servers the account has`() = runTest(dispatcher) {
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+    fun `reopening the picker publishes the servers the account has`() =
+        runTest(dispatcher) {
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+                }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+
+            viewModel.reopenServerPicker()
+            advanceUntilIdle()
+
+            val state = viewModel.state.value as PlexSignInState.ChoosingServer
+            assertEquals(1, state.servers.size)
         }
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-
-        viewModel.reopenServerPicker()
-        advanceUntilIdle()
-
-        val state = viewModel.state.value as PlexSignInState.ChoosingServer
-        assertEquals(1, state.servers.size)
-    }
 
     @Test
-    fun `reopening the picker reports a plex_tv failure as Failed`() = runTest(dispatcher) {
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { getResources() } doReturn
-                PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+    fun `reopening the picker reports a plex_tv failure as Failed`() =
+        runTest(dispatcher) {
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { getResources() } doReturn
+                        PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+                }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+
+            viewModel.reopenServerPicker()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value is PlexSignInState.Failed)
         }
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-
-        viewModel.reopenServerPicker()
-        advanceUntilIdle()
-
-        assertTrue(viewModel.state.value is PlexSignInState.Failed)
-    }
 
     @Test
-    fun `reopening the picker reports an account with no servers as Failed`() = runTest(dispatcher) {
-        // Empty rather than absent: an account with resources that are all
-        // players rather than servers reaches the same place, and that is the
-        // case NoServers exists for.
-        val authClient = mock<AuthClient>().stub {
-            onBlocking { getResources() } doReturn emptyList<Resource>().right()
+    fun `reopening the picker reports an account with no servers as Failed`() =
+        runTest(dispatcher) {
+            // Empty rather than absent: an account with resources that are all
+            // players rather than servers reaches the same place, and that is the
+            // case NoServers exists for.
+            val authClient =
+                mock<AuthClient>().stub {
+                    onBlocking { getResources() } doReturn emptyList<Resource>().right()
+                }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+
+            viewModel.reopenServerPicker()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value is PlexSignInState.Failed)
         }
-        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
-
-        viewModel.reopenServerPicker()
-        advanceUntilIdle()
-
-        assertTrue(viewModel.state.value is PlexSignInState.Failed)
-    }
 }

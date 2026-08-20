@@ -12,11 +12,15 @@ import com.cappielloantonio.tempo.App
  * differently in one of them would be a silently flaky test.
  */
 object BrowseTabOrderFixture {
-
     /** Must match Preferences.BROWSE_TAB_ORDER, which is private. */
     const val KEY = "browse_tab_order"
 
     fun clearSavedOrder() {
-        App.getInstance().preferences.edit().remove(KEY).commit()
+        App
+            .getInstance()
+            .preferences
+            .edit()
+            .remove(KEY)
+            .commit()
     }
 }

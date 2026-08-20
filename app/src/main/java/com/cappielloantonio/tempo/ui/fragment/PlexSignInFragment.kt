@@ -41,7 +41,6 @@ private const val TAG = "PlexSignInFragment"
  * [CarSettingsFragment] instead.
  */
 class PlexSignInFragment : Fragment() {
-
     private var bind: FragmentPlexSignInBinding? = null
     private lateinit var viewModel: PlexSignInViewModel
 
@@ -59,7 +58,7 @@ class PlexSignInFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         viewModel = ViewModelProvider(requireActivity())[PlexSignInViewModel::class.java]
         bind = FragmentPlexSignInBinding.inflate(inflater, container, false)
@@ -79,11 +78,12 @@ class PlexSignInFragment : Fragment() {
         // it there instead lets the dispatcher fall through to its default
         // (finish the activity), which is the whole point of gating it the way
         // CarHostActivity's back button already does.
-        val backCallback = object : OnBackPressedCallback(false) {
-            override fun handleOnBackPressed() {
-                viewModel.backPressed()
+        val backCallback =
+            object : OnBackPressedCallback(false) {
+                override fun handleOnBackPressed() {
+                    viewModel.backPressed()
+                }
             }
-        }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback)
 
         viewModel.state.observe(viewLifecycleOwner) {
@@ -136,12 +136,13 @@ class PlexSignInFragment : Fragment() {
                 is PlexSignInState.ChoosingServer -> R.string.plex_sign_in_choose_server
                 is PlexSignInState.ChoosingLibrary -> R.string.plex_sign_in_choose_library
                 else -> R.string.plex_sign_in_connect
-            }
+            },
         )
 
         applyArrangement(
-            isOpenEndedList = state is PlexSignInState.ChoosingServer ||
-                state is PlexSignInState.ChoosingLibrary
+            isOpenEndedList =
+                state is PlexSignInState.ChoosingServer ||
+                    state is PlexSignInState.ChoosingLibrary,
         )
 
         when (state) {
@@ -157,7 +158,9 @@ class PlexSignInFragment : Fragment() {
                 bind.errorText.setText(R.string.plex_sign_in_not_allowed)
             }
 
-            is PlexSignInState.Working -> bind.progress.visibility = View.VISIBLE
+            is PlexSignInState.Working -> {
+                bind.progress.visibility = View.VISIBLE
+            }
 
             is PlexSignInState.AwaitingApproval -> {
                 bind.codeText.text = state.code
@@ -171,36 +174,38 @@ class PlexSignInFragment : Fragment() {
                 showApproval(withQr = false)
 
                 if (state.qrUrl != null) {
-                    Glide.with(this)
+                    Glide
+                        .with(this)
                         .load(state.qrUrl)
-                        .listener(object : RequestListener<Drawable> {
-                            override fun onLoadFailed(
-                                e: GlideException?,
-                                model: Any?,
-                                target: Target<Drawable>,
-                                isFirstResource: Boolean
-                            ): Boolean {
-                                // Nothing to do: the code-only form is already up
-                                // and it signs the user in on its own. Logged
-                                // because a persistent failure here is worth
-                                // knowing about -- it means Plex changed the qr
-                                // field, which this design assumes.
-                                Log.d(TAG, "QR image failed to load", e)
-                                return false
-                            }
+                        .listener(
+                            object : RequestListener<Drawable> {
+                                override fun onLoadFailed(
+                                    e: GlideException?,
+                                    model: Any?,
+                                    target: Target<Drawable>,
+                                    isFirstResource: Boolean,
+                                ): Boolean {
+                                    // Nothing to do: the code-only form is already up
+                                    // and it signs the user in on its own. Logged
+                                    // because a persistent failure here is worth
+                                    // knowing about -- it means Plex changed the qr
+                                    // field, which this design assumes.
+                                    Log.d(TAG, "QR image failed to load", e)
+                                    return false
+                                }
 
-                            override fun onResourceReady(
-                                resource: Drawable,
-                                model: Any,
-                                target: Target<Drawable>?,
-                                dataSource: DataSource,
-                                isFirstResource: Boolean
-                            ): Boolean {
-                                showApproval(withQr = true)
-                                return false
-                            }
-                        })
-                        .into(bind.qrImage)
+                                override fun onResourceReady(
+                                    resource: Drawable,
+                                    model: Any,
+                                    target: Target<Drawable>?,
+                                    dataSource: DataSource,
+                                    isFirstResource: Boolean,
+                                ): Boolean {
+                                    showApproval(withQr = true)
+                                    return false
+                                }
+                            },
+                        ).into(bind.qrImage)
                 }
             }
 
@@ -220,9 +225,11 @@ class PlexSignInFragment : Fragment() {
                 }
             }
 
-            is PlexSignInState.ChoosingLibrary -> state.sections.forEach { section ->
-                addChoice(bind.choiceContainer, section.title.orEmpty()) {
-                    viewModel.chooseLibrary(section)
+            is PlexSignInState.ChoosingLibrary -> {
+                state.sections.forEach { section ->
+                    addChoice(bind.choiceContainer, section.title.orEmpty()) {
+                        viewModel.chooseLibrary(section)
+                    }
                 }
             }
 
@@ -233,7 +240,9 @@ class PlexSignInFragment : Fragment() {
                 bind.retryButton.setText(R.string.plex_sign_in_retry)
             }
 
-            is PlexSignInState.Done -> (requireActivity() as LoginHost).onLoginSuccess()
+            is PlexSignInState.Done -> {
+                (requireActivity() as LoginHost).onLoginSuccess()
+            }
 
             // Settings, which is CarSettingsFragment's screen and not this
             // one's. Still reachable here for one pass: CarHostActivity
@@ -261,8 +270,11 @@ class PlexSignInFragment : Fragment() {
         bind.approvalGroup.visibility = View.VISIBLE
         bind.qrCard.visibility = if (withQr) View.VISIBLE else View.GONE
         bind.instructions.setText(
-            if (withQr) R.string.plex_sign_in_instructions
-            else R.string.plex_sign_in_instructions_no_qr
+            if (withQr) {
+                R.string.plex_sign_in_instructions
+            } else {
+                R.string.plex_sign_in_instructions_no_qr
+            },
         )
         // Beside the QR the text is a left-aligned block, so the code sits under
         // the instruction line's left edge and belongs there. With no QR that
@@ -327,8 +339,9 @@ class PlexSignInFragment : Fragment() {
          * The router constructs this fragment directly instead, which is what
          * makes the argument's absence mean "routed".
          */
-        fun pushed(): PlexSignInFragment = PlexSignInFragment().apply {
-            arguments = Bundle().apply { putBoolean(ARG_PUSHED, true) }
-        }
+        fun pushed(): PlexSignInFragment =
+            PlexSignInFragment().apply {
+                arguments = Bundle().apply { putBoolean(ARG_PUSHED, true) }
+            }
     }
 }

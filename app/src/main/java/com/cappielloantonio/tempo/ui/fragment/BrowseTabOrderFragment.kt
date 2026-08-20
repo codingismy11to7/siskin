@@ -34,7 +34,6 @@ import com.cappielloantonio.tempo.util.Preferences
  * docs/decisions/2026-08-14-customizable-browse-tabs-design.md.
  */
 class BrowseTabOrderFragment : Fragment() {
-
     private var order: MutableList<String> = mutableListOf()
 
     // Retained rather than left anonymous at the attachToRecyclerView call
@@ -50,14 +49,15 @@ class BrowseTabOrderFragment : Fragment() {
          * so this is a guard rather than a path.
          */
         @StringRes
-        fun labelFor(id: String): Int = when (id) {
-            Constants.PLAYLIST_ID -> R.string.browse_playlists
-            Constants.ARTISTS_ID -> R.string.browse_artists
-            Constants.ALBUMS_ID -> R.string.browse_albums
-            Constants.DISCOVER_ID -> R.string.browse_discover
-            Constants.DECADES_ID -> R.string.browse_decades
-            else -> 0
-        }
+        fun labelFor(id: String): Int =
+            when (id) {
+                Constants.PLAYLIST_ID -> R.string.browse_playlists
+                Constants.ARTISTS_ID -> R.string.browse_artists
+                Constants.ALBUMS_ID -> R.string.browse_albums
+                Constants.DISCOVER_ID -> R.string.browse_discover
+                Constants.DECADES_ID -> R.string.browse_decades
+                else -> 0
+            }
 
         /**
          * Moves one row and writes the result.
@@ -70,7 +70,11 @@ class BrowseTabOrderFragment : Fragment() {
          * once per adjacent swap during the drag, not once at the drop, so a
          * force-quit mid-drag still cannot lose the change.
          */
-        fun moveAndPersist(order: MutableList<String>, from: Int, to: Int) {
+        fun moveAndPersist(
+            order: MutableList<String>,
+            from: Int,
+            to: Int,
+        ) {
             order.add(to, order.removeAt(from))
             Preferences.setBrowseTabOrder(order)
         }
@@ -85,7 +89,11 @@ class BrowseTabOrderFragment : Fragment() {
          * Split out for the same reason moveAndPersist is: so the guard can
          * be exercised without a RecyclerView.
          */
-        fun moveIfValid(order: MutableList<String>, from: Int, to: Int): Boolean {
+        fun moveIfValid(
+            order: MutableList<String>,
+            from: Int,
+            to: Int,
+        ): Boolean {
             if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
             moveAndPersist(order, from, to)
             return true
@@ -99,7 +107,7 @@ class BrowseTabOrderFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         val root = inflater.inflate(R.layout.fragment_browse_tab_order, container, false)
 
@@ -136,39 +144,43 @@ class BrowseTabOrderFragment : Fragment() {
         // hold. isLongPressDragEnabled stays true regardless, because the
         // handle is a small target on a head unit and long-press-anywhere is
         // the forgiving fallback, not a redundant path.
-        itemTouchHelper = ItemTouchHelper(
-            object : ItemTouchHelper.SimpleCallback(
-                ItemTouchHelper.UP or ItemTouchHelper.DOWN,
-                0
-            ) {
-                override fun onMove(
-                    recyclerView: RecyclerView,
-                    viewHolder: RecyclerView.ViewHolder,
-                    target: RecyclerView.ViewHolder
-                ): Boolean {
-                    val from = viewHolder.absoluteAdapterPosition
-                    val to = target.absoluteAdapterPosition
-                    // ItemTouchHelper.moveIfNecessary does not guard against
-                    // NO_POSITION itself before calling onMove; a -1 here
-                    // would otherwise reach order.removeAt(-1) and crash.
-                    if (!moveIfValid(order, from, to)) return false
-                    recyclerView.adapter?.notifyItemMoved(from, to)
-                    // Every row's More-or-tab label may have changed, and
-                    // notifyItemMoved alone does not rebind the rows that
-                    // merely shifted.
-                    recyclerView.post {
-                        recyclerView.adapter?.notifyItemRangeChanged(0, order.size)
+        itemTouchHelper =
+            ItemTouchHelper(
+                object : ItemTouchHelper.SimpleCallback(
+                    ItemTouchHelper.UP or ItemTouchHelper.DOWN,
+                    0,
+                ) {
+                    override fun onMove(
+                        recyclerView: RecyclerView,
+                        viewHolder: RecyclerView.ViewHolder,
+                        target: RecyclerView.ViewHolder,
+                    ): Boolean {
+                        val from = viewHolder.absoluteAdapterPosition
+                        val to = target.absoluteAdapterPosition
+                        // ItemTouchHelper.moveIfNecessary does not guard against
+                        // NO_POSITION itself before calling onMove; a -1 here
+                        // would otherwise reach order.removeAt(-1) and crash.
+                        if (!moveIfValid(order, from, to)) return false
+                        recyclerView.adapter?.notifyItemMoved(from, to)
+                        // Every row's More-or-tab label may have changed, and
+                        // notifyItemMoved alone does not rebind the rows that
+                        // merely shifted.
+                        recyclerView.post {
+                            recyclerView.adapter?.notifyItemRangeChanged(0, order.size)
+                        }
+                        return true
                     }
-                    return true
-                }
 
-                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
+                    override fun onSwiped(
+                        viewHolder: RecyclerView.ViewHolder,
+                        direction: Int,
+                    ) = Unit
 
-                // Removal is not offered: a destination is always somewhere,
-                // above the line or below it.
-                override fun isItemViewSwipeEnabled(): Boolean = false
-            }
-        )
+                    // Removal is not offered: a destination is always somewhere,
+                    // above the line or below it.
+                    override fun isItemViewSwipeEnabled(): Boolean = false
+                },
+            )
         itemTouchHelper.attachToRecyclerView(list)
 
         // On the way out rather than per drop: one invalidation instead of one
@@ -194,15 +206,16 @@ class BrowseTabOrderFragment : Fragment() {
                     isEnabled = false
                     requireActivity().onBackPressedDispatcher.onBackPressed()
                 }
-            }
+            },
         )
 
         return root
     }
 
     private inner class Adapter : RecyclerView.Adapter<Adapter.Row>() {
-
-        inner class Row(view: View) : RecyclerView.ViewHolder(view) {
+        inner class Row(
+            view: View,
+        ) : RecyclerView.ViewHolder(view) {
             val label: TextView = view.findViewById(R.id.tab_order_label)
             val position: TextView = view.findViewById(R.id.tab_order_position)
             val handle: ImageView = view.findViewById(R.id.tab_order_handle)
@@ -233,11 +246,16 @@ class BrowseTabOrderFragment : Fragment() {
          * gesture completed on the handle.
          */
         @SuppressLint("ClickableViewAccessibility")
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Row {
-            val row = Row(
-                LayoutInflater.from(parent.context)
-                    .inflate(R.layout.item_browse_tab_order, parent, false)
-            )
+        override fun onCreateViewHolder(
+            parent: ViewGroup,
+            viewType: Int,
+        ): Row {
+            val row =
+                Row(
+                    LayoutInflater
+                        .from(parent.context)
+                        .inflate(R.layout.item_browse_tab_order, parent, false),
+                )
             // Touching the handle starts the drag immediately, with no hold
             // -- the handle is not a scroll target, so touch-down is
             // unambiguous there the way it would not be on the row body.
@@ -264,14 +282,20 @@ class BrowseTabOrderFragment : Fragment() {
             return row
         }
 
-        override fun onBindViewHolder(holder: Row, position: Int) {
+        override fun onBindViewHolder(
+            holder: Row,
+            position: Int,
+        ) {
             val id = order[position]
             holder.label.setText(labelFor(id))
             // Which side of the line a row is on, said rather than implied by
             // a divider the drag would have to keep re-positioning.
             holder.position.setText(
-                if (position < BrowseTabOrder.ROOT_TAB_COUNT) R.string.car_tab_order_tab_badge
-                else R.string.browse_more
+                if (position < BrowseTabOrder.ROOT_TAB_COUNT) {
+                    R.string.car_tab_order_tab_badge
+                } else {
+                    R.string.browse_more
+                },
             )
             holder.handle.contentDescription =
                 getString(R.string.car_tab_order_drag_handle)

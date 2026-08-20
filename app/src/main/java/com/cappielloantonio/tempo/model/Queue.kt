@@ -78,7 +78,7 @@ class Queue {
             isHearted = hearted,
             parentId = null,
             serverUri = api.serverUri,
-            token = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken)
+            token = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken),
         )
     }
 

@@ -20,7 +20,6 @@ import org.robolectric.shadows.ShadowLooper
 
 @RunWith(RobolectricTestRunner::class)
 class PlexAccountRemovalTest {
-
     private val context: Context = RuntimeEnvironment.getApplication()
 
     @Before
@@ -40,13 +39,14 @@ class PlexAccountRemovalTest {
     @Test
     fun removingTheAccountFromSystemSettingsClearsTheSession() {
         val api = PlexApi()
-        api.session = PlexSession(
-            accountToken = "acct",
-            serverUri = "https://one.example",
-            musicSectionKey = SectionKey("4"),
-            serverToken = "srv",
-            machineIdentifier = "machine-a"
-        )
+        api.session =
+            PlexSession(
+                accountToken = "acct",
+                serverUri = "https://one.example",
+                musicSectionKey = SectionKey("4"),
+                serverToken = "srv",
+                machineIdentifier = "machine-a",
+            )
 
         var notified = false
         PlexAccountStore(context).observeRemoval { notified = true }

@@ -25,7 +25,6 @@ import retrofit2.converter.gson.GsonConverterFactory
  * That base URL is asserted in PlexRetrofitFactoryTest instead.
  */
 class AuthServiceTest {
-
     private lateinit var server: MockWebServer
 
     @Before
@@ -37,51 +36,56 @@ class AuthServiceTest {
     @After
     fun tearDown() = server.shutdown()
 
-    private fun service(): AuthService = Retrofit.Builder()
-        .baseUrl(server.url("/"))
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(AuthService::class.java)
+    private fun service(): AuthService =
+        Retrofit
+            .Builder()
+            .baseUrl(server.url("/"))
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(AuthService::class.java)
 
     @Test
-    fun createPinPostsToPins() = runTest {
-        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+    fun createPinPostsToPins() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
 
-        service().createPin()
+            service().createPin()
 
-        val request = server.takeRequest()
-        // The one POST in the layer; a GET here would read an existing pin
-        // rather than mint one.
-        assertEquals("POST", request.method)
-        assertEquals("/pins", request.requestUrl?.encodedPath)
-    }
-
-    @Test
-    fun getPinReadsOnePinById() = runTest {
-        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-
-        service().getPin(42L)
-
-        val request = server.takeRequest()
-        assertEquals("GET", request.method)
-        assertEquals("/pins/42", request.requestUrl?.encodedPath)
-    }
+            val request = server.takeRequest()
+            // The one POST in the layer; a GET here would read an existing pin
+            // rather than mint one.
+            assertEquals("POST", request.method)
+            assertEquals("/pins", request.requestUrl?.encodedPath)
+        }
 
     @Test
-    fun getResourcesAsksForHttpsAndRelayConnections() = runTest {
-        // Both default to 1 and no caller passes them, so this is the only
-        // thing that would notice a flipped default. Without includeHttps the
-        // account's servers come back advertising http-only connections, which
-        // ServerProbe would then be racing for nothing.
-        server.enqueue(MockResponse().setResponseCode(200).setBody("[]"))
+    fun getPinReadsOnePinById() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
 
-        service().getResources()
+            service().getPin(42L)
 
-        val request = server.takeRequest()
-        assertEquals("/resources", request.requestUrl?.encodedPath)
-        assertEquals("1", request.requestUrl?.queryParameter("includeHttps"))
-        assertEquals("1", request.requestUrl?.queryParameter("includeRelay"))
-    }
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+            assertEquals("/pins/42", request.requestUrl?.encodedPath)
+        }
+
+    @Test
+    fun getResourcesAsksForHttpsAndRelayConnections() =
+        runTest {
+            // Both default to 1 and no caller passes them, so this is the only
+            // thing that would notice a flipped default. Without includeHttps the
+            // account's servers come back advertising http-only connections, which
+            // ServerProbe would then be racing for nothing.
+            server.enqueue(MockResponse().setResponseCode(200).setBody("[]"))
+
+            service().getResources()
+
+            val request = server.takeRequest()
+            assertEquals("/resources", request.requestUrl?.encodedPath)
+            assertEquals("1", request.requestUrl?.queryParameter("includeHttps"))
+            assertEquals("1", request.requestUrl?.queryParameter("includeRelay"))
+        }
 
     @Test
     fun everyEndpointIsCovered() {
@@ -89,7 +93,7 @@ class AuthServiceTest {
         // The gap this file closes formed exactly that way.
         assertEquals(
             setOf("createPin", "getPin", "getResources"),
-            annotatedEndpoints(AuthService::class.java)
+            annotatedEndpoints(AuthService::class.java),
         )
     }
 }

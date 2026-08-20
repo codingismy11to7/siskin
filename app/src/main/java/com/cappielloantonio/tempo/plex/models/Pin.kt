@@ -14,8 +14,10 @@ class Pin {
     var id: Long? = null
     var code: String? = null
     var clientIdentifier: String? = null
+
     /** Seconds from issue. */
     var expiresIn: Int? = null
+
     /** ISO-8601, e.g. "2026-07-27T12:00:00Z". */
     var expiresAt: String? = null
     var authToken: String? = null

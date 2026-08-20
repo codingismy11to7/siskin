@@ -25,7 +25,6 @@ private const val TAG = "PlexScrobbler"
  * see.
  */
 object PlexScrobbler {
-
     /**
      * Process-scoped, and deliberately never cancelled: a scrobble outlives the
      * track it describes -- the "stopped" report is sent as the item is being
@@ -39,10 +38,16 @@ object PlexScrobbler {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @JvmStatic
-    fun report(ratingKey: String, partKey: String, state: String, timeMs: Long) {
+    fun report(
+        ratingKey: String,
+        partKey: String,
+        state: String,
+        timeMs: Long,
+    ) {
         scope.launch {
             try {
-                SearchClient(PlexApi()).reportProgress(RatingKey(ratingKey), partKey, state, timeMs)
+                SearchClient(PlexApi())
+                    .reportProgress(RatingKey(ratingKey), partKey, state, timeMs)
                     .onLeft { Log.w(TAG, "scrobble failed: $it") }
             } catch (failure: Throwable) {
                 // Covers client construction and anything else still throwing.

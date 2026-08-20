@@ -19,8 +19,8 @@ import com.cappielloantonio.tempo.util.ResourceUris
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,23 +34,23 @@ import org.robolectric.RobolectricTestRunner
 @OptIn(UnstableApi::class)
 @RunWith(RobolectricTestRunner::class)
 class PlexMediaMapperAssemblyTest {
-
     private val serverUri = "https://plex.example"
     private val token = "tok123"
 
-    private fun track() = Metadata().apply {
-        ratingKey = "1234"
-        type = "track"
-        title = "Song Title"
-        parentTitle = "Album Title"
-        grandparentTitle = "Artist Name"
-        grandparentRatingKey = "77"
-        thumb = "/library/metadata/1234/thumb/1699999999"
-        duration = 250_000L
-        index = 3
-        year = 2021
-        media = listOf(Media().apply { part = listOf(Part().apply { key = "/library/parts/9/file.flac" }) })
-    }
+    private fun track() =
+        Metadata().apply {
+            ratingKey = "1234"
+            type = "track"
+            title = "Song Title"
+            parentTitle = "Album Title"
+            grandparentTitle = "Artist Name"
+            grandparentRatingKey = "77"
+            thumb = "/library/metadata/1234/thumb/1699999999"
+            duration = 250_000L
+            index = 3
+            year = 2021
+            media = listOf(Media().apply { part = listOf(Part().apply { key = "/library/parts/9/file.flac" }) })
+        }
 
     @Test
     fun carriesEveryBundleKeyLiveCodeReads() {
@@ -75,8 +75,7 @@ class PlexMediaMapperAssemblyTest {
         assertEquals(uri, extrasUri(item))
     }
 
-    private fun extrasUri(item: androidx.media3.common.MediaItem) =
-        item.mediaMetadata.extras!!.getString(PlexMediaMapper.EXTRA_URI)
+    private fun extrasUri(item: androidx.media3.common.MediaItem) = item.mediaMetadata.extras!!.getString(PlexMediaMapper.EXTRA_URI)
 
     @Test
     fun surfacesTitleArtistAndAlbumTheCarDisplays() {
@@ -110,8 +109,18 @@ class PlexMediaMapperAssemblyTest {
         val first = PlexMediaMapper.trackToMediaItem(track(), null, serverUri, "old-token")!!
         val second = PlexMediaMapper.trackToMediaItem(track(), null, serverUri, "new-token")!!
 
-        assertTrue(first.localConfiguration!!.uri.toString().contains("old-token"))
-        assertTrue(second.localConfiguration!!.uri.toString().contains("new-token"))
+        assertTrue(
+            first.localConfiguration!!
+                .uri
+                .toString()
+                .contains("old-token"),
+        )
+        assertTrue(
+            second.localConfiguration!!
+                .uri
+                .toString()
+                .contains("new-token"),
+        )
     }
 
     @Test
@@ -127,16 +136,26 @@ class PlexMediaMapperAssemblyTest {
 
     @Test
     fun returnsNullForMetadataWithNoRatingKey() {
-        val unusable = Metadata().apply { type = "track"; title = "Nameless" }
+        val unusable =
+            Metadata().apply {
+                type = "track"
+                title = "Nameless"
+            }
         assertEquals(null, PlexMediaMapper.trackToMediaItem(unusable, null, serverUri, token))
     }
 
     @Test
     fun browsableItemsAreBrowsableAndNotPlayable() {
-        val album = PlexMediaMapper.albumToMediaItem(
-            Metadata().apply { ratingKey = "55"; type = "album"; title = "Album"; parentTitle = "Artist" },
-            "[albumID]"
-        )!!
+        val album =
+            PlexMediaMapper.albumToMediaItem(
+                Metadata().apply {
+                    ratingKey = "55"
+                    type = "album"
+                    title = "Album"
+                    parentTitle = "Artist"
+                },
+                "[albumID]",
+            )!!
 
         assertEquals("[albumID]55", album.mediaId)
         assertTrue(album.mediaMetadata.isBrowsable!!)
@@ -145,12 +164,23 @@ class PlexMediaMapperAssemblyTest {
 
     @Test
     fun heartStateIsPublishedAsAHeartRating() {
-        val hearted = PlexMediaMapper.buildTrackMediaItem(
-            ratingKey = "1234", title = "T", albumTitle = "A", artist = "R",
-            thumb = null, partKey = "/p", durationMs = 1L, trackIndex = 1, year = 2020,
-            grandparentRatingKey = "77", isHearted = true,
-            parentId = null, serverUri = serverUri, token = token
-        )
+        val hearted =
+            PlexMediaMapper.buildTrackMediaItem(
+                ratingKey = "1234",
+                title = "T",
+                albumTitle = "A",
+                artist = "R",
+                thumb = null,
+                partKey = "/p",
+                durationMs = 1L,
+                trackIndex = 1,
+                year = 2020,
+                grandparentRatingKey = "77",
+                isHearted = true,
+                parentId = null,
+                serverUri = serverUri,
+                token = token,
+            )
 
         // Load-bearing, and specifically as a HeartRating: com.android.car.media
         // reads the rating type off this subtype and draws its own control left of
@@ -161,9 +191,13 @@ class PlexMediaMapperAssemblyTest {
 
     @Test
     fun aPlexRatingOfTenArrivesAsAFilledHeart() {
-        val rated = PlexMediaMapper.trackToMediaItem(
-            track().apply { userRating = 10.0 }, null, serverUri, token
-        )!!
+        val rated =
+            PlexMediaMapper.trackToMediaItem(
+                track().apply { userRating = 10.0 },
+                null,
+                serverUri,
+                token,
+            )!!
         assertEquals(HeartRating(true), rated.mediaMetadata.userRating)
     }
 
@@ -181,9 +215,13 @@ class PlexMediaMapperAssemblyTest {
         // The shared reader both Room entities use. If a field drops out here,
         // a restored queue loses it silently -- no crash, just a track with no
         // artist or no part key, which is unplayable.
-        val item = PlexMediaMapper.trackToMediaItem(
-            track().apply { userRating = 10.0 }, "parent-42", serverUri, token
-        )!!
+        val item =
+            PlexMediaMapper.trackToMediaItem(
+                track().apply { userRating = 10.0 },
+                "parent-42",
+                serverUri,
+                token,
+            )!!
         val fields = PlexMediaMapper.readTrackFields(item)!!
 
         assertEquals("1234", fields.ratingKey)
@@ -222,7 +260,7 @@ class PlexMediaMapperAssemblyTest {
         ratingKey: String = "169077",
         title: String = "❤️ Tracks",
         composite: String? = null,
-        thumb: String? = null
+        thumb: String? = null,
     ) = Metadata().apply {
         this.ratingKey = ratingKey
         this.type = "playlist"
@@ -237,10 +275,11 @@ class PlexMediaMapperAssemblyTest {
         // mosaic of the playlist's own tracks, instead. Measured from a real
         // server: "❤️ Tracks" has composite=/playlists/169077/composite/1781213364
         // and thumb=ABSENT.
-        val item = PlexMediaMapper.playlistToMediaItem(
-            playlist(composite = "/playlists/169077/composite/1781213364"),
-            "[playlistID]"
-        )!!
+        val item =
+            PlexMediaMapper.playlistToMediaItem(
+                playlist(composite = "/playlists/169077/composite/1781213364"),
+                "[playlistID]",
+            )!!
 
         val artwork = item.mediaMetadata.artworkUri!!
         assertEquals("content", artwork.scheme)
@@ -251,27 +290,39 @@ class PlexMediaMapperAssemblyTest {
     fun aPlaylistWithNeitherCompositeNorThumbFallsBackToThePlaceholder() {
         // "punk goes pop" on the measured server had neither field -- Plex has
         // no art for it at all, so the placeholder icon must still show.
-        val item = PlexMediaMapper.playlistToMediaItem(
-            playlist(ratingKey = "1", title = "punk goes pop"),
-            "[playlistID]"
-        )!!
+        val item =
+            PlexMediaMapper.playlistToMediaItem(
+                playlist(ratingKey = "1", title = "punk goes pop"),
+                "[playlistID]",
+            )!!
 
         val artwork = item.mediaMetadata.artworkUri!!
         assertEquals("android.resource", artwork.scheme)
         assertEquals(
             ResourceUris.forResource(R.drawable.ic_browse_playlist),
-            artwork
+            artwork,
         )
     }
 
     @Test
     fun anUnheartedTrackReadsAsUnhearted() {
-        val unhearted = PlexMediaMapper.buildTrackMediaItem(
-            ratingKey = "1234", title = "T", albumTitle = "A", artist = "R",
-            thumb = null, partKey = "/p", durationMs = 1L, trackIndex = 1, year = 2020,
-            grandparentRatingKey = "77", isHearted = false,
-            parentId = null, serverUri = serverUri, token = token
-        )
+        val unhearted =
+            PlexMediaMapper.buildTrackMediaItem(
+                ratingKey = "1234",
+                title = "T",
+                albumTitle = "A",
+                artist = "R",
+                thumb = null,
+                partKey = "/p",
+                durationMs = 1L,
+                trackIndex = 1,
+                year = 2020,
+                grandparentRatingKey = "77",
+                isHearted = false,
+                parentId = null,
+                serverUri = serverUri,
+                token = token,
+            )
 
         assertEquals(HeartRating(false), unhearted.mediaMetadata.userRating)
         assertFalse(PlexMediaMapper.readTrackFields(unhearted)!!.isHearted)
@@ -306,7 +357,7 @@ class PlexMediaMapperAssemblyTest {
 
         assertEquals(
             BrowseContentStyle.PLAYABLE_CHILD_STYLE,
-            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE)
+            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE),
         )
     }
 
@@ -330,13 +381,17 @@ class PlexMediaMapperAssemblyTest {
         // another server. A distinctive scope is used rather than a plausible
         // one so a mapper that ignored it fails here rather than coincidentally
         // agreeing.
-        val item = PlexMediaMapper.decadeToMediaItem(
-            decade(), Constants.DECADE_ID, SCOPE, bucket = 487234L
-        )!!
+        val item =
+            PlexMediaMapper.decadeToMediaItem(
+                decade(),
+                Constants.DECADE_ID,
+                SCOPE,
+                bucket = 487234L,
+            )!!
 
         assertEquals(
             AlbumArtContentProvider.decadeContentUri(SCOPE, "1980", 487234L),
-            item.mediaMetadata.artworkUri
+            item.mediaMetadata.artworkUri,
         )
     }
 
@@ -377,13 +432,17 @@ class PlexMediaMapperAssemblyTest {
      */
     @Test
     fun aDecadeRowsIdStillYieldsTheBareDecade() {
-        val item = PlexMediaMapper.decadeToMediaItem(
-            decade(), Constants.DECADE_ID, SCOPE, bucket = 487234L
-        )!!
+        val item =
+            PlexMediaMapper.decadeToMediaItem(
+                decade(),
+                Constants.DECADE_ID,
+                SCOPE,
+                bucket = 487234L,
+            )!!
 
         assertEquals(
             "1980",
-            DecadeKey.decadeIn(item.mediaId.removePrefix(Constants.DECADE_ID))
+            DecadeKey.decadeIn(item.mediaId.removePrefix(Constants.DECADE_ID)),
         )
     }
 
@@ -391,9 +450,12 @@ class PlexMediaMapperAssemblyTest {
 
     @Test
     fun windowRowIsBrowsableAndNotPlayable() {
-        val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistWindowID]50", "Beck  -  Cake", R.drawable.ic_browse_artists
-        )
+        val row =
+            PlexMediaMapper.groupRowToMediaItem(
+                "[artistWindowID]50",
+                "Beck  -  Cake",
+                R.drawable.ic_browse_artists,
+            )
         assertEquals("[artistWindowID]50", row.mediaId)
         assertEquals("Beck  -  Cake", row.mediaMetadata.title)
         assertEquals(true, row.mediaMetadata.isBrowsable)
@@ -407,14 +469,17 @@ class PlexMediaMapperAssemblyTest {
         // .setExtras(extras) entirely would still pass every other window-row
         // assertion in this file, which is why this needs its own test rather
         // than piggybacking on windowRowIsBrowsableAndNotPlayable.
-        val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistWindowID]0", "A  -  B", R.drawable.ic_browse_artists
-        )
+        val row =
+            PlexMediaMapper.groupRowToMediaItem(
+                "[artistWindowID]0",
+                "A  -  B",
+                R.drawable.ic_browse_artists,
+            )
         val extras = row.mediaMetadata.extras!!
 
         assertEquals(
             BrowseContentStyle.browsableChildStyle(true),
-            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE),
         )
     }
 
@@ -427,29 +492,32 @@ class PlexMediaMapperAssemblyTest {
         // are records with covers, so they grid like every other album list.
         // The node's own list-ness is asserted in MediaBrowserTreeTest, not
         // here; nothing else pins this half.
-        val hub = Hub().apply {
-            title = "Recently Added in Music"
-            key = "/library/sections/7/all?type=9"
-            size = 6
-        }
+        val hub =
+            Hub().apply {
+                title = "Recently Added in Music"
+                key = "/library/sections/7/all?type=9"
+                size = 6
+            }
 
-        val extras = PlexMediaMapper
-            .hubToMediaItem(hub, Constants.HUB_ID, "abc123-7", bucket = 487234L)!!
-            .mediaMetadata.extras!!
+        val extras =
+            PlexMediaMapper
+                .hubToMediaItem(hub, Constants.HUB_ID, "abc123-7", bucket = 487234L)!!
+                .mediaMetadata.extras!!
 
         assertEquals(
             BrowseContentStyle.browsableChildStyle(true),
-            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+            extras.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE),
         )
     }
 
     // ── hub rows ──────────────────────────────────────────────
 
-    private fun hub(vararg thumbs: String) = Hub().apply {
-        key = "/library/sections/7/all?type=9&genre=138884"
-        title = "More in Pop/Rock"
-        metadata = thumbs.map { thumb -> Metadata().apply { this.thumb = thumb } }
-    }
+    private fun hub(vararg thumbs: String) =
+        Hub().apply {
+            key = "/library/sections/7/all?type=9&genre=138884"
+            title = "More in Pop/Rock"
+            metadata = thumbs.map { thumb -> Metadata().apply { this.thumb = thumb } }
+        }
 
     @Test
     fun aHubCarriesTheCompositeForItsScopeBucketAndCovers() {
@@ -457,26 +525,34 @@ class PlexMediaMapperAssemblyTest {
         // Uri.Builder hands back null, so the plain suite would be comparing
         // null to null and passing.
         val pool = listOf("/library/metadata/51/thumb/1", "/library/metadata/77/thumb/2")
-        val item = PlexMediaMapper.hubToMediaItem(
-            hub(*pool.toTypedArray()), Constants.HUB_ID, SCOPE, bucket = 487234L
-        )!!
+        val item =
+            PlexMediaMapper.hubToMediaItem(
+                hub(*pool.toTypedArray()),
+                Constants.HUB_ID,
+                SCOPE,
+                bucket = 487234L,
+            )!!
 
         assertEquals(
             AlbumArtContentProvider.hubContentUri(SCOPE, 487234L, pool),
-            item.mediaMetadata.artworkUri
+            item.mediaMetadata.artworkUri,
         )
     }
 
     @Test
     fun aHubTakesAtMostTheListingsSixCovers() {
         val many = (1..8).map { "/library/metadata/$it/thumb/1" }
-        val item = PlexMediaMapper.hubToMediaItem(
-            hub(*many.toTypedArray()), Constants.HUB_ID, SCOPE, bucket = 487234L
-        )!!
+        val item =
+            PlexMediaMapper.hubToMediaItem(
+                hub(*many.toTypedArray()),
+                Constants.HUB_ID,
+                SCOPE,
+                bucket = 487234L,
+            )!!
 
         assertEquals(
             AlbumArtContentProvider.hubContentUri(SCOPE, 487234L, many.take(HubCoverPool.MAX)),
-            item.mediaMetadata.artworkUri
+            item.mediaMetadata.artworkUri,
         )
     }
 
@@ -488,13 +564,17 @@ class PlexMediaMapperAssemblyTest {
         // read as a rendering bug rather than a mosaic; one cover is what a
         // pool of one honestly means.
         val shared = "/library/metadata/51/thumb/1"
-        val item = PlexMediaMapper.hubToMediaItem(
-            hub(shared, shared, shared), Constants.HUB_ID, SCOPE, bucket = 487234L
-        )!!
+        val item =
+            PlexMediaMapper.hubToMediaItem(
+                hub(shared, shared, shared),
+                Constants.HUB_ID,
+                SCOPE,
+                bucket = 487234L,
+            )!!
 
         assertEquals(
             AlbumArtContentProvider.hubContentUri(SCOPE, 487234L, listOf(shared)),
-            item.mediaMetadata.artworkUri
+            item.mediaMetadata.artworkUri,
         )
     }
 
@@ -502,9 +582,13 @@ class PlexMediaMapperAssemblyTest {
     fun aHubWhoseItemsCarryNoThumbGetsNoArtworkAtAll() {
         // The behaviour these rows have on main, and the floor this feature
         // cannot fall below: the car draws its own placeholder.
-        val item = PlexMediaMapper.hubToMediaItem(
-            hub(), Constants.HUB_ID, SCOPE, bucket = 487234L
-        )!!
+        val item =
+            PlexMediaMapper.hubToMediaItem(
+                hub(),
+                Constants.HUB_ID,
+                SCOPE,
+                bucket = 487234L,
+            )!!
 
         assertNull(item.mediaMetadata.artworkUri)
     }
@@ -516,12 +600,22 @@ class PlexMediaMapperAssemblyTest {
         // the cache file cannot fix what never reaches the file.
         val pool = listOf("/library/metadata/51/thumb/1")
         assertNotEquals(
-            PlexMediaMapper.hubToMediaItem(
-                hub(*pool.toTypedArray()), Constants.HUB_ID, "serverA-4", 487234L
-            )!!.mediaMetadata.artworkUri,
-            PlexMediaMapper.hubToMediaItem(
-                hub(*pool.toTypedArray()), Constants.HUB_ID, "serverB-4", 487234L
-            )!!.mediaMetadata.artworkUri
+            PlexMediaMapper
+                .hubToMediaItem(
+                    hub(*pool.toTypedArray()),
+                    Constants.HUB_ID,
+                    "serverA-4",
+                    487234L,
+                )!!
+                .mediaMetadata.artworkUri,
+            PlexMediaMapper
+                .hubToMediaItem(
+                    hub(*pool.toTypedArray()),
+                    Constants.HUB_ID,
+                    "serverB-4",
+                    487234L,
+                )!!
+                .mediaMetadata.artworkUri,
         )
     }
 
@@ -532,12 +626,20 @@ class PlexMediaMapperAssemblyTest {
         // id, or every Discover row churns hourly and every persisted id goes
         // stale.
         val pool = listOf("/library/metadata/51/thumb/1")
-        val first = PlexMediaMapper.hubToMediaItem(
-            hub(*pool.toTypedArray()), Constants.HUB_ID, SCOPE, 487234L
-        )!!
-        val next = PlexMediaMapper.hubToMediaItem(
-            hub(*pool.toTypedArray()), Constants.HUB_ID, SCOPE, 487235L
-        )!!
+        val first =
+            PlexMediaMapper.hubToMediaItem(
+                hub(*pool.toTypedArray()),
+                Constants.HUB_ID,
+                SCOPE,
+                487234L,
+            )!!
+        val next =
+            PlexMediaMapper.hubToMediaItem(
+                hub(*pool.toTypedArray()),
+                Constants.HUB_ID,
+                SCOPE,
+                487235L,
+            )!!
 
         assertEquals(first.mediaId, next.mediaId)
         assertNotEquals(first.mediaMetadata.artworkUri, next.mediaMetadata.artworkUri)
@@ -547,9 +649,12 @@ class PlexMediaMapperAssemblyTest {
     fun windowRowCarriesAnIconRatherThanNoArtwork() {
         // An absent artworkUri makes the car draw a music note on a per-row
         // colour; at 25-56 rows a tab that is a column of unrelated colours.
-        val row = PlexMediaMapper.groupRowToMediaItem(
-            "[albumWindowID]0", "A  -  B", R.drawable.ic_browse_albums
-        )
+        val row =
+            PlexMediaMapper.groupRowToMediaItem(
+                "[albumWindowID]0",
+                "A  -  B",
+                R.drawable.ic_browse_albums,
+            )
         assertNotNull(row.mediaMetadata.artworkUri)
     }
 
@@ -557,9 +662,12 @@ class PlexMediaMapperAssemblyTest {
     fun windowRowNeverCarriesAStreamUri() {
         // A non-null localConfiguration would make resolveQueueForItem treat the
         // row as already resolved and "play" a row that has no stream.
-        val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistWindowID]0", "A  -  B", R.drawable.ic_browse_artists
-        )
+        val row =
+            PlexMediaMapper.groupRowToMediaItem(
+                "[artistWindowID]0",
+                "A  -  B",
+                R.drawable.ic_browse_artists,
+            )
         assertNull(row.localConfiguration)
     }
 
@@ -569,9 +677,13 @@ class PlexMediaMapperAssemblyTest {
         // the bucket's count, which is the only visible sign that a bucket
         // larger than the car's ~293-item ceiling is showing fewer artists than
         // it claims.
-        val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistLetterID]A", "A", R.drawable.ic_browse_artists, "79 artists"
-        )
+        val row =
+            PlexMediaMapper.groupRowToMediaItem(
+                "[artistLetterID]A",
+                "A",
+                R.drawable.ic_browse_artists,
+                "79 artists",
+            )
 
         assertEquals("A", row.mediaMetadata.title)
         assertEquals("79 artists", row.mediaMetadata.artist)
@@ -581,9 +693,12 @@ class PlexMediaMapperAssemblyTest {
     fun `a group row with no subtitle leaves the second line empty`() {
         // Window rows pass none: every window holds WINDOW_SIZE items except the
         // last, so a count would say nothing.
-        val row = PlexMediaMapper.groupRowToMediaItem(
-            "[artistWindowID]0", "Beck  -  Cake", R.drawable.ic_browse_artists
-        )
+        val row =
+            PlexMediaMapper.groupRowToMediaItem(
+                "[artistWindowID]0",
+                "Beck  -  Cake",
+                R.drawable.ic_browse_artists,
+            )
 
         assertNull(row.mediaMetadata.artist)
     }

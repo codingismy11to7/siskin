@@ -7,8 +7,9 @@ import com.cappielloantonio.tempo.plex.PlexTransportFailure
  * failure mode of its own -- every other call fails only in transport.
  */
 sealed interface CreatePinError {
-
-    data class Transport(val failure: PlexTransportFailure) : CreatePinError
+    data class Transport(
+        val failure: PlexTransportFailure,
+    ) : CreatePinError
 
     /** plex.tv answered 2xx with a PIN carrying no id or no code. */
     data object NoPinCode : CreatePinError

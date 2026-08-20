@@ -31,9 +31,10 @@ import java.util.concurrent.atomic.AtomicInteger
 object QueuePreloader {
     private const val TAG = "QueuePreloader"
 
-    private val executor = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "queue-preloader").apply { priority = Thread.MIN_PRIORITY }
-    }
+    private val executor =
+        Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "queue-preloader").apply { priority = Thread.MIN_PRIORITY }
+        }
     private val generation = AtomicInteger(0)
 
     @Volatile
@@ -44,7 +45,10 @@ object QueuePreloader {
     private var runningUris: List<Uri> = emptyList()
 
     /** Must be called from the player's application thread. */
-    fun preload(context: Context, player: Player) {
+    fun preload(
+        context: Context,
+        player: Player,
+    ) {
         val count = Preferences.getPrecacheTracksCount()
         if (count <= 0) return
         if (Preferences.getStreamingCacheSize() <= 0L) return
@@ -95,7 +99,11 @@ object QueuePreloader {
         }
     }
 
-    private fun collectUpcomingStreamUris(context: Context, player: Player, count: Int): List<Uri> {
+    private fun collectUpcomingStreamUris(
+        context: Context,
+        player: Player,
+        count: Int,
+    ): List<Uri> {
         val timeline = player.currentTimeline
         if (timeline.isEmpty) return emptyList()
 
@@ -111,9 +119,10 @@ object QueuePreloader {
 
             val mediaItem = player.getMediaItemAt(index)
 
-            val uri = mediaItem.localConfiguration?.uri
-                ?: mediaItem.requestMetadata.mediaUri
-                ?: continue
+            val uri =
+                mediaItem.localConfiguration?.uri
+                    ?: mediaItem.requestMetadata.mediaUri
+                    ?: continue
 
             val scheme = uri.scheme
             if (scheme != "http" && scheme != "https") continue
@@ -124,7 +133,11 @@ object QueuePreloader {
         return uris
     }
 
-    private fun cacheTrack(context: Context, uri: Uri, myGeneration: Int) {
+    private fun cacheTrack(
+        context: Context,
+        uri: Uri,
+        myGeneration: Int,
+    ) {
         val dataSpec = DataSpec.Builder().setUri(uri).build()
         val dataSource = DownloadUtil.getStreamingCacheWriterFactory(context).createDataSource()
         val cacheKey = dataSource.cacheKeyFactory.buildCacheKey(dataSpec)
@@ -165,8 +178,11 @@ object QueuePreloader {
         }
     }
 
-    private fun isFullyCached(context: Context, uri: Uri): Boolean {
-        return try {
+    private fun isFullyCached(
+        context: Context,
+        uri: Uri,
+    ): Boolean =
+        try {
             val cache = DownloadUtil.getStreamingCacheForPreload(context)
             val cacheKey = StreamingCacheKeyFactory().buildCacheKey(DataSpec.Builder().setUri(uri).build())
             val contentLength = ContentMetadata.getContentLength(cache.getContentMetadata(cacheKey))
@@ -174,14 +190,16 @@ object QueuePreloader {
         } catch (exception: Exception) {
             false
         }
-    }
 
     /**
      * Same policy as StreamingCacheDataSource.close(): a resource whose total
      * length never became known is an unfinished transcode fragment that can't
      * be safely resumed with a range request, so drop it.
      */
-    private fun removePartialResource(context: Context, cacheKey: String) {
+    private fun removePartialResource(
+        context: Context,
+        cacheKey: String,
+    ) {
         try {
             val cache = DownloadUtil.getStreamingCacheForPreload(context)
             val contentLength = ContentMetadata.getContentLength(cache.getContentMetadata(cacheKey))

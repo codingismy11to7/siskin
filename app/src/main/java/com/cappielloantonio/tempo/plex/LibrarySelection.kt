@@ -9,7 +9,6 @@ package com.cappielloantonio.tempo.plex
  * only misbehaves on the next track change.
  */
 object LibrarySelection {
-
     /**
      * Whether a (server, library) row is the one currently in use.
      *
@@ -28,7 +27,7 @@ object LibrarySelection {
         session: PlexSession?,
         machineIdentifier: String?,
         serverUri: String,
-        sectionKey: String
+        sectionKey: String,
     ): Boolean {
         if (session == null) return false
         if (session.musicSectionKey.value != sectionKey) return false
@@ -57,7 +56,10 @@ object LibrarySelection {
      * [isCurrent] makes when its own identifier is missing.
      */
     @JvmStatic
-    fun isCurrentServer(session: PlexSession?, machineIdentifier: String?): Boolean {
+    fun isCurrentServer(
+        session: PlexSession?,
+        machineIdentifier: String?,
+    ): Boolean {
         if (session == null || machineIdentifier.isNullOrBlank()) return false
         val stored = session.machineIdentifier
         return !stored.isNullOrBlank() && stored == machineIdentifier
@@ -74,7 +76,10 @@ object LibrarySelection {
      * yielding 404s or, worse, a valid URL for an unrelated track.
      */
     @JvmStatic
-    fun invalidatesQueue(old: PlexSession?, new: PlexSession): Boolean {
+    fun invalidatesQueue(
+        old: PlexSession?,
+        new: PlexSession,
+    ): Boolean {
         if (old == null) return false
         val oldId = old.machineIdentifier
         val newId = new.machineIdentifier

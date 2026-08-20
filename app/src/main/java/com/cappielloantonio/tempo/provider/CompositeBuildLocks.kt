@@ -31,7 +31,6 @@ import java.util.concurrent.ConcurrentHashMap
  * that stays the backstop. This only stops the second build from being started.
  */
 object CompositeBuildLocks {
-
     private val locks = ConcurrentHashMap<String, Any>()
 
     /**
@@ -54,7 +53,10 @@ object CompositeBuildLocks {
      * correctness across the removal window rests on the unique-partial-file
      * plus `renameTo` backstop described on the object, not on this lock.
      */
-    fun <T> exclusively(key: String, body: () -> T): T {
+    fun <T> exclusively(
+        key: String,
+        body: () -> T,
+    ): T {
         val lock = locks.computeIfAbsent(key) { Any() }
         try {
             return synchronized(lock) { body() }

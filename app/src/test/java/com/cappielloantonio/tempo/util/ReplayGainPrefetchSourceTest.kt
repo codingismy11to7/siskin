@@ -39,7 +39,6 @@ import org.robolectric.RuntimeEnvironment
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class ReplayGainPrefetchSourceTest {
-
     private val fixture = ResolvedStreamFixture()
 
     @Before
@@ -54,7 +53,7 @@ class ReplayGainPrefetchSourceTest {
 
     private fun openThroughThePrefetchFactory() {
         fixture.openThrough(
-            ReplayGainUtil.prefetchDataSourceFactory(RuntimeEnvironment.getApplication())
+            ReplayGainUtil.prefetchDataSourceFactory(RuntimeEnvironment.getApplication()),
         )
     }
 
@@ -67,7 +66,8 @@ class ReplayGainPrefetchSourceTest {
         assertEquals(
             "the prefetch must reach the address the resolver rewrote it onto, " +
                 "not the one the queue was built with",
-            1, fixture.requestCount
+            1,
+            fixture.requestCount,
         )
     }
 
@@ -80,7 +80,8 @@ class ReplayGainPrefetchSourceTest {
         assertEquals(
             "the prefetch must reach the address the resolver rewrote it onto, " +
                 "not the one the queue was built with",
-            1, fixture.requestCount
+            1,
+            fixture.requestCount,
         )
     }
 }

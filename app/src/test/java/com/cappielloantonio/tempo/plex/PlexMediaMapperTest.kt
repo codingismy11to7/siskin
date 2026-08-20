@@ -12,13 +12,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlexMediaMapperTest {
-
     private fun track(
         ratingKey: String = "1",
         partKey: String? = "/library/parts/9/file.flac",
         thumb: String? = null,
         parentThumb: String? = null,
-        grandparentThumb: String? = null
+        grandparentThumb: String? = null,
     ) = Metadata().apply {
         this.ratingKey = ratingKey
         this.type = "track"
@@ -45,10 +44,11 @@ class PlexMediaMapperTest {
 
     @Test
     fun returnsNullPartKeyWhenMediaCarriesNoParts() {
-        val noParts = Metadata().apply {
-            ratingKey = "1"
-            media = listOf(Media().apply { part = emptyList() })
-        }
+        val noParts =
+            Metadata().apply {
+                ratingKey = "1"
+                media = listOf(Media().apply { part = emptyList() })
+            }
         assertNull(PlexMediaMapper.partKey(noParts))
     }
 
@@ -56,12 +56,14 @@ class PlexMediaMapperTest {
     fun picksTheFirstPartThatActuallyHasAKey() {
         // Plex can return a part with no key alongside a usable one; taking
         // media[0].part[0] blindly would yield an unplayable track.
-        val mixed = Metadata().apply {
-            ratingKey = "1"
-            media = listOf(
-                Media().apply { part = listOf(Part(), Part().apply { key = "/good" }) }
-            )
-        }
+        val mixed =
+            Metadata().apply {
+                ratingKey = "1"
+                media =
+                    listOf(
+                        Media().apply { part = listOf(Part(), Part().apply { key = "/good" }) },
+                    )
+            }
         assertEquals("/good", PlexMediaMapper.partKey(mixed))
     }
 
@@ -116,10 +118,11 @@ class PlexMediaMapperTest {
         // Measured on a live library: a compilation track carries the album artist
         // in grandparentTitle and the real performer in originalTitle, so reading
         // grandparentTitle credited every compilation to "Various Artists".
-        val compilationTrack = track().apply {
-            grandparentTitle = "Various Artists"
-            originalTitle = "The Hold Steady"
-        }
+        val compilationTrack =
+            track().apply {
+                grandparentTitle = "Various Artists"
+                originalTitle = "The Hold Steady"
+            }
 
         assertEquals("The Hold Steady", PlexMediaMapper.trackArtist(compilationTrack))
     }
@@ -129,13 +132,16 @@ class PlexMediaMapperTest {
         // The common case: Plex populates originalTitle only when the two differ.
         assertEquals(
             "Fall Out Boy",
-            PlexMediaMapper.trackArtist(track().apply { grandparentTitle = "Fall Out Boy" })
+            PlexMediaMapper.trackArtist(track().apply { grandparentTitle = "Fall Out Boy" }),
         )
         assertEquals(
             "Bob Dylan",
             PlexMediaMapper.trackArtist(
-                track().apply { grandparentTitle = "Bob Dylan"; originalTitle = "  " }
-            )
+                track().apply {
+                    grandparentTitle = "Bob Dylan"
+                    originalTitle = "  "
+                },
+            ),
         )
     }
 
@@ -153,13 +159,14 @@ class PlexMediaMapperTest {
         // belongs in PlexMediaMapperAssemblyTest, where Robolectric supplies a
         // real Uri.Builder. Under returnDefaultValues this one hands back null
         // and the assertion would compare null to null.
-        val dropped = listOf(
-            decade(key = null),
-            decade(key = "  "),
-            decade(title = null)
-        ).map {
-            PlexMediaMapper.decadeToMediaItem(it, Constants.DECADE_ID, SCOPE, bucket = 487234L)
-        }
+        val dropped =
+            listOf(
+                decade(key = null),
+                decade(key = "  "),
+                decade(title = null),
+            ).map {
+                PlexMediaMapper.decadeToMediaItem(it, Constants.DECADE_ID, SCOPE, bucket = 487234L)
+            }
 
         dropped.forEach { assertNull(it) }
     }
@@ -173,27 +180,28 @@ class PlexMediaMapperTest {
 
     @Test
     fun buildsAHubRowCarryingItsScopedKey() {
-        val hub = Hub().apply {
-            hubIdentifier = "music.vault.7"
-            title = "Haven't played in 5 months"
-            type = "artist"
-            size = 6
-            key = "/library/sections/7/all?type=8&sort=random"
-            // Deliberately carries no metadata, and that is load-bearing rather
-            // than incidental: this suite is plain JUnit, so android.jar is
-            // stubbed and Uri.Builder's methods return null. A hub whose items
-            // carry a thumb mints an artwork URI, and hubContentUri's
-            // .scheme().authority() chain would NPE here with nothing at the
-            // call site to explain it. Give this fixture a thumb only by
-            // moving the test to PlexMediaMapperAssemblyTest, which runs under
-            // Robolectric.
-        }
+        val hub =
+            Hub().apply {
+                hubIdentifier = "music.vault.7"
+                title = "Haven't played in 5 months"
+                type = "artist"
+                size = 6
+                key = "/library/sections/7/all?type=8&sort=random"
+                // Deliberately carries no metadata, and that is load-bearing rather
+                // than incidental: this suite is plain JUnit, so android.jar is
+                // stubbed and Uri.Builder's methods return null. A hub whose items
+                // carry a thumb mints an artwork URI, and hubContentUri's
+                // .scheme().authority() chain would NPE here with nothing at the
+                // call site to explain it. Give this fixture a thumb only by
+                // moving the test to PlexMediaMapperAssemblyTest, which runs under
+                // Robolectric.
+            }
 
         val item = PlexMediaMapper.hubToMediaItem(hub, Constants.HUB_ID, "abc123-7", bucket = 487234L)!!
 
         assertEquals(
             Constants.HUB_ID + "abc123-7|/library/sections/7/all?type=8&sort=random",
-            item.mediaId
+            item.mediaId,
         )
         assertEquals("Haven't played in 5 months", item.mediaMetadata.title)
         assertTrue(item.mediaMetadata.isBrowsable == true)
@@ -202,8 +210,16 @@ class PlexMediaMapperTest {
 
     @Test
     fun refusesAHubWithNoTitleOrNoKey() {
-        val noKey = Hub().apply { title = "x"; size = 6 }
-        val noTitle = Hub().apply { key = "/library/sections/7/all"; size = 6 }
+        val noKey =
+            Hub().apply {
+                title = "x"
+                size = 6
+            }
+        val noTitle =
+            Hub().apply {
+                key = "/library/sections/7/all"
+                size = 6
+            }
 
         assertNull(PlexMediaMapper.hubToMediaItem(noKey, Constants.HUB_ID, "abc123-7", bucket = 487234L))
         assertNull(PlexMediaMapper.hubToMediaItem(noTitle, Constants.HUB_ID, "abc123-7", bucket = 487234L))

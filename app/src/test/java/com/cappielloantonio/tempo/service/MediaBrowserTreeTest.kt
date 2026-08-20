@@ -25,7 +25,6 @@ import org.robolectric.RuntimeEnvironment
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
 class MediaBrowserTreeTest {
-
     @Before
     fun setUp() {
         // Robolectric caches SharedPreferences statically across test methods
@@ -34,7 +33,12 @@ class MediaBrowserTreeTest {
         // reset -- done before the build below -- one method's write would
         // decide another's result, and a later-running class would inherit it
         // too.
-        App.getInstance().preferences.edit().remove("artists_by_initial").commit()
+        App
+            .getInstance()
+            .preferences
+            .edit()
+            .remove("artists_by_initial")
+            .commit()
         BrowseTabOrderFixture.clearSavedOrder()
 
         // A real Application, not a mock: this class used to run without
@@ -56,17 +60,21 @@ class MediaBrowserTreeTest {
 
     @Test
     fun rootHasExactlyFourTabsInOrder() {
-        val children = MediaBrowserTree.getChildren(Constants.ROOT_ID)
-            .get().value!!.map { it.mediaId }
+        val children =
+            MediaBrowserTree
+                .getChildren(Constants.ROOT_ID)
+                .get()
+                .value!!
+                .map { it.mediaId }
 
         assertEquals(
             listOf(
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
-                Constants.MORE_ID
+                Constants.MORE_ID,
             ),
-            children
+            children,
         )
     }
 
@@ -85,7 +93,7 @@ class MediaBrowserTreeTest {
             "[radioID]",
             "[genresID]",
             "[folderID]",
-            "[downloadedID]"
+            "[downloadedID]",
         ).forEach { removed ->
             assertEquals("$removed should not resolve", null, MediaBrowserTree.getItem(removed))
         }
@@ -102,10 +110,11 @@ class MediaBrowserTreeTest {
     fun pickerNodesResolveSoTheirSubscriptionsCanStick() {
         listOf(
             Constants.PICK_SERVER_ID + "abc123",
-            Constants.PICK_LIBRARY_ID + "abc123|7"
+            Constants.PICK_LIBRARY_ID + "abc123|7",
         ).forEach { id ->
-            val item = MediaBrowserTree.getItem(id)
-                ?: throw AssertionError("$id must resolve or its subscription is dropped")
+            val item =
+                MediaBrowserTree.getItem(id)
+                    ?: throw AssertionError("$id must resolve or its subscription is dropped")
             assertEquals(id, item.mediaId)
             assertEquals(true, item.mediaMetadata.isBrowsable)
             // A playable row makes the car open Now Playing on tap, and nothing
@@ -125,7 +134,7 @@ class MediaBrowserTreeTest {
 
         assertEquals(
             MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS,
-            artistsItem.mediaMetadata.mediaType
+            artistsItem.mediaMetadata.mediaType,
         )
     }
 
@@ -153,11 +162,11 @@ class MediaBrowserTreeTest {
         assertEquals(false, row.mediaMetadata.isPlayable)
         assertEquals(
             context.getString(R.string.car_sign_in_required),
-            row.mediaMetadata.title
+            row.mediaMetadata.title,
         )
         assertEquals(
             context.getString(R.string.car_sign_in_hint),
-            row.mediaMetadata.artist
+            row.mediaMetadata.artist,
         )
     }
 
@@ -173,10 +182,11 @@ class MediaBrowserTreeTest {
         val context = RuntimeEnvironment.getApplication()
 
         val row = MediaBrowserTree.signedOutRow(context).single()
-        val item = MediaBrowserTree.getItem(row.mediaId)
-            ?: throw AssertionError(
-                "${row.mediaId} must resolve or its subscription is dropped"
-            )
+        val item =
+            MediaBrowserTree.getItem(row.mediaId)
+                ?: throw AssertionError(
+                    "${row.mediaId} must resolve or its subscription is dropped",
+                )
 
         assertEquals(row.mediaId, item.mediaId)
         assertEquals(true, item.mediaMetadata.isBrowsable)
@@ -205,22 +215,26 @@ class MediaBrowserTreeTest {
         val row = result.value!!.single()
         assertEquals(
             context.getString(R.string.car_sign_in_required),
-            row.mediaMetadata.title
+            row.mediaMetadata.title,
         )
         assertEquals(
             context.getString(R.string.car_sign_in_hint),
-            row.mediaMetadata.artist
+            row.mediaMetadata.artist,
         )
     }
 
     @Test
     fun moreOffersDiscoverFirst() {
-        val children = MediaBrowserTree.getChildren(Constants.MORE_ID)
-            .get().value!!.map { it.mediaId }
+        val children =
+            MediaBrowserTree
+                .getChildren(Constants.MORE_ID)
+                .get()
+                .value!!
+                .map { it.mediaId }
 
         assertEquals(
             listOf(Constants.DISCOVER_ID, Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
-            children
+            children,
         )
     }
 
@@ -233,8 +247,9 @@ class MediaBrowserTreeTest {
     @Test
     fun discoverChildrenAreAListNotAGrid() {
         val discover = MediaBrowserTree.getItem(Constants.DISCOVER_ID)!!
-        val style = discover.mediaMetadata.extras!!
-            .getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+        val style =
+            discover.mediaMetadata.extras!!
+                .getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
 
         assertEquals(BrowseContentStyle.browsableChildStyle(false), style)
     }
@@ -254,8 +269,8 @@ class MediaBrowserTreeTest {
         assertEquals(
             BrowseContentStyle.browsableChildStyle(true),
             item.mediaMetadata.extras!!.getInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE
-            )
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+            ),
         )
     }
 
@@ -292,8 +307,10 @@ class MediaBrowserTreeTest {
         MediaBrowserTree.buildTree()
         assertEquals(
             BrowseContentStyle.browsableChildStyle(false),
-            MediaBrowserTree.getItem(Constants.ARTISTS_ID)!!.mediaMetadata.extras!!
-                .getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+            MediaBrowserTree
+                .getItem(Constants.ARTISTS_ID)!!
+                .mediaMetadata.extras!!
+                .getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE),
         )
 
         // Their children are window rows carrying no artwork of their own; a grid
@@ -314,12 +331,12 @@ class MediaBrowserTreeTest {
         val artists = MediaBrowserTree.getItem(Constants.ARTISTS_ID)!!
         assertEquals(
             BrowseContentStyle.browsableChildStyle(false),
-            artists.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+            artists.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE),
         )
         val albums = MediaBrowserTree.getItem(Constants.ALBUMS_ID)!!
         assertEquals(
             BrowseContentStyle.browsableChildStyle(false),
-            albums.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
+            albums.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE),
         )
     }
 
@@ -382,22 +399,26 @@ class MediaBrowserTreeTest {
                 Constants.DECADES_ID,
                 Constants.ALBUMS_ID,
                 Constants.ARTISTS_ID,
-                Constants.PLAYLIST_ID
-            )
+                Constants.PLAYLIST_ID,
+            ),
         )
         MediaBrowserTree.buildTree()
 
-        val children = MediaBrowserTree.getChildren(Constants.ROOT_ID)
-            .get().value!!.map { it.mediaId }
+        val children =
+            MediaBrowserTree
+                .getChildren(Constants.ROOT_ID)
+                .get()
+                .value!!
+                .map { it.mediaId }
 
         assertEquals(
             listOf(
                 Constants.DECADES_ID,
                 Constants.ALBUMS_ID,
                 Constants.ARTISTS_ID,
-                Constants.MORE_ID
+                Constants.MORE_ID,
             ),
-            children
+            children,
         )
     }
 
@@ -413,17 +434,21 @@ class MediaBrowserTreeTest {
                 Constants.DECADES_ID,
                 Constants.ALBUMS_ID,
                 Constants.ARTISTS_ID,
-                Constants.PLAYLIST_ID
-            )
+                Constants.PLAYLIST_ID,
+            ),
         )
         MediaBrowserTree.buildTree()
 
-        val children = MediaBrowserTree.getChildren(Constants.MORE_ID)
-            .get().value!!.map { it.mediaId }
+        val children =
+            MediaBrowserTree
+                .getChildren(Constants.MORE_ID)
+                .get()
+                .value!!
+                .map { it.mediaId }
 
         assertEquals(
             listOf(Constants.PLAYLIST_ID, Constants.DISCOVER_ID, Constants.SELECT_LIBRARY_ID),
-            children
+            children,
         )
     }
 
@@ -442,28 +467,36 @@ class MediaBrowserTreeTest {
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
-                Constants.DECADES_ID
-            )
+                Constants.DECADES_ID,
+            ),
         )
         MediaBrowserTree.buildTree()
 
-        val root = MediaBrowserTree.getChildren(Constants.ROOT_ID)
-            .get().value!!.map { it.mediaId }
+        val root =
+            MediaBrowserTree
+                .getChildren(Constants.ROOT_ID)
+                .get()
+                .value!!
+                .map { it.mediaId }
         assertEquals(
             listOf(
                 Constants.DISCOVER_ID,
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
-                Constants.MORE_ID
+                Constants.MORE_ID,
             ),
-            root
+            root,
         )
 
-        val more = MediaBrowserTree.getChildren(Constants.MORE_ID)
-            .get().value!!.map { it.mediaId }
+        val more =
+            MediaBrowserTree
+                .getChildren(Constants.MORE_ID)
+                .get()
+                .value!!
+                .map { it.mediaId }
         assertEquals(
             listOf(Constants.ALBUMS_ID, Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
-            more
+            more,
         )
 
         // Promotion is free: the node carries its own presentation, so Discover
@@ -472,8 +505,8 @@ class MediaBrowserTreeTest {
         assertEquals(
             BrowseContentStyle.browsableChildStyle(false),
             discover.mediaMetadata.extras!!.getInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE
-            )
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+            ),
         )
     }
 
@@ -486,13 +519,17 @@ class MediaBrowserTreeTest {
         listOf(
             listOf(Constants.DECADES_ID, Constants.PLAYLIST_ID, Constants.ALBUMS_ID),
             listOf(Constants.ALBUMS_ID, Constants.ARTISTS_ID, Constants.DECADES_ID),
-            emptyList()
+            emptyList(),
         ).forEach { order ->
             Preferences.setBrowseTabOrder(order)
             MediaBrowserTree.buildTree()
 
-            val children = MediaBrowserTree.getChildren(Constants.ROOT_ID)
-                .get().value!!.map { it.mediaId }
+            val children =
+                MediaBrowserTree
+                    .getChildren(Constants.ROOT_ID)
+                    .get()
+                    .value!!
+                    .map { it.mediaId }
 
             assertEquals("root must stay at four for $order", 4, children.size)
             assertEquals("More must be last for $order", Constants.MORE_ID, children.last())
@@ -514,12 +551,12 @@ class MediaBrowserTreeTest {
         assertEquals(
             BrowseContentStyle.browsableChildStyle(true),
             decades.mediaMetadata.extras!!.getInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE
-            )
+                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
+            ),
         )
         assertEquals(
             MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
-            decades.mediaMetadata.mediaType
+            decades.mediaMetadata.mediaType,
         )
     }
 }

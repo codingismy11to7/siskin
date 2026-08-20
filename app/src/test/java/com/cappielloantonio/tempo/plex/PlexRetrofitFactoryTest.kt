@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit
  */
 @RunWith(RobolectricTestRunner::class)
 class PlexRetrofitFactoryTest {
-
     private lateinit var server: MockWebServer
 
     @Before
@@ -113,7 +112,7 @@ class PlexRetrofitFactoryTest {
         // build their own Retrofit.
         assertEquals(
             "https://plex.tv/api/v2/",
-            PlexRetrofitFactory.plexTv(PlexApi()).baseUrl().toString()
+            PlexRetrofitFactory.plexTv(PlexApi()).baseUrl().toString(),
         )
     }
 
@@ -124,9 +123,10 @@ class PlexRetrofitFactoryTest {
         // on the path of every server the probe picks.
         assertEquals(
             "https://10.0.0.5:32400/",
-            PlexRetrofitFactory.server(PlexApi(), "https://10.0.0.5:32400", null)
+            PlexRetrofitFactory
+                .server(PlexApi(), "https://10.0.0.5:32400", null)
                 .baseUrl()
-                .toString()
+                .toString(),
         )
     }
 
@@ -148,19 +148,20 @@ class PlexRetrofitFactoryTest {
      */
     @Test
     fun anUnusableServerUriFallsBackInsteadOfThrowing() {
-        val cases = listOf(
-            null,           // signed out -- session?.serverUri on a fresh install
-            "",
-            "   ",
-            "not a url",
-            "https://"      // parses far enough to have no host
-        )
+        val cases =
+            listOf(
+                null, // signed out -- session?.serverUri on a fresh install
+                "",
+                "   ",
+                "not a url",
+                "https://", // parses far enough to have no host
+            )
 
         cases.forEach { uri ->
             assertEquals(
                 "expected the placeholder for ${uri?.let { "\"$it\"" }}",
                 "https://localhost/",
-                PlexRetrofitFactory.server(PlexApi(), uri, null).baseUrl().toString()
+                PlexRetrofitFactory.server(PlexApi(), uri, null).baseUrl().toString(),
             )
         }
     }

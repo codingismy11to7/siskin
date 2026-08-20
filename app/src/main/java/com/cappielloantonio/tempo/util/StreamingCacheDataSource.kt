@@ -13,22 +13,22 @@ import androidx.media3.datasource.cache.ContentMetadata
 @UnstableApi
 class StreamingCacheDataSource private constructor(
     private val cacheDataSource: CacheDataSource,
-): DataSource {
+) : DataSource {
     private var currentDataSpec: DataSpec? = null
 
-    class Factory(private val cacheDatasourceFactory: CacheDataSource.Factory): DataSource.Factory {
-        override fun createDataSource(): DataSource {
-            return StreamingCacheDataSource(cacheDatasourceFactory.createDataSource())
-        }
+    class Factory(
+        private val cacheDatasourceFactory: CacheDataSource.Factory,
+    ) : DataSource.Factory {
+        override fun createDataSource(): DataSource = StreamingCacheDataSource(cacheDatasourceFactory.createDataSource())
     }
 
-    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        return cacheDataSource.read(buffer, offset, length)
-    }
+    override fun read(
+        buffer: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int = cacheDataSource.read(buffer, offset, length)
 
-    override fun addTransferListener(transferListener: TransferListener) {
-        return cacheDataSource.addTransferListener(transferListener)
-    }
+    override fun addTransferListener(transferListener: TransferListener) = cacheDataSource.addTransferListener(transferListener)
 
     override fun open(dataSpec: DataSpec): Long {
         val ret = cacheDataSource.open(dataSpec)
@@ -36,9 +36,7 @@ class StreamingCacheDataSource private constructor(
         return ret
     }
 
-    override fun getUri(): Uri? {
-        return cacheDataSource.uri
-    }
+    override fun getUri(): Uri? = cacheDataSource.uri
 
     override fun close() {
         cacheDataSource.close()
@@ -47,7 +45,7 @@ class StreamingCacheDataSource private constructor(
 
         if (dataSpec != null) {
             val cacheKey = cacheDataSource.cacheKeyFactory.buildCacheKey(dataSpec)
-            val contentLength = ContentMetadata.getContentLength(cacheDataSource.cache.getContentMetadata(cacheKey));
+            val contentLength = ContentMetadata.getContentLength(cacheDataSource.cache.getContentMetadata(cacheKey))
 
             if (contentLength == C.LENGTH_UNSET.toLong()) {
                 Log.d(TAG, "Removing partial cache for $cacheKey")
