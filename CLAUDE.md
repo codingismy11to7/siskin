@@ -82,13 +82,35 @@ unchecked use as a single `Note: Recompile with -Xlint:deprecation for details`
 rather than as warnings. A deprecation that only shows up as that note is one
 nobody is forced to read, which is the thing this exists to prevent.
 
-Configuration-time Gradle warnings are outside the reach of both, so the
-deprecated `android.*` options in `gradle.properties` stay warnings no matter
-what. Two remain and both are deliberate: `android.newDsl=false` is what
-pre-defuses the AGP 9 incompatibility in the Gradle Play Publisher plugin, so
-removing it breaks `publishBundle`, and `android.aapt2FromMavenOverride` is
-flagged experimental but is what stops AGP downloading an aapt2 that cannot run
-on NixOS. See `docs/decisions/2026-08-13-build-hygiene-design.md`.
+Configuration-time Gradle warnings are outside the reach of both, so a
+deprecated `android.*` option in `gradle.properties` stays a warning no matter
+what `-Werror` says. **There are now none, and that is the point of the count:
+a deprecation warning at configuration time is a countdown, not noise.** AGP
+deprecates one of these flags when the behaviour it toggles is being removed —
+the flag is an opt-out from a new default during a migration window — so a
+deprecated option set to a non-default value is an escape hatch AGP intends to
+weld shut, and it fails whenever they get round to it rather than when you are
+ready.
+
+`android.newDsl=false` was the last one and is **gone**. It opted out of AGP 9's
+new DSL to keep the legacy variant API alive for the Gradle Play Publisher
+plugin — but it was set defensively, from a closed GPP issue saying AGP 9 needs
+"either a forward-port in the plugin or `android.newDsl=false`", and no failure
+was ever observed here. On GPP 4.0.0 it is not needed: `publishBundle`,
+`promoteArtifact` and `publishListing` all register, `bundleRelease` produces a
+valid AAB, and `-Pandroid.debug.obsoleteApi=true` — the flag that names
+legacy-variant-API callers — reports nobody.
+
+**What that check could not cover is `publishBundle`'s execution**, which needs
+Play credentials. If GPP resolves the artifact through a removed API at upload
+time, the first sign is a failed release rather than a failed build, so watch
+the next cut.
+
+The one remaining configuration warning is `android.aapt2FromMavenOverride`,
+which is **experimental rather than deprecated** and is not in
+`gradle.properties` at all — it comes from `GRADLE_OPTS` in `flake.nix`, and
+without it AGP downloads an aapt2 that cannot run on NixOS. That one warns
+forever and should. See `docs/decisions/2026-08-13-build-hygiene-design.md`.
 
 `resValues` is now declared in `buildFeatures` rather than defaulted on by
 `android.defaults.buildfeatures.resvalues`. It is not cosmetic — `resValue`
