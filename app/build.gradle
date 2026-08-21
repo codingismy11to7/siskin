@@ -38,8 +38,8 @@ android {
         //noinspection OldTargetApi
         targetSdk = 36
 
-        versionCode 7
-        versionName '0.99.5'
+        versionCode 8
+        versionName '0.99.6'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 
         javaCompileOptions {

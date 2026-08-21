@@ -1,3 +1,2 @@
-• The More tab has Discover: the hub rows your Plex server builds from what you listen to. Each opens onto its full contents and can be mixed, and each wears a mosaic of its own covers.
-• Settings has a Customize tabs screen — drag the browse destinations into the order you want, and the top three become the car's tabs.
-• Tapping the version in Settings opens a debug screen: the addresses known for your server, which one is in use, and a way back to the server picker.
+• Siskin now appears under Accounts in your car's settings, and signing out there signs you out of the app. Your Plex sign-in has moved into Android's account system, which is where a car expects to find it.
+• This update signs you out once — you will sign in again the first time you open it.
