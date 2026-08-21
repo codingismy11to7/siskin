@@ -24,11 +24,11 @@
       # graph requires a newer JVM, so the current nixpkgs jdk21 is enough.
       jdk = pkgs.jdk21;
 
-      # Must match compileSdk and buildToolsVersion in app/build.gradle:10-11.
+      # Must match compileSdk and buildToolsVersion in app/build.gradle:31-32.
       # Siskin pins buildToolsVersion explicitly, so this tracks that pin
       # rather than AGP's "<compileSdk>.0.0" default.
-      compileSdkVersion = "36";
-      buildToolsVersion = "36.0.0";
+      compileSdkVersion = "37";
+      buildToolsVersion = "37.0.0";
 
       # The emulator runs Android Automotive OS, which is what this fork
       # targets. API 33 is not a preference: it is the only API level for
@@ -37,7 +37,7 @@
       # app's minSdk — which cannot drop below 28, because AAOS itself only
       # shipped from API 28 and the manifest requires
       # android.hardware.type.automotive — so the app runs here fine, and the
-      # compile platform stays at 36.
+      # compile platform stays at 37.
       emulatorSdkVersion = "33";
       systemImageType = "android-automotive";
       abiVersion = "x86_64";
