@@ -34,7 +34,7 @@ Single test class or method:
 
 **`lint` is clean and CI runs it, so a failure there is yours.** It covers
 Android lint and ktlint both. Android lint's errors are fatal; warnings are not,
-and 5 of those remain (#99), which is where they are enumerated. Four
+and 4 of those remain (#99), which is where they are enumerated. Four
 dependency-freshness checks are disabled — they report on other people's release
 schedules, not on this repository. ktlint has no warnings tier: every violation
 fails, and `./gradlew ktlintFix` clears the mechanical ones. See
