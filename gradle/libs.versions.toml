@@ -20,7 +20,7 @@ recyclerview = "1.4.0"
 
 # Third-party
 glide = "4.16.0"
-media3 = "1.9.2"
+media3 = "1.11.0"
 retrofit = "2.11.0"
 okhttpLogging = "5.5.0"
 arrow = "2.2.3"
