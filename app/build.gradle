@@ -129,6 +129,11 @@ android {
     lint {
         abortOnError = true
 
+        // The tree is at zero warnings, so this is what keeps it there. A
+        // warning nobody is forced to read is scenery; see #99 for the sweep
+        // that got here and what each suppression along the way cost.
+        warningsAsErrors = true
+
         // Dependency-freshness checks: not facts about this repository.
         disable += [
             'NewerVersionAvailable',

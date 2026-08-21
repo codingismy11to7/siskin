@@ -33,15 +33,16 @@ Single test class or method:
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
 **`lint` is clean and CI runs it, so a failure there is yours.** It covers
-Android lint and ktlint both. Android lint's errors are fatal; warnings are not,
-and none remain (#99). Four
-dependency-freshness checks are disabled — they report on other people's release
-schedules, not on this repository. ktlint has no warnings tier: every violation
-fails, and `./gradlew ktlintFix` clears the mechanical ones. See
+Android lint and ktlint both, and neither has a warnings tier any more:
+`warningsAsErrors` is on, so an Android lint warning fails the build exactly as
+an error does, and every ktlint violation always did. `./gradlew ktlintFix`
+clears the mechanical ones. Four dependency-freshness checks are disabled — they
+report on other people's release schedules, not on this repository. See
 `docs/decisions/2026-08-19-ktlint-design.md`.
 
-**That number is load-bearing, so move it when you move it.** It is how anyone
-tells a warning they introduced from one that was already there.
+**A new warning is yours to fix, or to suppress with a stated reason next to the
+thing it explains** — `tools:ignore` in XML, `//noinspection` for a single
+Kotlin line, `@SuppressLint` where a whole declaration is meant.
 
 **Both compilers treat warnings as errors**, main and test sources alike —
 Kotlin via `allWarningsAsErrors`, javac via `-Werror` plus the `-Xlint` flags
