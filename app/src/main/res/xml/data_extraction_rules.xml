@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Siskin's data does not leave the head unit through backup or device transfer.
+
+  Every domain is spelled out in both sections because an *absent* section means
+  the opposite of what it looks like: Android treats a missing <cloud-backup> or
+  <device-transfer> as fully enabled for everything outside cache/ and no_backup/.
+  `external` needs its own line because `root` does not cover it, and the
+  streaming cache lives in getExternalFilesDir(). See DownloadUtil.
+
+  Turning any of this on is #152, to be decided rather than inherited.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </cloud-backup>
+
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>

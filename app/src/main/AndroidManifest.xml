@@ -14,9 +14,15 @@
         android:name="android.hardware.type.automotive"
         android:required="true" />
 
+    <!-- Three attributes, one posture: Siskin's data does not leave the head unit
+         through backup or transfer. None is redundant across minSdk 28 to target 36:
+         dataExtractionRules is read only from API 31, fullBackupContent only below
+         it, and allowBackup is what actually disables backup pre-31. -->
     <application
         android:name="App"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:localeConfig="@xml/locale_config"
