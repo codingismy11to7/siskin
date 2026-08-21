@@ -238,6 +238,10 @@ dependencies {
     // AndroidX
     implementation libs.androidx.activity
     implementation libs.androidx.constraintlayout
+    // Declared rather than leaned on transitively: the KTX extensions are used
+    // from source, so this must not rest on whichever library happens to pull
+    // core-ktx in.
+    implementation libs.androidx.core.ktx
     implementation libs.androidx.room.runtime
     implementation libs.androidx.splashscreen
     implementation libs.androidx.appcompat

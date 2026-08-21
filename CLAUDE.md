@@ -34,33 +34,14 @@ Single test class or method:
 
 **`lint` is clean and CI runs it, so a failure there is yours.** It covers
 Android lint and ktlint both. Android lint's errors are fatal; warnings are not,
-and 17 of those remain (#99). Four dependency-freshness checks are disabled —
-they report on other people's release schedules, not on this repository. ktlint
-has no warnings tier: every violation fails, and `./gradlew ktlintFix` clears
-the mechanical ones. See `docs/decisions/2026-08-19-ktlint-design.md`.
+and 9 of those remain (#99), which is where they are enumerated. Four
+dependency-freshness checks are disabled — they report on other people's release
+schedules, not on this repository. ktlint has no warnings tier: every violation
+fails, and `./gradlew ktlintFix` clears the mechanical ones. See
+`docs/decisions/2026-08-19-ktlint-design.md`.
 
 **That number is load-bearing, so move it when you move it.** It is how anyone
-tells a warning they introduced from one that was already there, and it had
-drifted — it read 27 while the tree carried 29, which is enough to make a new
-warning look pre-existing. Eight of the seventeen are `UseKtx` warnings: six on
-`SharedPreferences.edit()` in `PlexApi`, one on `Bitmap.createBitmap` in
-`CompositeArt`, and one on `String.toUri` in `PlexMediaMapper`. One is
-`ExportedService` on `MediaService`, which must be exported or AAOS cannot
-discover it. `PlexAuthenticatorService` is **not** a second one, and the reason
-is worth knowing before adding another authenticator-shaped component:
-`AccountManagerService` binds it from outside the app's uid, which looks like
-it should require exporting, but the system binds through its own privileges
-and `exported` never enters into it. Measured on the emulator — Add account
-reaches the PIN screen with the service unexported. Three of the remaining eight
-are manifest-level —
-`UnusedAttribute`, `RedundantLabel`, `ExportedContentProvider`.
-The other five are not, though they are equally
-long-standing: two `StaticFieldLeak` in `App.java`, `SetTextI18n` in
-`CarSettingsFragment.kt`, `MergeRootFrame` in `activity_car_host.xml`, and
-`ObsoleteSdkInt` on `mipmap-anydpi-v26`. Moving both tokens into the system
-account (this file's
-"Credentials" section) dropped two of those `SharedPreferences.edit()` warnings
-along with the preferences themselves.
+tells a warning they introduced from one that was already there.
 
 **Both compilers treat warnings as errors**, main and test sources alike —
 Kotlin via `allWarningsAsErrors`, javac via `-Werror` plus the `-Xlint` flags

@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.plex
 
+import androidx.core.content.edit
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.BuildConfig
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
@@ -29,7 +30,7 @@ class PlexApi {
         get() =
             synchronized(IDENTITY_LOCK) {
                 preferences.getString(KEY_CLIENT_ID, null) ?: UUID.randomUUID().toString().also {
-                    preferences.edit().putString(KEY_CLIENT_ID, it).apply()
+                    preferences.edit { putString(KEY_CLIENT_ID, it) }
                 }
             }
 
@@ -56,17 +57,17 @@ class PlexApi {
     /** Base URL of the chosen media server; null until discovery completes. */
     var serverUri: String?
         get() = preferences.getString(KEY_SERVER_URI, null)
-        set(value) = preferences.edit().putString(KEY_SERVER_URI, value).apply()
+        set(value) = preferences.edit { putString(KEY_SERVER_URI, value) }
 
     /** Section key of the chosen music library; null until the user picks one. */
     var musicSectionKey: String?
         get() = preferences.getString(KEY_MUSIC_SECTION_KEY, null)
-        set(value) = preferences.edit().putString(KEY_MUSIC_SECTION_KEY, value).apply()
+        set(value) = preferences.edit { putString(KEY_MUSIC_SECTION_KEY, value) }
 
     /** Stable per server; absent for sessions written before it was recorded. */
     var machineIdentifier: String?
         get() = preferences.getString(KEY_MACHINE_IDENTIFIER, null)
-        set(value) = preferences.edit().putString(KEY_MACHINE_IDENTIFIER, value).apply()
+        set(value) = preferences.edit { putString(KEY_MACHINE_IDENTIFIER, value) }
 
     /**
      * Every address the current server advertises, as JSON; null before one has
@@ -80,7 +81,7 @@ class PlexApi {
      */
     var serverCandidates: String?
         get() = preferences.getString(KEY_SERVER_CANDIDATES, null)
-        set(value) = preferences.edit().putString(KEY_SERVER_CANDIDATES, value).apply()
+        set(value) = preferences.edit { putString(KEY_SERVER_CANDIDATES, value) }
 
     /**
      * The signed-in connection, or null when there is not a complete one.
@@ -126,19 +127,17 @@ class PlexApi {
             // explicit arguments rather than re-reading the machineIdentifier
             // property, so nothing here depends on this edit having landed
             // yet -- only previousMachineIdentifier, captured above, does.
-            preferences
-                .edit()
-                .apply {
-                    if (value == null) {
-                        remove(KEY_SERVER_URI)
-                        remove(KEY_MUSIC_SECTION_KEY)
-                        remove(KEY_MACHINE_IDENTIFIER)
-                    } else {
-                        putString(KEY_SERVER_URI, value.serverUri)
-                        putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
-                        putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
-                    }
-                }.apply()
+            preferences.edit {
+                if (value == null) {
+                    remove(KEY_SERVER_URI)
+                    remove(KEY_MUSIC_SECTION_KEY)
+                    remove(KEY_MACHINE_IDENTIFIER)
+                } else {
+                    putString(KEY_SERVER_URI, value.serverUri)
+                    putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
+                    putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
+                }
+            }
 
             if (value == null) {
                 // Clearing the session deliberately leaves accountToken alone --

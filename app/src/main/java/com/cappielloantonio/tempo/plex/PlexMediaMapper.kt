@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.plex
 import android.net.Uri
 import android.os.Bundle
 import androidx.annotation.OptIn
+import androidx.core.net.toUri
 import androidx.media3.common.HeartRating
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -136,7 +137,7 @@ object PlexMediaMapper {
         token: String?,
     ): MediaItem {
         val streamUrl = MediaUrlBuilder.streamUrl(serverUri, partKey, token)
-        val uri = if (streamUrl != null) Uri.parse(streamUrl) else Uri.EMPTY
+        val uri = streamUrl?.toUri() ?: Uri.EMPTY
         val artworkUri =
             thumb
                 ?.takeIf { it.isNotBlank() }
