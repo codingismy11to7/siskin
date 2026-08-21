@@ -215,13 +215,13 @@ open class BaseSessionCallback(
             session.isAutoCompanionController(controller)
         ) {
             return MediaSession.ConnectionResult
-                .AcceptedResultBuilder(session)
+                .AcceptedResultBuilder(session, controller)
                 .setAvailableSessionCommands(mediaNotificationSessionCommands)
                 .setMediaButtonPreferences(buildMediaButtonPreferences(session.player))
                 .build()
         }
 
-        return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
+        return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller).build()
     }
 
     // ─────────────────────────────────────────────────────────────
