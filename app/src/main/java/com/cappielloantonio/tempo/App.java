@@ -12,7 +12,6 @@ import com.cappielloantonio.tempo.util.Preferences;
 
 public class App extends Application {
     private static App instance;
-    private static Context context;
     private static SharedPreferences preferences;
 
     @OptIn(markerClass = UnstableApi.class)
@@ -25,8 +24,8 @@ public class App extends Application {
         ThemeHelper.applyTheme(themePref);
 
         instance = this;
-        context = getApplicationContext();
-        preferences = context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
+        Context applicationContext = getApplicationContext();
+        preferences = applicationContext.getSharedPreferences(applicationContext.getPackageName() + "_preferences", Context.MODE_PRIVATE);
         clearStaleCredentialKeys(preferences);
     }
 
@@ -49,7 +48,8 @@ public class App extends Application {
     }
 
     /**
-     * Both accessors below fail rather than fabricate. The fields are assigned in
+     * Fails rather than fabricates, and {@link #getContext()} inherits that by
+     * going through here. The field is assigned in
      * {@link #onCreate()}, so a null here means someone reached for the
      * Application before the system built it -- and the only thing this class can
      * hand back at that point is an object that is not the Application. That is
@@ -67,16 +67,13 @@ public class App extends Application {
     }
 
     public static Context getContext() {
-        if (context == null) {
-            throw new IllegalStateException("App.getContext() before Application.onCreate()");
-        }
-
-        return context;
+        return getInstance().getApplicationContext();
     }
 
     public SharedPreferences getPreferences() {
         if (preferences == null) {
-            preferences = context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
+            Context applicationContext = getApplicationContext();
+            preferences = applicationContext.getSharedPreferences(applicationContext.getPackageName() + "_preferences", Context.MODE_PRIVATE);
         }
 
         return preferences;
