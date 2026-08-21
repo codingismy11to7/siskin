@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Android 9 to 11 half of data_extraction_rules.xml, which the platform only
+  reads from API 31. Same posture, older schema: nothing leaves the head unit.
+
+  Never actually consulted while allowBackup is false, because a disabled backup
+  has no content to filter. It is here so the pre-31 range states its posture in
+  its own form rather than resting on a single attribute, and so #152 finds both
+  halves already written when it decides to turn any of this on.
+-->
+<full-backup-content>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="external" path="." />
+    <exclude domain="device_root" path="." />
+    <exclude domain="device_file" path="." />
+    <exclude domain="device_database" path="." />
+    <exclude domain="device_sharedpref" path="." />
+</full-backup-content>

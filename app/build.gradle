@@ -129,6 +129,11 @@ android {
     lint {
         abortOnError = true
 
+        // The tree is at zero warnings, so this is what keeps it there. A
+        // warning nobody is forced to read is scenery; see #99 for the sweep
+        // that got here and what each suppression along the way cost.
+        warningsAsErrors = true
+
         // Dependency-freshness checks: not facts about this repository.
         disable += [
             'NewerVersionAvailable',
@@ -238,6 +243,10 @@ dependencies {
     // AndroidX
     implementation libs.androidx.activity
     implementation libs.androidx.constraintlayout
+    // Declared rather than leaned on transitively: the KTX extensions are used
+    // from source, so this must not rest on whichever library happens to pull
+    // core-ktx in.
+    implementation libs.androidx.core.ktx
     implementation libs.androidx.room.runtime
     implementation libs.androidx.splashscreen
     implementation libs.androidx.appcompat

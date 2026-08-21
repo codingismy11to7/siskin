@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -14,15 +15,26 @@
         android:name="android.hardware.type.automotive"
         android:required="true" />
 
+    <!-- Three attributes, one posture: Siskin's data does not leave the head unit
+         through backup or transfer. None is redundant across minSdk 28 to target 36:
+         dataExtractionRules is read only from API 31, fullBackupContent only below
+         it, and allowBackup is what actually disables backup pre-31. -->
+    <!-- UnusedAttribute is suppressed for localeConfig, which the platform reads
+         only from API 33 while minSdk is 28. Inert below that and kept anyway:
+         it pairs with localeFilters in app/build.gradle, and the platform
+         ignores attributes it does not know. See the five-locales design doc. -->
     <application
         android:name="App"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:localeConfig="@xml/locale_config"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme.SplashScreen">
+        android:theme="@style/AppTheme.SplashScreen"
+        tools:ignore="UnusedAttribute">
 
         <!-- No `com.google.android.gms.car.application` meta-data here, and there
              must never be one again. Play rejects outright any app declaring it
@@ -91,7 +103,6 @@
         <activity
             android:name=".ui.activity.CarHostActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:launchMode="singleTop"
             android:taskAffinity=":car_host"
             android:theme="@style/AppTheme">
@@ -108,10 +119,19 @@
             </intent-filter>
         </activity>
 
+        <!-- ExportedService is suppressed, and what it warns about is real: this
+             is exported with no android:permission, so anything on the head unit
+             can bind and get the default session and library commands. There is
+             no caller guard in code either: BaseSessionCallback.onConnect
+             accepts every controller and only varies the command set. A manifest
+             permission is not the fix (the car's media UI could not hold one);
+             vetting in onConnect is, and it is #154. Accepted meanwhile because
+             a production head unit's app set is curated. -->
         <service
             android:name=".service.MediaService"
             android:exported="true"
-            android:foregroundServiceType="mediaPlayback">
+            android:foregroundServiceType="mediaPlayback"
+            tools:ignore="ExportedService">
 
             <!-- Android Automotive OS opt-in. AAOS looks for this meta-data on
                  the MediaBrowserService itself, and without it logs "Skipping
@@ -169,11 +189,18 @@
                 android:resource="@xml/authenticator" />
         </service>
 
+        <!-- Exported because com.android.car.media loads these URIs itself, and
+             unexported it shows no art. ExportedContentProvider is suppressed on
+             the same terms as MediaService above: openFile fetches from the Plex
+             server with the user's token and does not check getCallingPackage(),
+             so any app here can use Siskin as an authenticated image proxy. The
+             URI is validated, the caller is not. #154. -->
         <provider
             android:name=".provider.AlbumArtContentProvider"
             android:authorities="${applicationId}.albumart.provider"
             android:enabled="true"
             android:exported="true"
+            tools:ignore="ExportedContentProvider"
         />
 
     </application>

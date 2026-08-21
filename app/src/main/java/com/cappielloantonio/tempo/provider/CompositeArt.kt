@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
 import android.util.Log
+import androidx.core.graphics.createBitmap
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.FutureTarget
@@ -431,7 +432,7 @@ object CompositeArt {
             }
 
         val composite =
-            Bitmap.createBitmap(
+            createBitmap(
                 CompositeGrid.SIZE,
                 CompositeGrid.SIZE,
                 Bitmap.Config.RGB_565,
