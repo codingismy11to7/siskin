@@ -19,10 +19,10 @@
     enough to reach the start edge, offsetting is still the wrong answer: the
     heading and the content under it have to move together or not at all.
 -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="android.widget.FrameLayout">
 
     <FrameLayout
         android:id="@+id/car_host_container"
@@ -50,4 +50,4 @@
         android:scaleType="fitCenter"
         android:src="@drawable/ic_back_arrow"
         app:tint="?attr/colorOnSurface" />
-</FrameLayout>
+</merge>
