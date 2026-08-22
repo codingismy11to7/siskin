@@ -31,7 +31,7 @@ okhttpLogging = "5.5.0"
 arrow = "2.2.3"
 coroutines = "1.11.0"
 lifecycle = "2.9.4"
-robolectric = "4.16"
+robolectric = "4.16.1"
 
 [libraries]
 androidx-activity = { group = "androidx.activity", name="activity", version.ref = "activity" }
