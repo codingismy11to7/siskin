@@ -10,8 +10,7 @@ updates:
   # distributionUrl and distributionSha256Sum together.
   #
   # Out of reach, so expect nothing of it: flake.nix, which has no Nix
-  # ecosystem, and libs/lib-decoder-ffmpeg-release.aar, a checked-in file
-  # rather than a coordinate.
+  # ecosystem.
   - package-ecosystem: "gradle"
     directory: "/"
     schedule:

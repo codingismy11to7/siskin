@@ -12,6 +12,11 @@
 
 ## [Unreleased] — Siskin
 
+- Tracks encoded as AC-3, E-AC-3, DTS, TrueHD or MLP now play instead of
+  failing. Siskin never asks the server to transcode, so what the app can
+  decode is the whole story, and the bundled decoder previously covered only
+  ALAC.
+
 ## [0.99.6] (2026-08-21)
 
 - Siskin now appears under Accounts in the car's settings, and signing out
