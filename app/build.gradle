@@ -180,11 +180,13 @@ spotless {
 }
 
 // AGP's own `lint` and `lintFix` are thin umbrellas over lintDebug and
-// lintFixDebug, so hanging ktlint off them makes one command cover both halves:
-// correctness from Android lint, style from ktlint.
+// lintFixDebug, so hanging the style checks off them makes one command cover
+// every half: correctness from Android lint, Kotlin style from ktlint, Java
+// style from google-java-format.
 //
-// CI runs lintDebug, which is *underneath* these -- so it does not pick ktlint
-// up from here and needs ktlintCheck named explicitly, or to move up to `lint`.
+// CI runs lintDebug, which is *underneath* these -- so it does not pick either
+// style check up from here, and they need naming explicitly or to move up to
+// `lint`.
 tasks.named('lint') { dependsOn 'ktlintCheck' }
 tasks.named('lintFix') { dependsOn 'ktlintFormat' }
 tasks.named('lint') { dependsOn 'spotlessCheck' }
