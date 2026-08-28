@@ -48,11 +48,15 @@ object VehicleInfoReader {
      * every request including the first POST /pins, so a car that will not
      * answer must never be able to fail a request.
      *
-     * The catch is broad deliberately -- a denied permission raises
-     * SecurityException, an unsupported property IllegalArgumentException, a
-     * car service that is not up CarNotConnectedException -- and note it is
-     * nowhere near an `either { }` block, so Arrow's raise hazard does not
-     * apply.
+     * Throwable, not Exception, and the difference is load-bearing: compileSdk
+     * is 37 while minSdk is 28, so an android.car method newer than the head
+     * unit's runtime throws NoSuchMethodError -- an Error, which catch
+     * (Exception) does not see. That is not hypothetical. It killed this
+     * thread, crash-looped the app and wedged com.android.car.media before the
+     * getCarManager call below was pinned to the overload every version has.
+     *
+     * Note this is nowhere near an `either { }` block, so Arrow's raise hazard
+     * does not apply.
      */
     private fun read(context: Context): VehicleIdentity {
         var carMake: String? = null
@@ -73,12 +77,12 @@ object VehicleInfoReader {
                 carModel = properties.stringOrNull(VehiclePropertyIds.INFO_MODEL)
                 carYear = properties.intOrNull(VehiclePropertyIds.INFO_MODEL_YEAR)
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w(TAG, "vehicle info unavailable", e)
         } finally {
             try {
                 car?.disconnect()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.w(TAG, "car disconnect failed", e)
             }
         }

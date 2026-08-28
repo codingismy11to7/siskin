@@ -156,16 +156,25 @@ not inject the manifest tag on our behalf.
 
 ## Failures are absorbed, never propagated
 
-One broad `catch (Exception)` around the whole read. A denied permission raises
+One broad `catch (Throwable)` around the whole read. A denied permission raises
 `SecurityException`, an unsupported property `IllegalArgumentException`, a car
 service that is not up `CarNotConnectedException` or a null from
 `Car.createCar`. All of them mean the same thing — leave the cache unset and
 keep answering `UNKNOWN`.
 
-`Throwable` was considered, to net a `NoClassDefFoundError` from a missing
-`android.car`. It is theatre: the classes are on the boot classpath of any AAOS
-build, and the app installs nowhere else. `Exception` says what can actually
-happen.
+`Throwable` rather than `Exception`, and the reason is not hypothetical.
+`compileSdk` is 37 while `minSdk` is 28 and a head unit runs whatever it runs,
+so every `android.car` method newer than the oldest runtime Siskin supports is
+a `NoSuchMethodError` waiting to happen — and that is an `Error`, which
+`catch (Exception)` does not see.
+
+This was demonstrated rather than imagined. The first draft called
+`getCarManager(Class<T>)`, an overload that exists in compileSdk 37's
+`android.car.jar` and not in API 33's; the resulting uncaught `Error` killed
+the reader thread, crash-looped the app on every launch, and wedged
+`com.android.car.media` along with it. The call now uses the String-keyed
+overload every version carries, and the broad catch is what makes the next such
+mismatch a fallback instead of a crash loop.
 
 The catch is broad and that is deliberate, but note it is nowhere near an
 `either { }` block — the hazard the Arrow rule exists for does not apply here.
