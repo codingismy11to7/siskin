@@ -187,6 +187,8 @@ spotless {
 // up from here and needs ktlintCheck named explicitly, or to move up to `lint`.
 tasks.named('lint') { dependsOn 'ktlintCheck' }
 tasks.named('lintFix') { dependsOn 'ktlintFormat' }
+tasks.named('lint') { dependsOn 'spotlessCheck' }
+tasks.named('lintFix') { dependsOn 'spotlessApply' }
 
 // The style-only half, named to mirror lint/lintFix. The plugin's own
 // ktlintCheck/ktlintFormat still work and are what its documentation says.
@@ -199,6 +201,20 @@ tasks.register('ktlintFix') {
     group = 'formatting'
     description = 'Rewrites all Kotlin sources with ktlint. The style half of `lintFix`.'
     dependsOn 'ktlintFormat'
+}
+
+// The Java half of the same pair, named to mirror ktlint/ktlintFix so the two
+// languages are addressable the same way. Spotless's own spotlessCheck and
+// spotlessApply still work and are what its documentation says.
+tasks.register('javafmt') {
+    group = 'verification'
+    description = 'Runs google-java-format on all Java sources. The style half of `lint`.'
+    dependsOn 'spotlessCheck'
+}
+tasks.register('javafmtFix') {
+    group = 'formatting'
+    description = 'Rewrites all Java sources with google-java-format. The style half of `lintFix`.'
+    dependsOn 'spotlessApply'
 }
 
 // javac's half of the same rule. -Werror alone is inert: without -Xlint, javac
