@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.plex
 import androidx.core.content.edit
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.BuildConfig
+import com.cappielloantonio.tempo.car.VehicleIdentity
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
 import java.util.UUID
 
@@ -168,7 +169,13 @@ class PlexApi {
             .getDefault()
             .language
 
-    fun plexTvHeaders(): Map<String, String> = PlexIdentity.headers(clientIdentifier, appVersion, accountToken, language)
+    /**
+     * What the car says it is. Constant for now; Task 3 points this at the
+     * reader that asks the vehicle.
+     */
+    val vehicle: VehicleIdentity get() = VehicleIdentity.UNKNOWN
+
+    fun plexTvHeaders(): Map<String, String> = PlexIdentity.headers(clientIdentifier, appVersion, accountToken, language, vehicle)
 
     companion object {
         private const val KEY_CLIENT_ID = "plex_client_identifier"

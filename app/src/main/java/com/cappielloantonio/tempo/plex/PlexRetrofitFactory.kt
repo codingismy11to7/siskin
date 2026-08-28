@@ -50,6 +50,7 @@ object PlexRetrofitFactory {
                 api.appVersion,
                 PlexApi.serverTokenOrAccount(serverToken, api.accountToken),
                 api.language,
+                api.vehicle,
             )
         }
 

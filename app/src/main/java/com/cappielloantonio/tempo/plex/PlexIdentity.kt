@@ -1,5 +1,7 @@
 package com.cappielloantonio.tempo.plex
 
+import com.cappielloantonio.tempo.car.VehicleIdentity
+
 /**
  * The X-Plex-* headers Plex requires on every request, including the very first
  * one that creates a PIN.
@@ -12,7 +14,7 @@ object PlexIdentity {
     private const val PRODUCT = "Siskin"
     private const val PLATFORM = "Android"
 
-    /** Shown in the Plex account's device list; distinguishes a head unit from a phone. */
+    /** What a car that will not name itself falls back to. */
     private const val DEVICE = "Automotive"
     private const val MODEL = "automotive"
 
@@ -22,6 +24,7 @@ object PlexIdentity {
         appVersion: String,
         token: String?,
         language: String,
+        vehicle: VehicleIdentity,
     ): Map<String, String> {
         val headers =
             linkedMapOf(
@@ -29,10 +32,10 @@ object PlexIdentity {
                 "X-Plex-Product" to PRODUCT,
                 "X-Plex-Version" to appVersion,
                 "X-Plex-Platform" to PLATFORM,
-                "X-Plex-Device" to DEVICE,
-                "X-Plex-Model" to MODEL,
                 "Accept" to "application/json",
             )
+
+        headers.putAll(deviceHeaders(vehicle))
 
         // Plex builds hub titles server-side and translates them -- "Keine
         // Wiedergabe seit 4 Monaten" -- so this is what keeps the Discover rows
@@ -48,5 +51,28 @@ object PlexIdentity {
         if (!token.isNullOrBlank()) headers["X-Plex-Token"] = token
 
         return headers
+    }
+
+    /**
+     * The three headers that describe the car, split out because the Debug
+     * screen reports exactly these and must not restate the mapping.
+     *
+     * All three are sent rather than only the one plex.tv's device list
+     * renders, which is undocumented and unverified -- whichever it picks, the
+     * row reads as the car. See the 2026-08-27 design.
+     */
+    @JvmStatic
+    fun deviceHeaders(vehicle: VehicleIdentity): Map<String, String> =
+        buildMap {
+            put("X-Plex-Device", vehicle.make ?: DEVICE)
+            put("X-Plex-Model", vehicle.model ?: MODEL)
+            deviceName(vehicle)?.let { put("X-Plex-Device-Name", it) }
+        }
+
+    /** Null when there is no car to name, so the header is omitted rather than filled in. */
+    private fun deviceName(vehicle: VehicleIdentity): String? {
+        val make = vehicle.make ?: return null
+        val model = vehicle.model ?: return null
+        return listOfNotNull(vehicle.year?.toString(), make, model).joinToString(" ")
     }
 }

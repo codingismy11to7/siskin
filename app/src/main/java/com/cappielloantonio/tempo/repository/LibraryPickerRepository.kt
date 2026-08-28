@@ -171,7 +171,7 @@ class LibraryPickerRepository {
 
                 val probe =
                     ServerProbe(
-                        headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null, api.language),
+                        headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null, api.language, api.vehicle),
                     )
                 val uri = probe.bestConnectionUri(resource)
                 if (uri == null) {
