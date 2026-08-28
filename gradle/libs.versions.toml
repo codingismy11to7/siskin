@@ -25,7 +25,7 @@ media3 = "1.11.0"
 # in "+" is dynamic. Google publishes no ffmpeg artifact of its own; see
 # docs/decisions/2026-08-21-ffmpeg-decoder-design.md.
 jellyfinFfmpegDecoder = "1.9.0+1"
-retrofit = "2.11.0"
+retrofit = "3.0.0"
 okhttpLogging = "5.5.0"
 arrow = "2.2.3"
 coroutines = "1.11.0"
