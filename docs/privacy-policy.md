@@ -44,6 +44,15 @@ every request and ties your sign-in to it, which is why it exists and why it
 has to stay the same — it is what makes the app show up as a single device in
 your Plex account rather than a new one after every drive.
 
+Siskin does read two things from the vehicle itself: its make and model, and
+the model year where the car reports one. These go to Plex with every request,
+so that your account's device list names this car — "Cadillac LYRIQ" rather
+than a generic row identical to every other Siskin install. That is what lets
+you tell two cars apart, and revoke the right one after you sell one. Where the
+vehicle does not report them, Siskin sends the generic values instead. Nothing
+else is read from the car: not its location, not its speed, not its
+identification number.
+
 These never leave the device except to reach Plex, as described below. Signing
 in again replaces the tokens. Removing the Siskin account from the car's
 settings, or signing out inside the app, removes the account token and any
@@ -56,7 +65,8 @@ Siskin contacts two kinds of destination, and no others:
 
 - **plex.tv** — to sign in using Plex's PIN linking flow, and to find out which
   servers your account can reach. Every request carries the install identifier
-  described above, and your account token once you are signed in.
+  described above, the car's make and model, and your account token once you
+  are signed in.
 - **your Plex server** — to browse your library, stream audio, report playback
   progress so that your listening history and resume positions stay correct,
   and send a star rating when you set one. Search terms you enter go here too.
@@ -99,6 +109,7 @@ Siskin requests only what playback requires:
 | Foreground service, media playback | to keep playing while another app is on screen |
 | Wake lock | to keep playback running |
 | Notifications | for the playback notification the system requires |
+| Car information | to read the make, model and year, so your Plex device list names this car |
 
 Siskin does not request access to location, contacts, microphone, camera, or
 your files, and cannot read them.
