@@ -106,9 +106,14 @@ jobs:
             ${{ runner.os }}-gradle-
 
       # `lint` rather than `lintDebug`: it is AGP's umbrella over lintDebug, and
-      # app/build.gradle hangs ktlintCheck off it, so this one word covers both
-      # halves -- Android lint's correctness checks and ktlint's style ones.
-      # lintDebug sits underneath and would run Android lint alone.
+      # app/build.gradle hangs ktlintCheck and spotlessCheck off it, so this one
+      # word covers all three -- Android lint's correctness checks, ktlint's
+      # Kotlin style and google-java-format's Java style. lintDebug sits
+      # underneath and would run Android lint alone.
+      #
+      # The job *name* below is a required status check in ruleset 19853130, so
+      # it is frozen rather than kept accurate: renaming it without editing the
+      # ruleset in lockstep blocks every later PR on a check that never reports.
       #
       # Errors only -- see the lint block in app/build.gradle for why the
       # warnings are not fatal and why the four dependency-freshness checks are

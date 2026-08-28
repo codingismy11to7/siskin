@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sed -n 's/.*\"file_path\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | { read -r f; case \"$f\" in *.java) ;; *) exit 0 ;; esac; [ -x ./gradlew ] || exit 0; ./gradlew --quiet javafmtFix; }",
+            "command": "sed -n 's/.*\"file_path\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' | { read -r f; case \"$f\" in *.java) ;; *) exit 0 ;; esac; case \"$f\" in \"$PWD\"/*) ;; *) exit 0 ;; esac; [ -x ./gradlew ] || exit 0; ./gradlew --quiet javafmtFix; }",
             "timeout": 120,
             "statusMessage": "gradlew javafmtFix"
           }
