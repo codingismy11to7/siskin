@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.play.publisher)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.spotless)
 }
 
 // Release signing is driven entirely by the environment so that one code path
@@ -163,6 +164,16 @@ kotlin {
 // plugin's release schedule -- see the note in libs.versions.toml.
 ktlint {
     version = libs.versions.ktlint.get()
+}
+
+// Spotless cannot read Android source sets, so the target is explicit rather
+// than inferred. AOSP style because that is what the tree already is -- see the
+// 2026-08-27 google-java-format design.
+spotless {
+    java {
+        target 'src/*/java/**/*.java'
+        googleJavaFormat(libs.versions.googleJavaFormat.get()).aosp().reorderImports(true)
+    }
 }
 
 // AGP's own `lint` and `lintFix` are thin umbrellas over lintDebug and
