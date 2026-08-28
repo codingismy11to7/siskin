@@ -183,7 +183,7 @@ internal fun addToggle(
 internal fun applyPressFeedback(view: View) {
     val ripple = TypedValue()
     view.context.theme.resolveAttribute(
-        com.google.android.material.R.attr.selectableItemBackground,
+        androidx.appcompat.R.attr.selectableItemBackground,
         ripple,
         true,
     )
