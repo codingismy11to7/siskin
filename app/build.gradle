@@ -246,7 +246,6 @@ dependencies {
     // core-ktx in.
     implementation libs.androidx.core.ktx
     implementation libs.androidx.room.runtime
-    implementation libs.androidx.splashscreen
     implementation libs.androidx.appcompat
     // Declared rather than leaned on transitively: Material pulls RecyclerView
     // in, but a dependency Material could drop is not one to build a screen on.

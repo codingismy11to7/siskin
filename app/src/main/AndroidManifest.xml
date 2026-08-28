@@ -33,7 +33,7 @@
         android:localeConfig="@xml/locale_config"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme.SplashScreen"
+        android:theme="@style/AppTheme"
         tools:ignore="UnusedAttribute">
 
         <!-- No `com.google.android.gms.car.application` meta-data here, and there
