@@ -10,6 +10,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Callback
+import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -32,6 +33,21 @@ class ServerProbe(
     private val client: OkHttpClient = probeClient(),
     private val headers: Map<String, String> = emptyMap(),
 ) {
+    /**
+     * Built once, eagerly, rather than per request: the request in [answers]
+     * runs inside `race`'s `launch { }` and must not be able to throw, so
+     * `addUnsafeNonAscii` -- not `header(name, value)`, which rejects any value
+     * outside 0x20-0x7E -- is applied here instead. A throw there would escape
+     * `race` entirely, past `plexCall`, which catches only IOException and
+     * HttpException. Plex asks for UTF-8 here; see the 2026-08-27 vehicle
+     * device name design.
+     */
+    private val plexHeaders: Headers =
+        Headers
+            .Builder()
+            .apply { headers.forEach { (name, value) -> addUnsafeNonAscii(name, value) } }
+            .build()
+
     /**
      * The winning connection, or null when nothing answered.
      *
@@ -99,7 +115,7 @@ class ServerProbe(
                 Request
                     .Builder()
                     .url("${uri.trimEnd('/')}/identity")
-                    .apply { headers.forEach { (name, value) -> header(name, value) } }
+                    .headers(plexHeaders)
                     .build()
 
             val call = client.newCall(request)

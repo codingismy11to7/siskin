@@ -8,6 +8,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
+    <!-- protectionLevel is "normal", so this is granted at install with no
+         runtime prompt — confirmed against the AAOS emulator image. It gates
+         INFO_MAKE / INFO_MODEL / INFO_MODEL_YEAR, which name this car in the
+         Plex account's device list. -->
+    <uses-permission android:name="android.car.permission.CAR_INFO" />
+
     <!-- Siskin exists to run natively on Android Automotive OS head units, not on
          phones. Declaring the feature as required states that plainly and lets the
          platform and store filter accordingly. -->
@@ -35,6 +41,18 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="UnusedAttribute">
+
+        <!-- required="false" is load-bearing, and not because a head unit might
+             lack the library. android.car is absent from the package manager's
+             shared-library registry on AAOS — the classes live on the
+             BOOTCLASSPATH — and a <uses-library> is checked against that
+             registry, so required="true" fails the install with
+             INSTALL_FAILED_MISSING_SHARED_LIBRARY on a device where the classes
+             are always present. required="false" covers both ways a platform
+             can ship it. See the 2026-08-27 design. -->
+        <uses-library
+            android:name="android.car"
+            android:required="false" />
 
         <!-- No `com.google.android.gms.car.application` meta-data here, and there
              must never be one again. Play rejects outright any app declaring it

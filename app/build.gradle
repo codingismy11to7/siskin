@@ -32,6 +32,13 @@ android {
     compileSdk = 37
     buildToolsVersion = '37.0.0'
 
+    // android.car is an optional platform library: present in the compileSdk's
+    // optional/ directory, absent from android.jar. It is *not* in the package
+    // manager's shared-library registry on AAOS -- the classes come from the
+    // BOOTCLASSPATH -- which is why the manifest's <uses-library> must stay
+    // required="false". See the 2026-08-27 vehicle device name design.
+    useLibrary 'android.car'
+
     defaultConfig {
         applicationId = siskinApplicationId
         minSdkVersion 28

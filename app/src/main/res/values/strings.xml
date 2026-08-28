@@ -60,6 +60,12 @@
     <string name="debug_screen_title" translatable="false">Debug</string>
     <string name="debug_addresses_title" translatable="false">Server addresses</string>
     <string name="debug_choose_server" translatable="false">Choose server</string>
+    <string name="debug_device_title" translatable="false">Device</string>
+    <string name="debug_device_no_name" translatable="false">(no device name sent)</string>
+    <string name="debug_device_from" translatable="false">from: %1$s</string>
+    <string name="debug_device_source_vehicle" translatable="false">vehicle</string>
+    <string name="debug_device_source_build" translatable="false">build properties</string>
+    <string name="debug_device_source_unknown" translatable="false">unknown</string>
 
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
     <string name="exo_controls_repeat_off_description">Current mode: Repeat none. Toggle repeat mode.</string>

@@ -1,5 +1,8 @@
 package com.cappielloantonio.tempo.plex
 
+import com.cappielloantonio.tempo.car.VehicleIdentity
+import com.cappielloantonio.tempo.car.VehicleInfoReader
+import com.cappielloantonio.tempo.car.VehicleInfoSource
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
@@ -89,6 +92,81 @@ class PlexRetrofitFactoryTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         serverClient.newCall(Request.Builder().url(server.url("/probe")).build()).execute().close()
         assertEquals("server-token", server.takeRequest(5, TimeUnit.SECONDS)!!.getHeader("X-Plex-Token"))
+    }
+
+    /**
+     * A car that names itself `Škoda` must reach Plex spelled that way.
+     *
+     * `Request.Builder.header` rejects any value outside 0x20-0x7E by throwing,
+     * and on this path the throw lands uncaught on an OkHttp dispatcher thread
+     * -- which on Android takes the process down. These headers ride on the
+     * first POST /pins, so the car could not sign in at all. Plex asks for
+     * UTF-8 here rather than for a transliteration, so this asserts the exact
+     * bytes come back off a real socket. See the 2026-08-27 design.
+     */
+    @Test
+    fun aNonAsciiVehicleNameSurvivesTheRoundTrip() {
+        withVehicle(VehicleIdentity("Škoda", "Octavia", 2024, VehicleInfoSource.VEHICLE)) {
+            val api = PlexApi()
+            val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
+
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+            client.newCall(Request.Builder().url(server.url("/identity")).build()).execute().close()
+
+            val recorded = server.takeRequest(5, TimeUnit.SECONDS)!!
+            assertEquals("Škoda", recorded.getHeader("X-Plex-Device"))
+            assertEquals("Octavia", recorded.getHeader("X-Plex-Model"))
+            assertEquals("2024 Škoda Octavia", recorded.getHeader("X-Plex-Device-Name"))
+        }
+    }
+
+    /**
+     * The trap in sending the identity headers as a `Headers` set: handing one
+     * to `Request.Builder.headers` *replaces* everything the request already
+     * carried, and by the time the interceptor runs Retrofit has put
+     * Content-Type and friends there.
+     */
+    @Test
+    fun theIdentityHeadersMergeRatherThanReplace() {
+        val api = PlexApi()
+        val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+        client
+            .newCall(
+                Request
+                    .Builder()
+                    .url(server.url("/identity"))
+                    .header("X-Set-By-Retrofit", "kept")
+                    .header("X-Plex-Product", "stale")
+                    .build(),
+            ).execute()
+            .close()
+
+        val recorded = server.takeRequest(5, TimeUnit.SECONDS)!!
+        assertEquals("kept", recorded.getHeader("X-Set-By-Retrofit"))
+        val product = recorded.headers.values("X-Plex-Product")
+        assertEquals(1, product.size)
+        assertEquals("Siskin", product.single())
+    }
+
+    /**
+     * The reader caches process-wide and takes no injected identity, because
+     * android.car cannot be on the unit-test classpath -- so reflection is the
+     * only seam. Restores what it found, since the cache outlives the method.
+     */
+    private fun withVehicle(
+        identity: VehicleIdentity,
+        body: () -> Unit,
+    ) {
+        val field = VehicleInfoReader::class.java.getDeclaredField("resolved").apply { isAccessible = true }
+        val previous = field.get(VehicleInfoReader)
+        field.set(VehicleInfoReader, identity)
+        try {
+            body()
+        } finally {
+            field.set(VehicleInfoReader, previous)
+        }
     }
 
     @Test

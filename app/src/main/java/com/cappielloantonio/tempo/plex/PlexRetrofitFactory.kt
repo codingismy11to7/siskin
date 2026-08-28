@@ -50,6 +50,7 @@ object PlexRetrofitFactory {
                 api.appVersion,
                 PlexApi.serverTokenOrAccount(serverToken, api.accountToken),
                 api.language,
+                api.vehicle,
             )
         }
 
@@ -98,12 +99,33 @@ object PlexRetrofitFactory {
             .addInterceptor(logging())
             .build()
 
-    /** Attaches the X-Plex-* headers to every request, token included when present. */
+    /**
+     * Attaches the X-Plex-* headers to every request, token included when present.
+     *
+     * `addUnsafeNonAscii` rather than `header(name, value)`: the latter rejects
+     * any value outside 0x20-0x7E by throwing, and a throw here lands uncaught
+     * on an OkHttp dispatcher thread, which on Android takes the process with
+     * it. A car that names itself `Škoda` or `Citroën` trips that on the first
+     * POST /pins and so could never sign in. Plex asks for UTF-8 on these
+     * headers; see the 2026-08-27 vehicle device name design.
+     *
+     * The set is merged into the request's own headers rather than handed to
+     * `Request.Builder.headers`, which replaces them wholesale -- Retrofit has
+     * already put Content-Type and friends on the request by this point.
+     */
     private fun identityInterceptor(headers: () -> Map<String, String>) =
         Interceptor { chain ->
-            val builder = chain.request().newBuilder()
-            headers().forEach { (name, value) -> builder.header(name, value) }
-            chain.proceed(builder.build())
+            val request = chain.request()
+            val merged =
+                request.headers
+                    .newBuilder()
+                    .apply {
+                        headers().forEach { (name, value) ->
+                            removeAll(name)
+                            addUnsafeNonAscii(name, value)
+                        }
+                    }.build()
+            chain.proceed(request.newBuilder().headers(merged).build())
         }
 
     private fun logging() =

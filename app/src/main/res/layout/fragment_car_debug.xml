@@ -93,6 +93,29 @@
                 android:layout_width="@dimen/plex_sign_in_choice_width"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
+
+            <!--
+                Below the buttons, not above them: re-probe and choose-server
+                belong to the addresses section, and splitting them from it
+                would leave two headings with one button pair between them.
+            -->
+            <TextView
+                android:id="@+id/device_heading"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/debug_device_title"
+                android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+            <!-- Monospace and full width for the same reason address_text is. -->
+            <TextView
+                android:id="@+id/device_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
