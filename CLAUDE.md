@@ -19,11 +19,13 @@ deleted rather than ported.
     ./gradlew testDebugUnitTest          # unit tests (what CI gates on)
     ./gradlew assembleDebug              # debug APK
     ./gradlew assembleRelease            # R8 + ABI splits; use to check size deltas
-    ./gradlew lint                       # Android lint + ktlint; also gates CI
-    ./gradlew lintFix                    # the same two, applying what each can fix
+    ./gradlew lint                       # Android lint + ktlint + google-java-format; also gates CI
+    ./gradlew lintFix                    # the same three, applying what each can fix
 
-    ./gradlew ktlint                     # style alone
-    ./gradlew ktlintFix                  # style alone, rewriting
+    ./gradlew ktlint                     # Kotlin style alone
+    ./gradlew ktlintFix                  # Kotlin style alone, rewriting
+    ./gradlew javafmt                    # Java style alone
+    ./gradlew javafmtFix                 # Java style alone, rewriting
 
 `gr` is `./gradlew` from anywhere in the tree, and comes from the dev shell.
 
@@ -33,12 +35,14 @@ Single test class or method:
     ./gradlew testDebugUnitTest --tests '*PlexSessionTest.readsBackEveryFieldItWasGiven'
 
 **`lint` is clean and CI runs it, so a failure there is yours.** It covers
-Android lint and ktlint both, and neither has a warnings tier any more:
+Android lint, ktlint and google-java-format, and none has a warnings tier:
 `warningsAsErrors` is on, so an Android lint warning fails the build exactly as
-an error does, and every ktlint violation always did. `./gradlew ktlintFix`
-clears the mechanical ones. Four dependency-freshness checks are disabled — they
-report on other people's release schedules, not on this repository. See
-`docs/decisions/2026-08-19-ktlint-design.md`.
+an error does, and a style violation in either language always did.
+`./gradlew lintFix` clears the mechanical ones in all three. Four
+dependency-freshness checks are disabled — they report on other people's release
+schedules, not on this repository. See
+`docs/decisions/2026-08-19-ktlint-design.md` and
+`docs/decisions/2026-08-27-google-java-format-design.md`.
 
 **A new warning is yours to fix, or to suppress with a stated reason next to the
 thing it explains** — `tools:ignore` in XML, `//noinspection` for a single
