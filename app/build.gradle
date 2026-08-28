@@ -184,9 +184,9 @@ spotless {
 // every half: correctness from Android lint, Kotlin style from ktlint, Java
 // style from google-java-format.
 //
-// CI runs lintDebug, which is *underneath* these -- so it does not pick either
-// style check up from here, and they need naming explicitly or to move up to
-// `lint`.
+// CI runs `lint` rather than lintDebug for exactly this reason -- lintDebug sits
+// *underneath* these and would run Android lint alone, picking up neither style
+// check. See the comment above the lint step in .github/workflows/ci.yml.
 tasks.named('lint') { dependsOn 'ktlintCheck' }
 tasks.named('lintFix') { dependsOn 'ktlintFormat' }
 tasks.named('lint') { dependsOn 'spotlessCheck' }

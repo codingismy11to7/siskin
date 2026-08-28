@@ -30,7 +30,11 @@ holds: an editor that disagrees with CI is an editor you learn to ignore.
 
 ## AOSP is not a preference, it is what the tree already is
 
-google-java-format 1.35.0 over `app/src/main/java`, measured both ways:
+google-java-format 1.35.0 over `app/src/main/java`, measured both ways before the
+sweep. These are the survey's figures and the sweep that landed is slightly
+smaller — 895 added and 772 removed against `470e92f2` — because `main` moved
+between the measurement and the commit. The ratio is the point, and it does not
+move:
 
 | Style | Files changed | Added | Removed | Changed lines |
 |---|---|---|---|---|
@@ -110,6 +114,18 @@ That costs the dev shell a fast standalone binary and makes a formatting write a
 Gradle invocation — roughly a second against a warm daemon. It buys the property
 the pin was only pretending to provide.
 
+**ktlint's identical-looking arrangement was rechecked and does hold.** The
+finding above is a general hazard — a Gradle plugin and a nixpkgs CLI at one
+declared version can reach different fixed points — so the obvious question is
+whether the Kotlin half has it too. It does not: formatting the whole Kotlin tree
+with the dev shell's ktlint 1.8.0 leaves every file byte-identical to what is
+committed and what `ktlintCheck` accepts. The reason is structural rather than
+lucky, which is why the two pins can keep disagreeing about whether they are a
+good idea: ktlint ships as one self-executing jar and nixpkgs packages that same
+jar, so there is no shaded-versus-thin split to diverge across. google-java-format
+publishes both a shaded `-all-deps` release asset and a thin Maven artifact, and
+that is where its two builds part company.
+
 ## Two things that would otherwise look like bugs in this repository
 
 **google-java-format 1.35.0 is not idempotent.** Formatting
@@ -153,11 +169,13 @@ symptom is an `IllegalAccessError` out of Spotless, not a message about missing
 flags**, which is why this is confirmed on the first commit rather than
 diagnosed on the fourth. The fallback is the documented `--add-exports` set in
 `org.gradle.jvmargs`; `gradle.properties` is expected to produce exactly one
-configuration-time warning, so that count is checked afterwards rather than
-assumed.
+configuration-time warning, so a fallback that changed that count would be
+trading one problem for another.
 
-The flake's CLI is unaffected either way — it is already wrapped, and running it
-over all 19 files exits clean.
+**It did not bite.** At google-java-format 1.35.0 under Spotless 7.0.4 on JDK 21,
+no `--add-exports` was needed and `gradle.properties` is unchanged. The flags
+above remain the documented fallback for whoever finds a later version that does
+need them.
 
 ## The hook is a second entry, and its exit code means something different
 
@@ -245,9 +263,15 @@ without a trailing one-line PR.
   but note that the obvious move is now the wrong one. conform ships a
   `google-java-format` builtin, and wiring `formatters_by_ft` to it with `--aosp`
   would reintroduce exactly the second implementation this design removed: the
-  editor would reformat on save to something the gate rejects, on the constructs
-  where the two builds disagree. Whatever the editor runs has to be Spotless.
-  Either way it closes the #134 hazard from the other side, since a configured
-  conform formatter takes priority over the `lsp_format = "fallback"` path to
-  jdtls.
+  editor would reformat on save to something the gate rejects, every save, on the
+  constructs where the two builds disagree.
+
+  conform shells out to binaries, so "have the editor run Spotless" is not
+  really available either. **The answer is that the editor should format Java
+  with nothing**: `formatters_by_ft.java = {}` names the filetype without
+  supplying a formatter, which also takes it off conform's
+  `lsp_format = "fallback"` route to jdtls. That closes #134's hazard from the
+  other side — jdtls never gets to impose Eclipse defaults — without a second
+  implementation, which is what this design wants. The Claude hook and
+  `./gradlew lint` remain the only things that format Java.
 - **A changelog entry.** Nothing here changes what the app does in the car.
