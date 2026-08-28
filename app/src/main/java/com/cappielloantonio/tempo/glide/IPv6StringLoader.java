@@ -25,7 +25,8 @@ public class IPv6StringLoader implements ModelLoader<String, InputStream> {
     }
 
     @Override
-    public LoadData<InputStream> buildLoadData(@NonNull String model, int width, int height, @NonNull Options options) {
+    public LoadData<InputStream> buildLoadData(
+            @NonNull String model, int width, int height, @NonNull Options options) {
         if (!handles(model)) {
             return null;
         }
@@ -42,7 +43,8 @@ public class IPv6StringLoader implements ModelLoader<String, InputStream> {
         }
 
         @Override
-        public void loadData(@NonNull Priority priority, @NonNull DataCallback<? super InputStream> callback) {
+        public void loadData(
+                @NonNull Priority priority, @NonNull DataCallback<? super InputStream> callback) {
             try {
                 URL url = new URL(model);
                 connection = (HttpURLConnection) url.openConnection();
@@ -53,7 +55,10 @@ public class IPv6StringLoader implements ModelLoader<String, InputStream> {
                 connection.connect();
 
                 if (connection.getResponseCode() / 100 != 2) {
-                    callback.onLoadFailed(new IOException("Request failed with status code: " + connection.getResponseCode()));
+                    callback.onLoadFailed(
+                            new IOException(
+                                    "Request failed with status code: "
+                                            + connection.getResponseCode()));
                     return;
                 }
 
@@ -98,7 +103,8 @@ public class IPv6StringLoader implements ModelLoader<String, InputStream> {
     public static class Factory implements ModelLoaderFactory<String, InputStream> {
         @NonNull
         @Override
-        public ModelLoader<String, InputStream> build(@NonNull MultiModelLoaderFactory multiFactory) {
+        public ModelLoader<String, InputStream> build(
+                @NonNull MultiModelLoaderFactory multiFactory) {
             return new IPv6StringLoader();
         }
 

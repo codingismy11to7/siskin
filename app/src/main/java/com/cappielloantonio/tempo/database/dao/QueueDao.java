@@ -13,11 +13,10 @@ import com.cappielloantonio.tempo.model.Queue;
 import java.util.List;
 
 /**
- * {@link Queue} is annotated {@code @UnstableApi} because it maps a media3
- * MediaItem, so every signature here mentioning it needs the opt-in. Declared
- * on the type rather than per method, matching SessionMediaItemRepository, and
- * carrying no risk of hiding anything: this interface's whole surface is these
- * queries.
+ * {@link Queue} is annotated {@code @UnstableApi} because it maps a media3 MediaItem, so every
+ * signature here mentioning it needs the opt-in. Declared on the type rather than per method,
+ * matching SessionMediaItemRepository, and carrying no risk of hiding anything: this interface's
+ * whole surface is these queries.
  */
 @OptIn(markerClass = UnstableApi.class)
 @Dao

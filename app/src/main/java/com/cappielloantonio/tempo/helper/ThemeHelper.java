@@ -4,8 +4,8 @@ import android.content.res.Configuration;
 import android.os.Build;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 
 import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.util.Preferences;
@@ -20,29 +20,34 @@ public class ThemeHelper {
 
     public static void applyTheme(@NonNull String themePref) {
         switch (themePref) {
-            case LIGHT_MODE: {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-                break;
-            }
-            case DARK_MODE:
-            case AMOLED_MODE: {
-                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
-                break;
-            }
-            default: {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
-                } else {
-                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_AUTO_BATTERY);
+            case LIGHT_MODE:
+                {
+                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+                    break;
                 }
-                break;
-            }
+            case DARK_MODE:
+            case AMOLED_MODE:
+                {
+                    AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+                    break;
+                }
+            default:
+                {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        AppCompatDelegate.setDefaultNightMode(
+                                AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+                    } else {
+                        AppCompatDelegate.setDefaultNightMode(
+                                AppCompatDelegate.MODE_NIGHT_AUTO_BATTERY);
+                    }
+                    break;
+                }
         }
     }
 
     /**
-     * Applies the user's theme choice to an activity. Must be called before
-     * super.onCreate(). Called by CarHostActivity, the app's only activity.
+     * Applies the user's theme choice to an activity. Must be called before super.onCreate().
+     * Called by CarHostActivity, the app's only activity.
      */
     public static void applyActivityTheme(AppCompatActivity activity) {
         String theme = Preferences.getTheme();
@@ -56,8 +61,9 @@ public class ThemeHelper {
                 applyAmoled = true;
             }
         } else if (DEFAULT_MODE.equals(theme)) {
-            int nightModeFlags = activity.getResources().getConfiguration().uiMode
-                    & Configuration.UI_MODE_NIGHT_MASK;
+            int nightModeFlags =
+                    activity.getResources().getConfiguration().uiMode
+                            & Configuration.UI_MODE_NIGHT_MASK;
             if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES && isAmoled) {
                 activity.setTheme(R.style.AppTheme_Amoled);
                 applyAmoled = true;

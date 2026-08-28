@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.util;
 
 import android.util.Log;
+
 import androidx.annotation.OptIn;
 import androidx.media3.common.C;
 import androidx.media3.common.audio.AudioProcessor;
@@ -11,12 +12,10 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * An AudioProcessor that applies ReplayGain adjustment directly to
- * PCM samples.
+ * An AudioProcessor that applies ReplayGain adjustment directly to PCM samples.
  *
- * Unlike player.setVolume() or LoudnessEnhancer, this
- * processor operates inside ExoPlayer's audio pipeline, which means
- * gain changes are sample-accurate during gapless transitions.
+ * <p>Unlike player.setVolume() or LoudnessEnhancer, this processor operates inside ExoPlayer's
+ * audio pipeline, which means gain changes are sample-accurate during gapless transitions.
  */
 @OptIn(markerClass = UnstableApi.class)
 public final class ReplayGainAudioProcessor extends BaseAudioProcessor {
@@ -29,7 +28,7 @@ public final class ReplayGainAudioProcessor extends BaseAudioProcessor {
     private volatile float pendingFlushGainLinear = 1.0f;
 
     private volatile float baselineGainLinear = 1.0f;
-    
+
     private volatile boolean hasPendingFlushGain = false;
 
     private float activeGainLinear = 1.0f;
@@ -91,8 +90,7 @@ public final class ReplayGainAudioProcessor extends BaseAudioProcessor {
         if (enc != C.ENCODING_PCM_16BIT && enc != C.ENCODING_PCM_FLOAT) {
             return AudioFormat.NOT_SET;
         }
-        rampTotalFrames = Math.max(1,
-                (int) (inputAudioFormat.sampleRate * RAMP_DURATION_SECONDS));
+        rampTotalFrames = Math.max(1, (int) (inputAudioFormat.sampleRate * RAMP_DURATION_SECONDS));
         // Only arm the gapless-promotion flag when an end-of-stream is already
         // pending. This is the signature of a format-changing gapless transition:
         //
@@ -112,8 +110,7 @@ public final class ReplayGainAudioProcessor extends BaseAudioProcessor {
 
     @Override
     protected void onFlush(AudioProcessor.StreamMetadata streamMetadata) {
-        if (hasPendingFlushGain && hasProcessedAnyInput
-                && endOfStreamPending && configAfterEos) {
+        if (hasPendingFlushGain && hasProcessedAnyInput && endOfStreamPending && configAfterEos) {
             activeGainLinear = pendingFlushGainLinear;
             targetGainLinear = pendingFlushGainLinear;
             hasPendingFlushGain = false;
@@ -135,10 +132,18 @@ public final class ReplayGainAudioProcessor extends BaseAudioProcessor {
             baselineGainLinear = pendingFlushGainLinear;
             hasPendingFlushGain = false;
             ramping = false;
-            Log.d(TAG, "onFlush: SAME-FORMAT GAPLESS PROMOTION -> active/target/baseline=" + activeGainLinear);
+            Log.d(
+                    TAG,
+                    "onFlush: SAME-FORMAT GAPLESS PROMOTION -> active/target/baseline="
+                            + activeGainLinear);
         } else {
-            Log.d(TAG, "onFlush: SEEK/STARTUP branch, restoring to baseline=" + baselineGainLinear
-                    + " (was active=" + activeGainLinear + ")");
+            Log.d(
+                    TAG,
+                    "onFlush: SEEK/STARTUP branch, restoring to baseline="
+                            + baselineGainLinear
+                            + " (was active="
+                            + activeGainLinear
+                            + ")");
             activeGainLinear = baselineGainLinear;
             targetGainLinear = baselineGainLinear;
             ramping = false;
@@ -187,8 +192,9 @@ public final class ReplayGainAudioProcessor extends BaseAudioProcessor {
 
         float target = targetGainLinear;
         if (!ramping && Math.abs(target - activeGainLinear) > 0.0001f) {
-            Log.d(TAG, "queueInput: RAMP START active=" + activeGainLinear
-                    + " -> target=" + target);
+            Log.d(
+                    TAG,
+                    "queueInput: RAMP START active=" + activeGainLinear + " -> target=" + target);
             rampFromGain = activeGainLinear;
             rampToGain = target;
             rampFramesDone = 0;

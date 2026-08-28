@@ -23,11 +23,13 @@ public class QueueRepository {
     public List<MediaItem> getMedia() {
         final List<MediaItem> media = new ArrayList<>();
 
-        Thread thread = new Thread(() -> {
-            for (Queue row : queueDao.getAllSimple()) {
-                media.add(row.toMediaItem());
-            }
-        });
+        Thread thread =
+                new Thread(
+                        () -> {
+                            for (Queue row : queueDao.getAllSimple()) {
+                                media.add(row.toMediaItem());
+                            }
+                        });
         thread.start();
 
         try {
@@ -41,34 +43,36 @@ public class QueueRepository {
 
     private boolean isMediaInQueue(List<Queue> queue, MediaItem media) {
         if (queue == null || media == null || media.mediaId == null) return false;
-        return queue.stream().anyMatch(queueItem ->
-                queueItem != null && media.mediaId.equals(queueItem.getId())
-        );
+        return queue.stream()
+                .anyMatch(
+                        queueItem -> queueItem != null && media.mediaId.equals(queueItem.getId()));
     }
 
     public void insertAll(List<MediaItem> toAdd, boolean reset, int afterIndex) {
         List<MediaItem> snapshot = new ArrayList<>(toAdd);
 
-        dbExecutor.execute(() -> {
-            List<Queue> media = reset ? new ArrayList<>() : queueDao.getAllSimple();
+        dbExecutor.execute(
+                () -> {
+                    List<Queue> media = reset ? new ArrayList<>() : queueDao.getAllSimple();
 
-            final List<Queue> existing = media;
-            List<MediaItem> filtered = snapshot.stream()
-                    .filter(item -> !isMediaInQueue(existing, item))
-                    .collect(Collectors.toList());
+                    final List<Queue> existing = media;
+                    List<MediaItem> filtered =
+                            snapshot.stream()
+                                    .filter(item -> !isMediaInQueue(existing, item))
+                                    .collect(Collectors.toList());
 
-            int insertAt = Math.max(0, Math.min(afterIndex, media.size()));
-            for (int i = 0; i < filtered.size(); i++) {
-                Queue row = Queue.fromMediaItem(filtered.get(i));
-                if (row != null) media.add(insertAt + i, row);
-            }
+                    int insertAt = Math.max(0, Math.min(afterIndex, media.size()));
+                    for (int i = 0; i < filtered.size(); i++) {
+                        Queue row = Queue.fromMediaItem(filtered.get(i));
+                        if (row != null) media.add(insertAt + i, row);
+                    }
 
-            for (int i = 0; i < media.size(); i++) {
-                media.get(i).setTrackOrder(i);
-            }
+                    for (int i = 0; i < media.size(); i++) {
+                        media.get(i).setTrackOrder(i);
+                    }
 
-            queueDao.replaceQueue(media);
-        });
+                    queueDao.replaceQueue(media);
+                });
     }
 
     public void setLastPlayedTimestamp(String id) {
@@ -109,14 +113,15 @@ public class QueueRepository {
     }
 
     public void deleteRange(int fromIndex, int toIndex) {
-        dbExecutor.execute(() -> {
-            List<Queue> media = queueDao.getAllSimple();
-            if (fromIndex < 0 || toIndex > media.size() || fromIndex >= toIndex) return;
-            media.subList(fromIndex, toIndex).clear();
-            for (int i = 0; i < media.size(); i++) {
-                media.get(i).setTrackOrder(i);
-            }
-            queueDao.replaceQueue(media);
-        });
+        dbExecutor.execute(
+                () -> {
+                    List<Queue> media = queueDao.getAllSimple();
+                    if (fromIndex < 0 || toIndex > media.size() || fromIndex >= toIndex) return;
+                    media.subList(fromIndex, toIndex).clear();
+                    for (int i = 0; i < media.size(); i++) {
+                        media.get(i).setTrackOrder(i);
+                    }
+                    queueDao.replaceQueue(media);
+                });
     }
 }
