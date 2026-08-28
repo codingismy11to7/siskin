@@ -65,8 +65,8 @@ public interface SessionMediaItemDao {
     // -- cache() always sets timestamp before inserting.
     @Query(
             "DELETE FROM session_media_item WHERE timestamp IS NOT NULL AND timestamp NOT IN"
-                + " (SELECT timestamp FROM session_media_item WHERE timestamp IS NOT NULL GROUP BY"
-                + " timestamp ORDER BY timestamp DESC LIMIT :keepGroups)")
+                    + " (SELECT timestamp FROM session_media_item WHERE timestamp IS NOT NULL GROUP BY"
+                    + " timestamp ORDER BY timestamp DESC LIMIT :keepGroups)")
     void pruneToMostRecentGroups(int keepGroups);
 
     @Query("DELETE FROM session_media_item")

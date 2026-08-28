@@ -187,7 +187,7 @@ public class MediaManager {
                                             Log.w(
                                                     TAG,
                                                     "Continuous Play: random tracks already in"
-                                                        + " queue");
+                                                            + " queue");
                                         }
                                         finish(onComplete);
                                     });

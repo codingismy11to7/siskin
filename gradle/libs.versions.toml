@@ -9,6 +9,14 @@ play-publisher = "4.1.1"
 ktlint = "1.8.0"
 ktlintGradle = "14.2.0"
 
+# The only place the Java formatter's version appears, unlike ktlint above.
+# Spotless is the sole authority: the standalone google-java-format CLI and
+# Spotless produce different output at this same version, so a second pin would
+# not buy agreement -- it would buy a formatter that disagrees with the gate.
+# See docs/decisions/2026-08-27-google-java-format-design.md.
+googleJavaFormat = "1.35.0"
+spotless = "7.0.4"
+
 # AndroidX / Material
 activity = "1.13.0"
 constraintlayout = "2.2.2"
@@ -76,3 +84,4 @@ android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-parcelize = { id = "org.jetbrains.kotlin.plugin.parcelize", version.ref = "kotlin" }
 play-publisher = { id = "com.github.triplet.play", version.ref = "play-publisher" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

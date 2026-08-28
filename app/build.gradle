@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.play.publisher)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.spotless)
 }
 
 // Release signing is driven entirely by the environment so that one code path
@@ -165,14 +166,31 @@ ktlint {
     version = libs.versions.ktlint.get()
 }
 
+// Spotless cannot read Android source sets, so the target is explicit rather
+// than inferred. AOSP style because that is what the tree already is, and
+// reorderImports because it defaults to false -- in which case imports are
+// ordered as GOOGLE whatever the style says, and the gate rejects every file
+// with grouped imports without explaining why. See the 2026-08-27
+// google-java-format design.
+spotless {
+    java {
+        target 'src/*/java/**/*.java'
+        googleJavaFormat(libs.versions.googleJavaFormat.get()).aosp().reorderImports(true)
+    }
+}
+
 // AGP's own `lint` and `lintFix` are thin umbrellas over lintDebug and
-// lintFixDebug, so hanging ktlint off them makes one command cover both halves:
-// correctness from Android lint, style from ktlint.
+// lintFixDebug, so hanging the style checks off them makes one command cover
+// every half: correctness from Android lint, Kotlin style from ktlint, Java
+// style from google-java-format.
 //
-// CI runs lintDebug, which is *underneath* these -- so it does not pick ktlint
-// up from here and needs ktlintCheck named explicitly, or to move up to `lint`.
+// CI runs `lint` rather than lintDebug for exactly this reason -- lintDebug sits
+// *underneath* these and would run Android lint alone, picking up neither style
+// check. See the comment above the lint step in .github/workflows/ci.yml.
 tasks.named('lint') { dependsOn 'ktlintCheck' }
 tasks.named('lintFix') { dependsOn 'ktlintFormat' }
+tasks.named('lint') { dependsOn 'spotlessCheck' }
+tasks.named('lintFix') { dependsOn 'spotlessApply' }
 
 // The style-only half, named to mirror lint/lintFix. The plugin's own
 // ktlintCheck/ktlintFormat still work and are what its documentation says.
@@ -185,6 +203,20 @@ tasks.register('ktlintFix') {
     group = 'formatting'
     description = 'Rewrites all Kotlin sources with ktlint. The style half of `lintFix`.'
     dependsOn 'ktlintFormat'
+}
+
+// The Java half of the same pair, named to mirror ktlint/ktlintFix so the two
+// languages are addressable the same way. Spotless's own spotlessCheck and
+// spotlessApply still work and are what its documentation says.
+tasks.register('javafmt') {
+    group = 'verification'
+    description = 'Runs google-java-format on all Java sources. The style half of `lint`.'
+    dependsOn 'spotlessCheck'
+}
+tasks.register('javafmtFix') {
+    group = 'formatting'
+    description = 'Rewrites all Java sources with google-java-format. The style half of `lintFix`.'
+    dependsOn 'spotlessApply'
 }
 
 // javac's half of the same rule. -Werror alone is inert: without -Xlint, javac
