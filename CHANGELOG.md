@@ -12,6 +12,11 @@
 
 ## [Unreleased] — Siskin
 
+- Buttons and switches are Siskin's own green rather than the head unit's
+  blue. The app no longer takes the car's colours: AAOS has no wallpaper to
+  build a palette from, so it generates one from a default seed, and deferring
+  to it meant wearing the same blue in every car rather than matching any of
+  them.
 - Your Plex account's device list now names the car — make, model and model
   year, read from the vehicle — instead of showing every Siskin install as an
   identical "Automotive" row. That is what makes it possible to revoke the
