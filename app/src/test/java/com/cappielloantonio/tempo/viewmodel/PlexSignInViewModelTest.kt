@@ -169,14 +169,14 @@ class PlexSignInViewModelTest {
             // one blip would make sign-in unusable in a moving vehicle.
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { createPin() } doReturn created.right()
-                    onBlocking { getPin(42L) } doReturnConsecutively
+                    on { createPin() } doReturn created.right()
+                    on { getPin(42L) } doReturnConsecutively
                         listOf(
                             PlexTransportFailure.Unreachable(PlexHost.PlexTv).left(),
                             PlexTransportFailure.Http(PlexHost.PlexTv, 500).left(),
                             approvedPin().right(),
                         )
-                    onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+                    on { getResources() } doReturn listOf(aMediaServer()).right()
                 }
 
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
@@ -210,9 +210,9 @@ class PlexSignInViewModelTest {
 
     private fun setUpToChoosingServer(resource: Resource): AuthClient =
         mock<AuthClient>().stub {
-            onBlocking { createPin() } doReturn created.right()
-            onBlocking { getPin(42L) } doReturn approvedPin().right()
-            onBlocking { getResources() } doReturn listOf(resource).right()
+            on { createPin() } doReturn created.right()
+            on { getPin(42L) } doReturn approvedPin().right()
+            on { getResources() } doReturn listOf(resource).right()
         }
 
     @Test
@@ -229,7 +229,7 @@ class PlexSignInViewModelTest {
             val authClient = setUpToChoosingServer(resource)
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                    on { bestConnectionUri(resource) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
@@ -289,7 +289,7 @@ class PlexSignInViewModelTest {
             val authClient = setUpToChoosingServer(resource)
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                    on { bestConnectionUri(resource) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
 
@@ -339,7 +339,7 @@ class PlexSignInViewModelTest {
             val authClient = setUpToChoosingServer(resource)
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                    on { bestConnectionUri(resource) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
@@ -375,7 +375,7 @@ class PlexSignInViewModelTest {
             val authClient = setUpToChoosingServer(resource)
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                    on { bestConnectionUri(resource) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody(sectionKey)))
 
@@ -490,7 +490,7 @@ class PlexSignInViewModelTest {
         val authClient = setUpToChoosingServer(resource)
         val probe =
             mock<ServerProbe>().stub {
-                onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                on { bestConnectionUri(resource) } doReturn serverUri
             }
         server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
@@ -605,7 +605,7 @@ class PlexSignInViewModelTest {
             val authClient = setUpToChoosingServer(resource)
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                    on { bestConnectionUri(resource) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
 
@@ -653,7 +653,7 @@ class PlexSignInViewModelTest {
             val authClient = setUpToChoosingServer(resource)
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(resource) } doReturn null
+                    on { bestConnectionUri(resource) } doReturn null
                 }
 
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, probe = probe)
@@ -689,14 +689,14 @@ class PlexSignInViewModelTest {
             val serverUri = server.url("/").toString()
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { createPin() } doReturn created.right()
-                    onBlocking { getPin(42L) } doReturn approvedPin().right()
-                    onBlocking { getResources() } doReturn listOf(bad, good).right()
+                    on { createPin() } doReturn created.right()
+                    on { getPin(42L) } doReturn approvedPin().right()
+                    on { getResources() } doReturn listOf(bad, good).right()
                 }
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(bad) } doReturn serverUri
-                    onBlocking { bestConnectionUri(good) } doReturn serverUri
+                    on { bestConnectionUri(bad) } doReturn serverUri
+                    on { bestConnectionUri(good) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(noMusicSectionsBody()))
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
@@ -841,7 +841,7 @@ class PlexSignInViewModelTest {
             val authClient = setUpToChoosingServer(resource)
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                    on { bestConnectionUri(resource) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
@@ -874,11 +874,11 @@ class PlexSignInViewModelTest {
         runTest(dispatcher) {
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { createPin() } doReturn created.right()
+                    on { createPin() } doReturn created.right()
                     // Always pending: nothing here should matter, since the whole
                     // point is that backPressed() stops the loop before it ever
                     // calls this.
-                    onBlocking { getPin(42L) } doReturn Pin().right()
+                    on { getPin(42L) } doReturn Pin().right()
                 }
             val viewModel =
                 PlexSignInViewModel(
@@ -920,8 +920,8 @@ class PlexSignInViewModelTest {
             // created pin, so the hard cap is the only way this reaches Failed.
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { createPin() } doReturn created.right()
-                    onBlocking { getPin(42L) } doReturn Pin().right()
+                    on { createPin() } doReturn created.right()
+                    on { getPin(42L) } doReturn Pin().right()
                 }
             val viewModel =
                 PlexSignInViewModel(
@@ -979,7 +979,7 @@ class PlexSignInViewModelTest {
             val authClient = setUpToChoosingServer(resource)
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(resource) } doReturn serverUri
+                    on { bestConnectionUri(resource) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
 
@@ -1018,14 +1018,14 @@ class PlexSignInViewModelTest {
             val serverUri = server.url("/").toString()
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { createPin() } doReturn created.right()
-                    onBlocking { getPin(42L) } doReturn approvedPin().right()
-                    onBlocking { getResources() } doReturn listOf(wrong, right).right()
+                    on { createPin() } doReturn created.right()
+                    on { getPin(42L) } doReturn approvedPin().right()
+                    on { getResources() } doReturn listOf(wrong, right).right()
                 }
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestConnectionUri(wrong) } doReturn serverUri
-                    onBlocking { bestConnectionUri(right) } doReturn serverUri
+                    on { bestConnectionUri(wrong) } doReturn serverUri
+                    on { bestConnectionUri(right) } doReturn serverUri
                 }
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("1")))
             server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
@@ -1133,8 +1133,8 @@ class PlexSignInViewModelTest {
             // possible once the loop stopped reading the wall clock.
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { createPin() } doReturn created.right()
-                    onBlocking { getPin(42L) } doReturn Pin().right()
+                    on { createPin() } doReturn created.right()
+                    on { getPin(42L) } doReturn Pin().right()
                 }
 
             val viewModel =
@@ -1165,8 +1165,8 @@ class PlexSignInViewModelTest {
             // this test will notice if the ladder is ever reverted to a flat rate.
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { createPin() } doReturn created.right()
-                    onBlocking { getPin(42L) } doReturn Pin().right()
+                    on { createPin() } doReturn created.right()
+                    on { getPin(42L) } doReturn Pin().right()
                 }
 
             val viewModel =
@@ -1420,7 +1420,7 @@ class PlexSignInViewModelTest {
         runTest(dispatcher) {
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+                    on { getResources() } doReturn listOf(aMediaServer()).right()
                 }
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
 
@@ -1436,7 +1436,7 @@ class PlexSignInViewModelTest {
         runTest(dispatcher) {
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn
+                    on { getResources() } doReturn
                         PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
                 }
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
@@ -1455,7 +1455,7 @@ class PlexSignInViewModelTest {
             // case NoServers exists for.
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn emptyList<Resource>().right()
+                    on { getResources() } doReturn emptyList<Resource>().right()
                 }
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
 

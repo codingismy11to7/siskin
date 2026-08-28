@@ -295,7 +295,7 @@ class ServerAddressBookTest {
 
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn
+                    on { getResources() } doReturn
                         PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
                 }
             val book = ServerAddressBook.newForTest(api, authClient = authClient, clock = { now })
@@ -332,7 +332,7 @@ class ServerAddressBookTest {
             signedInAt("https://lan.example")
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestOf(any()) } doAnswer { throw IllegalArgumentException("bad url") }
+                    on { bestOf(any()) } doAnswer { throw IllegalArgumentException("bad url") }
                 }
             val book = ServerAddressBook.newForTest(api, probe = probe)
             book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
@@ -353,7 +353,7 @@ class ServerAddressBookTest {
             var probeCalls = 0
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestOf(any()) } doAnswer {
+                    on { bestOf(any()) } doAnswer {
                         probeCalls++
                         throw IllegalArgumentException("bad url")
                     }
@@ -382,7 +382,7 @@ class ServerAddressBookTest {
             signedInAt("https://lan.example")
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestOf(any()) } doAnswer { throw CancellationException("simulated cancellation") }
+                    on { bestOf(any()) } doAnswer { throw CancellationException("simulated cancellation") }
                 }
             val book = ServerAddressBook.newForTest(api, probe = probe)
             book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
@@ -409,7 +409,7 @@ class ServerAddressBookTest {
                 )
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn listOf(freshResource).right()
+                    on { getResources() } doReturn listOf(freshResource).right()
                 }
 
             val book = ServerAddressBook.newForTest(api, authClient = authClient)
@@ -440,7 +440,7 @@ class ServerAddressBookTest {
 
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestOf(any()) } doAnswer {
+                    on { bestOf(any()) } doAnswer {
                         // Simulates sign-out landing mid-race. Deterministic, no
                         // sleeps: the stub itself mutates state before "returning" a
                         // winner, rather than a real race that might or might not
@@ -473,7 +473,7 @@ class ServerAddressBookTest {
 
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestOf(any()) } doAnswer {
+                    on { bestOf(any()) } doAnswer {
                         // Simulates the library picker landing on a different server
                         // mid-race. Deterministic, no sleeps -- same technique as
                         // aRaceInFlightDoesNotResurrectASignedOutSession above.
@@ -517,7 +517,7 @@ class ServerAddressBookTest {
 
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestOf(any()) } doAnswer {
+                    on { bestOf(any()) } doAnswer {
                         // Simulates the More tab's library picker landing on a
                         // different section of the *same* server mid-race.
                         // Deterministic, no sleeps -- same technique as the sibling
@@ -591,7 +591,7 @@ class ServerAddressBookTest {
             // see Important 3.
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn
+                    on { getResources() } doReturn
                         PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
                 }
             val book = ServerAddressBook.newForTest(api, authClient = authClient)
@@ -657,7 +657,7 @@ class ServerAddressBookTest {
             val liveUri = live.url("/").toString().trimEnd('/')
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn
+                    on { getResources() } doReturn
                         PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
                 }
             val book = ServerAddressBook.newForTest(api, authClient = authClient)
@@ -688,7 +688,7 @@ class ServerAddressBookTest {
             val liveUri = live.url("/").toString().trimEnd('/')
             val authClient =
                 mock<AuthClient>().stub {
-                    onBlocking { getResources() } doReturn
+                    on { getResources() } doReturn
                         PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
                 }
             val book = ServerAddressBook.newForTest(api, authClient = authClient)
@@ -755,7 +755,7 @@ class ServerAddressBookTest {
             var probeCalls = 0
             val probe =
                 mock<ServerProbe>().stub {
-                    onBlocking { bestOf(any()) } doAnswer {
+                    on { bestOf(any()) } doAnswer {
                         probeCalls++
                         null
                     }
