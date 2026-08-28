@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.util.Preferences;
-import com.google.android.material.color.DynamicColors;
 
 public class ThemeHelper {
     private static final String TAG = "ThemeHelper";
@@ -65,7 +64,11 @@ public class ThemeHelper {
             }
         }
 
-        DynamicColors.applyToActivityIfAvailable(activity);
+        // No DynamicColors here on purpose. Applying it hands colorPrimary and
+        // the rest to the head unit, which on AAOS is a palette SystemUI
+        // generated from a default seed rather than one the car chose -- so the
+        // app rendered in a blue nobody picked and no edit to colors.xml could
+        // change it. See docs/decisions/2026-08-27-app-palette-design.md.
         if (applyAmoled) {
             activity.getTheme().applyStyle(R.style.ThemeOverlay_App_Amoled, true);
         }
