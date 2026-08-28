@@ -61,7 +61,7 @@ class CarDebugFragmentTest {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val authClient =
                         mock<AuthClient>().stub {
-                            onBlocking { getResources() } doReturn listOf(aMediaServer()).right()
+                            on { getResources() } doReturn listOf(aMediaServer()).right()
                         }
                     @Suppress("UNCHECKED_CAST")
                     return PlexSignInViewModel(
