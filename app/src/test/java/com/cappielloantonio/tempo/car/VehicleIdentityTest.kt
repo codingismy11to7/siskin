@@ -84,6 +84,40 @@ class VehicleIdentityTest {
     }
 
     @Test
+    fun keepsANameThatIsNotAscii() {
+        // Škoda and Citroën ship AAOS. The name goes to Plex as UTF-8 rather
+        // than transliterated, so nothing here may touch it.
+        val identity = VehicleIdentity.resolve("Škoda", "Citroën", 2024, null, null)
+
+        assertEquals("Škoda", identity.make)
+        assertEquals("Citroën", identity.model)
+    }
+
+    @Test
+    fun keepsANameOutsideLatinToo() {
+        val identity = VehicleIdentity.resolve("领克", "09", null, null, null)
+
+        assertEquals("领克", identity.make)
+        assertEquals("09", identity.model)
+    }
+
+    @Test
+    fun stripsTheControlCharactersThatWouldInjectAHeader() {
+        val identity = VehicleIdentity.resolve("Cadillac\r\nX-Plex-Token: stolen", "LYRIQ", null, null, null)
+
+        assertEquals(VehicleInfoSource.VEHICLE, identity.source)
+        assertEquals("CadillacX-Plex-Token: stolen", identity.make)
+        assertEquals("LYRIQ", identity.model)
+    }
+
+    @Test
+    fun fallsThroughWhenControlCharactersAreAllThereWas() {
+        val identity = VehicleIdentity.resolve("\n\t", "LYRIQ", null, "Google", "board-x86")
+
+        assertEquals(VehicleInfoSource.BUILD, identity.source)
+    }
+
+    @Test
     fun reportsUnknownWhenNothingAnswers() {
         val identity = VehicleIdentity.resolve(null, null, null, null, "  ")
 

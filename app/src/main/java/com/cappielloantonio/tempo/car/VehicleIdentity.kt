@@ -57,6 +57,21 @@ data class VehicleIdentity(
             return UNKNOWN
         }
 
-        private fun String?.orNullIfBlank(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
+        /**
+         * Drops control characters and answers null when nothing survives, so a
+         * value that is nothing but control characters falls through the tier
+         * exactly as a blank one does.
+         *
+         * Only below 0x20 and 0x7F go: a newline in a vendor string is header
+         * injection, while everything at 0x80 and above is a name -- `Škoda`,
+         * `领克` -- and rides out unchanged as UTF-8. Cleaning here rather than
+         * at the transport is what keeps the Debug screen showing what is
+         * actually sent. See the 2026-08-27 vehicle device name design.
+         */
+        private fun String?.orNullIfBlank(): String? =
+            this
+                ?.filter { it.code >= 0x20 && it.code != 0x7F }
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
     }
 }

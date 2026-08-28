@@ -182,6 +182,39 @@ The catch is broad and that is deliberate, but note it is nowhere near an
 These headers ride on every request including the first `POST /pins`. A vehicle
 that will not answer must never be able to fail a request.
 
+## Non-ASCII names go out as UTF-8, because Plex asks for them that way
+
+Škoda and Citroën ship Android Automotive, and OkHttp refuses to send a header
+value outside `0x20–0x7E` — it throws rather than degrading, and on the Retrofit
+path that lands uncaught on the dispatcher thread and takes the process with it.
+These headers ride on the first `POST /pins`, so an affected car could not sign
+in at all. The emulator reports `Toy Vehicle`, so nothing here would have shown
+up in development.
+
+Plex's own documentation answers the question:
+
+> There's no standard way to send non-ASCII values as HTTP headers. We attempt
+> to recognize and parse UTF-8 and ISO-8859-1. If you're sending something that
+> may include non-ASCII characters (often `X-Plex-Device-Name`), use UTF-8 if
+> possible.
+
+So the name goes out unchanged, through `Headers.Builder.addUnsafeNonAscii`.
+"Unsafe" there means "not what RFC 9110 prescribes", which is precisely what
+Plex is asking for. Transliterating `Škoda` to `Skoda` was the alternative and
+is strictly worse — it damages the name to avoid a problem the server does not
+have. Percent-encoding is worse still: `X-Plex-Device` is proprietary, nothing
+decodes it, and plex.tv would display the escape sequence.
+
+This is a known rough edge rather than a novel one. Overseerr reported the
+identical `Invalid character in header content ["X-Plex-Device-Name"]` for a
+server name containing an emoji.
+
+Control characters are still stripped, and in `VehicleIdentity` rather than at
+the transport: a newline in a vendor string is header injection, and that is a
+property of the value rather than of how it is sent. Keeping it in the pure
+layer also keeps the Debug screen honest, since the panel renders the same
+values that go on the wire.
+
 ## The Debug screen reports the tier, not just the value
 
 A `Device` section on the Debug screen (Settings → version line) shows the three

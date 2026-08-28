@@ -10,6 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 
 /**
  * The probe exists because a connection Plex advertises may be unreachable from
@@ -153,6 +154,30 @@ class ServerProbeTest {
         assertEquals(listOf("https://lan", "https://public"), candidates.direct)
         assertEquals(listOf("https://relay"), candidates.relay)
     }
+
+    /**
+     * The probe builds its request inside `race`'s `launch { }`, so an
+     * exception from `Request.Builder.header` -- which is what a value outside
+     * 0x20-0x7E gets -- would escape past `plexCall`, which sees only
+     * IOException and HttpException. A car named `Škoda` would fail every probe
+     * rather than reach its server. See the 2026-08-27 design.
+     */
+    @Test
+    fun carriesANonAsciiDeviceNameOntoTheProbe() =
+        runTest {
+            val live = identityServer()
+            val uri = live.url("/").toString().trimEnd('/')
+
+            val winner =
+                ServerProbe(
+                    headers = mapOf("X-Plex-Device" to "Škoda", "X-Plex-Device-Name" to "2024 Škoda Octavia"),
+                ).bestConnectionUri(resource(connection(uri)))
+
+            assertEquals(uri, winner)
+            val recorded = live.takeRequest(5, TimeUnit.SECONDS)!!
+            assertEquals("Škoda", recorded.getHeader("X-Plex-Device"))
+            assertEquals("2024 Škoda Octavia", recorded.getHeader("X-Plex-Device-Name"))
+        }
 
     @Test
     fun ignoresConnectionsWithNoUri() {
