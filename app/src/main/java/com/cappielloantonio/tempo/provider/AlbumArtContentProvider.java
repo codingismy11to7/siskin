@@ -44,26 +44,24 @@ public class AlbumArtContentProvider extends ContentProvider {
     private static final int MATCH_DECADE_ART = 2;
     private static final int MATCH_HUB_ART = 3;
 
-    /** A decade key must be four digits. It becomes part of a cache filename,
-     * and what the guard buys is exactly two properties: the segment is
-     * digits only, so no decoded `/`, no `..` and no separator of any kind
-     * reaches the filename CompositeArt.cacheFile interpolates; and it
-     * is a fixed-width run, so there is no length to play with either.
-     * matches() anchors the whole segment rather than a prefix, which is what
-     * makes both properties hold of the segment and not merely of a prefix
-     * of it.
+    /**
+     * A decade key must be four digits. It becomes part of a cache filename, and what the guard
+     * buys is exactly two properties: the segment is digits only, so no decoded `/`, no `..` and no
+     * separator of any kind reaches the filename CompositeArt.cacheFile interpolates; and it is a
+     * fixed-width run, so there is no length to play with either. matches() anchors the whole
+     * segment rather than a prefix, which is what makes both properties hold of the segment and not
+     * merely of a prefix of it.
      *
-     * Deliberately not narrowed to `(19|20)\d{2}`. The smaller filename space
-     * that buys does no work: nothing is ever cached for a decade that yields
-     * no albums, so the bogus names are never written, and a caller wanting to
-     * burn Plex queries can loop the 200 allowed-but-absent values as happily
-     * as 10,000. Meanwhile it refuses a genuine pre-1900 key -- an 1890s
-     * classical or historical album -- which a real library can produce.
+     * <p>Deliberately not narrowed to `(19|20)\d{2}`. The smaller filename space that buys does no
+     * work: nothing is ever cached for a decade that yields no albums, so the bogus names are never
+     * written, and a caller wanting to burn Plex queries can loop the 200 allowed-but-absent values
+     * as happily as 10,000. Meanwhile it refuses a genuine pre-1900 key -- an 1890s classical or
+     * historical album -- which a real library can produce.
      *
-     * The residual is the same either way, and is named here rather than
-     * oversold: a well-formed but absent decade still costs one Plex query per
-     * open, because DecadeCompositeArt.build() returns null before writing
-     * anything and so leaves nothing cached to answer the next request. */
+     * <p>The residual is the same either way, and is named here rather than oversold: a well-formed
+     * but absent decade still costs one Plex query per open, because DecadeCompositeArt.build()
+     * returns null before writing anything and so leaves nothing cached to answer the next request.
+     */
     private static final Pattern DECADE = Pattern.compile("\\d{4}");
 
     // Plex's photo transcoder requires both dimensions. The image-size preference
@@ -102,15 +100,13 @@ public class AlbumArtContentProvider extends ContentProvider {
     /**
      * The composite for one decade, in one library, for one hour.
      *
-     * All three parts are in the URI for a single reason: the car caches
-     * artwork by URI, so anything that has to invalidate a tile has to be
-     * visible here. The bucket covers time. {@code scope} --
-     * {@link CompositeArt#scopeOf} -- covers *which library*, and it was
-     * the missing one: "1980s" on two servers minted byte-identical URIs, so
-     * after a switch under More -&gt; Server Select the car re-served the old
-     * server's mosaic out of its own cache and this provider was never opened
-     * at all. Keying the cache file by server, which is where that bug was
-     * first chased, cannot fix what never reaches the file.
+     * <p>All three parts are in the URI for a single reason: the car caches artwork by URI, so
+     * anything that has to invalidate a tile has to be visible here. The bucket covers time. {@code
+     * scope} -- {@link CompositeArt#scopeOf} -- covers *which library*, and it was the missing one:
+     * "1980s" on two servers minted byte-identical URIs, so after a switch under More -&gt; Server
+     * Select the car re-served the old server's mosaic out of its own cache and this provider was
+     * never opened at all. Keying the cache file by server, which is where that bug was first
+     * chased, cannot fix what never reaches the file.
      */
     public static Uri decadeContentUri(String scope, String decade, long bucket) {
         return new Uri.Builder()
@@ -126,15 +122,14 @@ public class AlbumArtContentProvider extends ContentProvider {
     /**
      * The composite for one Discover row, in one library, for one hour.
      *
-     * Unlike {@link #decadeContentUri}, this URI names its own covers, so it is
-     * already content-addressed: a re-rolled hub changes the pool and therefore
-     * the URI. The bucket is here anyway, for a narrower reason than it has
-     * there. A tile that degraded because a cover failed to load would
-     * otherwise sit in the car's own image cache under a URI nothing
-     * invalidates; rolling the bucket is what lets it redraw.
+     * <p>Unlike {@link #decadeContentUri}, this URI names its own covers, so it is already
+     * content-addressed: a re-rolled hub changes the pool and therefore the URI. The bucket is here
+     * anyway, for a narrower reason than it has there. A tile that degraded because a cover failed
+     * to load would otherwise sit in the car's own image cache under a URI nothing invalidates;
+     * rolling the bucket is what lets it redraw.
      *
-     * The pool costs no Plex request. It is the six items the hub listing
-     * already returned -- the ones the row's existence was decided from.
+     * <p>The pool costs no Plex request. It is the six items the hub listing already returned --
+     * the ones the row's existence was decided from.
      */
     public static Uri hubContentUri(String scope, long bucket, List<String> pool) {
         return new Uri.Builder()
@@ -149,7 +144,8 @@ public class AlbumArtContentProvider extends ContentProvider {
 
     @Nullable
     @Override
-    public ParcelFileDescriptor openFile(@NonNull Uri uri, @NonNull String mode) throws FileNotFoundException {
+    public ParcelFileDescriptor openFile(@NonNull Uri uri, @NonNull String mode)
+            throws FileNotFoundException {
         // uriMatcher was declared and never consulted while there was only one
         // path: openFile read getLastPathSegment() and assumed the album shape.
         // A second path is what makes it load-bearing -- reading the decade off
@@ -190,16 +186,17 @@ public class AlbumArtContentProvider extends ContentProvider {
             throw new FileNotFoundException("Not a Plex artwork path");
         }
 
-        int size = Preferences.getImageSize() > 0 ? Preferences.getImageSize() : DEFAULT_ARTWORK_SIZE;
+        int size =
+                Preferences.getImageSize() > 0 ? Preferences.getImageSize() : DEFAULT_ARTWORK_SIZE;
 
         PlexApi api = new PlexApi();
-        String artworkUrl = MediaUrlBuilder.INSTANCE.artworkUrl(
-                api.getServerUri(),
-                thumbPath,
-                PlexApi.serverTokenOrAccount(api.getServerToken(), api.getAccountToken()),
-                size,
-                size
-        );
+        String artworkUrl =
+                MediaUrlBuilder.INSTANCE.artworkUrl(
+                        api.getServerUri(),
+                        thumbPath,
+                        PlexApi.serverTokenOrAccount(api.getServerToken(), api.getAccountToken()),
+                        size,
+                        size);
 
         // Null means no server or no token yet -- there is no image to serve, and
         // reporting that is what makes the car fall back to the placeholder icon
@@ -210,45 +207,46 @@ public class AlbumArtContentProvider extends ContentProvider {
 
         final Uri artworkUriFinal = Uri.parse(artworkUrl);
 
-        return pipeFrom(thumbPath, () -> {
-            var fileRequest = Glide.with(context)
-                    .asFile()
-                    .load(artworkUriFinal)
-                    .diskCacheStrategy(DiskCacheStrategy.DATA);
-            if (Preferences.isDataSavingMode()) {
-                fileRequest = fileRequest.onlyRetrieveFromCache(true);
-            }
-            FutureTarget<File> target = fileRequest.submit();
-            try {
-                return target.get();
-            } finally {
-                // The same leak CompositeArt fixes, and the reason both are
-                // fixed together: an uncleared target stays registered with the
-                // application-scoped RequestManager and keeps its resource with
-                // it. This one has been here since long before the Plex work.
-                //
-                // It can clear before the bytes are read, where the composite
-                // path cannot. A File target's resource is a SimpleResource,
-                // whose recycle() is empty, so clearing drops the registration
-                // and leaves the disk-cache file where it is for pipeFrom to
-                // copy. A Bitmap resource recycles into Glide's pool instead,
-                // which is why the same mistake has two differently-shaped
-                // repairs rather than one.
-                Glide.with(context).clear(target);
-            }
-        });
+        return pipeFrom(
+                thumbPath,
+                () -> {
+                    var fileRequest =
+                            Glide.with(context)
+                                    .asFile()
+                                    .load(artworkUriFinal)
+                                    .diskCacheStrategy(DiskCacheStrategy.DATA);
+                    if (Preferences.isDataSavingMode()) {
+                        fileRequest = fileRequest.onlyRetrieveFromCache(true);
+                    }
+                    FutureTarget<File> target = fileRequest.submit();
+                    try {
+                        return target.get();
+                    } finally {
+                        // The same leak CompositeArt fixes, and the reason both are
+                        // fixed together: an uncleared target stays registered with the
+                        // application-scoped RequestManager and keeps its resource with
+                        // it. This one has been here since long before the Plex work.
+                        //
+                        // It can clear before the bytes are read, where the composite
+                        // path cannot. A File target's resource is a SimpleResource,
+                        // whose recycle() is empty, so clearing drops the registration
+                        // and leaves the disk-cache file where it is for pipeFrom to
+                        // copy. A Bitmap resource recycles into Glide's pool instead,
+                        // which is why the same mistake has two differently-shaped
+                        // repairs rather than one.
+                        Glide.with(context).clear(target);
+                    }
+                });
     }
 
     /**
-     * The decade composite. Its validation differs from openAlbumArt's, and
-     * deliberately: no caller-supplied path reaches MediaUrlBuilder on *this*
-     * route -- the covers come from our own Plex response -- so the open-proxy
-     * hazard that path guards against cannot arise here. That is a property of
-     * this method and not of this provider: openHubArt below takes its covers
-     * from the URI, and guards them the way openAlbumArt guards its thumb.
-     * What this path needs instead is a bound on how much work a caller can
-     * ask for, because every cache miss is a Plex request made with the user's
-     * token, and an answer to "is this URI even about the library we are
+     * The decade composite. Its validation differs from openAlbumArt's, and deliberately: no
+     * caller-supplied path reaches MediaUrlBuilder on *this* route -- the covers come from our own
+     * Plex response -- so the open-proxy hazard that path guards against cannot arise here. That is
+     * a property of this method and not of this provider: openHubArt below takes its covers from
+     * the URI, and guards them the way openAlbumArt guards its thumb. What this path needs instead
+     * is a bound on how much work a caller can ask for, because every cache miss is a Plex request
+     * made with the user's token, and an answer to "is this URI even about the library we are
      * pointed at now".
      */
     private ParcelFileDescriptor openDecadeArt(Uri uri) throws FileNotFoundException {
@@ -313,31 +311,26 @@ public class AlbumArtContentProvider extends ContentProvider {
     /**
      * The hub composite. Its validation differs from both paths above.
      *
-     * Cheaper to serve than a decade tile and cheaper to abuse: there is no
-     * Plex request on this route at all, so a hostile open costs Glide fetches
-     * and no metadata query -- the opposite of the residual openDecadeArt
-     * concedes, where a well-formed but absent decade costs one query per open
-     * forever.
+     * <p>Cheaper to serve than a decade tile and cheaper to abuse: there is no Plex request on this
+     * route at all, so a hostile open costs Glide fetches and no metadata query -- the opposite of
+     * the residual openDecadeArt concedes, where a well-formed but absent decade costs one query
+     * per open forever.
      *
-     * What it does need is a bound on amplification. One open here can trigger
-     * seven authenticated fetches where openAlbumArt triggers one -- up to
-     * HubCoverPool.MAX candidate loads, plus the full-edge re-request
-     * CompositeArt's degraded branch makes when a pool of four or more lands
-     * fewer than four covers and the layout falls back to one cell -- which is
-     * what the pool cap is for.
-     * The open-proxy hazard itself is openAlbumArt's, not a new one: any app
-     * on the head unit has always been able to ask this authority for any
-     * server-relative Plex path, behind this same guard.
+     * <p>What it does need is a bound on amplification. One open here can trigger seven
+     * authenticated fetches where openAlbumArt triggers one -- up to HubCoverPool.MAX candidate
+     * loads, plus the full-edge re-request CompositeArt's degraded branch makes when a pool of four
+     * or more lands fewer than four covers and the layout falls back to one cell -- which is what
+     * the pool cap is for. The open-proxy hazard itself is openAlbumArt's, not a new one: any app
+     * on the head unit has always been able to ask this authority for any server-relative Plex
+     * path, behind this same guard.
      *
-     * One residual is worth naming rather than leaving for someone to
-     * rediscover: a hostile caller can mint many distinct valid pools out of
-     * real thumb paths -- reordering six real thumbs alone is hundreds of
-     * pools -- and cause a small JPEG per pool to be written under this
-     * bucket, since evictStale reaps only stale buckets, not a live bucket's
-     * volume. That is app-private storage in a system-evictable cacheDir, no
-     * worse than the same app filling its own cache directly, so it is not
-     * treated as a bug here -- just recorded so it reads as considered rather
-     * than missed.
+     * <p>One residual is worth naming rather than leaving for someone to rediscover: a hostile
+     * caller can mint many distinct valid pools out of real thumb paths -- reordering six real
+     * thumbs alone is hundreds of pools -- and cause a small JPEG per pool to be written under this
+     * bucket, since evictStale reaps only stale buckets, not a live bucket's volume. That is
+     * app-private storage in a system-evictable cacheDir, no worse than the same app filling its
+     * own cache directly, so it is not treated as a bug here -- just recorded so it reads as
+     * considered rather than missed.
      */
     private ParcelFileDescriptor openHubArt(Uri uri) throws FileNotFoundException {
         Context context = getContext();
@@ -394,20 +387,20 @@ public class AlbumArtContentProvider extends ContentProvider {
         // The pool's digest, not the HUB_ART literal, so a build failure names
         // which composite failed in the log -- pipeFrom's label is shared with
         // openDecadeArt, which passes the decade for the same reason.
-        return pipeFrom(HubCompositeArt.idFor(pool), () -> HubCompositeArt.build(context, pool, bucket));
+        return pipeFrom(
+                HubCompositeArt.idFor(pool), () -> HubCompositeArt.build(context, pool, bucket));
     }
 
     /**
-     * The read end of a pipe that {@code source} fills on the background
-     * executor.
+     * The read end of a pipe that {@code source} fills on the background executor.
      *
-     * Shared by both artwork paths: one resolves a Glide-cached cover, the other
-     * builds a composite, and everything after "which file" is identical. The
-     * caller gets its descriptor immediately -- openFile runs on a binder
-     * thread, and neither a Plex round trip nor a Glide fetch may happen there.
+     * <p>Shared by both artwork paths: one resolves a Glide-cached cover, the other builds a
+     * composite, and everything after "which file" is identical. The caller gets its descriptor
+     * immediately -- openFile runs on a binder thread, and neither a Plex round trip nor a Glide
+     * fetch may happen there.
      *
-     * A source returning null, or throwing, closes the write side with an error,
-     * which the car renders as the placeholder icon.
+     * <p>A source returning null, or throwing, closes the write side with an error, which the car
+     * renders as the placeholder icon.
      */
     private ParcelFileDescriptor pipeFrom(String label, Callable<File> source)
             throws FileNotFoundException {
@@ -416,26 +409,29 @@ public class AlbumArtContentProvider extends ContentProvider {
             ParcelFileDescriptor readSide = pipe[0];
             ParcelFileDescriptor writeSide = pipe[1];
 
-            executor.execute(() -> {
-                try (OutputStream out = new ParcelFileDescriptor.AutoCloseOutputStream(writeSide)) {
-                    File file = source.call();
-                    if (file == null) {
-                        writeSide.closeWithError("No artwork for " + label);
-                        return;
-                    }
-                    try (InputStream in = new FileInputStream(file)) {
-                        byte[] buffer = new byte[8192];
-                        int bytesRead;
-                        while ((bytesRead = in.read(buffer)) != -1) {
-                            out.write(buffer, 0, bytesRead);
+            executor.execute(
+                    () -> {
+                        try (OutputStream out =
+                                new ParcelFileDescriptor.AutoCloseOutputStream(writeSide)) {
+                            File file = source.call();
+                            if (file == null) {
+                                writeSide.closeWithError("No artwork for " + label);
+                                return;
+                            }
+                            try (InputStream in = new FileInputStream(file)) {
+                                byte[] buffer = new byte[8192];
+                                int bytesRead;
+                                while ((bytesRead = in.read(buffer)) != -1) {
+                                    out.write(buffer, 0, bytesRead);
+                                }
+                            }
+                        } catch (Exception e) {
+                            try {
+                                writeSide.closeWithError("Failed to load image: " + e.getMessage());
+                            } catch (IOException ignored) {
+                            }
                         }
-                    }
-                } catch (Exception e) {
-                    try {
-                        writeSide.closeWithError("Failed to load image: " + e.getMessage());
-                    } catch (IOException ignored) {}
-                }
-            });
+                    });
 
             return readSide;
         } catch (IOException e) {
@@ -445,9 +441,9 @@ public class AlbumArtContentProvider extends ContentProvider {
 
     @Override
     public boolean onCreate() {
-        executor = Executors.newFixedThreadPool(
-                Math.max(2, Runtime.getRuntime().availableProcessors() / 2)
-        );
+        executor =
+                Executors.newFixedThreadPool(
+                        Math.max(2, Runtime.getRuntime().availableProcessors() / 2));
         return true;
     }
 
@@ -467,7 +463,12 @@ public class AlbumArtContentProvider extends ContentProvider {
 
     @Nullable
     @Override
-    public Cursor query(@NonNull Uri uri, @Nullable String[] strings, @Nullable String s, @Nullable String[] strings1, @Nullable String s1) {
+    public Cursor query(
+            @NonNull Uri uri,
+            @Nullable String[] strings,
+            @Nullable String s,
+            @Nullable String[] strings1,
+            @Nullable String s1) {
         return null;
     }
 
@@ -489,7 +490,11 @@ public class AlbumArtContentProvider extends ContentProvider {
     }
 
     @Override
-    public int update(@NonNull Uri uri, @Nullable ContentValues contentValues, @Nullable String s, @Nullable String[] strings) {
+    public int update(
+            @NonNull Uri uri,
+            @Nullable ContentValues contentValues,
+            @Nullable String s,
+            @Nullable String[] strings) {
         return 0;
     }
 }

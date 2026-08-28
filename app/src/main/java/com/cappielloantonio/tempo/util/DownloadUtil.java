@@ -40,9 +40,8 @@ public final class DownloadUtil {
             CookieManager cookieManager = new CookieManager();
             cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
             CookieHandler.setDefault(cookieManager);
-            httpDataSourceFactory = new DefaultHttpDataSource
-                    .Factory()
-                    .setAllowCrossProtocolRedirects(true);
+            httpDataSourceFactory =
+                    new DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true);
         }
 
         return httpDataSourceFactory;
@@ -54,34 +53,37 @@ public final class DownloadUtil {
     }
 
     public static synchronized DataSource.Factory getCacheDataSourceFactory(Context context) {
-        CacheDataSource.Factory streamCacheFactory = new CacheDataSource.Factory()
-                .setCache(getStreamingCache(context))
-                .setCacheKeyFactory(new StreamingCacheKeyFactory())
-                .setUpstreamDataSourceFactory(getUpstreamDataSourceFactory(context));
+        CacheDataSource.Factory streamCacheFactory =
+                new CacheDataSource.Factory()
+                        .setCache(getStreamingCache(context))
+                        .setCacheKeyFactory(new StreamingCacheKeyFactory())
+                        .setUpstreamDataSourceFactory(getUpstreamDataSourceFactory(context));
 
-        ResolvingDataSource.Factory resolvingFactory = new ResolvingDataSource.Factory(
-                new StreamingCacheDataSource.Factory(streamCacheFactory),
-                dataSpec -> {
-                    DataSpec.Builder builder = dataSpec.buildUpon();
-                    builder.setFlags(dataSpec.flags & ~DataSpec.FLAG_DONT_CACHE_IF_LENGTH_UNKNOWN);
-                    return builder.build();
-                }
-        );
+        ResolvingDataSource.Factory resolvingFactory =
+                new ResolvingDataSource.Factory(
+                        new StreamingCacheDataSource.Factory(streamCacheFactory),
+                        dataSpec -> {
+                            DataSpec.Builder builder = dataSpec.buildUpon();
+                            builder.setFlags(
+                                    dataSpec.flags & ~DataSpec.FLAG_DONT_CACHE_IF_LENGTH_UNKNOWN);
+                            return builder.build();
+                        });
         dataSourceFactory = resolvingFactory;
         return dataSourceFactory;
     }
 
     /**
-     * Writes into the same streaming cache (and with the same keys) the player reads
-     * from, but bypasses the download-cache/resolving wrappers of
-     * {@link #getCacheDataSourceFactory(Context)}: CacheWriter needs a plain
-     * CacheDataSource.
+     * Writes into the same streaming cache (and with the same keys) the player reads from, but
+     * bypasses the download-cache/resolving wrappers of {@link
+     * #getCacheDataSourceFactory(Context)}: CacheWriter needs a plain CacheDataSource.
      */
-    public static synchronized CacheDataSource.Factory getStreamingCacheWriterFactory(Context context) {
+    public static synchronized CacheDataSource.Factory getStreamingCacheWriterFactory(
+            Context context) {
         return new CacheDataSource.Factory()
                 .setCache(getStreamingCache(context))
                 .setCacheKeyFactory(new StreamingCacheKeyFactory())
-                .setUpstreamDataSourceFactory(new DefaultDataSource.Factory(context, getHttpDataSourceFactory()));
+                .setUpstreamDataSourceFactory(
+                        new DefaultDataSource.Factory(context, getHttpDataSourceFactory()));
     }
 
     public static synchronized Cache getStreamingCacheForPreload(Context context) {
@@ -90,13 +92,16 @@ public final class DownloadUtil {
 
     private static synchronized SimpleCache getStreamingCache(Context context) {
         if (streamingCache == null) {
-            File streamingCacheDirectory = new File(getStreamingCacheDirectory(context), STREAMING_CACHE_CONTENT_DIRECTORY);
+            File streamingCacheDirectory =
+                    new File(
+                            getStreamingCacheDirectory(context), STREAMING_CACHE_CONTENT_DIRECTORY);
 
-            streamingCache = new SimpleCache(
-                    streamingCacheDirectory,
-                    new LeastRecentlyUsedCacheEvictor(Preferences.getStreamingCacheSize() * 1024 * 1024),
-                    getDatabaseProvider(context)
-            );
+            streamingCache =
+                    new SimpleCache(
+                            streamingCacheDirectory,
+                            new LeastRecentlyUsedCacheEvictor(
+                                    Preferences.getStreamingCacheSize() * 1024 * 1024),
+                            getDatabaseProvider(context));
         }
 
         return streamingCache;
@@ -124,11 +129,9 @@ public final class DownloadUtil {
                     streamingCacheDirectory = context.getExternalFilesDirs(null)[0];
                     Preferences.setStreamingCacheStoragePreference(0);
                 }
-
             }
         }
 
         return streamingCacheDirectory;
     }
-
 }

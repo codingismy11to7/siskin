@@ -21,50 +21,43 @@ import com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment;
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel;
 
 /**
- * Host for every screen the car shows outside the browse tree, and the app's
- * only activity.
+ * Host for every screen the car shows outside the browse tree, and the app's only activity.
  *
- * Named for hosting rather than for any one of the screens it hosts, which is
- * the whole point: it is the APPLICATION_PREFERENCES target the car's gear
- * resolves, the target of CarSignInResolution's sign-in PendingIntent, and the
- * host for the tab-order screen. Deliberately not CarSettingsActivity either --
- * that would be the same mistake one screen later, since the PendingIntent path
- * launches it specifically to sign in. EXTRA_FORCE_SIGN_IN is how onCreate tells
+ * <p>Named for hosting rather than for any one of the screens it hosts, which is the whole point:
+ * it is the APPLICATION_PREFERENCES target the car's gear resolves, the target of
+ * CarSignInResolution's sign-in PendingIntent, and the host for the tab-order screen. Deliberately
+ * not CarSettingsActivity either -- that would be the same mistake one screen later, since the
+ * PendingIntent path launches it specifically to sign in. EXTRA_FORCE_SIGN_IN is how onCreate tells
  * those two entry points apart.
  *
- * Deliberately NOT marked distractionOptimized in the manifest: the pickers are
- * tap-only, but sign-in is still not something to do while driving. Without that
- * metadata the platform blocks this screen while the car is moving, which is
- * exactly the behavior we want -- and it is what keeps a drag gesture off a
- * moving vehicle on the tab-order screen too, which is why any restructuring
- * here has to preserve the absence and not just the class name.
+ * <p>Deliberately NOT marked distractionOptimized in the manifest: the pickers are tap-only, but
+ * sign-in is still not something to do while driving. Without that metadata the platform blocks
+ * this screen while the car is moving, which is exactly the behavior we want -- and it is what
+ * keeps a drag gesture off a moving vehicle on the tab-order screen too, which is why any
+ * restructuring here has to preserve the absence and not just the class name.
  */
 @UnstableApi
 public class CarHostActivity extends AppCompatActivity implements LoginHost {
 
     /**
-     * Set by CarSignInResolution's PendingIntent. Absent when the car's settings
-     * gear starts this activity, which is how the two entry points are told
-     * apart.
+     * Set by CarSignInResolution's PendingIntent. Absent when the car's settings gear starts this
+     * activity, which is how the two entry points are told apart.
      */
     public static final String EXTRA_FORCE_SIGN_IN =
             "us.codingismy11to7.siskin.extra.FORCE_SIGN_IN";
 
     /**
-     * Test seam: when non-null, builds the PlexSignInViewModel instead of the
-     * default factory.
+     * Test seam: when non-null, builds the PlexSignInViewModel instead of the default factory.
      *
-     * Static because onCreate populates the ViewModelStore before any test can
-     * reach the instance, so there is no later moment at which a stub could be
-     * installed. Nothing in production ever sets it.
+     * <p>Static because onCreate populates the ViewModelStore before any test can reach the
+     * instance, so there is no later moment at which a stub could be installed. Nothing in
+     * production ever sets it.
      *
-     * **A test that sets this MUST null it again in @After.** Robolectric keeps
-     * statics across test methods and across classes, so a factory left behind
-     * hands the next suite a stubbed AuthClient and fails it somewhere
-     * unrelated.
+     * <p>**A test that sets this MUST null it again in @After.** Robolectric keeps statics across
+     * test methods and across classes, so a factory left behind hands the next suite a stubbed
+     * AuthClient and fails it somewhere unrelated.
      */
-    @VisibleForTesting
-    public static ViewModelProvider.Factory viewModelFactoryForTest = null;
+    @VisibleForTesting public static ViewModelProvider.Factory viewModelFactoryForTest = null;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -91,13 +84,14 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
         // the savedInstanceState guard below -- because setContentView() just
         // above reinflates this view on every onCreate, including a
         // recreation, and the button needs its listener every time.
-        findViewById(R.id.back_button).setOnClickListener(
-                v -> getOnBackPressedDispatcher().onBackPressed());
+        findViewById(R.id.back_button)
+                .setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
 
-        PlexSignInViewModel viewModel = viewModelFactoryForTest == null
-                ? new ViewModelProvider(this).get(PlexSignInViewModel.class)
-                : new ViewModelProvider(this, viewModelFactoryForTest)
-                        .get(PlexSignInViewModel.class);
+        PlexSignInViewModel viewModel =
+                viewModelFactoryForTest == null
+                        ? new ViewModelProvider(this).get(PlexSignInViewModel.class)
+                        : new ViewModelProvider(this, viewModelFactoryForTest)
+                                .get(PlexSignInViewModel.class);
 
         // Load-bearing for config changes: a day/night uiMode flip re-creates
         // this Activity with savedInstanceState != null, and the guard is what
@@ -115,8 +109,8 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
         // straight into Working. Not a correctness bug -- the user just taps
         // Connect once more -- so left as a comment rather than a restructure.
         if (savedInstanceState == null) {
-            boolean forceSignIn = getIntent() != null
-                    && getIntent().getBooleanExtra(EXTRA_FORCE_SIGN_IN, false);
+            boolean forceSignIn =
+                    getIntent() != null && getIntent().getBooleanExtra(EXTRA_FORCE_SIGN_IN, false);
             viewModel.open(forceSignIn);
         }
 
@@ -131,12 +125,10 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
     /**
      * Which screen the state calls for.
      *
-     * The routing lives here rather than in either fragment because neither
-     * fragment owns the other: Connected is settings and everything else is the
-     * PIN flow, and a fragment that pushed its own successor would be
-     * responsible for a screen it does not draw. That was the shape being
-     * removed -- one fragment rendering two screens -- not a shape to preserve
-     * one level up.
+     * <p>The routing lives here rather than in either fragment because neither fragment owns the
+     * other: Connected is settings and everything else is the PIN flow, and a fragment that pushed
+     * its own successor would be responsible for a screen it does not draw. That was the shape
+     * being removed -- one fragment rendering two screens -- not a shape to preserve one level up.
      */
     private void route(PlexSignInState state) {
         FragmentManager fragments = getSupportFragmentManager();
@@ -163,7 +155,8 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
         // FragmentManager has already put it back by the time this first runs.
         if (current != null && (current instanceof CarSettingsFragment) == wantSettings) return;
 
-        fragments.beginTransaction()
+        fragments
+                .beginTransaction()
                 .replace(
                         R.id.car_host_container,
                         wantSettings ? new CarSettingsFragment() : new PlexSignInFragment())

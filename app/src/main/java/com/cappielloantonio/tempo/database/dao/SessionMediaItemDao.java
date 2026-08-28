@@ -63,8 +63,10 @@ public interface SessionMediaItemDao {
     // suggests. The guards make that independent of the sort direction and LIMIT
     // shape staying exactly as they are today, for a case that is unreachable anyway
     // -- cache() always sets timestamp before inserting.
-    @Query("DELETE FROM session_media_item WHERE timestamp IS NOT NULL AND timestamp NOT IN " +
-            "(SELECT timestamp FROM session_media_item WHERE timestamp IS NOT NULL GROUP BY timestamp ORDER BY timestamp DESC LIMIT :keepGroups)")
+    @Query(
+            "DELETE FROM session_media_item WHERE timestamp IS NOT NULL AND timestamp NOT IN"
+                + " (SELECT timestamp FROM session_media_item WHERE timestamp IS NOT NULL GROUP BY"
+                + " timestamp ORDER BY timestamp DESC LIMIT :keepGroups)")
     void pruneToMostRecentGroups(int keepGroups);
 
     @Query("DELETE FROM session_media_item")

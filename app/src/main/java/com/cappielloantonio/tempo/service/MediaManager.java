@@ -42,17 +42,16 @@ public class MediaManager {
     /**
      * Reports playback to Plex's timeline endpoint.
      *
-     * Plex wants the part being played and a transport state where Subsonic's
-     * scrobble was a fire-and-forget "I played this": a track with no part key
-     * has nothing to report against, so it is skipped rather than sent half-formed.
+     * <p>Plex wants the part being played and a transport state where Subsonic's scrobble was a
+     * fire-and-forget "I played this": a track with no part key has nothing to report against, so
+     * it is skipped rather than sent half-formed.
      *
-     * {@code positionMs} matters because Plex, not this client, decides whether a
-     * play counts: the {@code /:/timeline} handler on the server compares the
-     * reported position against the track duration and its own watched-percentage
-     * threshold before it will mark the item played. A "stopped" report sent with
-     * position 0 reads to Plex as "left at the very start" regardless of how much
-     * actually played, so it silently never registers a play. Callers must pass
-     * the real position at the moment of the event, not a placeholder.
+     * <p>{@code positionMs} matters because Plex, not this client, decides whether a play counts:
+     * the {@code /:/timeline} handler on the server compares the reported position against the
+     * track duration and its own watched-percentage threshold before it will mark the item played.
+     * A "stopped" report sent with position 0 reads to Plex as "left at the very start" regardless
+     * of how much actually played, so it silently never registers a play. Callers must pass the
+     * real position at the moment of the event, not a placeholder.
      */
     public static void scrobble(MediaItem mediaItem, boolean submission, long positionMs) {
         if (mediaItem == null || mediaItem.mediaMetadata.extras == null) return;
@@ -69,15 +68,16 @@ public class MediaManager {
     }
 
     @OptIn(markerClass = UnstableApi.class)
-    public static void continuousPlay(MediaItem mediaItem,
-                                      ListenableFuture<MediaBrowser> existingBrowserFuture) {
+    public static void continuousPlay(
+            MediaItem mediaItem, ListenableFuture<MediaBrowser> existingBrowserFuture) {
         continuousPlay(mediaItem, existingBrowserFuture, null);
     }
 
     @OptIn(markerClass = UnstableApi.class)
-    public static void continuousPlay(MediaItem mediaItem,
-                                      ListenableFuture<MediaBrowser> existingBrowserFuture,
-                                      @Nullable Runnable onComplete) {
+    public static void continuousPlay(
+            MediaItem mediaItem,
+            ListenableFuture<MediaBrowser> existingBrowserFuture,
+            @Nullable Runnable onComplete) {
         if (continuousPlayIsRunning.get() || !Preferences.isInstantMixUsable()) {
             Log.d(TAG, "Continuous Play: already running");
             if (onComplete != null) onComplete.run();
@@ -91,23 +91,31 @@ public class MediaManager {
         // keep only NUMBER_TRACKS_KEEP_IN_QUEUE items in queue before starting continuous play
         int numberOfTracksKeepInQueue = Preferences.getNumberOfTracksKeepInQueue();
         if (existingBrowserFuture != null) {
-            existingBrowserFuture.addListener(() -> {
-                try {
-                    if (existingBrowserFuture.isDone()) {
-                        MediaBrowser browser = existingBrowserFuture.get();
-                        int currentIndex = browser.getCurrentMediaItem() != null
-                                ? browser.getCurrentMediaItemIndex()
-                                : 0;
-                        int firstToKeep = Math.max(0, currentIndex - numberOfTracksKeepInQueue);
-                        if (firstToKeep > 0) {
-                            Log.d(TAG, "Continuous Play: purging " + firstToKeep + " old items from queue");
-                            removeRange(existingBrowserFuture, 0, firstToKeep);
+            existingBrowserFuture.addListener(
+                    () -> {
+                        try {
+                            if (existingBrowserFuture.isDone()) {
+                                MediaBrowser browser = existingBrowserFuture.get();
+                                int currentIndex =
+                                        browser.getCurrentMediaItem() != null
+                                                ? browser.getCurrentMediaItemIndex()
+                                                : 0;
+                                int firstToKeep =
+                                        Math.max(0, currentIndex - numberOfTracksKeepInQueue);
+                                if (firstToKeep > 0) {
+                                    Log.d(
+                                            TAG,
+                                            "Continuous Play: purging "
+                                                    + firstToKeep
+                                                    + " old items from queue");
+                                    removeRange(existingBrowserFuture, 0, firstToKeep);
+                                }
+                            }
+                        } catch (ExecutionException | InterruptedException e) {
+                            Log.e(TAG, "Continuous Play: purge failed", e);
                         }
-                    }
-                } catch (ExecutionException | InterruptedException e) {
-                    Log.e(TAG, "Continuous Play: purge failed", e);
-                }
-            }, MoreExecutors.directExecutor());
+                    },
+                    MoreExecutors.directExecutor());
         }
 
         String trackId = mediaItem.mediaId;
@@ -115,27 +123,38 @@ public class MediaManager {
         // The similar tier may answer with tracks already queued, so filter before
         // deciding whether the random fallback is needed -- Plex's similar endpoint
         // does not know what is in the queue.
-        getMixRepository().similarTracks(trackId, 25, similar -> {
-            if (similar.isEmpty()) {
-                fallBackToRandom(existingBrowserFuture, onComplete);
-                return;
-            }
+        getMixRepository()
+                .similarTracks(
+                        trackId,
+                        25,
+                        similar -> {
+                            if (similar.isEmpty()) {
+                                fallBackToRandom(existingBrowserFuture, onComplete);
+                                return;
+                            }
 
-            dedupAgainstQueue(similar, existingBrowserFuture, filtered -> {
-                if (filtered.isEmpty()) {
-                    fallBackToRandom(existingBrowserFuture, onComplete);
-                    return;
-                }
-                Log.d(TAG, "Continuous Play: adding " + filtered.size() + " similar tracks");
-                enqueue(existingBrowserFuture, filtered, true);
-                finish(onComplete);
-            });
-        });
+                            dedupAgainstQueue(
+                                    similar,
+                                    existingBrowserFuture,
+                                    filtered -> {
+                                        if (filtered.isEmpty()) {
+                                            fallBackToRandom(existingBrowserFuture, onComplete);
+                                            return;
+                                        }
+                                        Log.d(
+                                                TAG,
+                                                "Continuous Play: adding "
+                                                        + filtered.size()
+                                                        + " similar tracks");
+                                        enqueue(existingBrowserFuture, filtered, true);
+                                        finish(onComplete);
+                                    });
+                        });
     }
 
     @OptIn(markerClass = UnstableApi.class)
-    private static void fallBackToRandom(ListenableFuture<MediaBrowser> existingBrowserFuture,
-                                         @Nullable Runnable onComplete) {
+    private static void fallBackToRandom(
+            ListenableFuture<MediaBrowser> existingBrowserFuture, @Nullable Runnable onComplete) {
         if (!Preferences.isFallbackToRandomTracksEnabled()) {
             Log.w(TAG, "Continuous Play: no new similar tracks, random fallback disabled");
             finish(onComplete);
@@ -143,29 +162,42 @@ public class MediaManager {
         }
 
         Log.w(TAG, "Continuous Play: no new similar tracks, falling back to random songs");
-        getMixRepository().randomTracks(25, random -> {
-            if (random.isEmpty()) {
-                Log.w(TAG, "Continuous Play: random fallback also empty");
-                finish(onComplete);
-                return;
-            }
+        getMixRepository()
+                .randomTracks(
+                        25,
+                        random -> {
+                            if (random.isEmpty()) {
+                                Log.w(TAG, "Continuous Play: random fallback also empty");
+                                finish(onComplete);
+                                return;
+                            }
 
-            dedupAgainstQueue(random, existingBrowserFuture, filtered -> {
-                if (!filtered.isEmpty()) {
-                    Log.d(TAG, "Continuous Play: adding " + filtered.size() + " random tracks");
-                    enqueue(existingBrowserFuture, filtered, true);
-                } else {
-                    Log.w(TAG, "Continuous Play: random tracks already in queue");
-                }
-                finish(onComplete);
-            });
-        });
+                            dedupAgainstQueue(
+                                    random,
+                                    existingBrowserFuture,
+                                    filtered -> {
+                                        if (!filtered.isEmpty()) {
+                                            Log.d(
+                                                    TAG,
+                                                    "Continuous Play: adding "
+                                                            + filtered.size()
+                                                            + " random tracks");
+                                            enqueue(existingBrowserFuture, filtered, true);
+                                        } else {
+                                            Log.w(
+                                                    TAG,
+                                                    "Continuous Play: random tracks already in"
+                                                        + " queue");
+                                        }
+                                        finish(onComplete);
+                                    });
+                        });
     }
 
     /**
-     * Every path through continuous play ends here. `continuousPlayIsRunning` is
-     * cleared nowhere else, so a path that returns without reaching this leaves
-     * the flag stuck true and Instant Mix dead for the rest of the process.
+     * Every path through continuous play ends here. `continuousPlayIsRunning` is cleared nowhere
+     * else, so a path that returns without reaching this leaves the flag stuck true and Instant Mix
+     * dead for the rest of the process.
      */
     private static void finish(@Nullable Runnable onComplete) {
         continuousPlayIsRunning.set(false);
@@ -177,86 +209,97 @@ public class MediaManager {
     }
 
     /**
-     * Drops candidates already in the queue, then hands the survivors to
-     * [callback].
+     * Drops candidates already in the queue, then hands the survivors to [callback].
      *
-     * Asynchronous rather than returning a list, because of who calls it and
-     * with what: PlexMixRepository resumes on Dispatchers.Main, so this runs on
-     * the application thread, and the future being awaited is the one
-     * MediaBrowser.buildAsync() returns -- which that same thread completes.
-     * Blocking on get() therefore deadlocked outright whenever the mix response
-     * landed before the browser finished connecting: the only thread that could
-     * complete the future was parked waiting for it. addListener with a direct
-     * executor runs inline when the future is already done and otherwise defers
-     * to whoever completes it, which is the pattern enqueue() and removeRange()
-     * below already use.
+     * <p>Asynchronous rather than returning a list, because of who calls it and with what:
+     * PlexMixRepository resumes on Dispatchers.Main, so this runs on the application thread, and
+     * the future being awaited is the one MediaBrowser.buildAsync() returns -- which that same
+     * thread completes. Blocking on get() therefore deadlocked outright whenever the mix response
+     * landed before the browser finished connecting: the only thread that could complete the future
+     * was parked waiting for it. addListener with a direct executor runs inline when the future is
+     * already done and otherwise defers to whoever completes it, which is the pattern enqueue() and
+     * removeRange() below already use.
      */
     @OptIn(markerClass = UnstableApi.class)
-    private static void dedupAgainstQueue(List<MediaItem> candidates,
-                                          ListenableFuture<MediaBrowser> existingBrowserFuture,
-                                          FilteredTracks callback) {
+    private static void dedupAgainstQueue(
+            List<MediaItem> candidates,
+            ListenableFuture<MediaBrowser> existingBrowserFuture,
+            FilteredTracks callback) {
         if (existingBrowserFuture == null) {
             callback.onFiltered(new ArrayList<>(candidates));
             return;
         }
 
-        existingBrowserFuture.addListener(() -> {
-            final MediaBrowser browser;
-            try {
-                browser = existingBrowserFuture.get();
-            } catch (ExecutionException | InterruptedException e) {
-                callback.onFiltered(new ArrayList<>(candidates));
-                return;
-            }
+        existingBrowserFuture.addListener(
+                () -> {
+                    final MediaBrowser browser;
+                    try {
+                        browser = existingBrowserFuture.get();
+                    } catch (ExecutionException | InterruptedException e) {
+                        callback.onFiltered(new ArrayList<>(candidates));
+                        return;
+                    }
 
-            Set<String> currentIds = new HashSet<>();
-            for (int i = 0; i < Objects.requireNonNull(browser).getMediaItemCount(); i++) {
-                currentIds.add(browser.getMediaItemAt(i).mediaId);
-            }
+                    Set<String> currentIds = new HashSet<>();
+                    for (int i = 0; i < Objects.requireNonNull(browser).getMediaItemCount(); i++) {
+                        currentIds.add(browser.getMediaItemAt(i).mediaId);
+                    }
 
-            callback.onFiltered(candidates.stream()
-                    .filter(item -> !currentIds.contains(item.mediaId))
-                    .collect(Collectors.toList()));
-        }, MoreExecutors.directExecutor());
+                    callback.onFiltered(
+                            candidates.stream()
+                                    .filter(item -> !currentIds.contains(item.mediaId))
+                                    .collect(Collectors.toList()));
+                },
+                MoreExecutors.directExecutor());
     }
 
     // Only caller is continuousPlay, above; not part of the public MediaManager API.
     @OptIn(markerClass = UnstableApi.class)
-    private static void enqueue(ListenableFuture<MediaBrowser> mediaBrowserListenableFuture, List<MediaItem> media, boolean playImmediatelyAfter) {
+    private static void enqueue(
+            ListenableFuture<MediaBrowser> mediaBrowserListenableFuture,
+            List<MediaItem> media,
+            boolean playImmediatelyAfter) {
         if (mediaBrowserListenableFuture != null) {
-            mediaBrowserListenableFuture.addListener(() -> {
-                try {
-                    if (mediaBrowserListenableFuture.isDone()) {
-                        Log.d(TAG, "enqueue");
-                        MediaBrowser browser = mediaBrowserListenableFuture.get();
-                        if (playImmediatelyAfter && browser.getNextMediaItemIndex() != -1) {
-                            enqueueDatabase(media, false, browser.getNextMediaItemIndex());
-                            browser.addMediaItems(browser.getNextMediaItemIndex(), media);
-                        } else {
-                            enqueueDatabase(media, false, browser.getMediaItemCount());
-                            browser.addMediaItems(media);
+            mediaBrowserListenableFuture.addListener(
+                    () -> {
+                        try {
+                            if (mediaBrowserListenableFuture.isDone()) {
+                                Log.d(TAG, "enqueue");
+                                MediaBrowser browser = mediaBrowserListenableFuture.get();
+                                if (playImmediatelyAfter && browser.getNextMediaItemIndex() != -1) {
+                                    enqueueDatabase(media, false, browser.getNextMediaItemIndex());
+                                    browser.addMediaItems(browser.getNextMediaItemIndex(), media);
+                                } else {
+                                    enqueueDatabase(media, false, browser.getMediaItemCount());
+                                    browser.addMediaItems(media);
+                                }
+                            }
+                        } catch (ExecutionException | InterruptedException e) {
+                            e.printStackTrace();
                         }
-                    }
-                } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }, MoreExecutors.directExecutor());
+                    },
+                    MoreExecutors.directExecutor());
         }
     }
 
     @OptIn(markerClass = UnstableApi.class)
-    public static void removeRange(ListenableFuture<MediaBrowser> mediaBrowserListenableFuture, int fromItem, int toItem) {
+    public static void removeRange(
+            ListenableFuture<MediaBrowser> mediaBrowserListenableFuture, int fromItem, int toItem) {
         if (mediaBrowserListenableFuture != null) {
-            mediaBrowserListenableFuture.addListener(() -> {
-                try {
-                    if (mediaBrowserListenableFuture.isDone()) {
-                        mediaBrowserListenableFuture.get().removeMediaItems(fromItem, toItem);
-                        getQueueRepository().deleteRange(fromItem, toItem);
-                    }
-                } catch (ExecutionException | InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }, MoreExecutors.directExecutor());
+            mediaBrowserListenableFuture.addListener(
+                    () -> {
+                        try {
+                            if (mediaBrowserListenableFuture.isDone()) {
+                                mediaBrowserListenableFuture
+                                        .get()
+                                        .removeMediaItems(fromItem, toItem);
+                                getQueueRepository().deleteRange(fromItem, toItem);
+                            }
+                        } catch (ExecutionException | InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    },
+                    MoreExecutors.directExecutor());
         }
     }
 
