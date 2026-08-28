@@ -138,13 +138,16 @@ class PlexRetrofitFactoryTest {
                     .Builder()
                     .url(server.url("/identity"))
                     .header("X-Set-By-Retrofit", "kept")
+                    .header("X-Plex-Product", "stale")
                     .build(),
             ).execute()
             .close()
 
         val recorded = server.takeRequest(5, TimeUnit.SECONDS)!!
         assertEquals("kept", recorded.getHeader("X-Set-By-Retrofit"))
-        assertEquals("Siskin", recorded.getHeader("X-Plex-Product"))
+        val product = recorded.headers.values("X-Plex-Product")
+        assertEquals(1, product.size)
+        assertEquals("Siskin", product.single())
     }
 
     /**

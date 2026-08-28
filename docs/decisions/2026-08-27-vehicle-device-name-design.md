@@ -257,6 +257,17 @@ that a car which says nothing still sends exactly today's headers.
 verified on the emulator, where the expected result is now known: `2020 Toy
 Vehicle / Speedy Model`, source `VEHICLE`.
 
+Three more tests cover the UTF-8 path specifically.
+`PlexRetrofitFactoryTest.aNonAsciiVehicleNameSurvivesTheRoundTrip` drives a
+`Škoda` identity through the real client into MockWebServer and asserts the
+header arrives intact off a real socket, which is what proves UTF-8 survives
+rather than being assumed. `PlexRetrofitFactoryTest.theIdentityHeadersMergeRatherThanReplace`
+guards the merge, because `Request.Builder.headers(...)` replaces wholesale and
+would silently drop the `X-Plex-Container-*` paging headers that
+`LibraryService` and `SearchService` set per call.
+`ServerProbeTest.carriesANonAsciiDeviceNameOntoTheProbe` covers the probe path,
+where a throw would escape `race` past `plexCall`.
+
 ## What this does not decide
 
 The client identifier. #153 argues that naming the row and carrying the

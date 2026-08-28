@@ -34,12 +34,13 @@ class ServerProbe(
     private val headers: Map<String, String> = emptyMap(),
 ) {
     /**
-     * Built with `addUnsafeNonAscii` because `header(name, value)` rejects any
-     * value outside 0x20-0x7E by throwing -- and this builder runs inside
-     * `race`'s `launch { }`, so the throw would escape past `plexCall`, which
-     * catches only IOException and HttpException. A car that names itself
-     * `Škoda` would fail the probe rather than the connection. Plex asks for
-     * UTF-8 here; see the 2026-08-27 vehicle device name design.
+     * Built once, eagerly, rather than per request: the request in [answers]
+     * runs inside `race`'s `launch { }` and must not be able to throw, so
+     * `addUnsafeNonAscii` -- not `header(name, value)`, which rejects any value
+     * outside 0x20-0x7E -- is applied here instead. A throw there would escape
+     * `race` entirely, past `plexCall`, which catches only IOException and
+     * HttpException. Plex asks for UTF-8 here; see the 2026-08-27 vehicle
+     * device name design.
      */
     private val plexHeaders: Headers =
         Headers
