@@ -43,7 +43,7 @@ cite, on a music section of 12,596 tracks.
 | 5 | Can a section query be filtered by playlist membership? | **No.** `playlistID`, `playlist` and `inPlaylist` are all accepted and all ignored, answering the unfiltered 12,596 |
 | 6 | Do smart playlists expose a re-issuable query? | **Yes** — `content` decodes to a section query, and swapping its sort for `random` returns independent draws of that playlist's membership |
 | 7 | What does a response cost? | ~1.63 KB/track: 500 ≈ 833 KB, 2,500 ≈ 4.0 MB, 12,596 ≈ 20.5 MB |
-| 8 | Can `totalSize` be learned without paying for 7? | **Yes.** `X-Plex-Container-Size: 0` answers in **225 bytes** |
+| 8 | Can the count be learned without paying for 7? | **Yes.** `X-Plex-Container-Size: 0` answers `totalSize` in **225 bytes**; for a playlist, `GET playlists/{id}` answers `leafCount`, `smart` **and** `content` together in **561 bytes** |
 
 **Finding 1 is the one that shaped this design.** An earlier draft had a
 concurrent pager fetching five 500-item pages at staggered
@@ -79,8 +79,13 @@ in full.
 
 **A cheap probe, then exactly one fetch.**
 
-1. **Probe** — the same endpoint with `X-Plex-Container-Size: 0`. 225 bytes,
-   ~0.12s on a LAN. It answers `totalSize` and nothing else.
+1. **Probe** — cheap, and shaped by what is being mixed:
+   - *Section-backed rows* use the same section query with
+     `X-Plex-Container-Size: 0`, which answers `totalSize` in ~225-471 bytes.
+   - *Playlists* use `GET playlists/{id}`, 561 bytes, which answers
+     `leafCount`, `smart` and `content` in one request. A container probe would
+     answer the count and `smart` but **not** `content`, so it would cost a
+     second request in exactly the case that needs one fewer.
 2. **One fetch**, shaped by that answer:
 
 | Case | Fetch |
@@ -92,7 +97,7 @@ in full.
 
 The probe is what makes the `> N` cases cost one fetch instead of two. Asking
 for N first and re-asking when the answer turns out to be short would mean
-throwing away up to 4 MB; 225 bytes is cheaper than being wrong.
+throwing away up to 4 MB; a few hundred bytes is cheaper than being wrong.
 
 `≤ N` keeping natural order is load-bearing for artists specifically.
 `getArtistTracks`'s KDoc argues that an artist has a real running order to fall
@@ -216,9 +221,13 @@ A failing probe or fetch is an ordinary `PlexTransportFailure`, which already
 carries the host that failed. No new error type: nothing here fails in a way
 `CreatePinError`'s precedent would justify modelling separately.
 
-`totalSize` is read from the same response that is being acted on. It disagrees
-slightly with `leafCount` — 12,596 against 12,586, and 121 against 120 — so the
-two are never cross-checked and `leafCount` is not consulted.
+The count is read from the probe that is about to be acted on, and the probes
+disagree with each other. The **playlists listing** reports `leafCount` 12,586
+for the list that `GET playlists/{id}` and the items container both report as
+12,596. The two probes named above agree with the fetch that follows them; the
+listing does not, and is not consulted for this. A ten-item disagreement cannot
+matter at a threshold of 2,500, but reading the count from a third endpoint
+would be a bug waiting for a list that sits on the line.
 
 ## Testing
 
