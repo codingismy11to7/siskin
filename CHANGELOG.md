@@ -15,8 +15,9 @@
 - Your Plex account's device list now names the car — make, model and model
   year, read from the vehicle — instead of showing every Siskin install as an
   identical "Automotive" row. That is what makes it possible to revoke the
-  right car after selling one. A head unit that does not report them is
-  unchanged. The Debug screen shows what was read and where it came from.
+  right car after selling one. A head unit that does not report them falls back
+  to its own manufacturer and model, and only failing that to the old generic
+  row. The debug screen shows what was read and where it came from.
 - Tracks encoded as AC-3, E-AC-3, DTS, TrueHD or MLP now play instead of
   failing. Siskin never asks the server to transcode, so what the app can
   decode is the whole story, and the bundled decoder previously covered only

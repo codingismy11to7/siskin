@@ -49,9 +49,11 @@ the model year where the car reports one. These go to Plex with every request,
 so that your account's device list names this car — "Cadillac LYRIQ" rather
 than a generic row identical to every other Siskin install. That is what lets
 you tell two cars apart, and revoke the right one after you sell one. Where the
-vehicle does not report them, Siskin sends the generic values instead. Nothing
-else is read from the car: not its location, not its speed, not its
-identification number.
+vehicle does not report them, Siskin falls back to the head unit's own
+manufacturer and model as Android reports them, and only where those are
+unavailable too does it send the generic values it used before. Nothing else is
+read from the car: not its location, not its speed, not its identification
+number.
 
 These never leave the device except to reach Plex, as described below. Signing
 in again replaces the tokens. Removing the Siskin account from the car's
