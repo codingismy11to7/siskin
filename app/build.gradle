@@ -167,8 +167,11 @@ ktlint {
 }
 
 // Spotless cannot read Android source sets, so the target is explicit rather
-// than inferred. AOSP style because that is what the tree already is -- see the
-// 2026-08-27 google-java-format design.
+// than inferred. AOSP style because that is what the tree already is, and
+// reorderImports because it defaults to false -- in which case imports are
+// ordered as GOOGLE whatever the style says, and the gate rejects every file
+// with grouped imports without explaining why. See the 2026-08-27
+// google-java-format design.
 spotless {
     java {
         target 'src/*/java/**/*.java'

@@ -9,10 +9,11 @@ play-publisher = "4.1.1"
 ktlint = "1.8.0"
 ktlintGradle = "14.2.0"
 
-# Keep equal to flake.nix's pkgs.google-java-format -- the editor and the Claude
-# write hook format from the dev shell and the build formats from here, and two
-# formatters that disagree about the same file is the failure mode this pin
-# exists to prevent.
+# The only place the Java formatter's version appears, unlike ktlint above.
+# Spotless is the sole authority: the standalone google-java-format CLI and
+# Spotless produce different output at this same version, so a second pin would
+# not buy agreement -- it would buy a formatter that disagrees with the gate.
+# See docs/decisions/2026-08-27-google-java-format-design.md.
 googleJavaFormat = "1.35.0"
 spotless = "7.0.4"
 
