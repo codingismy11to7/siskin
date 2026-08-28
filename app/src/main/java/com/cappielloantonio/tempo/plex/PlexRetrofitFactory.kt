@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.plex
 
 import com.cappielloantonio.tempo.BuildConfig
 import com.google.gson.GsonBuilder
+import com.google.gson.Strictness
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -52,7 +53,7 @@ object PlexRetrofitFactory {
             )
         }
 
-    private val gson = GsonBuilder().setLenient().create()
+    private val gson = GsonBuilder().setStrictness(Strictness.LENIENT).create()
 
     /**
      * One connection pool and one dispatcher thread pool for the whole app.
