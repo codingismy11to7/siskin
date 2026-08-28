@@ -334,7 +334,7 @@ object PlexMediaMapper {
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                    .setArtworkUri(ResourceUris.forResource(R.drawable.media3_icon_shuffle_on))
+                    .setArtworkUri(ResourceUris.forResource(androidx.media3.session.R.drawable.media3_icon_shuffle_on))
                     .build(),
             ).build()
 
