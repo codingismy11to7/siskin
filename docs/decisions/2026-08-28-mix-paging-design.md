@@ -95,6 +95,13 @@ in full.
 | `> N`, smart playlist | size N, `sort=random` on the decoded `content` query |
 | `> N`, manual playlist | size `totalSize`, sampled locally |
 
+**Decade and Hub skip the probe entirely.** Both branches of the rule are
+`sort=random` for them, and a random sort of a list shorter than N returns all
+of it — so the probe could not change the request, and asking anyway would be a
+round trip that buys nothing. Only Playlist and Artist probe: Playlist because
+it must learn `smart` and `content` as well as the count, and Artist because its
+`≤ N` branch is deliberately *unsorted* and so differs from its `> N` one.
+
 The probe is what makes the `> N` cases cost one fetch instead of two. Asking
 for N first and re-asking when the answer turns out to be short would mean
 throwing away up to 4 MB; a few hundred bytes is cheaper than being wrong.
