@@ -28,6 +28,7 @@ object Preferences {
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val BROWSE_TAB_ORDER = "browse_tab_order"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
+    private const val MIX_TRACK_LIMIT = "mix_track_limit"
     private const val FALLBACK_TO_RANDOM_TRACKS = "fallback_to_random_tracks"
     private const val LAST_INSTANT_MIX = "last_instant_mix"
     private const val SELECTED_EQUALIZER = "selected_equalizer"
@@ -280,6 +281,37 @@ object Preferences {
 
     @JvmStatic
     fun getNumberOfTracksKeepInQueue(): Int = App.getInstance().preferences.getInt(NUMBER_TRACKS_KEEP_IN_QUEUE, 30) - 1
+
+    /**
+     * Most tracks a Mix row will put in the queue.
+     *
+     * Under it, a Mix is the whole of what was tapped; over it, an unbiased
+     * sample of that size. About 4MB of JSON and half a second on a LAN at the
+     * default -- the cap exists for that payload, not for a server limit, since
+     * a Plex container has no practical size ceiling. See
+     * docs/decisions/2026-08-28-mix-paging-design.md.
+     *
+     * **Not [com.cappielloantonio.tempo.util.Constants.MAX_ITEMS]**, which stays
+     * 500 and goes on bounding browse nodes. A browse list is capped by what the
+     * car will render in one binder transaction; a queue is not, because media3
+     * sends its Timeline through a BundleListRetriever the receiving process
+     * pulls in chunks.
+     *
+     * Nothing writes this key -- the Settings screen behind the car's gear
+     * offers no row for it -- so the default is the effective value, the same
+     * state [isReplayGainPreventClipping] and [getLoudnessPreamp] are in.
+     *
+     * A string rather than an int, matching [getPrecacheTracksCount] and the
+     * other numeric preferences on that screen, so the eventual ListPreference
+     * needs no migration.
+     */
+    @JvmStatic
+    fun getMixTrackLimit(): Int =
+        App
+            .getInstance()
+            .preferences
+            .getString(MIX_TRACK_LIMIT, "2500")!!
+            .toInt()
 
     /**
      * Defaults to true. Nothing writes this key -- the Settings screen behind
