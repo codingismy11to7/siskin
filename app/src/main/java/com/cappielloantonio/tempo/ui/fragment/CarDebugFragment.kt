@@ -9,7 +9,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.car.VehicleInfoReader
+import com.cappielloantonio.tempo.car.VehicleInfoSource
 import com.cappielloantonio.tempo.databinding.FragmentCarDebugBinding
+import com.cappielloantonio.tempo.plex.PlexIdentity
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
@@ -54,6 +57,7 @@ class CarDebugFragment : Fragment() {
         this.bind = bind
 
         renderAddresses(outcome = null)
+        renderDevice()
 
         reprobeRow =
             addChoice(
@@ -94,6 +98,30 @@ class CarDebugFragment : Fragment() {
                 inUseLabel = getString(R.string.debug_addresses_in_use),
                 directLabel = getString(R.string.debug_addresses_direct),
                 relayLabel = getString(R.string.debug_addresses_relay),
+            )
+    }
+
+    /**
+     * What this car tells Plex it is, and which tier answered. The tier is the
+     * point: the same make and model read from the vehicle and read from
+     * Build.* are indistinguishable in the Plex device row.
+     */
+    private fun renderDevice() {
+        val bind = this.bind ?: return
+        val vehicle = VehicleInfoReader.identity()
+        bind.deviceText.text =
+            buildDevicePanelBody(
+                headers = PlexIdentity.deviceHeaders(vehicle),
+                noNameLabel = getString(R.string.debug_device_no_name),
+                fromLabel = getString(R.string.debug_device_from),
+                sourceLabel =
+                    getString(
+                        when (vehicle.source) {
+                            VehicleInfoSource.VEHICLE -> R.string.debug_device_source_vehicle
+                            VehicleInfoSource.BUILD -> R.string.debug_device_source_build
+                            VehicleInfoSource.UNKNOWN -> R.string.debug_device_source_unknown
+                        },
+                    ),
             )
     }
 
@@ -237,6 +265,25 @@ class CarDebugFragment : Fragment() {
                         appendAddress(it)
                     }
                 }
+            }
+
+        /**
+         * Reads the headers rather than rebuilding them, so this panel cannot
+         * drift from what [PlexIdentity] actually sends.
+         *
+         * [fromLabel] is a format string taking one argument.
+         */
+        @VisibleForTesting
+        internal fun buildDevicePanelBody(
+            headers: Map<String, String>,
+            noNameLabel: String,
+            fromLabel: String,
+            sourceLabel: String,
+        ): String =
+            buildString {
+                append(headers["X-Plex-Device-Name"] ?: noNameLabel).append("\n")
+                append(headers["X-Plex-Device"]).append(" / ").append(headers["X-Plex-Model"]).append("\n")
+                append(fromLabel.format(sourceLabel))
             }
     }
 }
