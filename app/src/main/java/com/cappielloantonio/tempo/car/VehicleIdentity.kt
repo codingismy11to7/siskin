@@ -27,7 +27,7 @@ data class VehicleIdentity(
         /**
          * Picks a tier as a unit rather than per field, so a device row never
          * pairs a real make with a placeholder model. The year is optional
-         * within the vehicle tier and never survives a fall to [Build].
+         * within the vehicle tier and never survives a fall to Build.
          */
         fun resolve(
             carMake: String?,

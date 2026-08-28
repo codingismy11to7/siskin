@@ -28,7 +28,11 @@ object VehicleInfoReader {
     @Volatile
     private var resolved: VehicleIdentity? = null
 
-    /** [VehicleIdentity.UNKNOWN] until [start]'s read lands, and after it fails. */
+    /**
+     * [VehicleIdentity.UNKNOWN] until [start]'s read lands; thereafter whichever
+     * tier answered. A failed vehicle read falls to BUILD, and UNKNOWN survives
+     * only when `Build.MANUFACTURER` and `Build.MODEL` are blank too.
+     */
     fun identity(): VehicleIdentity = resolved ?: VehicleIdentity.UNKNOWN
 
     /**
@@ -92,11 +96,16 @@ object VehicleInfoReader {
             .also { Log.d(TAG, "vehicle identity: $it") }
     }
 
-    /** Per-property so one unsupported id does not cost the others. */
+    /**
+     * Per-property so one unsupported id does not cost the others -- and
+     * Throwable for the same reason the outer catch is: a NoSuchMethodError is
+     * an Error, so catching Exception here would abandon the properties after
+     * it rather than skip the one that failed.
+     */
     private fun CarPropertyManager.stringOrNull(id: Int): String? =
         try {
             getProperty(String::class.java, id, GLOBAL_AREA_ID)?.value
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.d(TAG, "property $id unavailable", e)
             null
         }
@@ -104,7 +113,7 @@ object VehicleInfoReader {
     private fun CarPropertyManager.intOrNull(id: Int): Int? =
         try {
             getIntProperty(id, GLOBAL_AREA_ID)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.d(TAG, "property $id unavailable", e)
             null
         }

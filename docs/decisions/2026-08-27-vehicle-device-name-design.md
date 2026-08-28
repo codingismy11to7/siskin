@@ -159,8 +159,9 @@ not inject the manifest tag on our behalf.
 One broad `catch (Throwable)` around the whole read. A denied permission raises
 `SecurityException`, an unsupported property `IllegalArgumentException`, a car
 service that is not up `CarNotConnectedException` or a null from
-`Car.createCar`. All of them mean the same thing — leave the cache unset and
-keep answering `UNKNOWN`.
+`Car.createCar`. All of them mean the same thing — no vehicle answer, so the
+ladder falls through to the `Build` tier, and reaches `UNKNOWN` only when
+`Build.MANUFACTURER` and `Build.MODEL` are blank too.
 
 `Throwable` rather than `Exception`, and the reason is not hypothetical.
 `compileSdk` is 37 while `minSdk` is 28 and a head unit runs whatever it runs,
