@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.OptIn;
 import androidx.media3.common.util.UnstableApi;
 
+import com.cappielloantonio.tempo.car.VehicleInfoReader;
 import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.util.Preferences;
 
@@ -27,6 +28,7 @@ public class App extends Application {
         Context applicationContext = getApplicationContext();
         preferences = applicationContext.getSharedPreferences(applicationContext.getPackageName() + "_preferences", Context.MODE_PRIVATE);
         clearStaleCredentialKeys(preferences);
+        VehicleInfoReader.start(applicationContext);
     }
 
     /**
