@@ -12,6 +12,8 @@
 
 ## [Unreleased] — Siskin
 
+## [0.99.7] (2026-08-29)
+
 - Mix now draws from the whole of what you tapped. A Mix of a list longer than
   2500 tracks used to play a shuffle of its first 500 in list order, which on a
   large playlist sorted by artist meant one letter of the alphabet for hours.
