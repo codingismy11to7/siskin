@@ -1,2 +1,5 @@
-• Siskin now appears under Accounts in your car's settings, and signing out there signs you out of the app. Your Plex sign-in has moved into Android's account system, which is where a car expects to find it.
-• This update signs you out once — you will sign in again the first time you open it.
+• A Mix of a long playlist now draws from all of it, not just the first few hundred tracks.
+• Music you have played stays cached far longer, and the next tracks are fetched ahead, so a skip is instant and a brief signal drop no longer interrupts playback.
+• Tracks encoded as AC-3, E-AC-3, DTS, TrueHD or MLP now play instead of failing.
+• Your Plex device list now names your car instead of a generic "Automotive" row.
+• Buttons and switches are Siskin's own green rather than the car's blue.
