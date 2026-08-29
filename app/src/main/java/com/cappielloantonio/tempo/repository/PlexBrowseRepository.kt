@@ -599,6 +599,17 @@ class PlexBrowseRepository {
      * falls back to when it goes off mid-listen. Over it there is no whole to
      * order, and an unsorted prefix would be the first N tracks in library
      * order for ever -- which is the bug this design exists to remove.
+     *
+     * Both the probe and the fetch filter with `artist.id`, the same filter
+     * [getArtistAlbums] uses, rather than the artist's allLeaves endpoint. Both
+     * returned identical counts on a live server (297, 16 and 14 tracks for the
+     * three artists sampled), so this picks the query already proven against
+     * the artist relation.
+     *
+     * An `either { }` with no coroutine builder inside it, deliberately: the
+     * probe and the fetch are sequential, so `bind()`'s short-circuit never
+     * crosses a boundary it must not. Do not parallelise this without reading
+     * the Arrow note in CLAUDE.md.
      */
     private suspend fun artistMixRequest(
         key: SectionKey,
