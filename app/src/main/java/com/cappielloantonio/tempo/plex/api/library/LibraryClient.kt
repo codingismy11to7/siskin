@@ -162,16 +162,8 @@ class LibraryClient(
     }
 
     /**
-     * A smart playlist's own query, re-issued at [size].
-     *
-     * Null when [path] is not safe to follow, for the reason and in the shape
-     * [getByHubKey] documents: a rejected path is not a transport failure, it
-     * is a request that should never be sent. The caller falls back to sampling
-     * the playlist's items instead.
-     *
-     * Sized by the caller rather than by [Constants.MAX_ITEMS], unlike
-     * [getByHubKey] -- this feeds the player, and the queue is not bound by the
-     * browse ceiling that constant exists for.
+     * A smart playlist's own query, re-issued at [size]. Null when [path] is not
+     * safe to follow -- a refusal in [getByHubKey]'s shape, not a failure.
      */
     suspend fun getSmartPlaylistTracks(
         path: String,

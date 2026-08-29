@@ -166,10 +166,7 @@ class PlexBrowseRepository {
         )
 
     /**
-     * The tracks a Playlist Mix plays: all of it, or an unbiased sample.
-     *
-     * One probe then one fetch, except for a manual playlist over the limit,
-     * which has no server-side sample and is fetched whole. See
+     * The tracks a Playlist Mix plays: all of it, or an unbiased sample. See
      * docs/decisions/2026-08-28-mix-paging-design.md.
      */
     fun getPlaylistTracksForShuffle(playlistId: String) =
@@ -178,10 +175,8 @@ class PlexBrowseRepository {
         }
 
     /**
-     * The same tracks in playlist order, for a tapped track's queue.
-     *
-     * No sampling and no random sort: the tap means "play on from here", and
-     * the tapped track is always inside the first N because the browse list it
+     * The same tracks in playlist order, for a tapped track's queue. The
+     * tapped track is always inside the first N because the browse list it
      * came from never showed more than a couple of hundred.
      */
     fun getPlaylistTracksForQueue(playlistId: String) =
@@ -189,24 +184,16 @@ class PlexBrowseRepository {
             searchClient.getPlaylistItems(RatingKey(playlistId), 0, Preferences.getMixTrackLimit())
         }) { it }
 
-    /**
-     * Which request a Playlist Mix should issue.
-     *
-     * An `either { }` with no coroutine builder inside it, deliberately: the two
-     * calls are sequential, so `bind()`'s short-circuit never crosses a
-     * boundary it must not. Do not parallelise this without reading the Arrow
-     * note in CLAUDE.md.
-     */
+    /** Which request a Playlist Mix should issue. */
     private suspend fun playlistMixRequest(playlistId: String): Either<PlexTransportFailure, PlexResponse> =
         either {
             val limit = Preferences.getMixTrackLimit()
             val probe = searchClient.getPlaylist(RatingKey(playlistId)).bind()
             val playlist = itemsOf(probe, TYPE_PLAYLIST).firstOrNull()
+            // From this probe, not the playlists listing browse already
+            // fetched -- that reports a different count: 12,586 vs 12,596.
             val count = playlist?.leafCount ?: 0
 
-            // The count comes from this probe rather than from the playlists
-            // listing, which reports a different number for the same list --
-            // 12,586 against 12,596 on the library this was measured on.
             val smartPath =
                 playlist
                     ?.takeIf { it.smart == true }
@@ -231,11 +218,6 @@ class PlexBrowseRepository {
             }
         }
 
-    /**
-     * [tracks] if it fits, otherwise a uniform sample of [limit] drawn from all
-     * of it. The only local sampling in the app -- everywhere else the server
-     * draws, which is cheaper and does not need the whole list in memory first.
-     */
     private fun sampled(
         tracks: List<MediaItem>,
         limit: Int,
@@ -597,24 +579,16 @@ class PlexBrowseRepository {
     }
 
     /**
-     * Unsorted under the limit and `sort=random` over it.
-     *
-     * The two do not contradict each other. Under the limit the whole artist is
-     * in hand, so their real running order is what the car's shuffle toggle
-     * falls back to when it goes off mid-listen. Over it there is no whole to
-     * order, and an unsorted prefix would be the first N tracks in library
-     * order for ever -- which is the bug this design exists to remove.
+     * Unsorted under the limit and `sort=random` over it -- the two do not
+     * contradict each other, for the reason [decadeTracks] argues from the
+     * other side: under the limit the whole artist is in hand, so its real
+     * running order is what the car's shuffle toggle falls back to.
      *
      * Both the probe and the fetch filter with `artist.id`, the same filter
      * [getArtistAlbums] uses, rather than the artist's allLeaves endpoint. Both
      * returned identical counts on a live server (297, 16 and 14 tracks for the
      * three artists sampled), so this picks the query already proven against
      * the artist relation.
-     *
-     * An `either { }` with no coroutine builder inside it, deliberately: the
-     * probe and the fetch are sequential, so `bind()`'s short-circuit never
-     * crosses a boundary it must not. Do not parallelise this without reading
-     * the Arrow note in CLAUDE.md.
      */
     private suspend fun artistMixRequest(
         key: SectionKey,

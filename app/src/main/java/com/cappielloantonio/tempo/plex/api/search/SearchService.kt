@@ -48,22 +48,15 @@ interface SearchService {
 
     /**
      * One playlist's own metadata: `leafCount`, `smart`, and a smart
-     * playlist's `content` query.
-     *
-     * The probe a Mix issues before deciding what to fetch. 561 bytes against a
-     * real server, versus 4MB for the 2,500-track fetch it might otherwise
-     * commit to blind. `content` is the reason it is this endpoint rather than
-     * a zero-sized container probe on `{id}/items`, which answers the count and
-     * `smart` but omits the query.
+     * playlist's `content` query -- the reason it is this endpoint rather
+     * than a zero-sized container probe on `{id}/items`, which omits the query.
      */
     @GET("playlists/{playlistId}")
     suspend fun getPlaylist(
         @Path("playlistId") playlistId: String,
     ): PlexResponse
 
-    /**
-     * The playlist's tracks.
-     */
+    /** The playlist's tracks. */
     @GET("playlists/{playlistId}/items")
     suspend fun getPlaylistItems(
         @Path("playlistId") playlistId: String,

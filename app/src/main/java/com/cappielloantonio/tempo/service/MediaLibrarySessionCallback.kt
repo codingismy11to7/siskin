@@ -35,25 +35,16 @@ class MediaLibrarySessionCallback(
         MediaBrowserTree.initialize(context, browseRepository)
     }
 
-    /** A browse node's id, paired with the items [onGetChildren] recorded for it. */
     private data class QueueSource(
         val nodeId: String,
         val items: List<MediaItem>,
     )
 
     /**
-     * What [queueSourceCache]'s list came from. One value rather than two
-     * fields, so the node id and its items cannot name different nodes: this
-     * is written from a `directExecutor()` callback, and two browses
-     * completing concurrently would otherwise interleave their writes.
-     *
-     * [queueSourceCache] is a single slot under one constant key, so its
-     * contents alone cannot say which node produced them, and a tapped track
-     * carries that same constant as its parent tag, not the node's id. This
-     * field is also only ever the *most recently browsed* node, so a tap can
-     * still arrive after a second browse moved it on -- [trustedPlaylist]
-     * is what a re-fetch checks before trusting it. See
-     * docs/decisions/2026-08-28-mix-paging-design.md.
+     * What [queueSourceCache]'s list came from. One value rather than two fields,
+     * so the id and the items cannot name different nodes: written from a
+     * `directExecutor()` callback, two concurrent browses would otherwise
+     * interleave their writes. Trust it only through [trustedPlaylist].
      */
     @Volatile
     private var queueSource: QueueSource? = null
@@ -549,13 +540,9 @@ class MediaLibrarySessionCallback(
                 parentId?.startsWith(Constants.QUEUE_CACHED_SOURCE) == true -> {
                     val trusted = trustedPlaylist(firstItem)
                     when {
-                        // The recorded page is the Mix row plus up to MAX_ITEMS
-                        // tracks, so a page this size could have been cut by
-                        // that cap -- and, at exactly MAX_ITEMS tracks, a
-                        // shorter playlist is indistinguishable from a longer
-                        // one that was capped to the same length. Re-fetch in
-                        // both cases: over-fetching costs a round trip,
-                        // under-fetching would silently stop the queue short.
+                        // Mix row + up to MAX_ITEMS tracks, so this size means the fetch hit the
+                        // cap and may have been cut. Re-fetch either way: a wasted round trip
+                        // beats a silently short queue.
                         trusted != null && trusted.items.size > Constants.MAX_ITEMS -> {
                             Log.d(TAG, "Re-fetching playlist ${trusted.id} for the tapped track's queue")
                             val refetched =
@@ -564,13 +551,8 @@ class MediaLibrarySessionCallback(
                                     { result -> result?.value ?: emptyList() },
                                     MoreExecutors.directExecutor(),
                                 )
-                            // A transport failure would otherwise fail a plain track tap
-                            // outright; the recorded page is stale-but-playable, which a
-                            // car should prefer over nothing. Outside any either{} block,
-                            // so this catch cannot swallow an Arrow raise -- see CLAUDE.md.
-                            // Filtered the same way the happy path is: the recorded page
-                            // still carries the Mix row at index 0, which is playable but
-                            // has no stream.
+                            // A transport failure would otherwise fail a plain track tap;
+                            // a stale-but-playable page beats silence in a car.
                             Futures.catching(
                                 refetched,
                                 Throwable::class.java,
@@ -579,9 +561,6 @@ class MediaLibrarySessionCallback(
                             )
                         }
 
-                        // Short enough that the recorded page already holds the whole
-                        // playlist -- a re-fetch would return the same tracks after
-                        // paying the round trip this guard exists to avoid.
                         trusted != null -> {
                             Log.d(TAG, "Playlist ${trusted.id}'s recorded page was not capped, reusing it")
                             Futures.immediateFuture(trusted.items.filterNot { isMixRow(it) })
@@ -649,29 +628,18 @@ class MediaLibrarySessionCallback(
         return futureQueue
     }
 
-    /** A [queueSource] snapshot that [trustedPlaylist] has validated for [id]. */
     private data class TrustedPlaylist(
         val id: String,
         val items: List<MediaItem>,
     )
 
     /**
-     * The playlist [queueSource] may be trusted to re-fetch for [tapped], or
-     * null when its node isn't a playlist's tracks, or when [tapped] is not
-     * among the items recorded with it.
-     *
-     * Returns the id together with the items snapshot rather than the id
-     * alone, so a caller that also needs the recorded list -- to decide
-     * whether it was actually capped, or to fall back to it -- reads
-     * [queueSource] once here rather than a second time after this returns,
-     * which [queueSource]'s own KDoc notes can race a concurrent write.
+     * The playlist [queueSource] may be trusted to re-fetch for [tapped].
+     * Returns the items with the id so the volatile is read once.
      *
      * [queueSource] names whatever was browsed most recently, not necessarily
-     * what [tapped] was browsed in -- a second browse finishing first, or a
-     * screen the car re-renders without re-subscribing, can leave it naming an
-     * unrelated playlist. Re-fetching on its say-so alone would then queue
-     * that playlist's entire contents in place of the one the driver tapped.
-     * Requiring membership is what catches the mismatch before that happens.
+     * what [tapped] was browsed in, so re-fetching on its say-so alone could
+     * queue an unrelated playlist's whole contents. Membership is the check.
      * See docs/decisions/2026-08-28-mix-paging-design.md.
      */
     private fun trustedPlaylist(tapped: MediaItem): TrustedPlaylist? {
@@ -682,15 +650,11 @@ class MediaLibrarySessionCallback(
     }
 
     /**
-     * The playlist a browse node's id names, or null when it names something
-     * else.
-     *
      * The equality check is not redundant with the prefix test:
      * [Constants.PLAYLIST_ID] bare is the *listing* of playlists, and only
      * `PLAYLIST_ID + id` is one playlist's tracks -- see
      * `MediaBrowserTree.getChildren`. Without it the listing node strips to an
-     * empty id and asks the server for playlist "". See
-     * docs/decisions/2026-08-28-mix-paging-design.md.
+     * empty id and asks the server for playlist "".
      */
     private fun playlistIdOf(nodeId: String?): String? =
         nodeId

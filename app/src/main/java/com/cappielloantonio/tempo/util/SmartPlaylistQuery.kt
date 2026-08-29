@@ -14,27 +14,15 @@ import java.net.URLDecoder
  *
  * **Decoded exactly once.** The value arrives doubly encoded and its inner
  * layer is load-bearing: `%253E%253E` is the `>>` comparison operator and must
- * reach the server as `%3E%3E`. This is the hazard
+ * reach the server as `%3E%3E`. Same hazard
  * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getFirstCharacterContent]
- * documents from the other direction, where re-encoding turned `%23` into
- * `%2523` and addressed a bucket that does not exist -- answered 200, with an
- * empty list and no error anywhere.
+ * documents, where re-encoding answered 200 with an empty list and no error
+ * anywhere.
  */
 object SmartPlaylistQuery {
     private const val PREFIX = "library://x/directory/"
 
-    /**
-     * The relative path to follow, or null when there is none safe to follow.
-     *
-     * Null rather than a failure for both refusals: a playlist whose content
-     * cannot be re-issued is not an error, it is one the caller must sample
-     * some other way.
-     *
-     * The host guard is [LibraryClient.isSafeHubKey]'s, unchanged and shared
-     * rather than restated -- the reason is identical, which is that this
-     * client attaches the account token to every request without inspecting
-     * the target.
-     */
+    /** The relative path to follow, guarded by [LibraryClient.isSafeHubKey], or null. */
     @JvmStatic
     fun pathIn(content: String?): String? {
         if (content.isNullOrBlank()) return null
@@ -49,11 +37,9 @@ object SmartPlaylistQuery {
     }
 
     /**
-     * [path] with its sort forced to random, whatever it said before.
-     *
-     * Replaced rather than appended: Plex honours the first `sort` it sees, so
-     * appending to a query that already carries one is a no-op that looks like
-     * a fix.
+     * [path] with its sort replaced with random rather than appended -- Plex
+     * honours the first `sort` it sees, so appending to a query that already
+     * carries one is a no-op that looks like a fix.
      */
     @JvmStatic
     fun randomised(path: String): String {
