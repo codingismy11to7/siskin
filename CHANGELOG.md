@@ -12,6 +12,12 @@
 
 ## [Unreleased] — Siskin
 
+- Mix now draws from the whole of what you tapped. A Mix of a list longer than
+  2500 tracks used to play a shuffle of its first 2500 in list order, which on a
+  large playlist sorted by artist meant one letter of the alphabet for hours.
+  Under that size a Mix now plays all of it; over it, a random sample of the
+  whole. Tapping a track in a long playlist also plays on through the playlist
+  rather than stopping where the browse list was cut.
 - Music you have already played stays cached far longer. The cache now sizes
   itself from the head unit's storage — a tenth of the partition, between 1 and
   8 GB — instead of the fixed 256 MB it always took, which on most libraries was
