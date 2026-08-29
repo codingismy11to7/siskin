@@ -33,6 +33,8 @@ import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
+import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.util.SmartPlaylistQuery
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -149,14 +151,6 @@ class PlexBrowseRepository {
             listOf(shufflePlaylistRow(playlistId)) + tracks
         }
 
-    /**
-     * The same tracks with no shuffle row, for the queue that row builds.
-     *
-     * Kept separate rather than filtered later: a queue containing the row would
-     * hold a playable item with no stream.
-     */
-    fun getPlaylistTracksForShuffle(playlistId: String) = playlistTracks(playlistId) { it }
-
     private fun playlistTracks(
         playlistId: String,
         decorate: (List<MediaItem>) -> List<MediaItem>,
@@ -170,6 +164,82 @@ class PlexBrowseRepository {
             Constants.MIX_PLAYLIST_ID + playlistId,
             App.getContext().getString(R.string.browse_mix_playlist),
         )
+
+    /**
+     * The tracks a Playlist Mix plays: all of it, or an unbiased sample.
+     *
+     * One probe then one fetch, except for a manual playlist over the limit,
+     * which has no server-side sample and is fetched whole. See
+     * docs/decisions/2026-08-28-mix-paging-design.md.
+     */
+    fun getPlaylistTracksForShuffle(playlistId: String) =
+        cachedTracks({ playlistMixRequest(playlistId) }) { tracks ->
+            sampled(tracks, Preferences.getMixTrackLimit())
+        }
+
+    /**
+     * The same tracks in playlist order, for a tapped track's queue.
+     *
+     * No sampling and no random sort: the tap means "play on from here", and
+     * the tapped track is always inside the first N because the browse list it
+     * came from never showed more than a couple of hundred.
+     */
+    fun getPlaylistTracksForQueue(playlistId: String) =
+        cachedTracks({
+            searchClient.getPlaylistItems(RatingKey(playlistId), 0, Preferences.getMixTrackLimit())
+        }) { it }
+
+    /**
+     * Which request a Playlist Mix should issue.
+     *
+     * An `either { }` with no coroutine builder inside it, deliberately: the two
+     * calls are sequential, so `bind()`'s short-circuit never crosses a
+     * boundary it must not. Do not parallelise this without reading the Arrow
+     * note in CLAUDE.md.
+     */
+    private suspend fun playlistMixRequest(playlistId: String): Either<PlexTransportFailure, PlexResponse> =
+        either {
+            val limit = Preferences.getMixTrackLimit()
+            val probe = searchClient.getPlaylist(RatingKey(playlistId)).bind()
+            val playlist = itemsOf(probe, TYPE_PLAYLIST).firstOrNull()
+            val count = playlist?.leafCount ?: 0
+
+            // The count comes from this probe rather than from the playlists
+            // listing, which reports a different number for the same list --
+            // 12,586 against 12,596 on the library this was measured on.
+            val smartPath =
+                playlist
+                    ?.takeIf { it.smart == true }
+                    ?.let { SmartPlaylistQuery.pathIn(it.content) }
+
+            when {
+                count <= limit -> {
+                    searchClient.getPlaylistItems(RatingKey(playlistId), 0, limit).bind()
+                }
+
+                smartPath != null -> {
+                    libraryClient
+                        .getSmartPlaylistTracks(SmartPlaylistQuery.randomised(smartPath), limit)
+                        ?.bind()
+                        ?: searchClient.getPlaylistItems(RatingKey(playlistId), 0, count).bind()
+                }
+
+                // No query to re-issue, so the sample is drawn here instead.
+                else -> {
+                    searchClient.getPlaylistItems(RatingKey(playlistId), 0, count).bind()
+                }
+            }
+        }
+
+    /**
+     * [tracks] if it fits, otherwise a uniform sample of [limit] drawn from all
+     * of it. The only local sampling in the app -- everywhere else the server
+     * draws, which is cheaper and does not need the whole list in memory first.
+     */
+    private fun sampled(
+        tracks: List<MediaItem>,
+        limit: Int,
+    ): List<MediaItem> = if (tracks.size <= limit) tracks else tracks.shuffled().take(limit)
 
     /**
      * The decades the section's albums fall into, newest first as the server

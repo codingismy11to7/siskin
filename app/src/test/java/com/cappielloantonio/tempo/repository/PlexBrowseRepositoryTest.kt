@@ -244,6 +244,13 @@ class PlexBrowseRepositoryTest {
         }]}}
         """.trimIndent()
 
+    /** What `GET playlists/{id}` answers -- the probe getPlaylistTracksForShuffle issues first. */
+    private fun playlistProbeBody(
+        leafCount: Int,
+        smart: Boolean,
+    ) = """{"MediaContainer":{"size":1,"Metadata":[{"ratingKey":"169077","type":"playlist","title":"P",""" +
+        """"leafCount":$leafCount,"smart":$smart}]}}"""
+
     /** Bounded so a bridge that never completes its future fails instead of hanging. */
     private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) = future.get(10, TimeUnit.SECONDS)
 
@@ -310,6 +317,9 @@ class PlexBrowseRepositoryTest {
     @Test
     fun theQueueAShuffleRowBuildsDoesNotContainTheRowItself() {
         // A queue holding the row would hold a playable item with no stream.
+        // Two requests now, not one -- getPlaylistTracksForShuffle probes the
+        // playlist before fetching, see PlexBrowseMixSourceTest.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(playlistProbeBody(leafCount = 2, smart = false)))
         server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
 
         val result = await(PlexBrowseRepository().getPlaylistTracksForShuffle("169077"))
