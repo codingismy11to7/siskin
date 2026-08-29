@@ -80,13 +80,26 @@ object Preferences {
             .getString(IMAGE_SIZE, "-1")!!
             .toInt()
 
+    /**
+     * The size the user chose for the streaming cache, in megabytes, or null to
+     * let [StreamingCacheSize] derive one from the partition.
+     *
+     * Absence is null rather than a number because zero is itself a meaningful
+     * answer -- it is how "cache nothing" is spelled -- so the two cannot share
+     * a representation. A malformed value reads as absent for the same reason
+     * it cannot throw: it is reached on the playback path, on every track.
+     *
+     * Nothing writes it yet; #176 is the settings surface for this and the two
+     * precache keys below. See
+     * `docs/decisions/2026-08-29-streaming-cache-sizing-design.md`.
+     */
     @JvmStatic
-    fun getStreamingCacheSize(): Long =
+    fun getStreamingCacheSizeOverrideMegabytes(): Long? =
         App
             .getInstance()
             .preferences
-            .getString(STREAMING_CACHE_SIZE, "256")!!
-            .toLong()
+            .getString(STREAMING_CACHE_SIZE, null)
+            ?.toLongOrNull()
 
     @JvmStatic
     fun isDataSavingMode(): Boolean = App.getInstance().preferences.getBoolean(DATA_SAVING_MODE, false)
@@ -175,16 +188,27 @@ object Preferences {
             .getString(SONG_PRELOAD_BUFFER, "60")!!
             .toInt()
 
+    /**
+     * How many upcoming queue tracks [QueuePreloader] writes into the streaming
+     * cache ahead of the one playing. Two covers a skip and the track after it
+     * without racing far enough ahead to compete with the current stream for
+     * bandwidth.
+     */
     @JvmStatic
     fun getPrecacheTracksCount(): Int =
         App
             .getInstance()
             .preferences
-            .getString(PRECACHE_TRACKS_COUNT, "0")!!
-            .toInt()
+            .getString(PRECACHE_TRACKS_COUNT, "2")!!
+            .toIntOrNull() ?: 0
 
+    /**
+     * False because Siskin runs in a moving car, where an unmetered network is
+     * the exception and waiting for one means never precaching at all. The
+     * upstream default assumed a phone that spends its evenings on wifi.
+     */
     @JvmStatic
-    fun isPrecacheWifiOnly(): Boolean = App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, true)
+    fun isPrecacheWifiOnly(): Boolean = App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, false)
 
     /**
      * Off unless asked for, and #72 is why. There was no writer and no settings

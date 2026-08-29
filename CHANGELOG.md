@@ -12,6 +12,16 @@
 
 ## [Unreleased] — Siskin
 
+- Music you have already played stays cached far longer. The cache now sizes
+  itself from the head unit's storage — a tenth of the partition, between 1 and
+  8 GB — instead of the fixed 256 MB it always took, which on most libraries was
+  a few dozen tracks and meant a playlist you play daily was re-fetched most
+  trips.
+- Siskin caches the next two tracks in the queue while the current one plays, so
+  a skip starts instantly and a brief drop in signal no longer interrupts
+  playback. It does this on whatever connection the car has: the machinery
+  existed already but waited for wifi, which in a moving vehicle meant it never
+  ran.
 - Buttons and switches are Siskin's own green rather than the head unit's
   blue. The app no longer takes the car's colours: AAOS has no wallpaper to
   build a palette from, so it generates one from a default seed, and deferring

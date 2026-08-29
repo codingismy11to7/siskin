@@ -45,10 +45,10 @@ class DynamicMediaSourceFactory(
 
     /**
      * The DataSource.Factory every stream is built on: whichever of
-     * DownloadUtil's two factories the streaming-cache-size preference
-     * selects, wrapped in a ServerAddressResolver so the live server address
-     * lands on the request even when the queue was built against an address
-     * that has since changed.
+     * DownloadUtil's two factories the resolved streaming cache size selects,
+     * wrapped in a ServerAddressResolver so the live server address lands on
+     * the request even when the queue was built against an address that has
+     * since changed.
      *
      * Wrapped here rather than inside DownloadUtil.getCacheDataSourceFactory,
      * which already has a ResolvingDataSource of its own: that one is only on
@@ -66,7 +66,7 @@ class DynamicMediaSourceFactory(
      */
     @VisibleForTesting
     fun buildDataSourceFactory(): DataSource.Factory {
-        val streamingCacheSize = Preferences.getStreamingCacheSize()
+        val streamingCacheSize = DownloadUtil.getStreamingCacheSizeMegabytes(context)
         val useUpstream = streamingCacheSize <= 0L
 
         val selected: DataSource.Factory =

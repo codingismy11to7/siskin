@@ -22,10 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * player reads through the same cache with the same keys, so anything written
  * here is picked up transparently.
  *
- * Disabled by default and permanently off in practice: there is no settings
- * screen to change PRECACHE_TRACKS_COUNT from its "0" default. Never runs for
- * radio streams or already-downloaded tracks, and by default only on
- * unmetered networks.
+ * On by default, two tracks ahead, on whatever network the car has -- a moving
+ * vehicle rarely sees an unmetered one, so gating on that meant never
+ * precaching at all. Still skips radio streams and anything already cached.
  */
 @UnstableApi
 object QueuePreloader {
@@ -51,9 +50,9 @@ object QueuePreloader {
     ) {
         val count = Preferences.getPrecacheTracksCount()
         if (count <= 0) return
-        if (Preferences.getStreamingCacheSize() <= 0L) return
 
         val appContext = context.applicationContext
+        if (DownloadUtil.getStreamingCacheSizeMegabytes(appContext) <= 0L) return
 
         if (Preferences.isPrecacheWifiOnly() && isMetered(appContext)) {
             cancel()
