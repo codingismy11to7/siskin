@@ -58,6 +58,20 @@ class Metadata {
     var leafCount: Int? = null
 
     /**
+     * Whether a playlist is defined by a query rather than by a list of items.
+     * Only meaningful on a playlist; absent everywhere else.
+     */
+    var smart: Boolean? = null
+
+    /**
+     * A smart playlist's defining query, doubly encoded -- see
+     * [com.cappielloantonio.tempo.util.SmartPlaylistQuery], which is the only
+     * thing that reads it. Present only on a playlist, and only via
+     * `GET playlists/{id}`: the playlists *listing* omits it.
+     */
+    var content: String? = null
+
+    /**
      * Plex rates 0-10; 10 renders as five stars. This app writes 10 to heart a
      * track and -1 to clear it (`SearchClient.RATING_HEARTED` /
      * `RATING_CLEARED`) -- **not** 0, which a live server was measured to store

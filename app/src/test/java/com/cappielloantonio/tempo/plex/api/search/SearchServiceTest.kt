@@ -76,6 +76,21 @@ class SearchServiceTest {
         }
 
     @Test
+    fun getPlaylistReadsAPlaylistsOwnMetadata() =
+        runTest {
+            // 561 bytes on a real server, and it answers all three things the
+            // Mix decision needs: how many tracks, whether it is smart, and the
+            // query it is defined by. A container probe answers the first two
+            // only. See the 2026-08-28 mix paging design.
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+            service().getPlaylist(playlistId = "169076")
+
+            val request = server.takeRequest()
+            assertEquals("/playlists/169076", request.requestUrl?.encodedPath)
+        }
+
+    @Test
     fun getPlaylistItemsReadsAPlaylistsTracks() =
         runTest {
             server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
@@ -136,7 +151,7 @@ class SearchServiceTest {
         // Fails when an endpoint is added to SearchService without a test
         // above. The gap this file closes formed exactly that way.
         assertEquals(
-            setOf("search", "getPlaylists", "getPlaylistItems", "reportProgress", "rate"),
+            setOf("search", "getPlaylists", "getPlaylist", "getPlaylistItems", "reportProgress", "rate"),
             annotatedEndpoints(SearchService::class.java),
         )
     }
