@@ -150,6 +150,13 @@ synthesizes the launcher entry from `MediaService`'s
 UI on Siskin rather than starting an activity of ours. Do not go looking for a
 `MAIN`/`LAUNCHER` intent-filter to explain the icon, and do not add one.
 
+**The `adb` invocations in this section say *what* to run, not *how*.** Drive
+the emulator through the android MCP — `install_apk`, `adb_shell`, `clear_logs`
+and `get_logs`, `screenshot`, `get_ui_tree`, `tap_element` — and issue these
+through it. Reaching for a raw shell instead means hand-rolling pipelines for
+things it already does, and depending on whatever those pipelines assume is
+installed.
+
 Reach it the way the car does:
 
     # Browse tree, through the AAOS media app
