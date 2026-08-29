@@ -35,6 +35,17 @@ class MediaLibrarySessionCallback(
         MediaBrowserTree.initialize(context, browseRepository)
     }
 
+    /**
+     * The node [queueSourceCache]'s list came from.
+     *
+     * The cache is a single slot under one constant key, so its contents alone
+     * cannot say which node produced them -- and a tapped track carries the
+     * same constant as its parent tag, not the node's id. Recording it here is
+     * what lets a tap re-fetch its own list rather than replaying whatever was
+     * browsed last.
+     */
+    private var queueSourceNodeId: String? = null
+
     // ─────────────────────────────────────────────────────────────
     // Android Auto — browse
     // ─────────────────────────────────────────────────────────────
@@ -119,6 +130,7 @@ class MediaLibrarySessionCallback(
             if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
                 val items = result.value ?: emptyList()
                 queueSourceCache[Constants.QUEUE_CACHED_SOURCE] = items
+                queueSourceNodeId = parentId
                 rememberTracks(items)
                 Futures.immediateFuture(result)
             } else {
@@ -522,9 +534,21 @@ class MediaLibrarySessionCallback(
                 }
 
                 parentId?.startsWith(Constants.QUEUE_CACHED_SOURCE) == true -> {
-                    Log.d(TAG, "Fetching AA list source tracks for $parentId")
-                    val cachedItems = queueSourceCache[Constants.QUEUE_CACHED_SOURCE] ?: emptyList()
-                    Futures.immediateFuture(cachedItems)
+                    val playlistId = playlistIdOf(queueSourceNodeId)
+                    if (playlistId != null) {
+                        // The browse list was cut by the car's IPC ceiling, so
+                        // replaying it would stop playback partway through the
+                        // playlist. Re-fetch instead.
+                        Log.d(TAG, "Re-fetching playlist $playlistId for the tapped track's queue")
+                        Futures.transform(
+                            browseRepository.getPlaylistTracksForQueue(playlistId),
+                            { result -> result?.value ?: emptyList() },
+                            MoreExecutors.directExecutor(),
+                        )
+                    } else {
+                        Log.d(TAG, "Fetching AA list source tracks for $parentId")
+                        Futures.immediateFuture(queueSourceCache[Constants.QUEUE_CACHED_SOURCE] ?: emptyList())
+                    }
                 }
 
                 // Two unrelated callers land here, and the `localConfiguration` test
@@ -581,6 +605,21 @@ class MediaLibrarySessionCallback(
 
         return futureQueue
     }
+
+    /**
+     * The playlist a browse node's id names, or null when it names something
+     * else.
+     *
+     * The equality check is not redundant with the prefix test:
+     * [Constants.PLAYLIST_ID] bare is the *listing* of playlists, and only
+     * `PLAYLIST_ID + id` is one playlist's tracks -- see
+     * `MediaBrowserTree.getChildren`. Without it the listing node strips to an
+     * empty id and asks the server for playlist "".
+     */
+    private fun playlistIdOf(nodeId: String?): String? =
+        nodeId
+            ?.takeIf { it.startsWith(Constants.PLAYLIST_ID) && it != Constants.PLAYLIST_ID }
+            ?.removePrefix(Constants.PLAYLIST_ID)
 
     // ─────────────────────────────────────────────────────────────
     // Android Auto — search
