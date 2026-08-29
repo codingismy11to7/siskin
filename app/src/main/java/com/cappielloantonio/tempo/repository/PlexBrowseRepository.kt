@@ -33,6 +33,8 @@ import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
+import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.util.SmartPlaylistQuery
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -149,14 +151,6 @@ class PlexBrowseRepository {
             listOf(shufflePlaylistRow(playlistId)) + tracks
         }
 
-    /**
-     * The same tracks with no shuffle row, for the queue that row builds.
-     *
-     * Kept separate rather than filtered later: a queue containing the row would
-     * hold a playable item with no stream.
-     */
-    fun getPlaylistTracksForShuffle(playlistId: String) = playlistTracks(playlistId) { it }
-
     private fun playlistTracks(
         playlistId: String,
         decorate: (List<MediaItem>) -> List<MediaItem>,
@@ -170,6 +164,64 @@ class PlexBrowseRepository {
             Constants.MIX_PLAYLIST_ID + playlistId,
             App.getContext().getString(R.string.browse_mix_playlist),
         )
+
+    /**
+     * The tracks a Playlist Mix plays: all of it, or an unbiased sample. See
+     * docs/decisions/2026-08-28-mix-paging-design.md.
+     */
+    fun getPlaylistTracksForShuffle(playlistId: String) =
+        cachedTracks({ playlistMixRequest(playlistId) }) { tracks ->
+            sampled(tracks, Preferences.getMixTrackLimit())
+        }
+
+    /**
+     * The same tracks in playlist order, for a tapped track's queue. The
+     * tapped track is always inside the first N because the browse list it
+     * came from never showed more than a couple of hundred.
+     */
+    fun getPlaylistTracksForQueue(playlistId: String) =
+        cachedTracks({
+            searchClient.getPlaylistItems(RatingKey(playlistId), 0, Preferences.getMixTrackLimit())
+        }) { it }
+
+    /** Which request a Playlist Mix should issue. */
+    private suspend fun playlistMixRequest(playlistId: String): Either<PlexTransportFailure, PlexResponse> =
+        either {
+            val limit = Preferences.getMixTrackLimit()
+            val probe = searchClient.getPlaylist(RatingKey(playlistId)).bind()
+            val playlist = itemsOf(probe, TYPE_PLAYLIST).firstOrNull()
+            // From this probe, not the playlists listing browse already
+            // fetched -- that reports a different count: 12,586 vs 12,596.
+            val count = playlist?.leafCount ?: 0
+
+            val smartPath =
+                playlist
+                    ?.takeIf { it.smart == true }
+                    ?.let { SmartPlaylistQuery.pathIn(it.content) }
+
+            when {
+                count <= limit -> {
+                    searchClient.getPlaylistItems(RatingKey(playlistId), 0, limit).bind()
+                }
+
+                smartPath != null -> {
+                    libraryClient
+                        .getSmartPlaylistTracks(SmartPlaylistQuery.randomised(smartPath), limit)
+                        ?.bind()
+                        ?: searchClient.getPlaylistItems(RatingKey(playlistId), 0, count).bind()
+                }
+
+                // No query to re-issue, so the sample is drawn here instead.
+                else -> {
+                    searchClient.getPlaylistItems(RatingKey(playlistId), 0, count).bind()
+                }
+            }
+        }
+
+    private fun sampled(
+        tracks: List<MediaItem>,
+        limit: Int,
+    ): List<MediaItem> = if (tracks.size <= limit) tracks else tracks.shuffled().take(limit)
 
     /**
      * The decades the section's albums fall into, newest first as the server
@@ -326,7 +378,7 @@ class PlexBrowseRepository {
             key,
             PlexItemType.TRACK,
             0,
-            Constants.MAX_ITEMS,
+            Preferences.getMixTrackLimit(),
             sort = LibraryClient.SORT_RANDOM,
             artistId = artistIds.takeIf { it.isNotEmpty() }?.joinToString(","),
             albumId = albumIds.takeIf { it.isNotEmpty() }?.joinToString(","),
@@ -422,7 +474,7 @@ class PlexBrowseRepository {
      *
      * `MediaLibrarySessionCallback.cachedDecadeTracks` tries the cached browse
      * list first -- the tap should queue what the user was looking at, not
-     * spend a round trip drawing a second uniform random 500 that is
+     * spend a round trip drawing a second uniform random N that is
      * statistically identical for the purpose but not the same tracks. This
      * function is the fallback for when that cache cannot be trusted: cold
      * after a process restart, or holding a different node's list.
@@ -441,7 +493,7 @@ class PlexBrowseRepository {
      * each other. An artist has a real running order to fall back to when the
      * car's shuffle toggle goes off mid-listen, so inventing one there would be
      * dishonest. A decade has none -- and unsorted would mean permanently
-     * sampling the first 500 of the decade in library order, leaving the rest
+     * sampling the first N of the decade in library order, leaving the rest
      * unreachable by any sequence of taps. Random is the honest description of
      * what the server was asked for.
      *
@@ -461,7 +513,12 @@ class PlexBrowseRepository {
                 key,
                 PlexItemType.TRACK,
                 0,
-                Constants.MAX_ITEMS,
+                // The Mix limit, not Constants.MAX_ITEMS: this is the one
+                // browse node sized to the queue limit rather than the browse
+                // one, because MediaLibrarySessionCallback.cachedDecadeTracks
+                // replays this same list to serve the Decade Mix tap. See
+                // "Where N lives" in docs/decisions/2026-08-28-mix-paging-design.md.
+                Preferences.getMixTrackLimit(),
                 sort = LibraryClient.SORT_RANDOM,
                 // The bare decade, never the composite key: Plex answers an
                 // unrecognised filter value with 200 and an empty container,
@@ -512,45 +569,49 @@ class PlexBrowseRepository {
             App.getContext().getString(R.string.browse_mix_artist),
         )
 
-    /**
-     * Every track by one artist, flat and in library order.
-     *
-     * Feeds the shuffle row, and left unshuffled on purpose under both settings.
-     *
-     * With "use the car's shuffle" on, the player owns shuffling (the session
-     * already carries the command), so turning the car's toggle off mid-listen
-     * falls back to the artist's real running order rather than to an order this
-     * function invented. With it off, MediaLibrarySessionCallback shuffles at
-     * the tap -- still not here, which keeps this function the single honest
-     * description of what the server was asked for.
-     *
-     * Uses the same `artist.id` filter as [getArtistAlbums] rather than the
-     * artist's allLeaves endpoint. Both returned identical counts on a live
-     * server (297, 16 and 14 tracks for the three artists sampled), so this
-     * picks the query already proven against the artist relation.
-     *
-     * Unsorted does not contradict [decadeTracks] fetching `sort=random`: an
-     * artist has a real running order to fall back to when the car's shuffle
-     * toggle goes off mid-listen, whereas a decade has none, and unsorted there
-     * would mean permanently sampling only the first 500 of the decade in
-     * library order.
-     */
     fun getArtistTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
-        return fetch({
-            libraryClient.getSectionContent(
-                key,
-                PlexItemType.TRACK,
-                0,
-                Constants.MAX_ITEMS,
-                artistId = artistRatingKey,
-            )
-        }) { body ->
+        return fetch({ artistMixRequest(key, artistRatingKey) }) { body ->
             tracksOf(body).mapNotNull {
                 PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
             }
         }
     }
+
+    /**
+     * Unsorted under the limit and `sort=random` over it -- the two do not
+     * contradict each other, for the reason [decadeTracks] argues from the
+     * other side: under the limit the whole artist is in hand, so its real
+     * running order is what the car's shuffle toggle falls back to.
+     *
+     * Both the probe and the fetch filter with `artist.id`, the same filter
+     * [getArtistAlbums] uses, rather than the artist's allLeaves endpoint. Both
+     * returned identical counts on a live server (297, 16 and 14 tracks for the
+     * three artists sampled), so this picks the query already proven against
+     * the artist relation.
+     */
+    private suspend fun artistMixRequest(
+        key: SectionKey,
+        artistRatingKey: String,
+    ): Either<PlexTransportFailure, PlexResponse> =
+        either {
+            val limit = Preferences.getMixTrackLimit()
+            val probe =
+                libraryClient
+                    .getSectionContent(key, PlexItemType.TRACK, 0, 0, artistId = artistRatingKey)
+                    .bind()
+            val total = probe.mediaContainer?.totalSize ?: 0
+
+            libraryClient
+                .getSectionContent(
+                    key,
+                    PlexItemType.TRACK,
+                    0,
+                    limit,
+                    sort = if (total > limit) LibraryClient.SORT_RANDOM else null,
+                    artistId = artistRatingKey,
+                ).bind()
+        }
 
     fun getAlbumTracks(albumRatingKey: String) =
         cachedTracks({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, Constants.MAX_ITEMS) }) { it }

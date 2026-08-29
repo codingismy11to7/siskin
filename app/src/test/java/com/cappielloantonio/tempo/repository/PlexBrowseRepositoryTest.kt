@@ -24,6 +24,7 @@ import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
+import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.test.runTest
@@ -244,6 +245,16 @@ class PlexBrowseRepositoryTest {
         }]}}
         """.trimIndent()
 
+    /** What `GET playlists/{id}` answers -- the probe getPlaylistTracksForShuffle issues first. */
+    private fun playlistProbeBody(
+        leafCount: Int,
+        smart: Boolean,
+    ) = """
+        {"MediaContainer":{"size":1,"Metadata":[
+          {"ratingKey":"169077","type":"playlist","title":"P",
+           "leafCount":$leafCount,"smart":$smart}]}}
+        """.trimIndent()
+
     /** Bounded so a bridge that never completes its future fails instead of hanging. */
     private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) = future.get(10, TimeUnit.SECONDS)
 
@@ -310,6 +321,9 @@ class PlexBrowseRepositoryTest {
     @Test
     fun theQueueAShuffleRowBuildsDoesNotContainTheRowItself() {
         // A queue holding the row would hold a playable item with no stream.
+        // Two requests now, not one -- getPlaylistTracksForShuffle probes the
+        // playlist before fetching, see PlexBrowseMixSourceTest.
+        server.enqueue(MockResponse().setResponseCode(200).setBody(playlistProbeBody(leafCount = 2, smart = false)))
         server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
 
         val result = await(PlexBrowseRepository().getPlaylistTracksForShuffle("169077"))
@@ -317,14 +331,35 @@ class PlexBrowseRepositoryTest {
         assertEquals(listOf("11", "22"), result.value!!.map { it.mediaId })
     }
 
+    /**
+     * The tapped-track re-fetch asks for the Mix limit, not
+     * [Constants.MAX_ITEMS] -- it exists precisely to reach past that browse
+     * cap, so capping itself at the same number would defeat the point.
+     */
+    @Test
+    fun thePlaylistQueueRefetchAsksForTheMixLimitNotMaxItems() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
+
+        await(PlexBrowseRepository().getPlaylistTracksForQueue("169077"))
+
+        assertEquals(
+            Preferences.getMixTrackLimit().toString(),
+            server.takeRequest().getHeader("X-Plex-Container-Size"),
+        )
+    }
+
     @Test
     fun anArtistsTracksAreFetchedFlatAndInLibraryOrderForTheShuffleRow() {
         // Left unshuffled deliberately: the player owns shuffling, so turning the
         // car's toggle off has to reveal the artist's real order.
+        // Two requests now, not one -- getArtistTracks probes the artist's
+        // total track count before fetching, see PlexBrowseMixSourceTest.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"size":0,"totalSize":3}}"""))
         server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("1", "2", "3")))
 
         val result = await(PlexBrowseRepository().getArtistTracks("15100"))
 
+        server.takeRequest()
         val request = server.takeRequest()
         assertEquals("/library/sections/1/all", request.requestUrl?.encodedPath)
         assertEquals("15100", request.requestUrl?.queryParameter("artist.id"))
@@ -799,6 +834,26 @@ class PlexBrowseRepositoryTest {
 
         val filter = server.takeRequest().requestUrl?.queryParameter("album.decade")
         assertEquals("1980", filter)
+    }
+
+    /**
+     * `decadeTracks` backs both the decade's browse listing and its queue
+     * fallback, and `MediaLibrarySessionCallback.cachedDecadeTracks` replays
+     * the browse list to serve the Decade Mix tap -- so this is the one
+     * browse node sized to the Mix limit rather than [Constants.MAX_ITEMS].
+     * A revert to [Constants.MAX_ITEMS] here would be invisible without this
+     * assertion. See docs/decisions/2026-08-28-mix-paging-design.md.
+     */
+    @Test
+    fun theDecadeTracksBrowseRequestAsksForTheMixLimitNotMaxItems() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11")))
+
+        await(PlexBrowseRepository().getDecadeTracks(DECADE_KEY))
+
+        assertEquals(
+            Preferences.getMixTrackLimit().toString(),
+            server.takeRequest().getHeader("X-Plex-Container-Size"),
+        )
     }
 
     @Test

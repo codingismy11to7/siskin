@@ -130,4 +130,31 @@ class LibraryClientTest {
             assertNull(result)
             assertEquals(0, server.requestCount)
         }
+
+    @Test
+    fun `getSmartPlaylistTracks refuses a path that is not relative`() =
+        runTest {
+            // The refusal is the point: this client attaches the account token
+            // to every request without inspecting the target, so an absolute
+            // URL out of a response body would hand it to another host.
+            assertNull(clientAgainstServer().getSmartPlaylistTracks("https://evil.example/x", 2500))
+            assertNull(clientAgainstServer().getSmartPlaylistTracks("//evil.example/x", 2500))
+            assertEquals(0, server.requestCount)
+        }
+
+    @Test
+    fun `getSmartPlaylistTracks uses the caller's size parameter`() =
+        runTest {
+            // Unlike getByHubKey which hardcodes Constants.MAX_ITEMS, this method
+            // takes size from the caller. This test verifies that size is actually
+            // passed through to the request.
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+            clientAgainstServer().getSmartPlaylistTracks("/library/sections/7/all?type=10&sort=random", 2500)
+
+            val request = server.takeRequest()
+            assertEquals("/library/sections/7/all?type=10&sort=random", request.path)
+            assertEquals("0", request.getHeader("X-Plex-Container-Start"))
+            assertEquals("2500", request.getHeader("X-Plex-Container-Size"))
+        }
 }

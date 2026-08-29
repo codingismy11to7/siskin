@@ -47,10 +47,16 @@ interface SearchService {
     ): PlexResponse
 
     /**
-     * The playlist's tracks. Plex also exposes GET playlists/{playlistId} for a
-     * playlist's own metadata, deliberately not wrapped here: browsing needs the
-     * list and then the items, never the metadata alone.
+     * One playlist's own metadata: `leafCount`, `smart`, and a smart
+     * playlist's `content` query -- the reason it is this endpoint rather
+     * than a zero-sized container probe on `{id}/items`, which omits the query.
      */
+    @GET("playlists/{playlistId}")
+    suspend fun getPlaylist(
+        @Path("playlistId") playlistId: String,
+    ): PlexResponse
+
+    /** The playlist's tracks. */
     @GET("playlists/{playlistId}/items")
     suspend fun getPlaylistItems(
         @Path("playlistId") playlistId: String,

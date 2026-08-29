@@ -35,6 +35,20 @@ class MediaLibrarySessionCallback(
         MediaBrowserTree.initialize(context, browseRepository)
     }
 
+    private data class QueueSource(
+        val nodeId: String,
+        val items: List<MediaItem>,
+    )
+
+    /**
+     * What [queueSourceCache]'s list came from. One value rather than two fields,
+     * so the id and the items cannot name different nodes: written from a
+     * `directExecutor()` callback, two concurrent browses would otherwise
+     * interleave their writes. Trust it only through [trustedPlaylist].
+     */
+    @Volatile
+    private var queueSource: QueueSource? = null
+
     // ─────────────────────────────────────────────────────────────
     // Android Auto — browse
     // ─────────────────────────────────────────────────────────────
@@ -119,6 +133,7 @@ class MediaLibrarySessionCallback(
             if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
                 val items = result.value ?: emptyList()
                 queueSourceCache[Constants.QUEUE_CACHED_SOURCE] = items
+                queueSource = QueueSource(parentId, items)
                 rememberTracks(items)
                 Futures.immediateFuture(result)
             } else {
@@ -228,7 +243,8 @@ class MediaLibrarySessionCallback(
      * trusted for this decade.
      *
      * The list on screen when the row was tapped is already a uniform random
-     * 500 -- [PlexBrowseRepository.getDecadeTracks] draws it the same way this
+     * sample bounded by the Mix track limit --
+     * [PlexBrowseRepository.getDecadeTracks] draws it the same way this
      * fallback would. A second draw is statistically identical for the tap: it
      * buys no extra randomness, only different tracks, so what plays stops
      * matching what was on screen. Measured cost of that extra round trip:
@@ -522,9 +538,39 @@ class MediaLibrarySessionCallback(
                 }
 
                 parentId?.startsWith(Constants.QUEUE_CACHED_SOURCE) == true -> {
-                    Log.d(TAG, "Fetching AA list source tracks for $parentId")
-                    val cachedItems = queueSourceCache[Constants.QUEUE_CACHED_SOURCE] ?: emptyList()
-                    Futures.immediateFuture(cachedItems)
+                    val trusted = trustedPlaylist(firstItem)
+                    when {
+                        // Mix row + up to MAX_ITEMS tracks, so this size means the fetch hit the
+                        // cap and may have been cut. Re-fetch either way: a wasted round trip
+                        // beats a silently short queue.
+                        trusted != null && trusted.items.size > Constants.MAX_ITEMS -> {
+                            Log.d(TAG, "Re-fetching playlist ${trusted.id} for the tapped track's queue")
+                            val refetched =
+                                Futures.transform(
+                                    browseRepository.getPlaylistTracksForQueue(trusted.id),
+                                    { result -> result?.value ?: emptyList() },
+                                    MoreExecutors.directExecutor(),
+                                )
+                            // A transport failure would otherwise fail a plain track tap;
+                            // a stale-but-playable page beats silence in a car.
+                            Futures.catching(
+                                refetched,
+                                Throwable::class.java,
+                                { _: Throwable -> trusted.items.filterNot { isMixRow(it) } },
+                                MoreExecutors.directExecutor(),
+                            )
+                        }
+
+                        trusted != null -> {
+                            Log.d(TAG, "Playlist ${trusted.id}'s recorded page was not capped, reusing it")
+                            Futures.immediateFuture(trusted.items.filterNot { isMixRow(it) })
+                        }
+
+                        else -> {
+                            Log.d(TAG, "Fetching AA list source tracks for $parentId")
+                            Futures.immediateFuture(queueSourceCache[Constants.QUEUE_CACHED_SOURCE] ?: emptyList())
+                        }
+                    }
                 }
 
                 // Two unrelated callers land here, and the `localConfiguration` test
@@ -581,6 +627,39 @@ class MediaLibrarySessionCallback(
 
         return futureQueue
     }
+
+    private data class TrustedPlaylist(
+        val id: String,
+        val items: List<MediaItem>,
+    )
+
+    /**
+     * The playlist [queueSource] may be trusted to re-fetch for [tapped].
+     * Returns the items with the id so the volatile is read once.
+     *
+     * [queueSource] names whatever was browsed most recently, not necessarily
+     * what [tapped] was browsed in, so re-fetching on its say-so alone could
+     * queue an unrelated playlist's whole contents. Membership is the check.
+     * See docs/decisions/2026-08-28-mix-paging-design.md.
+     */
+    private fun trustedPlaylist(tapped: MediaItem): TrustedPlaylist? {
+        val source = queueSource ?: return null
+        val playlistId = playlistIdOf(source.nodeId) ?: return null
+        return TrustedPlaylist(playlistId, source.items)
+            .takeIf { source.items.any { item -> item.mediaId == tapped.mediaId } }
+    }
+
+    /**
+     * The equality check is not redundant with the prefix test:
+     * [Constants.PLAYLIST_ID] bare is the *listing* of playlists, and only
+     * `PLAYLIST_ID + id` is one playlist's tracks -- see
+     * `MediaBrowserTree.getChildren`. Without it the listing node strips to an
+     * empty id and asks the server for playlist "".
+     */
+    private fun playlistIdOf(nodeId: String?): String? =
+        nodeId
+            ?.takeIf { it.startsWith(Constants.PLAYLIST_ID) && it != Constants.PLAYLIST_ID }
+            ?.removePrefix(Constants.PLAYLIST_ID)
 
     // ─────────────────────────────────────────────────────────────
     // Android Auto — search

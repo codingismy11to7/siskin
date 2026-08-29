@@ -161,6 +161,22 @@ class LibraryClient(
         return plexCall(PlexHost.Server) { service.getByPath(key, 0, Constants.MAX_ITEMS) }
     }
 
+    /**
+     * A smart playlist's own query, re-issued at [size]. Null when [path] is not
+     * safe to follow -- a refusal in [getByHubKey]'s shape, not a failure.
+     */
+    suspend fun getSmartPlaylistTracks(
+        path: String,
+        size: Int,
+    ): Either<PlexTransportFailure, PlexResponse>? {
+        if (!isSafeHubKey(path)) {
+            Log.w(TAG, "refusing a smart playlist query that is not a relative path: $path")
+            return null
+        }
+        Log.d(TAG, "getSmartPlaylistTracks($path, size=$size)")
+        return plexCall(PlexHost.Server) { service.getByPath(path, 0, size) }
+    }
+
     companion object {
         /** Plex reports a music library section's type as "artist". */
         private const val MUSIC_SECTION_TYPE = "artist"

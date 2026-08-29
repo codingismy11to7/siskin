@@ -28,6 +28,7 @@ object Preferences {
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val BROWSE_TAB_ORDER = "browse_tab_order"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
+    private const val MIX_TRACK_LIMIT = "mix_track_limit"
     private const val FALLBACK_TO_RANDOM_TRACKS = "fallback_to_random_tracks"
     private const val LAST_INSTANT_MIX = "last_instant_mix"
     private const val SELECTED_EQUALIZER = "selected_equalizer"
@@ -280,6 +281,22 @@ object Preferences {
 
     @JvmStatic
     fun getNumberOfTracksKeepInQueue(): Int = App.getInstance().preferences.getInt(NUMBER_TRACKS_KEEP_IN_QUEUE, 30) - 1
+
+    /**
+     * Most tracks a Mix -- or a track tap queuing the rest of its playlist --
+     * puts in the queue. Under it a Mix is all of what was tapped; over it, an
+     * unbiased sample. **Not [Constants.MAX_ITEMS]**, which stays 500 and bounds
+     * browse nodes: a browse list is capped by one binder transaction, a queue is
+     * not. Nothing writes this key, so the default is the effective value.
+     * See docs/decisions/2026-08-28-mix-paging-design.md.
+     */
+    @JvmStatic
+    fun getMixTrackLimit(): Int =
+        App
+            .getInstance()
+            .preferences
+            .getString(MIX_TRACK_LIMIT, "2500")!!
+            .toInt()
 
     /**
      * Defaults to true. Nothing writes this key -- the Settings screen behind
