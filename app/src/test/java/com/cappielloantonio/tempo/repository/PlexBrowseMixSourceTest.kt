@@ -92,6 +92,7 @@ class PlexBrowseMixSourceTest {
     fun `a smart playlist over the limit is sampled through its own query`() =
         runTest {
             val urls = mutableListOf<String>()
+            var sampledSize: String? = null
             routeBy { request ->
                 urls += request.path.orEmpty()
                 val body =
@@ -102,6 +103,7 @@ class PlexBrowseMixSourceTest {
                             content = "library://x/directory/%2Flibrary%2Fsections%2F7%2Fall%3Ftype%3D10",
                         )
                     } else {
+                        sampledSize = request.getHeader("X-Plex-Container-Size")
                         emptyTracks
                     }
                 MockResponse().setResponseCode(200).setBody(body)
@@ -113,6 +115,9 @@ class PlexBrowseMixSourceTest {
             // is the whole reason this branch exists.
             assertTrue(urls.none { it.startsWith("/playlists/9/items") })
             assertTrue(urls.any { it.startsWith("/library/sections/7/all") && it.contains("sort=random") })
+            // The Mix limit, not the full 12,596-track membership -- the whole
+            // point of re-issuing the query is to sample it rather than fetch it.
+            assertEquals("2500", sampledSize)
         }
 
     @Test

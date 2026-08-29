@@ -531,6 +531,11 @@ class PlexBrowseRepository {
                 key,
                 PlexItemType.TRACK,
                 0,
+                // The Mix limit, not Constants.MAX_ITEMS: this is the one
+                // browse node sized to the queue limit rather than the browse
+                // one, because MediaLibrarySessionCallback.cachedDecadeTracks
+                // replays this same list to serve the Decade Mix tap. See
+                // "Where N lives" in docs/decisions/2026-08-28-mix-paging-design.md.
                 Preferences.getMixTrackLimit(),
                 sort = LibraryClient.SORT_RANDOM,
                 // The bare decade, never the composite key: Plex answers an

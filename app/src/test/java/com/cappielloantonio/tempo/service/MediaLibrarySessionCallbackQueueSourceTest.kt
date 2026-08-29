@@ -39,7 +39,10 @@ import java.io.IOException
  * tap re-fetch its own tracks instead of replaying whatever browse page was
  * cached last, which the car's own IPC ceiling already cut short -- and,
  * since it can itself be stale, what a re-fetch is trusted against before it
- * is issued. See `docs/decisions/2026-08-28-mix-paging-design.md`.
+ * is issued. The re-fetch itself only fires when the recorded page could
+ * have been cut by that ceiling; a page well under it already holds the
+ * whole playlist, and re-fetching it would just pay a round trip for the
+ * same tracks. See `docs/decisions/2026-08-28-mix-paging-design.md`.
  *
  * Robolectric and `mockConstruction(QueueRepository::class.java)` for the
  * same reasons as `MediaLibrarySessionCallbackShuffleTest`, which this is
@@ -76,24 +79,41 @@ class MediaLibrarySessionCallbackQueueSourceTest {
     }
 
     @Test
-    fun `tapping a track in a playlist queues the whole playlist`() {
-        // The browse list the car rendered was cut by its own IPC ceiling, so
-        // replaying it stops playback a couple of hundred tracks in. The tap
-        // re-fetches the node instead. See the 2026-08-28 mix paging design.
-        //
-        // The tapped track ("2") sits at a different index in each list --
-        // 1 in `browsed`, 2 in `whole` -- so the assertion below only passes
-        // if the start index is recomputed against the re-fetched list rather
-        // than carried over from the browsed one.
-        val browsed = playlistTracks("1", "2")
-        val whole = playlistTracks("0", "1", "2", "3", "4")
+    fun `tapping a track in a capped playlist page queues the whole playlist`() {
+        // The recorded page holds the Mix row plus MAX_ITEMS tracks -- exactly
+        // what a capped browse fetch produces -- so it could have been cut by
+        // the car's IPC ceiling and the guard must re-fetch. `whole` is longer
+        // than `browsed`, so the size assertion below only passes if the
+        // re-fetch actually happened rather than the recorded page being
+        // reused. See the 2026-08-28 mix paging design.
+        val browsed = cappedPlaylistPage("9")
+        val tapped = browsed[2]
+        val whole = playlistTracks(*(1..(Constants.MAX_ITEMS + 100)).map { it.toString() }.toTypedArray())
         whenever(browseRepository.getPlaylistTracksForQueue("9")).thenReturn(itemList(whole))
 
         browseNode(Constants.PLAYLIST_ID + "9", browsed)
-        val queue = setMediaItems(browsed[1])
+        val queue = setMediaItems(tapped)
 
-        assertEquals(5, queue.mediaItems.size)
-        assertEquals(2, queue.startIndex)
+        assertEquals(whole.size, queue.mediaItems.size)
+        assertEquals(1, queue.startIndex)
+    }
+
+    @Test
+    fun `tapping a track in a short playlist does not re-fetch`() {
+        // The recorded page is well under MAX_ITEMS, so it cannot have been
+        // truncated -- the guard must reuse it rather than pay a redundant
+        // round trip. See Important 3 of the 2026-08-28 mix paging design
+        // fix-pass.
+        val browsed = listOf(mixRow("9")) + playlistTracks("1", "2")
+
+        browseNode(Constants.PLAYLIST_ID + "9", browsed)
+        val queue = setMediaItems(browsed[2])
+
+        verify(browseRepository, never()).getPlaylistTracksForQueue(any())
+        // The Mix row is filtered out here too -- it is playable with no
+        // stream, and this path hands the recorded page back directly.
+        assertEquals(listOf("1", "2"), queue.mediaItems.map { it.mediaId })
+        assertEquals(1, queue.startIndex)
     }
 
     @Test
@@ -132,15 +152,21 @@ class MediaLibrarySessionCallbackQueueSourceTest {
     }
 
     @Test
-    fun `a failed re-fetch falls back to the recorded playlist page`() {
-        val browsed = playlistTracks("1", "2")
+    fun `a failed re-fetch falls back to the recorded playlist page without its Mix row`() {
+        // Capped so the re-fetch is actually attempted, and led by a Mix row
+        // -- the real shape a browse fetch produces -- so the fallback's own
+        // filtering is exercised: a queue holding that row would "play" an
+        // item with no stream. See finding 3 of the 2026-08-28 mix paging
+        // design fix-pass.
+        val browsed = cappedPlaylistPage("9")
+        val tapped = browsed[2]
         whenever(browseRepository.getPlaylistTracksForQueue("9"))
             .thenReturn(Futures.immediateFailedFuture(IOException("boom")))
 
         browseNode(Constants.PLAYLIST_ID + "9", browsed)
-        val queue = setMediaItems(browsed[1])
+        val queue = setMediaItems(tapped)
 
-        assertEquals(browsed.map { it.mediaId }, queue.mediaItems.map { it.mediaId })
+        assertEquals(browsed.drop(1).map { it.mediaId }, queue.mediaItems.map { it.mediaId })
         assertEquals(1, queue.startIndex)
     }
 
@@ -210,6 +236,16 @@ class MediaLibrarySessionCallbackQueueSourceTest {
                 token = "server-token",
             )
         }
+
+    private fun mixRow(playlistId: String) = PlexMediaMapper.mixRowToMediaItem(Constants.MIX_PLAYLIST_ID + playlistId, "Mix")
+
+    /**
+     * A playlist browse page shaped exactly like a real capped fetch: the Mix
+     * row at index 0, then [Constants.MAX_ITEMS] tracks -- large enough that
+     * the tap guard must treat it as possibly truncated.
+     */
+    private fun cappedPlaylistPage(playlistId: String) =
+        listOf(mixRow(playlistId)) + playlistTracks(*(1..Constants.MAX_ITEMS).map { it.toString() }.toTypedArray())
 
     private companion object {
         const val SERVER = "https://plex.example"

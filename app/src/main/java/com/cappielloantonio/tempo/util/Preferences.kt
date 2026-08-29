@@ -283,7 +283,8 @@ object Preferences {
     fun getNumberOfTracksKeepInQueue(): Int = App.getInstance().preferences.getInt(NUMBER_TRACKS_KEEP_IN_QUEUE, 30) - 1
 
     /**
-     * Most tracks a Mix row will put in the queue.
+     * Most tracks a Mix row -- or a plain track tap queuing the rest of its
+     * playlist -- will put in the queue.
      *
      * Under it, a Mix is the whole of what was tapped; over it, an unbiased
      * sample of that size. About 4MB of JSON and half a second on a LAN at the

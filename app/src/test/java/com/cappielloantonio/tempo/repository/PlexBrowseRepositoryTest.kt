@@ -24,6 +24,7 @@ import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
+import com.cappielloantonio.tempo.util.Preferences
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.test.runTest
@@ -325,6 +326,23 @@ class PlexBrowseRepositoryTest {
         val result = await(PlexBrowseRepository().getPlaylistTracksForShuffle("169077"))
 
         assertEquals(listOf("11", "22"), result.value!!.map { it.mediaId })
+    }
+
+    /**
+     * The tapped-track re-fetch asks for the Mix limit, not
+     * [Constants.MAX_ITEMS] -- it exists precisely to reach past that browse
+     * cap, so capping itself at the same number would defeat the point.
+     */
+    @Test
+    fun thePlaylistQueueRefetchAsksForTheMixLimitNotMaxItems() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
+
+        await(PlexBrowseRepository().getPlaylistTracksForQueue("169077"))
+
+        assertEquals(
+            Preferences.getMixTrackLimit().toString(),
+            server.takeRequest().getHeader("X-Plex-Container-Size"),
+        )
     }
 
     @Test
@@ -813,6 +831,26 @@ class PlexBrowseRepositoryTest {
 
         val filter = server.takeRequest().requestUrl?.queryParameter("album.decade")
         assertEquals("1980", filter)
+    }
+
+    /**
+     * `decadeTracks` backs both the decade's browse listing and its queue
+     * fallback, and `MediaLibrarySessionCallback.cachedDecadeTracks` replays
+     * the browse list to serve the Decade Mix tap -- so this is the one
+     * browse node sized to the Mix limit rather than [Constants.MAX_ITEMS].
+     * A revert to [Constants.MAX_ITEMS] here would be invisible without this
+     * assertion. See docs/decisions/2026-08-28-mix-paging-design.md.
+     */
+    @Test
+    fun theDecadeTracksBrowseRequestAsksForTheMixLimitNotMaxItems() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11")))
+
+        await(PlexBrowseRepository().getDecadeTracks(DECADE_KEY))
+
+        assertEquals(
+            Preferences.getMixTrackLimit().toString(),
+            server.takeRequest().getHeader("X-Plex-Container-Size"),
+        )
     }
 
     @Test

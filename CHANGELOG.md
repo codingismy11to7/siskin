@@ -13,7 +13,7 @@
 ## [Unreleased] — Siskin
 
 - Mix now draws from the whole of what you tapped. A Mix of a list longer than
-  2500 tracks used to play a shuffle of its first 2500 in list order, which on a
+  2500 tracks used to play a shuffle of its first 500 in list order, which on a
   large playlist sorted by artist meant one letter of the alphabet for hours.
   Under that size a Mix now plays all of it; over it, a random sample of the
   whole. Tapping a track in a long playlist also plays on through the playlist

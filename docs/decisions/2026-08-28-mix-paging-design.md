@@ -138,6 +138,17 @@ sends a `Timeline` through `BundleListRetriever`, an `IBinder` the receiving
 process pulls in chunks. Collapsing them into one number would re-impose the
 browse ceiling on playback, which is the whole of what this design removes.
 
+**With one exception.** `PlexBrowseRepository.decadeTracks` backs both the
+decade's *browse* listing (`getDecadeTracks`) and its queue fallback
+(`getDecadeTracksForShuffle`), and `MediaLibrarySessionCallback.cachedDecadeTracks`
+replays the browse list to serve a Decade Mix tap without a second request.
+Capping that shared fetch at `MAX_ITEMS` would cap the Decade Mix at 500 in the
+path that serves it most of the time, breaking "the same N bounds all four
+rows" for Decade alone — so the decade browse node is sized to N like the queue
+is, not to `MAX_ITEMS` like every other browse node. The cost is real and paid
+on every open of the tab: ~4 MB instead of ~830 KB, and N `MediaItem`s built to
+render the ~285 the car's 227 KB browse ceiling will keep.
+
 ## Smart playlists, and the hazard their query carries
 
 A smart playlist carries a `content` field holding the library query that
@@ -241,6 +252,20 @@ idiom does not transfer.
 
 **Album tracks and the playlists listing keep their caps.** Neither realistically
 approaches 500.
+
+**Decade's browse node is sized to N, not `MAX_ITEMS`, and every other browse
+node is not.** `cachedDecadeTracks` replays the decade's browse list to serve
+its Mix tap, so the two share one fetch; sizing it at 500 would silently cap
+the Decade Mix at 500 in that path. The other three rows' browse nodes stay at
+`MAX_ITEMS`. See "Where N lives" above.
+
+**Hub Mix still draws from a prefix of containers.** `getByHubKey` caps at
+`MAX_ITEMS` and `containersOf` caps again, so a hub with more than 500
+containers (its own KDoc measures 1,322 albums for one real "Recently Added"
+hub) samples uniformly from only the first 500 in the hub's order. Practically
+mild, since that order is usually `addedAt:desc` — a meaningful subset rather
+than an alphabet slice — but it means "one rule, four rows, no exceptions" is
+not quite true.
 
 ## Errors
 
