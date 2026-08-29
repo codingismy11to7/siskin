@@ -90,6 +90,23 @@ public final class DownloadUtil {
         return getStreamingCache(context);
     }
 
+    /**
+     * The cache's size cap in megabytes: whatever the user chose, or a share of the partition when
+     * they have chosen nothing. Zero means cache nothing, and every caller able to skip the cache
+     * entirely tests for it.
+     *
+     * <p>The evictor below fixes this at construction, so a changed preference takes effect when
+     * the service next starts rather than on the next track.
+     */
+    public static synchronized long getStreamingCacheSizeMegabytes(Context context) {
+        Long override = Preferences.getStreamingCacheSizeOverrideMegabytes();
+        if (override != null) {
+            return override;
+        }
+
+        return StreamingCacheSize.forDirectory(getStreamingCacheDirectory(context));
+    }
+
     private static synchronized SimpleCache getStreamingCache(Context context) {
         if (streamingCache == null) {
             File streamingCacheDirectory =
@@ -100,7 +117,7 @@ public final class DownloadUtil {
                     new SimpleCache(
                             streamingCacheDirectory,
                             new LeastRecentlyUsedCacheEvictor(
-                                    Preferences.getStreamingCacheSize() * 1024 * 1024),
+                                    getStreamingCacheSizeMegabytes(context) * 1024 * 1024),
                             getDatabaseProvider(context));
         }
 
