@@ -57,6 +57,12 @@ class SearchClient(
         size: Int,
     ): Either<PlexTransportFailure, PlexResponse> = plexCall(PlexHost.Server) { service.getPlaylistItems(playlistId.value, start, size) }
 
+    /** A playlist's own metadata -- the probe a Mix issues before fetching. */
+    suspend fun getPlaylist(playlistId: RatingKey): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "getPlaylist($playlistId)")
+        return plexCall(PlexHost.Server) { service.getPlaylist(playlistId.value) }
+    }
+
     suspend fun reportProgress(
         ratingKey: RatingKey,
         key: String,

@@ -130,4 +130,16 @@ class LibraryClientTest {
             assertNull(result)
             assertEquals(0, server.requestCount)
         }
+
+    @Test
+    fun `getSmartPlaylistTracks refuses a path that is not relative`() =
+        runTest {
+            // The refusal is the point: this client attaches the account token
+            // to every request without inspecting the target, so an absolute
+            // URL out of a response body would hand it to another host.
+            assertNull(client().getSmartPlaylistTracks("https://evil.example/x", 2500))
+            assertNull(client().getSmartPlaylistTracks("//evil.example/x", 2500))
+        }
+
+    private fun client() = clientAgainstServer()
 }
