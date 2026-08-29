@@ -35,16 +35,27 @@ class MediaLibrarySessionCallback(
         MediaBrowserTree.initialize(context, browseRepository)
     }
 
+    /** A browse node's id, paired with the items [onGetChildren] recorded for it. */
+    private data class QueueSource(
+        val nodeId: String,
+        val items: List<MediaItem>,
+    )
+
     /**
-     * The node [queueSourceCache]'s list came from.
+     * What [queueSourceCache]'s list came from, written as one value so the
+     * node id and its items can never name different nodes -- previously two
+     * separate statements, which two browses completing concurrently could
+     * interleave.
      *
-     * The cache is a single slot under one constant key, so its contents alone
-     * cannot say which node produced them -- and a tapped track carries the
-     * same constant as its parent tag, not the node's id. Recording it here is
-     * what lets a tap re-fetch its own list rather than replaying whatever was
-     * browsed last.
+     * [queueSourceCache] is a single slot under one constant key, so its
+     * contents alone cannot say which node produced them, and a tapped track
+     * carries that same constant as its parent tag, not the node's id. This
+     * field is also only ever the *most recently browsed* node, so a tap can
+     * still arrive after a second browse moved it on -- [trustedPlaylistId]
+     * is what a re-fetch checks before trusting it. See
+     * docs/decisions/2026-08-28-mix-paging-design.md.
      */
-    private var queueSourceNodeId: String? = null
+    private var queueSource: QueueSource? = null
 
     // ─────────────────────────────────────────────────────────────
     // Android Auto — browse
@@ -130,7 +141,7 @@ class MediaLibrarySessionCallback(
             if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
                 val items = result.value ?: emptyList()
                 queueSourceCache[Constants.QUEUE_CACHED_SOURCE] = items
-                queueSourceNodeId = parentId
+                queueSource = QueueSource(parentId, items)
                 rememberTracks(items)
                 Futures.immediateFuture(result)
             } else {
@@ -534,15 +545,27 @@ class MediaLibrarySessionCallback(
                 }
 
                 parentId?.startsWith(Constants.QUEUE_CACHED_SOURCE) == true -> {
-                    val playlistId = playlistIdOf(queueSourceNodeId)
+                    val playlistId = trustedPlaylistId(firstItem)
                     if (playlistId != null) {
                         // The browse list was cut by the car's IPC ceiling, so
                         // replaying it would stop playback partway through the
                         // playlist. Re-fetch instead.
                         Log.d(TAG, "Re-fetching playlist $playlistId for the tapped track's queue")
-                        Futures.transform(
-                            browseRepository.getPlaylistTracksForQueue(playlistId),
-                            { result -> result?.value ?: emptyList() },
+                        val refetched =
+                            Futures.transform(
+                                browseRepository.getPlaylistTracksForQueue(playlistId),
+                                { result -> result?.value ?: emptyList() },
+                                MoreExecutors.directExecutor(),
+                            )
+                        val recordedItems = queueSource?.items ?: emptyList()
+                        // A transport failure would otherwise fail a plain track tap
+                        // outright; the recorded page is stale-but-playable, which a
+                        // car should prefer over nothing. Outside any either{} block,
+                        // so this catch cannot swallow an Arrow raise -- see CLAUDE.md.
+                        Futures.catching(
+                            refetched,
+                            Throwable::class.java,
+                            { recordedItems },
                             MoreExecutors.directExecutor(),
                         )
                     } else {
@@ -607,6 +630,25 @@ class MediaLibrarySessionCallback(
     }
 
     /**
+     * The playlist [queueSource] may be trusted to re-fetch for [tapped], or
+     * null when its node isn't a playlist's tracks, or when [tapped] is not
+     * among the items recorded with it.
+     *
+     * [queueSource] names whatever was browsed most recently, not necessarily
+     * what [tapped] was browsed in -- a second browse finishing first, or a
+     * screen the car re-renders without re-subscribing, can leave it naming an
+     * unrelated playlist. Re-fetching on its say-so alone would then queue
+     * that playlist's entire contents in place of the one the driver tapped.
+     * Requiring membership is what catches the mismatch before that happens.
+     * See docs/decisions/2026-08-28-mix-paging-design.md.
+     */
+    private fun trustedPlaylistId(tapped: MediaItem): String? {
+        val source = queueSource ?: return null
+        val playlistId = playlistIdOf(source.nodeId) ?: return null
+        return playlistId.takeIf { source.items.any { item -> item.mediaId == tapped.mediaId } }
+    }
+
+    /**
      * The playlist a browse node's id names, or null when it names something
      * else.
      *
@@ -614,7 +656,8 @@ class MediaLibrarySessionCallback(
      * [Constants.PLAYLIST_ID] bare is the *listing* of playlists, and only
      * `PLAYLIST_ID + id` is one playlist's tracks -- see
      * `MediaBrowserTree.getChildren`. Without it the listing node strips to an
-     * empty id and asks the server for playlist "".
+     * empty id and asks the server for playlist "". See
+     * docs/decisions/2026-08-28-mix-paging-design.md.
      */
     private fun playlistIdOf(nodeId: String?): String? =
         nodeId
