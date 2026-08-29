@@ -42,11 +42,6 @@ class PlexBrowseMixSourceTest {
 
     /**
      * A playlist metadata probe body -- what `GET playlists/{id}` answers.
-     *
-     * Built by string concatenation rather than a raw literal with a
-     * conditional hole in it: the content value is itself a URL full of
-     * percent-escapes, and interpolating one into a JSON literal inside a
-     * Kotlin template is a quoting problem nobody should have to read.
      */
     private fun probe(
         leafCount: Int,
@@ -54,9 +49,11 @@ class PlexBrowseMixSourceTest {
         content: String? = null,
     ): String {
         val contentField = content?.let { ""","content":"$it"""" }.orEmpty()
-        return """{"MediaContainer":{"size":1,"Metadata":[""" +
-            """{"ratingKey":"9","type":"playlist","title":"P",""" +
-            """"leafCount":$leafCount,"smart":$smart$contentField}]}}"""
+        return """
+            {"MediaContainer":{"size":1,"Metadata":[
+              {"ratingKey":"9","type":"playlist","title":"P",
+               "leafCount":$leafCount,"smart":$smart$contentField}]}}
+            """.trimIndent()
     }
 
     private val emptyTracks = """{"MediaContainer":{"size":0,"totalSize":0}}"""

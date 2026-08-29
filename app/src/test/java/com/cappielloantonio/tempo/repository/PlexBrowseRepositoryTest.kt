@@ -249,8 +249,11 @@ class PlexBrowseRepositoryTest {
     private fun playlistProbeBody(
         leafCount: Int,
         smart: Boolean,
-    ) = """{"MediaContainer":{"size":1,"Metadata":[{"ratingKey":"169077","type":"playlist","title":"P",""" +
-        """"leafCount":$leafCount,"smart":$smart}]}}"""
+    ) = """
+        {"MediaContainer":{"size":1,"Metadata":[
+          {"ratingKey":"169077","type":"playlist","title":"P",
+           "leafCount":$leafCount,"smart":$smart}]}}
+        """.trimIndent()
 
     /** Bounded so a bridge that never completes its future fails instead of hanging. */
     private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) = future.get(10, TimeUnit.SECONDS)
