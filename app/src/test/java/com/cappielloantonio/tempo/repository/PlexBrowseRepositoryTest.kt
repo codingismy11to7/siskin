@@ -331,10 +331,14 @@ class PlexBrowseRepositoryTest {
     fun anArtistsTracksAreFetchedFlatAndInLibraryOrderForTheShuffleRow() {
         // Left unshuffled deliberately: the player owns shuffling, so turning the
         // car's toggle off has to reveal the artist's real order.
+        // Two requests now, not one -- getArtistTracks probes the artist's
+        // total track count before fetching, see PlexBrowseMixSourceTest.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"size":0,"totalSize":3}}"""))
         server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("1", "2", "3")))
 
         val result = await(PlexBrowseRepository().getArtistTracks("15100"))
 
+        server.takeRequest()
         val request = server.takeRequest()
         assertEquals("/library/sections/1/all", request.requestUrl?.encodedPath)
         assertEquals("15100", request.requestUrl?.queryParameter("artist.id"))

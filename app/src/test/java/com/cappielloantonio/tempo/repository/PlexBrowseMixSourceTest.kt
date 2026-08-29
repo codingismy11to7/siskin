@@ -135,4 +135,56 @@ class PlexBrowseMixSourceTest {
             // The whole thing, because there is no server-side way to sample it.
             assertEquals(listOf("4000"), sizes)
         }
+
+    @Test
+    fun `an artist under the limit keeps its running order`() =
+        runTest {
+            val sorts = mutableListOf<String?>()
+            routeBy { request ->
+                val size = request.getHeader("X-Plex-Container-Size")
+                if (size != "0") sorts += request.requestUrl?.queryParameter("sort")
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody("""{"MediaContainer":{"size":0,"totalSize":297}}""")
+            }
+
+            PlexBrowseRepository().getArtistTracks("55").get()
+
+            // Unsorted, so turning the car's shuffle off mid-listen falls back
+            // to the artist's real album order rather than one we invented.
+            assertEquals(listOf<String?>(null), sorts)
+        }
+
+    @Test
+    fun `an artist over the limit is sampled by the server`() =
+        runTest {
+            val sorts = mutableListOf<String?>()
+            routeBy { request ->
+                val size = request.getHeader("X-Plex-Container-Size")
+                if (size != "0") sorts += request.requestUrl?.queryParameter("sort")
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody("""{"MediaContainer":{"size":0,"totalSize":9000}}""")
+            }
+
+            PlexBrowseRepository().getArtistTracks("55").get()
+
+            assertEquals(listOf("random"), sorts)
+        }
+
+    @Test
+    fun `a decade mix asks for the limit and never probes`() =
+        runTest {
+            val sizes = mutableListOf<String?>()
+            routeBy { request ->
+                sizes += request.getHeader("X-Plex-Container-Size")
+                MockResponse().setResponseCode(200).setBody(emptyTracks)
+            }
+
+            PlexBrowseRepository().getDecadeTracksForShuffle("scope|1980").get()
+
+            // One request. Both branches of the rule are sort=random here, so a
+            // probe could not change what is asked for.
+            assertEquals(listOf("2500"), sizes)
+        }
 }

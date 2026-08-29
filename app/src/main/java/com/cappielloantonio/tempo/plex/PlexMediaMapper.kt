@@ -379,7 +379,7 @@ object PlexMediaMapper {
         val title = directory.title?.takeIf { it.isNotBlank() } ?: return null
 
         // Only the playable-child key is set. A decade's children are the
-        // shuffle row plus up to 500 tracks -- all playable, and none
+        // shuffle row plus up to N tracks -- all playable, and none
         // browsable -- so EXTRAS_KEY_CONTENT_STYLE_BROWSABLE would be a hint
         // about a grid that never renders here. See BrowseContentStyle's KDoc:
         // these keys describe an item's children, not the item itself.
