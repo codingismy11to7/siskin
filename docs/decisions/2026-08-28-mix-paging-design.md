@@ -197,10 +197,35 @@ sampling.
 **What has to change to allow it.** `cachedTracks` tags every track with the
 *constant* `Constants.QUEUE_CACHED_SOURCE`, and `queueSourceCache` is a single
 slot under that same key, so a tapped track knows it came from "the last browse"
-and not which node that was. `onGetChildren` already receives `parentId`;
-recording it beside the cached list is enough for `resolveQueueForItem` to
-re-fetch. No change to item extras, no Room schema change, and the index-0 guard
-in `cachedDecadeTracks` and `cachedHubTracks` is untouched.
+and not which node that was. `onGetChildren` already receives `parentId`, so the
+node id is recorded with the list it came from — as one value, not two fields,
+because that write happens on a `directExecutor()` callback and two browses
+completing concurrently would otherwise interleave into an id naming one node
+beside another's items.
+
+**Recording it is not sufficient, and this is the part worth remembering.** The
+recorded node is only ever the *most recently browsed* one, so a tap can arrive
+after a second browse has moved it on: browse playlist A, browse playlist B, tap
+a row still on screen from A, and a re-fetch that trusted the id alone would
+queue the whole of B. That is worse than the truncation being fixed — a
+mismatched cache used to replay a bounded list the driver had at least seen,
+where this substitutes an unrelated playlist's entire contents after a network
+round trip.
+
+So the re-fetch is guarded: it happens only when the recorded node is a
+playlist-tracks node **and** the tapped item is present in the items recorded
+with it. Otherwise the old cached-list behaviour stands. That is the same shape
+as the index-0 guards in `cachedDecadeTracks` and `cachedHubTracks`, which exist
+for this identical hazard — a single-slot cache cannot say which node filled it,
+so the list has to identify itself before anything trusts it. Those two are
+untouched; this is a third instance of their rule, not a replacement for it.
+
+A re-fetch that fails falls back to the recorded items rather than failing the
+tap. `getPlaylistTracksForQueue` completes exceptionally on a transport failure,
+and in a car a truncated queue beats no music. That catch sits outside any
+`either { }`, so it cannot swallow an Arrow `raise`.
+
+No change to item extras and no Room schema change.
 
 ## What this does not fix
 

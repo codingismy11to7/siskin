@@ -42,10 +42,10 @@ class MediaLibrarySessionCallback(
     )
 
     /**
-     * What [queueSourceCache]'s list came from, written as one value so the
-     * node id and its items can never name different nodes -- previously two
-     * separate statements, which two browses completing concurrently could
-     * interleave.
+     * What [queueSourceCache]'s list came from. One value rather than two
+     * fields, so the node id and its items cannot name different nodes: this
+     * is written from a `directExecutor()` callback, and two browses
+     * completing concurrently would otherwise interleave their writes.
      *
      * [queueSourceCache] is a single slot under one constant key, so its
      * contents alone cannot say which node produced them, and a tapped track
