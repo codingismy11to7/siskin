@@ -12,6 +12,12 @@
 
 ## [Unreleased] — Siskin
 
+## [0.99.8] (2026-08-30)
+
+- Siskin now declares itself an audio app to Android Automotive OS. Play review
+  raised the missing declaration as a policy finding against the app, and this
+  release exists to clear it — nothing about playback or browsing changes.
+
 ## [0.99.7] (2026-08-29)
 
 - Mix now draws from the whole of what you tapped. A Mix of a list longer than
