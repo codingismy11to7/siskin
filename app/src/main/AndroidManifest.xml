@@ -29,9 +29,11 @@
          only from API 33 while minSdk is 28. Inert below that and kept anyway:
          it pairs with localeFilters in app/build.gradle, and the platform
          ignores attributes it does not know. See the five-locales design doc. -->
+    <!-- Play review rejects an AAOS bundle without appCategory. -->
     <application
         android:name="App"
         android:allowBackup="false"
+        android:appCategory="audio"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
