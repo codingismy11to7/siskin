@@ -1,6 +1,6 @@
 # Siskin Privacy Policy
 
-**Last updated:** 16 August 2026
+**Last updated:** 27 August 2026
 
 Siskin is a music player for Android Automotive OS that plays a Plex music
 library on a car's head unit.
