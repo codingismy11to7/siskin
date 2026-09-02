@@ -15,7 +15,7 @@ ktlintGradle = "14.2.0"
 # not buy agreement -- it would buy a formatter that disagrees with the gate.
 # See docs/decisions/2026-08-27-google-java-format-design.md.
 googleJavaFormat = "1.35.0"
-spotless = "7.0.4"
+spotless = "8.10.1"
 
 # AndroidX / Material
 activity = "1.13.0"
