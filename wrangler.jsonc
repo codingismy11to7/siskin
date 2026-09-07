@@ -12,6 +12,10 @@
     // https://siskinapp.com/privacy, and that URL exists only because this
     // mode serves privacy.html at its extensionless path. A silent change of
     // the default would break a link Google checks.
-    "html_handling": "auto-trailing-slash"
+    "html_handling": "auto-trailing-slash",
+    // Without this the default is "none", which answers an unmatched path with
+    // a 404 carrying no body at all -- correct status, but the visitor gets the
+    // browser's own blank error page. See #188.
+    "not_found_handling": "404-page"
   }
 }
