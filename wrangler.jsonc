@@ -1,0 +1,17 @@
+{
+  // An assets-only Worker: no "main", so there is no script to maintain --
+  // Cloudflare serves build/web/ directly. scripts/build-site.sh fills that
+  // directory, and Workers Builds runs it as this project's build command.
+  //
+  // See docs/decisions/2026-09-07-site-deploy-design.md.
+  "name": "siskin",
+  "compatibility_date": "2026-09-07",
+  "assets": {
+    "directory": "./build/web",
+    // Explicit although it is the default. The Play Console holds
+    // https://siskinapp.com/privacy, and that URL exists only because this
+    // mode serves privacy.html at its extensionless path. A silent change of
+    // the default would break a link Google checks.
+    "html_handling": "auto-trailing-slash"
+  }
+}

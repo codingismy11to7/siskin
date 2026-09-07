@@ -165,42 +165,24 @@
         exec "${androidComposition.androidsdk}/bin/emulator" -avd "$name" "$@"
       '';
 
-      # Renders the documents under docs/ that are published to
-      # codingismy11to7.us into standalone HTML. Markdown stays the source of
-      # truth; nothing hand-edited lives on the web server, so a page can
-      # always be regenerated from this repository rather than being lost with
-      # whatever shell session produced it.
+      # Renders the site published to siskinapp.com into build/web/, which is
+      # already gitignored. Markdown stays the source of truth; nothing
+      # hand-edited lives on the web server, so a page can always be
+      # regenerated from this repository rather than being lost with whatever
+      # shell session produced it.
       #
-      # Output goes to build/web/, which is already gitignored. Copy up with:
+      # The build is scripts/build-site.sh, which Cloudflare Workers Builds
+      # runs on every push. This wrapper exists only to put nixpkgs' pandoc on
+      # PATH -- one implementation of the render rather than two that drift.
       #
-      #   scp build/web/privacy.html \
-      #     steven@192.168.0.2:/mnt/teeb/docker/appdata/swag/www/siskin/
-      #
-      # That copy is deliberately not automated here: it writes to a public
-      # web root, which should stay a decision rather than a side effect of
-      # running a render.
+      # Deploying is Cloudflare's job now: a merge to main publishes. Nothing
+      # here copies files to a web server, and nothing should. See
+      # docs/decisions/2026-09-07-site-deploy-design.md.
       siskin-render-web = pkgs.writeShellScriptBin "siskin-render-web" ''
         set -euo pipefail
         root="$(${pkgs.git}/bin/git rev-parse --show-toplevel)"
-        out="$root/build/web"
-        mkdir -p "$out"
-
-        # pagetitle, not `--metadata title`: the latter also emits a title block
-        # into the body, which duplicates the heading the markdown already
-        # starts with. This sets <title> alone and leaves the document's own h1
-        # as the only one -- which is also what docs/web/style.html's `h1+p`
-        # subtitle rule expects.
-        render() {
-          "${pkgs.pandoc}/bin/pandoc" "$root/docs/$1.md" \
-            --from markdown --to html5 --standalone \
-            --variable pagetitle="$2" \
-            --include-in-header "$root/docs/web/style.html" \
-            --output "$out/$3"
-          echo "  $out/$3  ($(stat -c %s "$out/$3") bytes)"
-        }
-
-        echo "rendering:"
-        render privacy-policy "Siskin Privacy Policy" privacy.html
+        export PATH="${pkgs.pandoc}/bin:$PATH"
+        exec "$root/scripts/build-site.sh" "$@"
       '';
 
       # `./gradlew` from anywhere in the tree. The wrapper is what pins the
