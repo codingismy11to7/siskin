@@ -77,7 +77,7 @@ claim 88 languages.
 
 `flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, `gh` and
 `ktlint` — `nix develop`, or direnv via `.envrc`. `gr` runs `./gradlew` from
-anywhere in the tree, `siskin-render-web` renders the privacy policy to HTML,
+anywhere in the tree, `siskin-render-web` renders the website into `build/web/`,
 and two more scripts drive the emulator:
 
     siskin-avd                    # create the AAOS AVD (idempotent)
@@ -433,3 +433,22 @@ This is written down because it lapsed. `Cut 0.99.1` carried its entry and the
 next two cuts silently did not, which is what
 `docs/decisions/2026-08-12-changelog-workflow-design.md` exists to prevent
 happening a third time.
+
+## The website
+
+`siskinapp.com` is an assets-only Cloudflare Worker serving two static files,
+and **it deploys itself on every merge to `main`** — Workers Builds is connected
+to the repository, runs `scripts/build-site.sh` and uploads `build/web/`. There
+is nothing to copy anywhere; the `scp` to the swag web root is gone, and
+`codingismy11to7.us/siskin/` now redirects here.
+
+A PR that touches the site builds too and gets a preview URL; one that does not
+builds nothing, because the project's **Build watch paths** name the four inputs
+exactly — `docs/web/**`, `docs/privacy-policy.md`, `scripts/build-site.sh`,
+`wrangler.jsonc`. Giving the build a new input means adding it there, in the
+Cloudflare dashboard, or the site quietly stops tracking it.
+
+The Play Console holds `https://siskinapp.com/privacy`. That URL has no
+extension because `html_handling` serves `privacy.html` at its extensionless
+path, so renaming the file or changing that setting breaks a link Google
+checks. See `docs/decisions/2026-09-07-site-deploy-design.md`.
