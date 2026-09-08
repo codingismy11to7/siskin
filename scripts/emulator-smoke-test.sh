@@ -71,4 +71,45 @@ if ! adb shell am force-stop "${PKG}"; then
 fi
 run_scenario "Scenario 4: service serves the tree after force-stop"
 
+# Screenshots last, after all cycling. They are artifacts rather than
+# assertions -- nothing is compared against a baseline, so nothing here can
+# fail the build on a restyle. Reinstalling while com.android.car.media is
+# bound leaves its UI rendering empty, which is why nothing reinstalls below.
+SHOTS="build/emulator-screenshots"
+mkdir -p "${SHOTS}"
+
+# The car's own media UI, showing our tree. Google's pixels, but this is the
+# screen a person would actually look at after a dependency bump.
+if ! adb shell am start -a android.car.intent.action.MEDIA_TEMPLATE \
+  -e android.car.intent.extra.MEDIA_COMPONENT \
+  "${PKG}/com.cappielloantonio.tempo.service.MediaService" >/dev/null; then
+  echo "::error::am start MEDIA_TEMPLATE failed (device or transport problem, not a test failure)" >&2
+  exit 1
+fi
+sleep 5
+if ! adb exec-out screencap -p > "${SHOTS}/car-browse.png"; then
+  echo "::error::screencap car-browse.png failed (device or transport problem, not a test failure)" >&2
+  exit 1
+fi
+
+# Our own pixels. Signed out this renders PlexSignInFragment in its
+# Disconnected state; viewModel.connect() sits behind the retry button's click
+# listener, so this mints no PIN and makes no plex.tv call.
+if ! adb shell am start -n \
+  "${PKG}/com.cappielloantonio.tempo.ui.activity.CarHostActivity" >/dev/null; then
+  echo "::error::am start CarHostActivity failed (device or transport problem, not a test failure)" >&2
+  exit 1
+fi
+sleep 5
+if ! adb exec-out screencap -p > "${SHOTS}/sign-in.png"; then
+  echo "::error::screencap sign-in.png failed (device or transport problem, not a test failure)" >&2
+  exit 1
+fi
+
+# The documented recovery order, so a later run does not inherit a wedged
+# car media app.
+adb shell am force-stop "${PKG}" --user 10 || true
+adb shell am force-stop com.android.car.media --user 10 || true
+
+ls -la "${SHOTS}"
 echo "All scenarios passed."
