@@ -559,15 +559,11 @@ object MediaBrowserTree {
      * correctly reading "Siskin". Every *non-root* `parentId` returns this
      * single row, which is what the two-line split above was solving for
      * in the first place, so it collapses back into one row using both
-     * lines the browse list already gives every item: `car_sign_in_required`
-     * as the title, `car_sign_in_hint` as the subtitle. That costs nothing
-     * *further*: both
-     * lines were already in place by the two-row split, which is what first
-     * introduced `car_sign_in_hint` as a second row's title. But
-     * `car_sign_in_hint` is not a pre-existing string overall -- it is new to
-     * this branch, one of the three the design doc's string budget accounts
-     * for (alongside the Settings heading and the Sign out button);
-     * `car_sign_in_required` is the one that predates this work.
+     * lines the browse list already gives every item: `car_sign_in_row_title`
+     * as the title, `car_sign_in_hint` as the subtitle. The title is its own
+     * string rather than the sign-in screen's `car_sign_in_required` because
+     * the row truncates at roughly 30 characters and every locale is longer
+     * than English, while the screen has room for the full sentence.
      *
      * [MediaLibrarySessionCallback.onGetChildren]'s no-credentials guard
      * exempts `ROOT_ID` for exactly this reason and falls through to the
@@ -601,7 +597,7 @@ object MediaBrowserTree {
                 .setMediaMetadata(
                     MediaMetadata
                         .Builder()
-                        .setTitle(context.getString(R.string.car_sign_in_required))
+                        .setTitle(context.getString(R.string.car_sign_in_row_title))
                         // The browse list's second line, the same one an album
                         // uses for its artist.
                         .setArtist(context.getString(R.string.car_sign_in_hint))

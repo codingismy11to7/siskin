@@ -161,7 +161,7 @@ class MediaBrowserTreeTest {
         // Still not playable: tapping it must never attempt a stream.
         assertEquals(false, row.mediaMetadata.isPlayable)
         assertEquals(
-            context.getString(R.string.car_sign_in_required),
+            context.getString(R.string.car_sign_in_row_title),
             row.mediaMetadata.title,
         )
         assertEquals(
@@ -214,7 +214,7 @@ class MediaBrowserTreeTest {
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         val row = result.value!!.single()
         assertEquals(
-            context.getString(R.string.car_sign_in_required),
+            context.getString(R.string.car_sign_in_row_title),
             row.mediaMetadata.title,
         )
         assertEquals(

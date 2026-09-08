@@ -43,6 +43,11 @@
     <string name="car_sign_in_back_description">Back</string>
     <string name="car_sign_in_hint">Tap the settings icon to connect</string>
     <string name="car_sign_in_required">Your music is on Plex. Connect to start listening.</string>
+    <!-- The browse row's title, where car_sign_in_required truncates: the car gives
+         it roughly 30 characters at 1024px and less on a narrower head unit, and
+         every locale is longer than English. The row's second line carries the
+         action, so this line only has to name the situation. -->
+    <string name="car_sign_in_row_title">Your music is on Plex.</string>
 
     <!-- Diagnostics behind the version line. translatable="false" throughout:
          this is diagnostic output read by the app's author, in vocabulary that

@@ -38,6 +38,7 @@
     <string name="car_sign_in_back_description">Zurück</string>
     <string name="car_sign_in_hint">Tippe auf das Einstellungssymbol, um dich zu verbinden</string>
     <string name="car_sign_in_required">Deine Musik liegt auf Plex. Verbinde dich, um loszuhören.</string>
+    <string name="car_sign_in_row_title">Deine Musik liegt auf Plex.</string>
     <string name="exo_controls_repeat_all_description">Aktueller Modus: Alle wiederholen. Wiederholmodus wechseln.</string>
     <string name="exo_controls_repeat_off_description">Aktueller Modus: Keine Wiederholung. Wiederholmodus wechseln.</string>
     <string name="exo_controls_repeat_one_description">Aktueller Modus: Titel wiederholen. Wiederholmodus wechseln.</string>

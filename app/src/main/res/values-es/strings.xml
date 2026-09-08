@@ -39,6 +39,7 @@
     <string name="car_sign_in_back_description">Atrás</string>
     <string name="car_sign_in_hint">Toca el icono de ajustes para conectarte</string>
     <string name="car_sign_in_required">Tu música está en Plex. Conéctate para empezar a escuchar.</string>
+    <string name="car_sign_in_row_title">Tu música está en Plex.</string>
     <string name="exo_controls_repeat_all_description">Modo actual: repetir todo. Cambiar modo de repetición.</string>
     <string name="exo_controls_repeat_off_description">Modo actual: sin repetición. Cambiar modo de repetición.</string>
     <string name="exo_controls_repeat_one_description">Modo actual: repetir una. Cambiar modo de repetición.</string>

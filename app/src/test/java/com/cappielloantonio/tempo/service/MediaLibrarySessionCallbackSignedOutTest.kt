@@ -89,7 +89,7 @@ class MediaLibrarySessionCallbackSignedOutTest {
             val row = getChildren(parentId).single()
 
             assertEquals(
-                RuntimeEnvironment.getApplication().getString(R.string.car_sign_in_required),
+                RuntimeEnvironment.getApplication().getString(R.string.car_sign_in_row_title),
                 row.mediaMetadata.title?.toString(),
             )
             assertEquals(
