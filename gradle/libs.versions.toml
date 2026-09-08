@@ -27,7 +27,7 @@ material = "1.14.0"
 recyclerview = "1.4.0"
 
 # Third-party
-glide = "4.16.0"
+glide = "5.0.9"
 media3 = "1.11.0"
 # The "+1" is a build suffix, not a Gradle wildcard -- only a version *ending*
 # in "+" is dynamic. Google publishes no ffmpeg artifact of its own; see
