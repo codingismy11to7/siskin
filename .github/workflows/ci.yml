@@ -200,7 +200,6 @@ jobs:
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
             -no-snapshot-save -camera-back none -camera-front none
           emulator-boot-timeout: 600
-          disable-animations: false
           script: |
             ./gradlew installDebug installDebugAndroidTest
             ./scripts/emulator-smoke-test.sh

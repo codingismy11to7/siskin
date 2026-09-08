@@ -89,27 +89,22 @@ run_scenario() {
     echo "::error::${label} failed" >&2
     return 1
   fi
-  if ! echo "${output}" | grep -q "OK ("; then
+  # Requires at least one digit before "test(s)" so a class emptied by a
+  # refactor -- "OK (0 tests)" -- fails loudly instead of matching "OK (".
+  if ! echo "${output}" | grep -qE "OK \([1-9][0-9]* tests?\)"; then
     echo "::error::${label} produced no OK result -- the run did not complete" >&2
     return 1
   fi
 }
 
-# Bounded poll for a marker string to appear in the on-screen accessibility
-# tree before a screenshot is taken. `am start` only proves the window opened
-# -- the browse tabs come from the root (one round trip) while the row comes
-# from the selected tab's children (a second one), and a fixed sleep long
-# enough locally was not long enough on a loaded CI runner: the tabs and a
-# still-empty row both landed in the same PNG. The 15s budget is a wall-clock
-# deadline, not an iteration count -- `uiautomator dump` is not instant, so
-# counting iterations would let a slow runner blow well past the stated
-# bound. Each dump is itself capped by `timeout` so one hung call cannot
-# consume the whole budget; `timeout`'s exit 124 there means "still slow,"
-# not "device unreachable," so it is treated as "not found yet" and polling
-# continues -- a slow dump is the CI condition this exists to survive, not a
-# failure. Screenshots are artifacts, so an exhausted deadline is logged, not
-# fatal; a genuine adb/transport failure is neither -- that is the file's
-# existing guard convention.
+# Bounded poll (wall-clock, not iteration count) for a marker string in the
+# on-screen accessibility tree; a fixed sleep was not reliable in CI. See
+# docs/decisions/2026-09-07-emulator-smoke-test-design.md for the reasoning
+# and how the budget/timeout values were picked.
+#
+# `timeout` execs its argument directly, so a shell-function `adb` stub
+# silently falls through to the real binary -- stubbing this for a re-test
+# needs a PATH shim, not a function override.
 wait_for_text() {
   local marker="$1"
   local budget_s=15
@@ -128,6 +123,7 @@ wait_for_text() {
         exit 1
       fi
     fi
+    sleep 0.5
   done
   return 1
 }

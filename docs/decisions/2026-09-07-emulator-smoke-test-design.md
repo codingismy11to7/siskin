@@ -136,7 +136,30 @@ path, or branch churn, for saving two clicks from the run summary page. Not
 worth it.
 
 The failure artifacts are the load-bearing ones. A red emulator job with no
-evidence is "something happened on a machine you cannot see."
+evidence is "something happened on a machine you cannot see." That is what the
+script's `on_exit` trap is for: it runs on every exit, pass or fail, and takes
+one more screenshot before the documented force-stop cleanup, so a scenario
+that fails before either named screenshot is reached still leaves a picture of
+whatever was on screen. The trap saves `$?` as its first act and re-exits with
+that value, so nothing it does — including a failed screencap — can change the
+script's own exit status.
+
+### Waiting for rendered content before a screenshot
+
+`am start` only proves the window opened. The browse tabs come from the root
+(one round trip) while the row comes from the selected tab's children (a
+second one), and a fixed sleep long enough locally was not long enough on a
+loaded CI runner: the tabs and a still-empty row both landed in the same PNG.
+`wait_for_text` polls for a marker instead, bounded by wall clock rather than
+iteration count — `uiautomator dump` is not instant, so counting iterations
+would let a slow runner blow well past the stated 15-second bound.
+
+Each dump is itself capped by `timeout` so one hung call cannot consume the
+whole budget; its exit 124 there means "still slow," not "device unreachable,"
+so it is treated as "not found yet" and polling continues — a slow dump is the
+CI condition this exists to survive, not a failure. Screenshots are artifacts,
+so an exhausted deadline is logged, not fatal; a genuine adb/transport failure
+is neither — that is the file's existing guard convention.
 
 ## The CI job
 
