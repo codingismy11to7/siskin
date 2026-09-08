@@ -183,9 +183,11 @@ jobs:
         run: ./gradlew assembleDebug assembleDebugAndroidTest
 
       # No retry wrapper: flake has to be measured before it is mitigated. The
-      # boot timeout is raised well above the action's 600s default because
-      # AAOS images boot slower than the phone images that default was tuned
-      # for.
+      # boot timeout stays at the action's 600s default -- the measured cold
+      # path is 93s and warm is 20s, both well inside it, and it only earns
+      # its specific diagnostic by sitting well below this job's 30-minute
+      # timeout-minutes cap. Raised close to that cap, the job timeout fires
+      # first and the boot timeout's own message never surfaces.
       - name: Run the smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -197,7 +199,7 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
             -no-snapshot-save -camera-back none -camera-front none
-          emulator-boot-timeout: 1800
+          emulator-boot-timeout: 600
           disable-animations: false
           script: |
             ./gradlew installDebug installDebugAndroidTest

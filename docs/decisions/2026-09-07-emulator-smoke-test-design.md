@@ -147,11 +147,14 @@ exactly as `lint` does.
 
 `reactivecircus/android-emulator-runner` at `api-level: 33`, `target:
 android-automotive`, `arch: x86_64`, `profile: automotive_1024p_landscape`, with
-`emulator-boot-timeout` raised well above its 600s default — AAOS images boot
-slower than the phone images that default was tuned for. KVM needs the
-`99-kvm4all.rules` udev step; hardware acceleration on standard `ubuntu-latest`
-runners is free for public repositories and has been [since April 2024][kvm].
-Stale issues asserting there is no acceleration on ubuntu runners predate that.
+`emulator-boot-timeout` left at its 600s default: the measured cold path is 93s
+and warm is 20s, both comfortably inside it, and a boot timeout only earns its
+specific diagnostic by sitting well below the job's own `timeout-minutes` cap —
+raised close to that cap, the job's generic timeout fires first and the boot
+timeout's own message never surfaces. KVM needs the `99-kvm4all.rules` udev
+step; hardware acceleration on standard `ubuntu-latest` runners is free for
+public repositories and has been [since April 2024][kvm]. Stale issues
+asserting there is no acceleration on ubuntu runners predate that.
 
 **The AVD snapshot cache is optional, and marginal.** Measured, a cold path —
 SDK install, image download, AVD creation, boot, snapshot save — is 93 seconds
@@ -188,10 +191,12 @@ reflex, and then the required check is decorative.
 
 Three mitigations, in order:
 
-- the raised boot timeout comes first, and costs nothing when the boot is
-  healthy. The snapshot cache helps here too, by removing the image download
-  from the common path — but see above: its runtime saving is small enough that
-  it should be justified as flake reduction rather than as speed
+- the boot timeout comes first — kept at the action's 600s default rather
+  than raised, since it only fires with its own diagnostic by staying well
+  below the job's cap — and costs nothing when the boot is healthy. The
+  snapshot cache helps here too, by removing the image download from the
+  common path — but see above: its runtime saving is small enough that it
+  should be justified as flake reduction rather than as speed
 - **no retry wrapper up front.** Retry is mitigation for flake that has been
   measured; adding it pre-emptively hides the rate that decides whether this
   was worth building
