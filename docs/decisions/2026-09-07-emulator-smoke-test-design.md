@@ -257,7 +257,7 @@ Four things it confirmed that nothing found in prior art did:
   multi-user shape the app already has to account for on a real head unit
 
 The gate itself adds a Gradle build of two APKs, an install, three
-instrumentation runs and two screenshots to the 20-second warm boot. Against the
+instrumentation runs and three screenshots to the 20-second warm boot. Against the
 existing `test` job's 3m21s for unit tests plus `assembleDebug`, that projects to
 roughly 4-6 minutes. **The Gradle portion of that is extrapolated rather than
 measured** — the spike deliberately built nothing — so it is the number to watch

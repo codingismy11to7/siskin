@@ -12,12 +12,10 @@ PKG="us.codingismy11to7.siskin.debug"
 RUNNER="${PKG}.test/androidx.test.runner.AndroidJUnitRunner"
 CLASS="com.cappielloantonio.tempo.service.MediaServiceBindTest"
 
-# AAOS is multi-user (CLAUDE.md documents this) and `am`'s subcommands do not
-# agree on a default: `am instrument` defaults to the caller's own user, but
-# `pm clear` and `am force-stop` default to user 0, which is not the profile
-# the emulator (or a real head unit) runs as. Resolving it once and passing it
-# explicitly everywhere below is what keeps every call operating on the same
-# profile the instrumentation actually runs under.
+# AAOS is multi-user and `am`'s subcommands disagree about the default:
+# `am instrument` uses the caller's user, `pm clear` and `am force-stop` use
+# user 0. Resolved once and passed explicitly to every call below, so they all
+# act on the profile the instrumentation actually runs as.
 if ! USER_ID="$(adb shell am get-current-user | tr -d '\r\n')"; then
   echo "::error::am get-current-user failed (device or transport problem)" >&2
   exit 1
@@ -32,13 +30,11 @@ SHOTS="build/emulator-screenshots"
 mkdir -p "${SHOTS}"
 
 # Runs on every exit, pass or fail, so a red run still carries a picture of
-# whatever was on screen and the documented force-stop recovery order still
-# happens even when a scenario fails partway through. `$?` is saved as the
-# very first thing so nothing below can change the script's own exit status;
-# the function always finishes by re-exiting with the value it saved. Cleanup
-# failures stay non-fatal (::warning::) -- by the time this runs, the gate's
-# question is already answered, so a red here would be flake unrelated to the
-# app.
+# whatever was on screen and the documented force-stop order still happens when
+# a scenario fails partway through. `$?` must stay the first statement or the
+# script's own exit status is lost. Cleanup failures stay non-fatal: by the time
+# this runs the gate's question is answered, so a red here is flake unrelated to
+# the app.
 on_exit() {
   local rc=$?
 
@@ -63,11 +59,9 @@ run_scenario() {
   local label="$1"
   echo "::group::${label}"
 
-  # A bare `output="$(cmd)"` assignment under `set -e` dies at this line if
-  # adb itself fails (device offline, transport reset) -- before the group is
-  # closed and before any diagnostic is printed. Wrapping it in `if !` lets
-  # the failure path still emit ::endgroup:: and an ::error:: annotation
-  # instead of leaving a silent, unclosed group in the log.
+  # A bare `output="$(cmd)"` under `set -e` dies here when adb fails, before
+  # ::endgroup:: or any diagnostic is printed. `if !` keeps the failure path
+  # able to close the group and annotate.
   local output
   if ! output="$(adb shell am instrument -w -r --user "${USER_ID}" -e class "${CLASS}" "${RUNNER}" 2>&1)"; then
     echo "${output}"
@@ -78,13 +72,10 @@ run_scenario() {
   echo "${output}"
   echo "::endgroup::"
 
-  # `INSTRUMENTATION_CODE: 0` is documented as the signature for abnormal
-  # instrumentation termination -- a native crash, an uncaught exception on a
-  # non-test thread, or the process being killed -- the one failure mode
-  # where JUnit never gets to print a `stack=` line or `FAILURES!!!`. This
-  # script's own testing (a clean pass and a JUnit-caught assertion failure)
-  # never exercised that path, so do not remove this clause on the strength
-  # of those two cases alone.
+  # `INSTRUMENTATION_CODE: 0` signals abnormal termination -- a native crash or
+  # a kill -- the one failure mode where JUnit never prints `stack=` or
+  # `FAILURES!!!`. This script's testing never exercised that path, so do not
+  # drop the clause on the strength of the two cases that were tested.
   if echo "${output}" | grep -qE "^INSTRUMENTATION_STATUS: stack=|FAILURES!!!|INSTRUMENTATION_CODE: 0"; then
     echo "::error::${label} failed" >&2
     return 1
@@ -134,10 +125,7 @@ wait_for_text() {
 run_scenario "Scenario 1+2: service serves the tree with no Activity"
 
 # Scenario 3: the service runs when the user is not signed in, on a genuinely
-# cold profile rather than an assumed one. `pm clear` also stops the app, but
-# only for the user it targets -- omitting --user here clears user 0's data
-# while the instrumentation runs as USER_ID, leaving that profile's data
-# untouched and this scenario testing nothing.
+# cold profile rather than an assumed one. `pm clear` also stops the app.
 if ! adb shell pm clear --user "${USER_ID}" "${PKG}"; then
   echo "::error::pm clear ${PKG} failed (device or transport problem)" >&2
   exit 1

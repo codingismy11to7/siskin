@@ -183,11 +183,9 @@ jobs:
         run: ./gradlew assembleDebug assembleDebugAndroidTest
 
       # No retry wrapper: flake has to be measured before it is mitigated. The
-      # boot timeout stays at the action's 600s default -- the measured cold
-      # path is 93s and warm is 20s, both well inside it, and it only earns
-      # its specific diagnostic by sitting well below this job's 30-minute
-      # timeout-minutes cap. Raised close to that cap, the job timeout fires
-      # first and the boot timeout's own message never surfaces.
+      # boot timeout stays at the action's 600s default -- measured cold path is
+      # 93s -- and must stay well below timeout-minutes, or the job cap fires
+      # first and the boot timeout's own diagnostic never surfaces.
       - name: Run the smoke test
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -204,11 +202,10 @@ jobs:
             ./gradlew installDebug installDebugAndroidTest
             ./scripts/emulator-smoke-test.sh
 
-      # The script's own EXIT trap captures a screenshot on every run, pass or
-      # fail, so this directory always has something to upload -- there is no
-      # separate instrumentation-report step because this job never runs
-      # connectedAndroidTest, the task that writes one; it drives `am
-      # instrument` directly, so that report directory would always be empty.
+      # The script's EXIT trap screenshots on every run, pass or fail, so a red
+      # run carries evidence too. No instrumentation-report step: this job drives
+      # `am instrument` directly rather than connectedAndroidTest, so that
+      # report directory is never written.
       - name: Upload emulator screenshots
         if: always()
         uses: actions/upload-artifact@v7
