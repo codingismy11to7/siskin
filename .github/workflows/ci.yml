@@ -205,6 +205,11 @@ jobs:
             ./gradlew installDebug installDebugAndroidTest
             ./scripts/emulator-smoke-test.sh
 
+      # The script's own EXIT trap captures a screenshot on every run, pass or
+      # fail, so this directory always has something to upload -- there is no
+      # separate instrumentation-report step because this job never runs
+      # connectedAndroidTest, the task that writes one; it drives `am
+      # instrument` directly, so that report directory would always be empty.
       - name: Upload emulator screenshots
         if: always()
         uses: actions/upload-artifact@v7
@@ -212,10 +217,3 @@ jobs:
           name: emulator-screenshots
           path: build/emulator-screenshots/
           if-no-files-found: warn
-
-      - name: Upload instrumentation report
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: instrumentation-report
-          path: app/build/reports/androidTests/

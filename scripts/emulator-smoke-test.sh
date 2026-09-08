@@ -28,6 +28,35 @@ if ! [[ "${USER_ID}" =~ ^[0-9]+$ ]]; then
 fi
 echo "Resolved Android user: ${USER_ID}"
 
+SHOTS="build/emulator-screenshots"
+mkdir -p "${SHOTS}"
+
+# Runs on every exit, pass or fail, so a red run still carries a picture of
+# whatever was on screen and the documented force-stop recovery order still
+# happens even when a scenario fails partway through. `$?` is saved as the
+# very first thing so nothing below can change the script's own exit status;
+# the function always finishes by re-exiting with the value it saved. Cleanup
+# failures stay non-fatal (::warning::) -- by the time this runs, the gate's
+# question is already answered, so a red here would be flake unrelated to the
+# app.
+on_exit() {
+  local rc=$?
+
+  if ! adb exec-out screencap -p > "${SHOTS}/on-exit.png" 2>/dev/null; then
+    echo "::warning::on-exit.png: screencap failed (device or transport problem)" >&2
+  fi
+
+  if ! adb shell am force-stop --user "${USER_ID}" "${PKG}"; then
+    echo "::warning::cleanup: could not force-stop ${PKG} (device or transport problem)" >&2
+  fi
+  if ! adb shell am force-stop --user "${USER_ID}" com.android.car.media; then
+    echo "::warning::cleanup: could not force-stop com.android.car.media (device or transport problem)" >&2
+  fi
+
+  exit "${rc}"
+}
+trap on_exit EXIT
+
 # `am instrument` exits 0 even when tests fail -- it reports failure in its
 # output, not its status. Without this every red run would be a green job.
 run_scenario() {
@@ -131,8 +160,6 @@ run_scenario "Scenario 4: service serves the tree after force-stop"
 # assertions -- nothing is compared against a baseline, so nothing here can
 # fail the build on a restyle. Reinstalling while com.android.car.media is
 # bound leaves its UI rendering empty, which is why nothing reinstalls below.
-SHOTS="build/emulator-screenshots"
-mkdir -p "${SHOTS}"
 
 # The car's own media UI, showing our tree. Google's pixels, but this is the
 # screen a person would actually look at after a dependency bump.
@@ -164,18 +191,6 @@ fi
 if ! adb exec-out screencap -p > "${SHOTS}/sign-in.png"; then
   echo "::error::screencap sign-in.png failed (device or transport problem, not a test failure)" >&2
   exit 1
-fi
-
-# The documented recovery order, so a later run does not inherit a wedged
-# car media app. By this point every scenario has passed and both screenshots
-# are captured -- what this gate measures is already decided -- so a failure
-# here is logged, not fatal: it would fail the build for a cleanup step, not
-# for anything the app did.
-if ! adb shell am force-stop --user "${USER_ID}" "${PKG}"; then
-  echo "::warning::cleanup: could not force-stop ${PKG} (device or transport problem)" >&2
-fi
-if ! adb shell am force-stop --user "${USER_ID}" com.android.car.media; then
-  echo "::warning::cleanup: could not force-stop com.android.car.media (device or transport problem)" >&2
 fi
 
 ls -la "${SHOTS}"
