@@ -99,6 +99,14 @@ from the workflow script. Gradle assembles `app-debug.apk` and
 `connectedDebugAndroidTest` three times would pay for a reinstall each round to
 get the same coverage.
 
+**That script must be one heredoc or a checked-in file, never a multi-line
+`script:` block.** `android-emulator-runner` runs each line of `script:` as its
+own `sh -c`, so a variable assigned on one line is gone by the next. The timing
+spike hit this: it assigned `elapsed` and echoed it on the following line, and
+reported an empty value with no error. A cycling script written the obvious way
+would fail the same way — silently, and in a job whose whole purpose is to be
+trusted.
+
 ## Screenshots are artifacts, not assertions
 
 A picture cannot fail a build, which is exactly why it is useful here. Capturing
@@ -145,6 +153,13 @@ slower than the phone images that default was tuned for. KVM needs the
 runners is free for public repositories and has been [since April 2024][kvm].
 Stale issues asserting there is no acceleration on ubuntu runners predate that.
 
+**The AVD snapshot cache is optional, and marginal.** Measured, a cold path —
+SDK install, image download, AVD creation, boot, snapshot save — is 93 seconds
+against a warm boot's 20, and the cache's own restore and save cost about 10.
+So it buys roughly a minute in exchange for a cache-invalidation failure mode.
+Keep it or drop it; dropping it is a legitimate simplification and the gate
+still lands inside budget without it.
+
 **Landscape only, no matrix.** Reading the browse tree is screen-independent —
 there is no UI in the assertion path — so the portrait AVD would double the
 runtime to re-verify identical data. The two profiles exist for Play
@@ -173,29 +188,54 @@ reflex, and then the required check is decorative.
 
 Three mitigations, in order:
 
-- the raised boot timeout and the AVD snapshot cache come first
+- the raised boot timeout comes first, and costs nothing when the boot is
+  healthy. The snapshot cache helps here too, by removing the image download
+  from the common path — but see above: its runtime saving is small enough that
+  it should be justified as flake reduction rather than as speed
 - **no retry wrapper up front.** Retry is mitigation for flake that has been
   measured; adding it pre-emptively hides the rate that decides whether this
   was worth building
 - the `MediaBrowser` connection is awaited with a timeout, never a sleep
 
-## Build order, and the number that cancels it
+## The measurement that could have cancelled this
 
-Runtime is an explicit kill criterion, so the first thing built is not test
-code.
+Runtime was an explicit kill criterion, so the first thing built was not test
+code: a throwaway workflow that booted the AAOS emulator on `ubuntu-latest` and
+reported timings, installing no APK and asserting nothing. The threshold set
+before running it was that under ~6-7 minutes of warm job wall-clock the gate is
+clearly worth building, and over ~10 it roughly triples a 3.5-minute feedback
+loop and should be abandoned.
 
-**A throwaway branch whose workflow does nothing but boot the AAOS emulator on
-`ubuntu-latest` with KVM and print timings** — cold, then warm with a cached
-snapshot. No source set, no scenarios, no screenshots. It answers the only
-question that can cancel the project, and it settles something no prior art
-confirms: that `android-automotive` at API 33 / x86_64 boots headless on a
-GitHub runner at all.
+It came back well inside that.
 
-CI wall-clock today is about 3.5 minutes. **Under ~6-7 minutes warm this is
-clearly worth it; over ~10 it roughly triples the feedback loop and should be
-abandoned** rather than finished. Between those is a judgement call.
+| Phase | Seconds |
+|---|---|
+| Whole job | 138 |
+| Cold: SDK install, image download, AVD create, boot, snapshot save | 93 |
+| — of which the system image download alone | 29 |
+| Warm: boot from snapshot | 20 |
+| `screencap` round-trip | ~1 |
 
-Only if that number passes: the `androidTest` tier, then the scenarios, then the
+Four things it confirmed that nothing found in prior art did:
+
+- `/dev/kvm` is present (`crw-rw-rw-`) after the udev rule on a standard
+  4-core `ubuntu-latest` runner
+- `android-automotive` at API 33 / x86_64 boots headless there;
+  `ro.build.characteristics` reads `automotive`
+- `avdmanager` pairs `automotive_1024p_landscape` with the `android-automotive`
+  package without complaint, the same as `flake.nix` found locally
+- `com.android.car.media` is installed on the image, so it is there to be driven
+  for screenshots, and `am get-current-user` is 10 rather than 0 — the same
+  multi-user shape the app already has to account for on a real head unit
+
+The gate itself adds a Gradle build of two APKs, an install, three
+instrumentation runs and two screenshots to the 20-second warm boot. Against the
+existing `test` job's 3m21s for unit tests plus `assembleDebug`, that projects to
+roughly 4-6 minutes. **The Gradle portion of that is extrapolated rather than
+measured** — the spike deliberately built nothing — so it is the number to watch
+first once the real job exists.
+
+The rest of the order: the `androidTest` tier, then the scenarios, then the
 screenshots, then green on several real PRs, then the ruleset edit that makes it
 required. That edit is last deliberately — a check made required before its
 flake rate is known makes its first red a self-inflicted block.
