@@ -50,6 +50,33 @@ run_scenario() {
   fi
 }
 
+# Bounded poll for a marker string to appear in the on-screen accessibility
+# tree before a screenshot is taken. `am start` only proves the window opened
+# -- the browse tabs come from the root (one round trip) while the row comes
+# from the selected tab's children (a second one), and a fixed sleep long
+# enough locally was not long enough on a loaded CI runner: the tabs and a
+# still-empty row both landed in the same PNG. Screenshots are artifacts, so
+# a timeout is logged, not fatal; an `adb`/transport failure in the probe
+# itself is neither -- that is the file's existing guard convention.
+wait_for_text() {
+  local marker="$1"
+  local budget_s=20
+  local waited=0
+  local dump
+  while (( waited < budget_s )); do
+    if ! dump="$(adb exec-out uiautomator dump /dev/tty 2>&1)"; then
+      echo "::error::uiautomator dump failed (device or transport problem, not a test failure)" >&2
+      exit 1
+    fi
+    if echo "${dump}" | grep -qF "${marker}"; then
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  return 1
+}
+
 # Scenario 1 and 2: the service runs before any Activity opens, and when no
 # Activity can be shown. Structural here -- there is no launcher activity, so
 # binding without starting CarHostActivity is both cases at once.
@@ -86,7 +113,9 @@ if ! adb shell am start -a android.car.intent.action.MEDIA_TEMPLATE \
   echo "::error::am start MEDIA_TEMPLATE failed (device or transport problem, not a test failure)" >&2
   exit 1
 fi
-sleep 5
+if ! wait_for_text "Tap the settings icon to connect"; then
+  echo "::warning::car-browse.png: signed-out row had not rendered within the wait budget -- captured anyway" >&2
+fi
 if ! adb exec-out screencap -p > "${SHOTS}/car-browse.png"; then
   echo "::error::screencap car-browse.png failed (device or transport problem, not a test failure)" >&2
   exit 1
@@ -100,7 +129,9 @@ if ! adb shell am start -n \
   echo "::error::am start CarHostActivity failed (device or transport problem, not a test failure)" >&2
   exit 1
 fi
-sleep 5
+if ! wait_for_text "Connect to Plex"; then
+  echo "::warning::sign-in.png: sign-in content had not rendered within the wait budget -- captured anyway" >&2
+fi
 if ! adb exec-out screencap -p > "${SHOTS}/sign-in.png"; then
   echo "::error::screencap sign-in.png failed (device or transport problem, not a test failure)" >&2
   exit 1
