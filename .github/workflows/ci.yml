@@ -132,18 +132,12 @@ jobs:
             app/build/reports/lint-results-debug.html
             app/build/reports/ktlint/
 
-  # Its own job for the same reason `lint` is: it recompiles rather than
-  # inheriting, and running in parallel makes CI's wall-clock a max() rather
-  # than a sum.
+  # Its own job for the same reasons `lint` is, above -- including that its
+  # name is frozen once it joins ruleset 19853130's required checks.
   #
   # The emulator pins below must match flake.nix's emulatorSdkVersion,
-  # systemImageType and abiVersion. Same image, two independent declarations --
-  # change one without the other and local and CI quietly test different
-  # things.
-  #
-  # The job *name* below becomes a required status check, so it is frozen the
-  # way "Lint and Kotlin style" already is: renaming it without editing ruleset
-  # 19853130 in lockstep blocks every later PR on a check that never reports.
+  # systemImageType and abiVersion: same image, two declarations, and changing
+  # one without the other makes local and CI test different things.
   emulator:
     name: Emulator smoke test
     runs-on: ubuntu-latest

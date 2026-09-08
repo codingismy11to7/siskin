@@ -27,15 +27,14 @@ import java.util.concurrent.TimeUnit
  * Proves the installed APK's [MediaService] binds and serves its signed-out
  * browse tree on a real Android Automotive image.
  *
- * Assertions here are deliberately thin. MediaLibrarySessionCallbackSignedOutTest
- * already covers the tree's *content* -- exact tab ordering, the row's title and
- * subtitle -- on the JVM in seconds. This tier exists for what Robolectric
- * cannot reach: that the APK installs, the manifest resolves, and the service
- * starts under a real Android runtime.
+ * Assertions stay thin: MediaLibrarySessionCallbackSignedOutTest already covers
+ * the tree's *content* on the JVM. This tier exists for what Robolectric cannot
+ * reach -- that the APK installs, the manifest resolves, and the service starts
+ * under a real Android runtime.
  *
- * It is not proof of IPC. Instrumentation shares the app's process, so
- * bindService returns the local Binder and the AIDL calls short-circuit rather
- * than marshalling. See the 2026-09-07 emulator smoke test design.
+ * It is not proof of IPC: instrumentation shares the app's process, so
+ * bindService returns the local Binder and the AIDL calls short-circuit. See
+ * the 2026-09-07 emulator smoke test design.
  */
 @UnstableApi
 @RunWith(AndroidJUnit4::class)
@@ -44,10 +43,9 @@ class MediaServiceBindTest {
 
     @Before
     fun connectToService() {
-        // This suite asserts the signed-out tree, but never signs the device
-        // out itself -- the AVD it runs on is reused for manual QA against
-        // real Plex servers, and clearing that session as a side effect of a
-        // test is not this suite's call to make. Fail fast instead.
+        // Never signs the device out itself: the AVD is reused for manual QA
+        // against real Plex servers, and clearing that session as a side
+        // effect of a test is not this suite's call to make.
         assertFalse(
             "MediaServiceBindTest requires a signed-out device; sign out in " +
                 "the car's settings, or run against a fresh AVD.",
