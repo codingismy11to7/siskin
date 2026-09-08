@@ -55,24 +55,34 @@ run_scenario() {
 # -- the browse tabs come from the root (one round trip) while the row comes
 # from the selected tab's children (a second one), and a fixed sleep long
 # enough locally was not long enough on a loaded CI runner: the tabs and a
-# still-empty row both landed in the same PNG. Screenshots are artifacts, so
-# a timeout is logged, not fatal; an `adb`/transport failure in the probe
-# itself is neither -- that is the file's existing guard convention.
+# still-empty row both landed in the same PNG. The 15s budget is a wall-clock
+# deadline, not an iteration count -- `uiautomator dump` is not instant, so
+# counting iterations would let a slow runner blow well past the stated
+# bound. Each dump is itself capped by `timeout` so one hung call cannot
+# consume the whole budget; `timeout`'s exit 124 there means "still slow,"
+# not "device unreachable," so it is treated as "not found yet" and polling
+# continues -- a slow dump is the CI condition this exists to survive, not a
+# failure. Screenshots are artifacts, so an exhausted deadline is logged, not
+# fatal; a genuine adb/transport failure is neither -- that is the file's
+# existing guard convention.
 wait_for_text() {
   local marker="$1"
-  local budget_s=20
-  local waited=0
-  local dump
-  while (( waited < budget_s )); do
-    if ! dump="$(adb exec-out uiautomator dump /dev/tty 2>&1)"; then
-      echo "::error::uiautomator dump failed (device or transport problem, not a test failure)" >&2
-      exit 1
+  local budget_s=15
+  local dump_timeout_s=5
+  local deadline=$(( $(date +%s) + budget_s ))
+  local dump rc
+  while [ "$(date +%s)" -lt "${deadline}" ]; do
+    if dump="$(timeout "${dump_timeout_s}" adb exec-out uiautomator dump /dev/tty 2>&1)"; then
+      if echo "${dump}" | grep -qF "${marker}"; then
+        return 0
+      fi
+    else
+      rc=$?
+      if [ "${rc}" -ne 124 ]; then
+        echo "::error::uiautomator dump failed (device or transport problem, not a test failure)" >&2
+        exit 1
+      fi
     fi
-    if echo "${dump}" | grep -qF "${marker}"; then
-      return 0
-    fi
-    sleep 1
-    waited=$((waited + 1))
   done
   return 1
 }
