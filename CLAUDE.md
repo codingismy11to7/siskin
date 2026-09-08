@@ -325,6 +325,11 @@ Robolectric caches `SharedPreferences` statically **across test methods**, so
 tests that write preferences must reset every field they depend on in `@Before`
 rather than assuming absence.
 
+There is also an instrumented tier: `scripts/emulator-smoke-test.sh`, run as a
+third CI job on a real AAOS emulator, force-stops and clears app data on
+whatever device `adb` points at. See
+`docs/decisions/2026-09-07-emulator-smoke-test-design.md`.
+
 ## Conventions
 
 Design specs go in **`docs/decisions/`** as `YYYY-MM-DD-<topic>-design.md`, and

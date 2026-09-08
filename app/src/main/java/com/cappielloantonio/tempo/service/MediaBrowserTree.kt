@@ -34,7 +34,9 @@ object MediaBrowserTree {
 
     private var isInitialized = false
 
-    private const val SIGNED_OUT_ROW_ID = "siskin://signed-out"
+    // internal rather than private so the instrumented suite can assert the id
+    // instead of the row's user-facing copy, which is translated five ways.
+    internal const val SIGNED_OUT_ROW_ID = "siskin://signed-out"
 
     private fun iconUri(resId: Int): Uri = ResourceUris.forResource(resId)
 

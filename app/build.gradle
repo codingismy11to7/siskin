@@ -336,6 +336,14 @@ dependencies {
     testImplementation libs.okhttp.mockwebserver
     testImplementation libs.robolectric
 
+    // The instrumented tier. media3-session, Guava and Constants come from the
+    // app's own `implementation` deps -- androidTest compiles against the
+    // tested variant, so they need no second declaration here.
+    androidTestImplementation 'junit:junit:4.13.2'
+    androidTestImplementation libs.androidx.test.junit
+    androidTestImplementation libs.androidx.test.runner
+    androidTestImplementation libs.androidx.test.core
+
 }
 
 java {
