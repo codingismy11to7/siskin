@@ -11,10 +11,12 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.CredentialGate
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -42,6 +44,16 @@ class MediaServiceBindTest {
 
     @Before
     fun connectToService() {
+        // This suite asserts the signed-out tree, but never signs the device
+        // out itself -- the AVD it runs on is reused for manual QA against
+        // real Plex servers, and clearing that session as a side effect of a
+        // test is not this suite's call to make. Fail fast instead.
+        assertFalse(
+            "MediaServiceBindTest requires a signed-out device; sign out in " +
+                "the car's settings, or run against a fresh AVD.",
+            CredentialGate.isSignedIn(),
+        )
+
         val context: Context = ApplicationProvider.getApplicationContext()
 
         // MediaBrowser must be built on a Looper thread and every later call
