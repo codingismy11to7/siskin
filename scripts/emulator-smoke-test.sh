@@ -107,9 +107,16 @@ if ! adb exec-out screencap -p > "${SHOTS}/sign-in.png"; then
 fi
 
 # The documented recovery order, so a later run does not inherit a wedged
-# car media app.
-adb shell am force-stop "${PKG}" --user 10 || true
-adb shell am force-stop com.android.car.media --user 10 || true
+# car media app. By this point every scenario has passed and both screenshots
+# are captured -- what this gate measures is already decided -- so a failure
+# here is logged, not fatal: it would fail the build for a cleanup step, not
+# for anything the app did.
+if ! adb shell am force-stop "${PKG}" --user 10; then
+  echo "::warning::cleanup: could not force-stop ${PKG} (device or transport problem)" >&2
+fi
+if ! adb shell am force-stop com.android.car.media --user 10; then
+  echo "::warning::cleanup: could not force-stop com.android.car.media (device or transport problem)" >&2
+fi
 
 ls -la "${SHOTS}"
 echo "All scenarios passed."
