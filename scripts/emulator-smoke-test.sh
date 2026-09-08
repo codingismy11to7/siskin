@@ -12,6 +12,22 @@ PKG="us.codingismy11to7.siskin.debug"
 RUNNER="${PKG}.test/androidx.test.runner.AndroidJUnitRunner"
 CLASS="com.cappielloantonio.tempo.service.MediaServiceBindTest"
 
+# AAOS is multi-user (CLAUDE.md documents this) and `am`'s subcommands do not
+# agree on a default: `am instrument` defaults to the caller's own user, but
+# `pm clear` and `am force-stop` default to user 0, which is not the profile
+# the emulator (or a real head unit) runs as. Resolving it once and passing it
+# explicitly everywhere below is what keeps every call operating on the same
+# profile the instrumentation actually runs under.
+if ! USER_ID="$(adb shell am get-current-user | tr -d '\r\n')"; then
+  echo "::error::am get-current-user failed (device or transport problem)" >&2
+  exit 1
+fi
+if ! [[ "${USER_ID}" =~ ^[0-9]+$ ]]; then
+  echo "::error::am get-current-user returned a non-numeric user ('${USER_ID}')" >&2
+  exit 1
+fi
+echo "Resolved Android user: ${USER_ID}"
+
 # `am instrument` exits 0 even when tests fail -- it reports failure in its
 # output, not its status. Without this every red run would be a green job.
 run_scenario() {
@@ -24,7 +40,7 @@ run_scenario() {
   # the failure path still emit ::endgroup:: and an ::error:: annotation
   # instead of leaving a silent, unclosed group in the log.
   local output
-  if ! output="$(adb shell am instrument -w -r -e class "${CLASS}" "${RUNNER}" 2>&1)"; then
+  if ! output="$(adb shell am instrument -w -r --user "${USER_ID}" -e class "${CLASS}" "${RUNNER}" 2>&1)"; then
     echo "${output}"
     echo "::endgroup::"
     echo "::error::${label}: adb invocation failed (device or transport problem, not a test failure)" >&2
@@ -93,8 +109,11 @@ wait_for_text() {
 run_scenario "Scenario 1+2: service serves the tree with no Activity"
 
 # Scenario 3: the service runs when the user is not signed in, on a genuinely
-# cold profile rather than an assumed one. `pm clear` also stops the app.
-if ! adb shell pm clear "${PKG}"; then
+# cold profile rather than an assumed one. `pm clear` also stops the app, but
+# only for the user it targets -- omitting --user here clears user 0's data
+# while the instrumentation runs as USER_ID, leaving that profile's data
+# untouched and this scenario testing nothing.
+if ! adb shell pm clear --user "${USER_ID}" "${PKG}"; then
   echo "::error::pm clear ${PKG} failed (device or transport problem)" >&2
   exit 1
 fi
@@ -102,7 +121,7 @@ run_scenario "Scenario 3: service serves the tree after clear-data"
 
 # The service comes back clean from a kill rather than only from a fresh
 # install, which is the state a dependency bump actually breaks.
-if ! adb shell am force-stop "${PKG}"; then
+if ! adb shell am force-stop --user "${USER_ID}" "${PKG}"; then
   echo "::error::am force-stop ${PKG} failed (device or transport problem)" >&2
   exit 1
 fi
@@ -117,7 +136,7 @@ mkdir -p "${SHOTS}"
 
 # The car's own media UI, showing our tree. Google's pixels, but this is the
 # screen a person would actually look at after a dependency bump.
-if ! adb shell am start -a android.car.intent.action.MEDIA_TEMPLATE \
+if ! adb shell am start --user "${USER_ID}" -a android.car.intent.action.MEDIA_TEMPLATE \
   -e android.car.intent.extra.MEDIA_COMPONENT \
   "${PKG}/com.cappielloantonio.tempo.service.MediaService" >/dev/null; then
   echo "::error::am start MEDIA_TEMPLATE failed (device or transport problem, not a test failure)" >&2
@@ -134,7 +153,7 @@ fi
 # Our own pixels. Signed out this renders PlexSignInFragment in its
 # Disconnected state; viewModel.connect() sits behind the retry button's click
 # listener, so this mints no PIN and makes no plex.tv call.
-if ! adb shell am start -n \
+if ! adb shell am start --user "${USER_ID}" -n \
   "${PKG}/com.cappielloantonio.tempo.ui.activity.CarHostActivity" >/dev/null; then
   echo "::error::am start CarHostActivity failed (device or transport problem, not a test failure)" >&2
   exit 1
@@ -152,10 +171,10 @@ fi
 # are captured -- what this gate measures is already decided -- so a failure
 # here is logged, not fatal: it would fail the build for a cleanup step, not
 # for anything the app did.
-if ! adb shell am force-stop "${PKG}" --user 10; then
+if ! adb shell am force-stop --user "${USER_ID}" "${PKG}"; then
   echo "::warning::cleanup: could not force-stop ${PKG} (device or transport problem)" >&2
 fi
-if ! adb shell am force-stop com.android.car.media --user 10; then
+if ! adb shell am force-stop --user "${USER_ID}" com.android.car.media; then
   echo "::warning::cleanup: could not force-stop com.android.car.media (device or transport problem)" >&2
 fi
 
