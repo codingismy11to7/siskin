@@ -137,6 +137,7 @@ fi
 grep -qxF "$UNRELEASED" "$CHANGELOG" || die "$CHANGELOG has no '$UNRELEASED' heading"
 section="$(unreleased_section)"
 grep -q '^- ' <<<"$section" || die "[Unreleased] in $CHANGELOG has no entries to release"
+gh auth status >/dev/null 2>&1 || die "gh is not signed in; run gh auth login first"
 
 # CUT_DATE pins the date for the tests.
 today="${CUT_DATE:-$(date +%F)}"

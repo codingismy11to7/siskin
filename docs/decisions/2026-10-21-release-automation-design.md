@@ -150,7 +150,7 @@ because of the constraint above: nothing is meant to fire from it. The job gains
 
 `promote.yml` is `workflow_dispatch` only, run against a tag. It calls
 
-    ./gradlew promoteReleaseArtifact \
+    ./gradlew promoteArtifact \
       --from-track automotive:internal --promote-track automotive:production \
       --release-status completed
 

@@ -212,6 +212,13 @@ test_refuses_empty_unreleased() {
   assert_refuses 'no entries' "$CUT" patch
 }
 
+test_refuses_when_gh_signed_out() {
+  fixture 0.99.8
+  # shellcheck disable=SC2016 # $1 $2 belong to the stub, not to this shell
+  printf '#!/usr/bin/env bash\n[ "$1 $2" = "auth status" ] && exit 1\nexit 0\n' >"$FIX/bin/gh"
+  assert_refuses 'gh is not signed in' "$CUT" patch
+}
+
 test_refuses_existing_tag() {
   fixture 0.99.8
   git tag v0.99.9

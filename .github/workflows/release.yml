@@ -2,7 +2,8 @@ name: Release
 
 # A merged cut changes app/version.properties, and that is what publishes. The
 # tag is created afterwards, so a tag always means "this reached internal" and a
-# failed publish leaves nothing to clean up: re-run this workflow. See
+# failed publish leaves nothing to clean up: use Re-run failed jobs on the run,
+# which keeps the cut's commit. See
 # docs/decisions/2026-10-21-release-automation-design.md.
 on:
   push:
@@ -41,6 +42,12 @@ jobs:
         id: version
         run: |
           name=$(sed -n 's/^versionName=//p' app/version.properties)
+          # Gradle strips a trailing CR and would publish a version whose tag git
+          # then refuses.
+          if ! [[ "$name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=app/version.properties::versionName '$name' is not X.Y.Z (check for CRLF, spaces or a duplicate line)." >&2
+            exit 1
+          fi
           tag="v$name"
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"

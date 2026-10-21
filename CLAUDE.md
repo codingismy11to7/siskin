@@ -17,6 +17,7 @@ deleted rather than ported.
 ## Commands
 
     ./gradlew testDebugUnitTest          # unit tests (what CI gates on)
+    scripts/test-cut-release.sh          # release-cut script tests (CI runs these too)
     ./gradlew assembleDebug              # debug APK
     ./gradlew assembleRelease            # R8 + ABI splits; use to check size deltas
     ./gradlew lint                       # Android lint + ktlint + google-java-format; also gates CI
@@ -381,7 +382,7 @@ A single-commit PR is rebase-merged; a multi-commit one is squashed.
 `scripts/cut-release.sh` bumps `versionName` in `app/version.properties`, closes
 `## [Unreleased] — Siskin` in `CHANGELOG.md` under the new version, drafts the
 Play release note and opens a `Cut X.Y.Z` PR. It edits text and never runs
-Gradle, so it is the one tool here that also works on aarch64. See
+Gradle, so it needs no Android SDK and runs on aarch64 too. See
 `docs/decisions/2026-10-21-release-automation-design.md`.
 
 **Rewrite the drafted note in the cut PR.**
@@ -402,7 +403,9 @@ below one it has seen, so the floor it set is permanent.
 
 **Merging the cut publishes it.** `release.yml` fires on a push to `main` that
 touches `app/version.properties`, publishes to `automotive:internal` outright,
-and only then tags `vX.Y.Z`. No tag means nothing shipped; re-run the workflow.
+and only then tags `vX.Y.Z`. A tag means it reached internal. If a run fails,
+use **Re-run failed jobs** on that run — it rebuilds the cut's own commit, where
+a fresh dispatch would publish whatever `main` holds now.
 **Production is a separate, manual step:** run `promote.yml` from the Actions
 tab against the newest tag, and it promotes what internal holds, unrebuilt.
 
