@@ -1,52 +1,71 @@
 name: Release
 
+# A merged cut changes app/version.properties, and that is what publishes. The
+# tag is created afterwards, so a tag always means "this reached internal" and a
+# failed publish leaves nothing to clean up: re-run this workflow. See
+# docs/decisions/2026-10-21-release-automation-design.md.
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    paths: ['app/version.properties']
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Shared with promote.yml, so a promotion never races a publish.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
   publish:
     name: Build and publish to Play
+    # workflow_dispatch can name any branch; only main publishes.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      # A tag must name the version the build actually claims -- a tag that
-      # disagrees with its own artifact should never ship.
-      #
-      # It also makes a bulk tag push harmless. The ~100 inherited tempo/tempus
-      # tags (v3.x, v4.x) that came with the fork's history have been deleted
-      # and were never on origin, but re-fetching from upstream would bring
-      # them back, and each would otherwise fire a parallel publish of the same
-      # versionCode.
-      - name: Check the tag matches versionName
-        if: github.event_name == 'push'
+      # Skips a version that already has its tag, which is every push that
+      # touches the file without bumping it -- including the one that created
+      # it. Refuses one that does not sort above the newest tag. Names rather
+      # than versionCodes, because the 0.99.x tags predate the formula: 0.99.8
+      # shipped as code 10, not 9908.
+      - name: Decide whether this version ships
+        id: version
         run: |
-          version_name=$(grep -oP "versionName\s+'\K[^']+" app/build.gradle)
-          tag="${GITHUB_REF_NAME#v}"
-          if [ "$tag" != "$version_name" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match versionName ${version_name}" >&2
+          name=$(sed -n 's/^versionName=//p' app/version.properties)
+          tag="v$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git rev-parse --quiet --verify "refs/tags/$tag" > /dev/null; then
+            echo "$tag already exists, so $name has shipped. Nothing to publish."
+            echo "ship=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          newest=$(git tag -l 'v*' --sort=-v:refname | head -n 1)
+          if [ -n "$newest" ] && [ "$(printf '%s\n%s\n' "${newest#v}" "$name" | sort -V | tail -n 1)" != "$name" ]; then
+            echo "::error::versionName $name does not sort above the newest tag $newest" >&2
             exit 1
           fi
-          echo "Tag ${GITHUB_REF_NAME} matches versionName ${version_name}"
+          echo "Publishing $name (newest tag so far: ${newest:-none})."
+          echo "ship=true" >> "$GITHUB_OUTPUT"
 
       - name: Setup JDK 21
+        if: steps.version.outputs.ship == 'true'
         uses: actions/setup-java@v6
         with:
           distribution: 'zulu'
           java-version: '21'
 
       - name: Cache Gradle and wrapper
+        if: steps.version.outputs.ship == 'true'
         uses: actions/cache@v6
         with:
           path: |
@@ -58,11 +77,13 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Run unit tests
+        if: steps.version.outputs.ship == 'true'
         run: ./gradlew testDebugUnitTest
 
       # Gradle needs the keystore as a real file, so the base64 secret is
       # decoded into the runner's temp directory for the life of the job.
       - name: Materialise the upload keystore
+        if: steps.version.outputs.ship == 'true'
         id: keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -72,6 +93,7 @@ jobs:
           echo "path=$keystore" >> "$GITHUB_OUTPUT"
 
       - name: Publish bundle to Play
+        if: steps.version.outputs.ship == 'true'
         env:
           SISKIN_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
           SISKIN_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -83,3 +105,16 @@ jobs:
       - name: Remove the keystore
         if: always()
         run: rm -f "${RUNNER_TEMP}/siskin-upload-key.jks"
+
+      # GITHUB_TOKEN pushes cannot start other workflows, which is fine:
+      # nothing is meant to fire from a tag any more.
+      - name: Tag the published version
+        if: steps.version.outputs.ship == 'true'
+        env:
+          NAME: ${{ steps.version.outputs.name }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              tag -a "$TAG" -m "Siskin $NAME" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
