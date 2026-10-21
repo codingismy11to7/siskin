@@ -27,6 +27,26 @@ def siskinSigningConfigured = siskinSigningEnv.values().every { it }
 
 def siskinApplicationId = 'us.codingismy11to7.siskin'
 
+// The version is the one value in app/version.properties, which the release cut
+// rewrites. versionCode is derived from it so the two cannot disagree, and the
+// formula is permanent: Play refuses any code below one it has already seen.
+// See docs/decisions/2026-10-21-release-automation-design.md.
+def siskinVersionProps = new Properties()
+siskinVersionProps.load(new StringReader(
+        providers.fileContents(layout.projectDirectory.file('version.properties')).asText.get()))
+def siskinVersionName = siskinVersionProps.getProperty('versionName') ?: ''
+def siskinVersionMatch = siskinVersionName =~ /^(\d+)\.(\d+)\.(\d+)$/
+if (!siskinVersionMatch.matches()) {
+    throw new GradleException("versionName '${siskinVersionName}' in app/version.properties is not X.Y.Z")
+}
+def (siskinMajor, siskinMinor, siskinPatch) = (1..3).collect { siskinVersionMatch.group(it) as int }
+if (siskinMinor > 99 || siskinPatch > 99) {
+    throw new GradleException(
+            "versionName '${siskinVersionName}': minor and patch must each be 99 or less, " +
+                    "or its versionCode collides with a later release's")
+}
+def siskinVersionCode = siskinMajor * 10000 + siskinMinor * 100 + siskinPatch
+
 android {
     namespace = 'com.cappielloantonio.tempo'
     //noinspection GradleDependency
@@ -46,8 +66,8 @@ android {
         //noinspection OldTargetApi
         targetSdk = 36
 
-        versionCode 10
-        versionName '0.99.8'
+        versionCode siskinVersionCode
+        versionName siskinVersionName
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
 
         javaCompileOptions {
@@ -226,10 +246,12 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << '-Xlint:deprecation' << '-Xlint:unchecked' << '-Werror'
 }
 
-// A tag now publishes straight to internal testing, with the "what's new" text
-// from src/main/play/release-notes/. Credentials come from
+// Merging a release cut publishes straight to internal testing, with the
+// "what's new" text from src/main/play/release-notes/; promote.yml later moves
+// that same build to automotive:production. Credentials come from
 // ANDROID_PUBLISHER_CREDENTIALS in the environment, as with the signing config.
-// See docs/decisions/2026-07-31-play-release-pipeline-design.md.
+// See docs/decisions/2026-07-31-play-release-pipeline-design.md and
+// docs/decisions/2026-10-21-release-automation-design.md.
 //
 // The track is 'automotive:internal' and not 'internal'. Play gives each
 // alternative form factor its own track family, and an artifact requiring
