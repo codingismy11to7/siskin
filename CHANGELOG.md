@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.0.0] (2026-10-21)
+
 - The signed-out row in the browse list no longer cuts its message off
   mid-word. Its title is now a short line of its own, because the car gives a
   browse row roughly 30 characters and every translation of the old text ran

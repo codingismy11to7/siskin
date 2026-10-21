@@ -1,1 +1,1 @@
-A policy release. Siskin now declares itself an audio app to Android Automotive OS, which Google Play requires of a car media source. Nothing about playing or browsing your music changes.
+The signed-out row in the browse list no longer cuts its message off mid-word.
