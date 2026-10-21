@@ -78,7 +78,7 @@ claim 88 languages.
 `flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, `gh` and
 `ktlint` — `nix develop`, or direnv via `.envrc`. `gr` runs `./gradlew` from
 anywhere in the tree, `siskin-render-web` renders the website into `build/web/`,
-and two more scripts drive the emulator:
+`siskin-cut` cuts a release (below), and two more scripts drive the emulator:
 
     siskin-avd                    # create the AAOS AVD (idempotent)
     siskin-emulator               # boot it
@@ -376,41 +376,44 @@ A single-commit PR is rebase-merged; a multi-commit one is squashed.
 
 ## Cutting a release
 
-A release is a `Cut 0.99.x` commit and a `v0.99.x` tag. The tag is the trigger —
-pushing it fires `release.yml`, which re-runs the tests, decodes the upload
-keystore and runs `publishBundle`. **That publishes to the `automotive:internal`
-track outright**; there is no Console step. See
-`docs/decisions/2026-07-31-play-release-pipeline-design.md` and
-`docs/decisions/2026-08-14-automotive-track-design.md`.
+    nix run .#siskin-cut -- major|minor|patch
 
-**The track is `automotive:internal`, not `internal`.** Play gives each
-alternative form factor its own track family, and the plain tracks are the phone
-ones — an artifact requiring `android.hardware.type.automotive`, as this app's
-manifest does, is refused by them at edit-commit time. Publishing to `internal`
-puts a build nowhere the car can see it. The Console does not show API track
-names; `edits.tracks.list` is what answers which tracks exist and what is on
-them, and Google's own naming table disagrees with what this app actually has.
+`scripts/cut-release.sh` bumps `versionName` in `app/version.properties`, closes
+`## [Unreleased] — Siskin` in `CHANGELOG.md` under the new version, drafts the
+Play release note and opens a `Cut X.Y.Z` PR. It edits text and never runs
+Gradle, so it is the one tool here that also works on aarch64. See
+`docs/decisions/2026-10-21-release-automation-design.md`.
 
-The cut commit does three things:
-
-1. Bumps `versionCode` and `versionName` in `app/build.gradle`, both by hand
-   until #53 automates them. **1.0.0 stays unclaimed** — releases patch upward
-   from 0.99.0 and 1.0.0 will be cut by that tool.
-2. Renames `## [Unreleased] — Siskin` in `CHANGELOG.md` to `## [0.99.x] (date)`
-   and opens a fresh empty `[Unreleased]` above it.
-3. Rewrites `app/src/main/play/release-notes/en-US/default.txt` by condensing
-   that same `[Unreleased]` section. The store's "what's new", **capped at 500
-   characters**, en-US only — the listing is not translated.
+**Rewrite the drafted note in the cut PR.**
+`app/src/main/play/release-notes/en-US/default.txt` is the store's "what's
+new", capped at 500 characters (CI checks it), en-US only — the listing is not
+translated. The draft is just each bullet's first sentence.
 
 **The release note is not a second changelog.** It is written once, at the cut,
 from the changelog; between releases the file holds the text of the build
-currently on Play. Nothing updates it per PR. The two are different jobs — the
-changelog explains, at whatever length the reason needs, for someone reading the
-repository in a year; the note is terse and user-facing and fits in 500
-characters — which is why the cut condenses rather than copies.
+currently on Play. Nothing updates it per PR. The changelog explains, at
+whatever length the reason needs, for someone reading the repository in a year;
+the note is terse and user-facing — which is why the cut condenses rather than
+copies.
 
-`release.yml` refuses a tag whose name disagrees with `versionName`, so the tag
-follows the merge rather than racing it.
+**`versionCode` is computed, never written**: `major × 10000 + minor × 100 +
+patch`, in `app/build.gradle`. Do not change the formula — Play refuses any code
+below one it has seen, so the floor it set is permanent.
+
+**Merging the cut publishes it.** `release.yml` fires on a push to `main` that
+touches `app/version.properties`, publishes to `automotive:internal` outright,
+and only then tags `vX.Y.Z`. No tag means nothing shipped; re-run the workflow.
+**Production is a separate, manual step:** run `promote.yml` from the Actions
+tab against the newest tag, and it promotes what internal holds, unrebuilt.
+
+**The tracks are `automotive:internal` and `automotive:production`, never the
+bare names.** Play gives each alternative form factor its own track family, and
+the plain tracks are the phone ones — an artifact requiring
+`android.hardware.type.automotive`, as this app's manifest does, is refused by
+them at edit-commit time. The Console does not show API track names;
+`edits.tracks.list` is what answers which tracks exist and what is on them, and
+Google's own naming table disagrees with what this app actually has. See
+`docs/decisions/2026-08-14-automotive-track-design.md`.
 
 **The changelog entry itself belongs to the PR that changes the behaviour**, not
 to the cut — a bullet under `[Unreleased]`, written where the change is

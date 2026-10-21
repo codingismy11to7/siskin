@@ -6,9 +6,8 @@
 > everything at 4.22.2 and below describes a release that shipped as Tempus, and
 > retains its original naming.
 >
-> **1.0.0 is deliberately unclaimed.** Releases run at `0.99.0` and patch upward
-> from there until versioning and releasing are automated (#53); 1.0.0 will be
-> cut by that tool, not by hand.
+> The 0.99.x releases were cut by hand. From 1.0.0 on, each heading below
+> `[Unreleased]` is written by `scripts/cut-release.sh` (#53).
 
 ## [Unreleased] — Siskin
 
