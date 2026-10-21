@@ -200,6 +200,19 @@
         fi
         exec "$root/gradlew" "$@"
       '';
+
+      # The release cut edits text and never touches the Android SDK, so unlike
+      # everything else here it is offered on aarch64 too -- where the dev
+      # shell cannot evaluate usefully, because every Android binary is x86_64.
+      cutSystems = [ "x86_64-linux" "aarch64-linux" ];
+
+      siskinCutFor = p: p.writeShellApplication {
+        name = "siskin-cut";
+        runtimeInputs = [ p.git p.gh p.coreutils p.gnugrep p.gnused p.gawk ];
+        text = ''
+          exec "$(git rev-parse --show-toplevel)/scripts/cut-release.sh" "$@"
+        '';
+      };
     in
     {
       devShells.${system}.default = pkgs.mkShell {
@@ -210,6 +223,7 @@
           siskin-emulator
           siskin-render-web
           gr
+          (siskinCutFor pkgs)
           # Siskin is developed on GitHub — PRs, CI logs and issues are all read
           # through gh, so it belongs in the shell rather than being reached for
           # ad hoc via `nix run`.
@@ -236,5 +250,13 @@
           echo "Siskin dev shell: JDK $(java -version 2>&1 | head -n1 | awk -F'"' '{print $2}'), Android SDK ${compileSdkVersion}" >&2
         '';
       };
+
+      apps = nixpkgs.lib.genAttrs cutSystems (s: {
+        siskin-cut = {
+          type = "app";
+          program = "${siskinCutFor nixpkgs.legacyPackages.${s}}/bin/siskin-cut";
+          meta.description = "Cut a Siskin release and open its pull request";
+        };
+      });
     };
 }
