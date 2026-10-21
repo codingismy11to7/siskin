@@ -21,6 +21,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Before the JDK and Gradle, so a broken cut fails in seconds. The script
+      # edits text only, which is why it needs neither.
+      - name: Test the release cut script
+        run: scripts/test-cut-release.sh
+
       - name: Setup JDK 21
         uses: actions/setup-java@v6
         with:
@@ -87,6 +92,24 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+
+      # Play caps "what's new" at 500 characters, and finding that out at
+      # publish time means after the cut has merged. Counted over the whole
+      # file, trailing newline included -- the measure scripts/cut-release.sh
+      # drafts to. Before Gradle, so it fails in seconds.
+      - name: Check the Play release note fits
+        run: |
+          note=app/src/main/play/release-notes/en-US/default.txt
+          if [ -z "$(tr -d '[:space:]' < "$note")" ]; then
+            echo "::error file=$note::The release note is empty." >&2
+            exit 1
+          fi
+          chars=$(LC_ALL=C.UTF-8 wc -m < "$note")
+          if [ "$chars" -gt 500 ]; then
+            echo "::error file=$note::The release note is $chars characters; Play allows 500." >&2
+            exit 1
+          fi
+          echo "Release note: $chars of 500 characters."
 
       - name: Setup JDK 21
         uses: actions/setup-java@v6
