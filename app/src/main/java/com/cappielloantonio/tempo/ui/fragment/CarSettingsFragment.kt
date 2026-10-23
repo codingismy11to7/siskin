@@ -87,7 +87,10 @@ class CarSettingsFragment : Fragment() {
             rows,
             getString(R.string.car_settings_artist_mix),
             Preferences.isArtistMixEnabled(),
-        ) { Preferences.setArtistMixEnabled(it) }
+        ) {
+            Preferences.setArtistMixEnabled(it)
+            BrowseTreeInvalidator.invalidateArtistPages()
+        }
 
         // A destination rather than a toggle, so it takes addChoice. Below the
         // toggles and above Sign out: it is a setting, and a destructive

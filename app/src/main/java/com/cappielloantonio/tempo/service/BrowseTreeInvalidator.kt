@@ -39,6 +39,44 @@ object BrowseTreeInvalidator {
 
     fun detach() {
         session = null
+        // The car's cached lists belong to the session that served them.
+        synchronized(artistPages) { artistPages.clear() }
+    }
+
+    private const val ARTIST_PAGES_REMEMBERED = 32
+
+    // Insertion-ordered so the oldest page is the one evicted at the cap.
+    private val artistPages = LinkedHashSet<String>()
+
+    /**
+     * Records an artist page the car has loaded, so [invalidateArtistPages]
+     * can reach it. Called from the browse callback for every artist page.
+     *
+     * Not persisted: the car's cached lists die with the session that served
+     * them, so a page loaded before a restart has nothing left to refresh.
+     */
+    fun rememberArtistPage(nodeId: String) {
+        synchronized(artistPages) {
+            artistPages.remove(nodeId)
+            artistPages.add(nodeId)
+            if (artistPages.size > ARTIST_PAGES_REMEMBERED) {
+                artistPages.remove(artistPages.first())
+            }
+        }
+    }
+
+    /**
+     * Invalidates every artist page the car has loaded, for a setting that
+     * changes what an artist page contains.
+     *
+     * There is no single node for "artist pages" -- each is its own
+     * `[artistID]<key>` -- and the one most likely to be stale is the page
+     * Settings was opened from, which the car shows again from its cache on
+     * the way back. Notifying a page nobody is showing costs nothing.
+     */
+    fun invalidateArtistPages() {
+        val pages = synchronized(artistPages) { artistPages.toList() }
+        pages.forEach { invalidateNode(it, 0) }
     }
 
     /**
