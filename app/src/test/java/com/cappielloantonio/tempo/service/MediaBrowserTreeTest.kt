@@ -123,6 +123,25 @@ class MediaBrowserTreeTest {
         }
     }
 
+    /**
+     * Measured on the AAOS emulator: without this, onGetItem answers
+     * found=false for an artist page, media3 drops the car's subscription, and
+     * BrowseTreeInvalidator.invalidateArtistPages notifies nobody -- the page
+     * Settings was opened from keeps its old rows on the way back.
+     */
+    @Test
+    fun artistPagesResolveSoTheirSubscriptionsCanStick() {
+        val id = Constants.ARTIST_ID + "270976"
+
+        val item =
+            MediaBrowserTree.getItem(id)
+                ?: throw AssertionError("$id must resolve or its subscription is dropped")
+
+        assertEquals(id, item.mediaId)
+        assertEquals(true, item.mediaMetadata.isBrowsable)
+        assertEquals(false, item.mediaMetadata.isPlayable)
+    }
+
     @Test
     fun unknownIdsStillResolveToNothing() {
         assertEquals(null, MediaBrowserTree.getItem("[somethingElse]abc123"))

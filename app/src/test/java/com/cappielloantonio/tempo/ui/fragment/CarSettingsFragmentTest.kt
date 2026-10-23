@@ -238,6 +238,7 @@ class CarSettingsFragmentTest {
 
     @Test
     fun `tapping the artist mix row turns it off`() {
+        BrowseTreeInvalidator.rememberArtistPage(Constants.ARTIST_ID + "15100")
         val toggle = artistMixSwitch(settingsScreen())
 
         (toggle.parent as View).performClick()
@@ -245,6 +246,11 @@ class CarSettingsFragmentTest {
         assertFalse(Preferences.isArtistMixEnabled())
         assertFalse(artistMixSwitch(settingsScreen()).isChecked)
         assertFalse(toggle.isClickable)
+
+        // Settings is usually opened from an artist page, which the car shows
+        // again from its cache on the way back unless it is told otherwise.
+        shadowOf(Looper.getMainLooper()).idle()
+        verify(session).notifyChildrenChanged(eq(Constants.ARTIST_ID + "15100"), any(), eq(null))
     }
 
     @Test

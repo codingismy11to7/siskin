@@ -314,11 +314,22 @@ object MediaBrowserTree {
             return signedOutRow(appContext).single()
         }
 
+        // Same requirement again: BrowseTreeInvalidator.invalidateArtistPages
+        // notifies artist pages when a setting changes what they contain, and
+        // without a subscription the page Settings was opened from keeps its
+        // old rows on the way back. The title is never drawn -- the car takes
+        // the page's heading from the row that was tapped to open it.
+        if (mediaId.startsWith(Constants.ARTIST_ID)) {
+            return LibraryPickerRepository.browsableRow(
+                mediaId = mediaId,
+                title = appContext.getString(R.string.browse_artists),
+            )
+        }
+
         // No branch for DECADE_ID or HUB_ID rows, deliberately: unlike the
-        // picker and signed-out rows above, nothing calls BrowseTreeInvalidator
-        // on a decade or a hub, so there's no live subscription that a null
-        // here would drop. Artist and album rows already navigate correctly
-        // with no branch here either.
+        // rows above, nothing calls BrowseTreeInvalidator on a decade or a
+        // hub, so there's no live subscription that a null here would drop.
+        // Album rows already navigate correctly with no branch here either.
         //
         // That is a different question from the DECADES_ID node itself: like
         // the three music tabs, it is a registered tree node left stale on a
@@ -424,6 +435,7 @@ object MediaBrowserTree {
                     )
                 }
                 if (id.startsWith(Constants.ARTIST_ID)) {
+                    BrowseTreeInvalidator.rememberArtistPage(id)
                     return browseRepository.getArtistAlbums(
                         Constants.ALBUM_ID,
                         id.removePrefix(Constants.ARTIST_ID),

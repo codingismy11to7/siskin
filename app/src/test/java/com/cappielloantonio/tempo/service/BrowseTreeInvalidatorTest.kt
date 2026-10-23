@@ -130,4 +130,51 @@ class BrowseTreeInvalidatorTest {
 
         verify(session, never()).notifyChildrenChanged(any(), any(), any())
     }
+
+    @Test
+    fun `invalidateArtistPages notifies every artist page the car has loaded`() {
+        BrowseTreeInvalidator.rememberArtistPage(Constants.ARTIST_ID + "1")
+        BrowseTreeInvalidator.rememberArtistPage(Constants.ARTIST_ID + "2")
+
+        BrowseTreeInvalidator.invalidateArtistPages()
+        idleMainLooper()
+
+        verify(session).notifyChildrenChanged(eq(Constants.ARTIST_ID + "1"), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ARTIST_ID + "2"), any(), eq(null))
+    }
+
+    @Test
+    fun `revisiting an artist page does not notify it twice`() {
+        BrowseTreeInvalidator.rememberArtistPage(Constants.ARTIST_ID + "1")
+        BrowseTreeInvalidator.rememberArtistPage(Constants.ARTIST_ID + "1")
+
+        BrowseTreeInvalidator.invalidateArtistPages()
+        idleMainLooper()
+
+        verify(session).notifyChildrenChanged(eq(Constants.ARTIST_ID + "1"), any(), eq(null))
+    }
+
+    @Test
+    fun `the oldest artist page is forgotten once the cap is reached`() {
+        (0..32).forEach { BrowseTreeInvalidator.rememberArtistPage(Constants.ARTIST_ID + it) }
+
+        BrowseTreeInvalidator.invalidateArtistPages()
+        idleMainLooper()
+
+        verify(session, never()).notifyChildrenChanged(eq(Constants.ARTIST_ID + "0"), any(), any())
+        verify(session).notifyChildrenChanged(eq(Constants.ARTIST_ID + "1"), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.ARTIST_ID + "32"), any(), eq(null))
+    }
+
+    @Test
+    fun `detaching forgets the artist pages, which died with the session`() {
+        BrowseTreeInvalidator.rememberArtistPage(Constants.ARTIST_ID + "1")
+        BrowseTreeInvalidator.detach()
+        BrowseTreeInvalidator.attach(session)
+
+        BrowseTreeInvalidator.invalidateArtistPages()
+        idleMainLooper()
+
+        verify(session, never()).notifyChildrenChanged(any(), any(), any())
+    }
 }
