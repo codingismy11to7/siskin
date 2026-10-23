@@ -26,6 +26,7 @@ object Preferences {
     private const val PRECACHE_WIFI_ONLY = "precache_wifi_only"
     private const val CONTINUOUS_PLAY = "continuous_play"
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
+    private const val ARTIST_MIX = "artist_mix"
     private const val BROWSE_TAB_ORDER = "browse_tab_order"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
     private const val MIX_TRACK_LIMIT = "mix_track_limit"
@@ -244,6 +245,15 @@ object Preferences {
     @JvmStatic
     fun setArtistsByInitialEnabled(enabled: Boolean) {
         App.getInstance().preferences.edit { putBoolean(ARTISTS_BY_INITIAL, enabled) }
+    }
+
+    /** Whether an artist's page opens with its Mix row above the albums. */
+    @JvmStatic
+    fun isArtistMixEnabled(): Boolean = App.getInstance().preferences.getBoolean(ARTIST_MIX, true)
+
+    @JvmStatic
+    fun setArtistMixEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit { putBoolean(ARTIST_MIX, enabled) }
     }
 
     /**

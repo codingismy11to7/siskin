@@ -83,6 +83,12 @@ class CarSettingsFragment : Fragment() {
             BrowseTreeInvalidator.invalidateNode(Constants.ARTISTS_ID, 0)
         }
 
+        addToggle(
+            rows,
+            getString(R.string.car_settings_artist_mix),
+            Preferences.isArtistMixEnabled(),
+        ) { Preferences.setArtistMixEnabled(it) }
+
         // A destination rather than a toggle, so it takes addChoice. Below the
         // toggles and above Sign out: it is a setting, and a destructive
         // terminal action still belongs last.

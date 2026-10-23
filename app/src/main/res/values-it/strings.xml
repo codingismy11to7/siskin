@@ -27,6 +27,7 @@
     <string name="car_settings_continuous_play">Continua a riprodurre musica</string>
     <string name="car_settings_replay_gain">Livellamento del volume</string>
     <string name="car_settings_artists_by_initial">Mostra artisti per iniziale</string>
+    <string name="car_settings_artist_mix">Mostra il mix dell\'artista</string>
     <string name="car_settings_sign_out">Esci</string>
     <string name="car_settings_title">Impostazioni</string>
     <string name="car_settings_customize_tabs">Personalizza schede</string>

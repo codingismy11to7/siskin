@@ -556,7 +556,7 @@ class PlexBrowseRepository {
                 artistId = artistRatingKey,
             )
         }) { body ->
-            listOf(shuffleArtistRow(artistRatingKey)) +
+            listOfNotNull(shuffleArtistRow(artistRatingKey).takeIf { Preferences.isArtistMixEnabled() }) +
                 itemsOf(body, TYPE_ALBUM).mapNotNull {
                     PlexMediaMapper.albumToMediaItem(it, albumPrefix)
                 }

@@ -26,6 +26,7 @@
     <string name="car_settings_continuous_play">Musik weiterlaufen lassen</string>
     <string name="car_settings_replay_gain">Lautstärkeangleichung</string>
     <string name="car_settings_artists_by_initial">Interpreten nach Anfangsbuchstaben</string>
+    <string name="car_settings_artist_mix">Interpreten-Mix anzeigen</string>
     <string name="car_settings_sign_out">Abmelden</string>
     <string name="car_settings_title">Einstellungen</string>
     <string name="car_settings_customize_tabs">Tabs anpassen</string>
