@@ -11,6 +11,10 @@
 
 ## [Unreleased] — Siskin
 
+- Settings has a "Show Artist Mix" switch, on by default. Turning it off
+  leaves an artist's page as just their albums, without the Mix row above
+  them.
+
 ## [1.0.0] (2026-10-21)
 
 - The signed-out row in the browse list no longer cuts its message off

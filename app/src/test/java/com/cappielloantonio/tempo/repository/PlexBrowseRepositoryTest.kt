@@ -60,6 +60,10 @@ class PlexBrowseRepositoryTest {
     @Before
     fun startServer() {
         fixture.start()
+        // Robolectric keeps preferences between methods; an earlier method
+        // turning the mix off would otherwise remove the row from every
+        // artist page after it.
+        Preferences.setArtistMixEnabled(true)
     }
 
     @After
@@ -303,6 +307,19 @@ class PlexBrowseRepositoryTest {
         // A non-null localConfiguration would make resolveQueueForItem treat the
         // row as an already-resolved track and play a stream that does not exist.
         assertNull(row.localConfiguration)
+    }
+
+    @Test
+    fun anArtistIsOnlyItsAlbumsWithTheMixTurnedOff() {
+        Preferences.setArtistMixEnabled(false)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77", "88")))
+
+        val result = await(PlexBrowseRepository().getArtistAlbums(Constants.ALBUM_ID, "15100"))
+
+        assertEquals(
+            listOf(Constants.ALBUM_ID + "77", Constants.ALBUM_ID + "88"),
+            result.value!!.map { it.mediaId },
+        )
     }
 
     @Test

@@ -56,7 +56,7 @@ class CarSettingsFragmentTest {
     @Before
     fun setUp() {
         // Robolectric keeps App's SharedPreferences in a static field between
-        // methods, and the session and all three toggles are read out of it.
+        // methods, and the session and every toggle are read out of it.
         App
             .getInstance()
             .preferences
@@ -64,6 +64,7 @@ class CarSettingsFragmentTest {
             .remove("continuous_play")
             .remove("replay_gain_mode")
             .remove("artists_by_initial")
+            .remove("artist_mix")
             .commit()
         PlexApi().session =
             PlexSession(
@@ -127,11 +128,13 @@ class CarSettingsFragmentTest {
     private fun artistsByInitialSwitch(view: View) =
         switchLabelled(view, App.getInstance().getString(R.string.car_settings_artists_by_initial))
 
+    private fun artistMixSwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_artist_mix))
+
     @Test
     fun `settings offers every toggle at its default`() {
         val screen = settingsScreen()
 
-        assertEquals(3, switchesIn(screen).size)
+        assertEquals(4, switchesIn(screen).size)
         // The defaults differ, and each is a decision: continuous play is off
         // because reaching the end of a queue is not a request for more music,
         // and replay gain is off because a library carrying no ReplayGain tags
@@ -141,6 +144,8 @@ class CarSettingsFragmentTest {
         // On, unlike its neighbours: #87 is unreleased, so there is no install
         // whose behaviour the default has to preserve.
         assertTrue(artistsByInitialSwitch(screen).isChecked)
+        // On because every install so far has shown the row.
+        assertTrue(artistMixSwitch(screen).isChecked)
     }
 
     @Test
@@ -214,7 +219,7 @@ class CarSettingsFragmentTest {
     }
 
     /**
-     * Three rows now share one `addToggle` and one `choice_container`, and each
+     * Every row shares one `addToggle` and one `choice_container`, and each
      * closes over its own preference. A row that wrote a neighbour's key would
      * still look right on screen -- the switch it moved is the one it was built
      * with -- so nothing else here would catch it.
@@ -228,6 +233,18 @@ class CarSettingsFragmentTest {
         assertTrue(Preferences.isReplayGainEnabled())
         assertFalse(Preferences.isContinuousPlayEnabled())
         assertTrue(Preferences.isArtistsByInitialEnabled())
+        assertTrue(Preferences.isArtistMixEnabled())
+    }
+
+    @Test
+    fun `tapping the artist mix row turns it off`() {
+        val toggle = artistMixSwitch(settingsScreen())
+
+        (toggle.parent as View).performClick()
+
+        assertFalse(Preferences.isArtistMixEnabled())
+        assertFalse(artistMixSwitch(settingsScreen()).isChecked)
+        assertFalse(toggle.isClickable)
     }
 
     @Test

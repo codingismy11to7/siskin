@@ -27,6 +27,7 @@
     <string name="car_settings_continuous_play">Continuer la musique</string>
     <string name="car_settings_replay_gain">Égalisation du volume</string>
     <string name="car_settings_artists_by_initial">Afficher les artistes par initiale</string>
+    <string name="car_settings_artist_mix">Afficher le mix de l\'artiste</string>
     <string name="car_settings_sign_out">Se déconnecter</string>
     <string name="car_settings_title">Paramètres</string>
     <string name="car_settings_customize_tabs">Personnaliser les onglets</string>
