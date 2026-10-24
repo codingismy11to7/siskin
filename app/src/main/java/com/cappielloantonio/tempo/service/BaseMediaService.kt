@@ -420,7 +420,9 @@ open class BaseMediaService : MediaLibraryService() {
         val position = player.currentPosition
         stationScope.launch {
             try {
-                val more = stationTopUp.onTrackStarted(current, position, remaining, queued)
+                val fetched = stationTopUp.onTrackStarted(current, position, remaining, queued)
+                val liveIds = (0 until player.mediaItemCount).mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
+                val more = StationTopUp.appendable(fetched, current, player.currentMediaItem, liveIds)
                 if (more.isEmpty()) return@launch
                 val at = player.mediaItemCount
                 player.addMediaItems(more)

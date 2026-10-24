@@ -128,6 +128,50 @@ class StationTopUpTest {
         }
 
     @Test
+    fun appendingSkipsTracksQueuedWhileTheReadWasRunning() {
+        val more = listOf(stationTrack("3"), stationTrack("4"))
+
+        val result = StationTopUp.appendable(more, stationTrack("1"), stationTrack("1"), setOf("1", "3"))
+
+        assertEquals(listOf("4"), result.map { it.mediaId })
+    }
+
+    @Test
+    fun appendingBailsOutWhenAnotherQueueIsNowPlaying() {
+        val more = listOf(stationTrack("3"))
+        val plain = MediaItem.Builder().setMediaId("9").build()
+
+        assertTrue(StationTopUp.appendable(more, stationTrack("1"), plain, setOf("9")).isEmpty())
+        assertTrue(StationTopUp.appendable(more, stationTrack("1"), null, emptySet()).isEmpty())
+    }
+
+    @Test
+    fun appendingFollowsTheStartedStationNotTheRedrawnTracks() {
+        val redrawn =
+            PlexMediaMapper.buildTrackMediaItem(
+                ratingKey = "7",
+                title = null,
+                albumTitle = null,
+                artist = null,
+                thumb = null,
+                partKey = "/library/parts/7",
+                durationMs = null,
+                trackIndex = null,
+                year = null,
+                grandparentRatingKey = null,
+                isHearted = false,
+                parentId = null,
+                serverUri = "https://plex.example",
+                token = "t",
+                station = StationTag(99999, 1, "270597"),
+            )
+
+        val result = StationTopUp.appendable(listOf(redrawn), stationTrack("1"), stationTrack("2"), setOf("1", "2"))
+
+        assertEquals(listOf("7"), result.map { it.mediaId })
+    }
+
+    @Test
     fun trimmingKeepsTheConfiguredNumberBehindTheCurrentTrack() {
         assertEquals(0, StationTopUp.firstToKeep(currentIndex = 5, keep = 29))
         assertEquals(11, StationTopUp.firstToKeep(currentIndex = 40, keep = 29))

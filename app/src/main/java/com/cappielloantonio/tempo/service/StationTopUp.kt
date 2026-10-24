@@ -59,6 +59,26 @@ class StationTopUp(
         /** Items left after the current one at which the queue is read back. */
         const val LOW_WATER = 2
 
+        /**
+         * What may still be appended once the read has returned. The player can
+         * change while the report and read were in flight: [livePlaying] may be
+         * a different queue, and [liveQueuedMediaIds] may now hold tracks that
+         * continuous play added. Appending then would put a track in the player
+         * that QueueRepository.insertAll drops from the saved queue. The station
+         * is compared by [started]'s play queue, not the returned tracks', which
+         * a 404 redraw legitimately changes.
+         */
+        fun appendable(
+            more: List<MediaItem>,
+            started: MediaItem,
+            livePlaying: MediaItem?,
+            liveQueuedMediaIds: Set<String>,
+        ): List<MediaItem> {
+            val startedQueue = PlexMediaMapper.stationTagOf(started)?.playQueueId ?: return emptyList()
+            if (PlexMediaMapper.stationTagOf(livePlaying)?.playQueueId != startedQueue) return emptyList()
+            return more.filter { it.mediaId !in liveQueuedMediaIds }
+        }
+
         /** The first index to keep, so [keep] played tracks stay behind [currentIndex]. */
         fun firstToKeep(
             currentIndex: Int,
