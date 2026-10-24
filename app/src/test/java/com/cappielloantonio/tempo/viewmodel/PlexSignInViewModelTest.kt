@@ -1,8 +1,12 @@
 package com.cappielloantonio.tempo.viewmodel
 
 import android.app.Application
+import android.os.Bundle
 import android.os.Looper
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import arrow.core.left
@@ -33,6 +37,8 @@ import com.cappielloantonio.tempo.plex.models.PlexAccount
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
+import com.cappielloantonio.tempo.service.MediaManager
+import com.cappielloantonio.tempo.service.PlaybackReporter
 import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -69,6 +75,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import java.util.concurrent.TimeUnit
 
 // Robolectric, like PlexBrowseRepositoryTest and PlexMixRepositoryTest: the
 // ViewModel's default PlexApi (and signIn()'s writes through it, e.g.
@@ -1895,6 +1902,8 @@ class PlexSignInViewModelTest {
             advanceUntilIdle()
 
             verify(switch).switch(PendingAccount("admin-token"), jill, null, savedSession)
+            // The write waits for the posted stop.
+            shadowOf(Looper.getMainLooper()).idle()
             assertEquals(PlexSignInState.Done, viewModel.state.value)
             val session = PlexApi().session!!
             assertEquals("jill-token", session.accountToken)
@@ -1902,8 +1911,61 @@ class PlexSignInViewModelTest {
             assertEquals(false, session.owned)
             // Same server, but the player's loaded items carry the previous
             // user's token in their stream URLs.
-            shadowOf(Looper.getMainLooper()).idle()
             verify(player).stop()
+        }
+
+    /**
+     * Clearing the player is what reports the outgoing track stopped, so the
+     * new member's session must not be written until it has: the owner's Now
+     * Playing would never close, and Jill would be sent the owner's track.
+     */
+    @Test
+    fun theOutgoingTrackIsReportedStoppedAsThePreviousMember() =
+        runTest(dispatcher) {
+            val uri = server.url("/").toString()
+            PlexApi().session = PlexSession("admin-token", uri, SectionKey("7"), "admin-server", "machine-id", owned = false)
+            val track =
+                MediaItem
+                    .Builder()
+                    .setMediaMetadata(
+                        MediaMetadata
+                            .Builder()
+                            .setExtras(
+                                Bundle().apply {
+                                    putString(PlexMediaMapper.EXTRA_ID, "42")
+                                    putString(PlexMediaMapper.EXTRA_PART_KEY, "/library/parts/1")
+                                },
+                            ).build(),
+                    ).build()
+            whenever(player.applicationLooper).thenReturn(Looper.getMainLooper())
+            val reporter = PlaybackReporter(player, MediaManager::scrobble)
+            whenever(player.clearMediaItems()).thenAnswer {
+                reporter.onPositionDiscontinuity(
+                    Player.PositionInfo(null, 0, track, null, 0, 30_000L, 30_000L, C.INDEX_UNSET, C.INDEX_UNSET),
+                    Player.PositionInfo(null, 0, null, null, 0, 0L, 0L, C.INDEX_UNSET, C.INDEX_UNSET),
+                    Player.DISCONTINUITY_REASON_REMOVE,
+                )
+            }
+            server.enqueue(MockResponse().setResponseCode(200))
+            val resource = aMediaServer(accessToken = "jill-server", clientIdentifier = "machine-id").apply { owned = false }
+            val outcome = SwitchOutcome.Committable(PendingAccount("jill-token"), uri, resource, SectionKey("7"))
+            val switch =
+                mock<HomeUserSwitch>().stub {
+                    on { switch(any(), any(), anyOrNull(), anyOrNull()) } doReturn outcome.right()
+                }
+            val viewModel = signedInViewModel(signedInAuthClient(listOf(me, jill)), homeUserSwitch = switch)
+
+            viewModel.reopenUserPicker()
+            advanceUntilIdle()
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+            shadowOf(Looper.getMainLooper()).idle()
+
+            val stopped = server.takeRequest(5, TimeUnit.SECONDS) ?: throw AssertionError("no report was sent")
+            assertEquals("stopped", stopped.requestUrl!!.queryParameter("state"))
+            assertEquals("admin-server", stopped.getHeader("X-Plex-Token"))
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            assertEquals("jill-server", PlexApi().session!!.serverToken)
         }
 
     @Test

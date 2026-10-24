@@ -686,16 +686,21 @@ class PlexSignInViewModel
             // mints a new token too, so even a same-account re-sign-in clears
             // it -- acceptable, since the loaded items carry the token that
             // was just refused.
+            val write = {
+                // The one write. Every value lands together or not at all.
+                api.session = next
+                _state.value = PlexSignInState.Done
+            }
             val accountChanged = previous != null && previous.accountToken != next.accountToken
             if (accountChanged || LibrarySelection.invalidatesQueue(previous, next)) {
                 Log.d(TAG, "server or account changed; discarding the saved queue")
                 QueueRepository().deleteAll()
-                BrowseTreeInvalidator.stopPlayback()
+                // Written once the player has stopped, so the outgoing
+                // track's final report goes out as the previous session.
+                BrowseTreeInvalidator.stopPlayback(then = write)
+            } else {
+                write()
             }
-
-            // The one write. Every value lands together or not at all.
-            api.session = next
-            _state.value = PlexSignInState.Done
         }
 
         private fun signIn() {

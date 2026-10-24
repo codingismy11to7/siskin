@@ -220,17 +220,25 @@ object BrowseTreeInvalidator {
      * one extra: Player calls *must* be made on the thread the player was built
      * on, and this is called from whatever thread the car's browse callback runs
      * on.
+     *
+     * [then] runs once the player has stopped -- on the main thread, or at once
+     * on the caller's when there is no session to stop. A caller changing
+     * credentials writes them there: clearing the items is what reports the
+     * outgoing track stopped, and that report must still read the old ones.
      */
-    fun stopPlayback() {
+    @JvmOverloads
+    fun stopPlayback(then: () -> Unit = {}) {
         val current =
             session ?: run {
                 Log.d(TAG, "no live session; nothing to stop")
+                then()
                 return
             }
         Handler(Looper.getMainLooper()).post {
             Log.d(TAG, "stopping playback and clearing the player's items")
             current.player.stop()
             current.player.clearMediaItems()
+            then()
         }
     }
 }
