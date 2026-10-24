@@ -62,6 +62,15 @@ class Queue {
     @ColumnInfo
     var hearted: Boolean = false
 
+    @ColumnInfo(name = "play_queue_id")
+    var playQueueId: Long? = null
+
+    @ColumnInfo(name = "play_queue_item_id")
+    var playQueueItemId: Long? = null
+
+    @ColumnInfo(name = "station_artist_id")
+    var stationArtistId: String? = null
+
     fun toMediaItem(): MediaItem {
         val api = PlexApi()
         return PlexMediaMapper.buildTrackMediaItem(
@@ -79,7 +88,15 @@ class Queue {
             parentId = null,
             serverUri = api.serverUri,
             token = PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken),
+            station = stationTag(),
         )
+    }
+
+    private fun stationTag(): PlexMediaMapper.StationTag? {
+        val queueId = playQueueId ?: return null
+        val itemId = playQueueItemId ?: return null
+        val artist = stationArtistId ?: return null
+        return PlexMediaMapper.StationTag(queueId, itemId, artist)
     }
 
     companion object {
@@ -99,6 +116,9 @@ class Queue {
                 year = fields.year
                 grandparentRatingKey = fields.grandparentRatingKey
                 hearted = fields.isHearted
+                playQueueId = fields.station?.playQueueId
+                playQueueItemId = fields.station?.playQueueItemId
+                stationArtistId = fields.station?.artistRatingKey
             }
         }
     }

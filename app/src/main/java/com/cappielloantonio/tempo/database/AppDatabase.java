@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.database;
 
 import androidx.media3.common.util.UnstableApi;
+import androidx.room.AutoMigration;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
@@ -39,14 +40,18 @@ import com.cappielloantonio.tempo.model.SessionMediaItem;
  * downgrade from -- but it governs what happens later: checking out a branch whose schema version
  * is lower than the database on the device crashes on open, and because this database is reached
  * through the media service that presents as a service restart loop rather than a dialog.
+ *
+ * <p>Version 2 adds the station columns to queue; see
+ * docs/decisions/2026-10-23-artist-radio-design.md.
  */
 @UnstableApi
 @Database(
-        version = 1,
+        version = 2,
         entities = {
             Queue.class,
             SessionMediaItem.class,
-        })
+        },
+        autoMigrations = {@AutoMigration(from = 1, to = 2)})
 public abstract class AppDatabase extends RoomDatabase {
     // Renamed from the inherited "tempo_db". A different filename is a
     // different database, so version 1 opens a file that does not exist yet and

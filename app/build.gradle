@@ -94,6 +94,13 @@ android {
         unitTests.includeAndroidResources = true
     }
 
+    // MigrationTestHelper reads the exported schemas as assets, and Robolectric only sees
+    // the debug variant's merged assets -- a test source set is not merged for unit tests.
+    // Costs the debug APK a few KB of JSON; release is untouched.
+    sourceSets {
+        debug.assets.srcDirs += files("$projectDir/schemas")
+    }
+
     splits {
         abi {
             enable = true
@@ -357,6 +364,7 @@ dependencies {
     testImplementation libs.kotlinx.coroutines.test
     testImplementation libs.okhttp.mockwebserver
     testImplementation libs.robolectric
+    testImplementation libs.androidx.room.testing
 
     // The instrumented tier. media3-session, Guava and Constants come from the
     // app's own `implementation` deps -- androidTest compiles against the
