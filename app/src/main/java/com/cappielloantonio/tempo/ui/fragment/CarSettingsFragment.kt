@@ -170,13 +170,21 @@ class CarSettingsFragment : Fragment() {
         return bind.root
     }
 
-    /** Pushed, as the debug screen's Choose server is, so back returns here. */
+    /**
+     * Pushed, as the debug screen's Choose server is, so back returns here.
+     *
+     * The push is executed before the state changes. `commit()` alone is
+     * asynchronous, so the router would see the new state with an empty back
+     * stack and replace the pushed screen with a routed one -- whose back
+     * signs out on screen instead of returning here.
+     */
     private fun switchUser() {
         parentFragmentManager
             .beginTransaction()
             .replace(R.id.car_host_container, PlexSignInFragment.pushed())
             .addToBackStack(null)
             .commit()
+        parentFragmentManager.executePendingTransactions()
         viewModel.reopenUserPicker()
     }
 
