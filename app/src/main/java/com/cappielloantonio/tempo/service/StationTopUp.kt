@@ -62,21 +62,43 @@ class StationTopUp(
         /**
          * What may still be appended once the read has returned. The player can
          * change while the report and read were in flight: [livePlaying] may be
-         * a different queue, and [liveQueuedMediaIds] may now hold tracks that
-         * continuous play added. Appending then would put a track in the player
-         * that QueueRepository.insertAll drops from the saved queue. The station
-         * is compared by [started]'s play queue, not the returned tracks', which
-         * a 404 redraw legitimately changes.
+         * a different queue, and [liveItems] may now hold tracks that continuous
+         * play added. The station is compared by [started]'s play queue, not the
+         * returned tracks', which a 404 redraw legitimately changes.
+         *
+         * The read returns the server's whole window, played items included, and
+         * those were trimmed from the player, so a mediaId check alone would
+         * append them again. Only what follows the last queued item of the
+         * returned play queue is kept; mediaId stays as a net for
+         * QueueRepository.insertAll, which drops a repeated mediaId.
          */
         fun appendable(
             more: List<MediaItem>,
             started: MediaItem,
             livePlaying: MediaItem?,
-            liveQueuedMediaIds: Set<String>,
+            liveItems: List<MediaItem>,
         ): List<MediaItem> {
             val startedQueue = PlexMediaMapper.stationTagOf(started)?.playQueueId ?: return emptyList()
             if (PlexMediaMapper.stationTagOf(livePlaying)?.playQueueId != startedQueue) return emptyList()
-            return more.filter { it.mediaId !in liveQueuedMediaIds }
+            val liveIds = liveItems.mapTo(HashSet()) { it.mediaId }
+            return afterLastQueued(more, liveItems).filter { it.mediaId !in liveIds }
+        }
+
+        private fun afterLastQueued(
+            more: List<MediaItem>,
+            liveItems: List<MediaItem>,
+        ): List<MediaItem> {
+            val returnedQueue = more.firstNotNullOfOrNull { PlexMediaMapper.stationTagOf(it)?.playQueueId } ?: return more
+            val anchor =
+                liveItems
+                    .mapNotNull { PlexMediaMapper.stationTagOf(it) }
+                    .lastOrNull { it.playQueueId == returnedQueue }
+                    ?.playQueueItemId
+                    ?: return more
+            val at = more.indexOfFirst { PlexMediaMapper.stationTagOf(it)?.playQueueItemId == anchor }
+            if (at >= 0) return more.drop(at + 1)
+            // Item ids only grow as the server appends, so a window past the anchor is told by size.
+            return more.filter { (PlexMediaMapper.stationTagOf(it)?.playQueueItemId ?: Long.MIN_VALUE) > anchor }
         }
 
         /** The first index to keep, so [keep] played tracks stay behind [currentIndex]. */

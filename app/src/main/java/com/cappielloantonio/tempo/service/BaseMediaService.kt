@@ -53,6 +53,7 @@ import com.cappielloantonio.tempo.util.DynamicMediaSourceFactory
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.ReplayGainUtil
 import com.cappielloantonio.tempo.util.StreamingCacheDataSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -415,14 +416,14 @@ open class BaseMediaService : MediaLibraryService() {
         player: Player,
         current: MediaItem,
     ) {
-        val remaining = player.mediaItemCount - 1 - player.currentMediaItemIndex
+        val remaining = remainingInPlayOrder(player)
         val queued = (0 until player.mediaItemCount).mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
         val position = player.currentPosition
         stationScope.launch {
             try {
                 val fetched = stationTopUp.onTrackStarted(current, position, remaining, queued)
-                val liveIds = (0 until player.mediaItemCount).mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
-                val more = StationTopUp.appendable(fetched, current, player.currentMediaItem, liveIds)
+                val live = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
+                val more = StationTopUp.appendable(fetched, current, player.currentMediaItem, live)
                 if (more.isEmpty()) return@launch
                 val at = player.mediaItemCount
                 player.addMediaItems(more)
@@ -433,12 +434,27 @@ open class BaseMediaService : MediaLibraryService() {
                     player.removeMediaItems(0, firstToKeep)
                     QueueRepository().deleteRange(0, firstToKeep)
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: Throwable) {
                 // Outside any `either { }`. A failed top-up is retried on the
                 // next track change; it must not take playback down.
                 Log.w(TAG, "station top-up failed", failure)
             }
         }
+    }
+
+    /** Items left after the current one in play order, which shuffle and repeat change; counted only to LOW_WATER + 1. */
+    private fun remainingInPlayOrder(player: Player): Int {
+        val timeline = player.currentTimeline
+        var index = player.currentMediaItemIndex
+        var steps = 0
+        while (steps <= StationTopUp.LOW_WATER) {
+            index = timeline.getNextWindowIndex(index, player.repeatMode, player.shuffleModeEnabled)
+            if (index == C.INDEX_UNSET) break
+            steps++
+        }
+        return steps
     }
 
     override fun onDestroy() {

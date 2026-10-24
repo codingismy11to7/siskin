@@ -95,7 +95,9 @@ extras: the play-queue id, the track's play-queue item id, and the seed artist.
 
 **Radio is not shuffled.** Every other Mix is reordered by
 `resolveQueueForItem`; a station must play in server order, because the server
-advances its window along that order.
+advances its window along that order. Server order is what the queue is handed
+over in; the car's own shuffle mode still applies if the driver has it on, and
+the top-up counts what is left in play order.
 
 **The station's state lives on its tracks**, not in preferences. Whatever is
 playing says whether a station is active and which one: reporting reads the
