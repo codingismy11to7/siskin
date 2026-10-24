@@ -117,8 +117,9 @@ was made: the previous member's Now Playing would never close, and the new
 member would receive a stopped timeline for a track they never played — the
 misattribution this feature exists to prevent, and reachable on any
 same-server switch. So the write runs in `stopPlayback`'s completion callback,
-and each scrobble carries the server and token current when it was *made*
-rather than when its queued request is sent. `LibraryPickerRepository`'s
+and a `stopped` scrobble carries the server and token current when it was
+*made* rather than when its queued request is sent (other states resolve them
+when sent, off the main thread). `LibraryPickerRepository`'s
 commit orders its write the same way.
 
 Back from `EnteringPin` goes to `ChoosingUser`; back from `ChoosingUser` goes to

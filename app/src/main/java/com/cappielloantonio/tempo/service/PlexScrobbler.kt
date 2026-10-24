@@ -31,10 +31,11 @@ private const val TAG = "PlexScrobbler"
  * whichever state it heard last, so a heartbeat overtaken by the pause that
  * followed it would leave a paused car showing as playing.
  *
- * Each report carries the server and token current when it was *made*, not
- * when it is sent: the final "stopped" for a track left by a Home switch is
- * queued just before the new member's session is written, and must still go
- * out as the member who played it.
+ * A "stopped" report snapshots the server and token on the calling thread; the
+ * rest resolve them when sent, off the main thread, as reading them costs
+ * AccountManager Binder calls. The snapshot exists for the final "stopped" of a
+ * track left by a Home switch, queued just before the new member's session is
+ * written, which must still go out as the member who played it.
  */
 object PlexScrobbler {
     private data class Server(
@@ -48,7 +49,7 @@ object PlexScrobbler {
         val state: TimelineState,
         val timeMs: Long,
         val station: PlexMediaMapper.StationTag?,
-        val server: Server,
+        val server: Server?,
         val sent: CompletableDeferred<Unit>? = null,
     )
 
@@ -90,7 +91,7 @@ object PlexScrobbler {
         timeMs: Long,
         station: PlexMediaMapper.StationTag?,
     ) {
-        queue.trySend(Report(ratingKey, partKey, state, timeMs, station, currentServer()))
+        queue.trySend(Report(ratingKey, partKey, state, timeMs, station, snapshotFor(state)))
     }
 
     /**
@@ -107,14 +108,16 @@ object PlexScrobbler {
         val ratingKey = extras.getString(PlexMediaMapper.EXTRA_ID) ?: return
         val partKey = extras.getString(PlexMediaMapper.EXTRA_PART_KEY) ?: return
         val sent = CompletableDeferred<Unit>()
-        queue.trySend(Report(ratingKey, partKey, state, timeMs, PlexMediaMapper.stationTagOf(item), currentServer(), sent))
+        queue.trySend(Report(ratingKey, partKey, state, timeMs, PlexMediaMapper.stationTagOf(item), snapshotFor(state), sent))
         sent.await()
     }
 
     private fun currentServer() = Server(api.serverUri, api.serverAuthToken)
 
+    private fun snapshotFor(state: TimelineState) = if (state == TimelineState.STOPPED) currentServer() else null
+
     private suspend fun send(report: Report) {
-        searchClient(report.server)
+        searchClient(report.server ?: currentServer())
             .reportProgress(RatingKey(report.ratingKey), report.partKey, report.state, report.timeMs, report.station)
             .onLeft { Log.w(TAG, "scrobble failed: $it") }
     }
