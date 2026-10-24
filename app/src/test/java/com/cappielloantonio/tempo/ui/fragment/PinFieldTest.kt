@@ -40,12 +40,13 @@ class PinFieldTest {
     }
 
     @Test
-    fun doneWithFewerThanFourDigitsDoesNothing() {
+    fun doneOnlyClosesTheKeyboard() {
         val field = field()
-        field.setText("43")
+        field.setText("4321")
         field.onEditorAction(EditorInfo.IME_ACTION_DONE)
 
-        assertTrue(submitted.isEmpty())
+        assertEquals(EditorInfo.IME_ACTION_DONE, field.imeOptions)
+        assertEquals(listOf("4321"), submitted)
     }
 
     @Test

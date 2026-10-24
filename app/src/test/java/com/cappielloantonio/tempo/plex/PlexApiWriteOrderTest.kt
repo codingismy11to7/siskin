@@ -75,6 +75,10 @@ class PlexApiWriteOrderTest {
     @After
     fun stopListening() {
         preferences.unregisterOnSharedPreferenceChangeListener(onPreferenceChange)
+        // The real account store never received these tokens, so a session
+        // left in the preferences would read to a later test class as owned=false
+        // with no server token.
+        api.session = null
     }
 
     private fun record(event: String) {

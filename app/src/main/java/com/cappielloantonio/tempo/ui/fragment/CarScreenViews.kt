@@ -197,9 +197,8 @@ internal fun applyPressFeedback(view: View) {
 
 /**
  * A four-digit PIN field on the system's numeric keyboard, calling [onPin] with
- * the digits once the fourth is typed, or on the keyboard's Done key if it is
- * pressed with four. Plex Home PINs are always four digits, so there is no
- * submit button.
+ * the digits once the fourth is typed. Plex Home PINs are always four digits,
+ * so there is no submit button, and the keyboard's Done key only closes it.
  *
  * The digits live in the field, not in the view model: a PIN is never state
  * anything else should see. The screen is parked-only already --
@@ -218,14 +217,6 @@ internal fun addPinField(
             gravity = Gravity.CENTER_HORIZONTAL
             setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
             doAfterTextChanged { if (it?.length == PIN_LENGTH) onPin(it.toString()) }
-            setOnEditorActionListener { _, actionId, _ ->
-                if (actionId == EditorInfo.IME_ACTION_DONE && text.length == PIN_LENGTH) {
-                    onPin(text.toString())
-                    true
-                } else {
-                    false
-                }
-            }
         }
     container.addView(
         field,
