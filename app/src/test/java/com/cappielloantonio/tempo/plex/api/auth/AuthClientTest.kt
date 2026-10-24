@@ -1,6 +1,8 @@
 package com.cappielloantonio.tempo.plex.api.auth
 
 import arrow.core.Either
+import com.cappielloantonio.tempo.plex.PlexHost
+import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.Resource
@@ -156,5 +158,42 @@ class AuthClientTest {
             }
 
         assertNull(AuthClient.validate(pin).getOrNull()!!.expiresAtEpochSeconds)
+    }
+
+    // ── switchFailure: what a refused Home switch means ────────────────
+
+    @Test
+    fun aForbiddenSwitchWithCode1041IsAWrongPin() {
+        val body = """{"errors":[{"code":1041,"message":"A valid PIN is required to perform this action","status":403}]}"""
+        assertEquals(SwitchUserError.WrongPin, AuthClient.switchFailure(403, body))
+    }
+
+    @Test
+    fun anyOther403IsAnHttpFailure() {
+        val body = """{"errors":[{"code":1001,"message":"nope","status":403}]}"""
+        assertEquals(
+            SwitchUserError.Transport(PlexTransportFailure.Http(PlexHost.PlexTv, 403)),
+            AuthClient.switchFailure(403, body),
+        )
+    }
+
+    @Test
+    fun aRateLimitIsItsOwnFailure() {
+        // Measured: about ten switches in two minutes draws this, which a
+        // fumbled PIN in a parked car can reach.
+        val body = """{"errors":[{"code":1003,"message":"API rate limit exceeded","status":429}]}"""
+        assertEquals(SwitchUserError.RateLimited, AuthClient.switchFailure(429, body))
+    }
+
+    @Test
+    fun anUnreadableBodyOnA403IsAnHttpFailureNotAWrongPin() {
+        assertEquals(
+            SwitchUserError.Transport(PlexTransportFailure.Http(PlexHost.PlexTv, 403)),
+            AuthClient.switchFailure(403, "<html>forbidden</html>"),
+        )
+        assertEquals(
+            SwitchUserError.Transport(PlexTransportFailure.Http(PlexHost.PlexTv, 403)),
+            AuthClient.switchFailure(403, null),
+        )
     }
 }

@@ -26,7 +26,18 @@ object PlexRetrofitFactory {
     /** Syntactically valid but unreachable; used before a server is discovered. */
     private const val PLACEHOLDER_BASE_URL = "https://localhost/"
 
-    fun plexTv(api: PlexApi): Retrofit = build(PLEX_TV_BASE_URL, api::plexTvHeaders)
+    fun plexTv(api: PlexApi): Retrofit = build(PLEX_TV_BASE_URL) { api.plexTvHeaders() }
+
+    /**
+     * plex.tv as [token] rather than as the stored account. A Home switch
+     * needs this: the new member's token has to list their servers before
+     * anything is persisted, and the identity interceptor would otherwise
+     * overwrite any per-request token with the stored one.
+     */
+    fun plexTv(
+        api: PlexApi,
+        token: String,
+    ): Retrofit = build(PLEX_TV_BASE_URL) { api.plexTvHeaders(token) }
 
     /**
      * Bakes [serverUri] into the returned instance's base URL, and uses

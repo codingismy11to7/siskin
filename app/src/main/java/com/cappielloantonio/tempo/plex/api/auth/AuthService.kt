@@ -1,7 +1,10 @@
 package com.cappielloantonio.tempo.plex.api.auth
 
+import com.cappielloantonio.tempo.plex.models.HomeUsers
 import com.cappielloantonio.tempo.plex.models.Pin
+import com.cappielloantonio.tempo.plex.models.PlexAccount
 import com.cappielloantonio.tempo.plex.models.Resource
+import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -44,4 +47,22 @@ interface AuthService {
         @Query("includeHttps") includeHttps: Int = 1,
         @Query("includeRelay") includeRelay: Int = 1,
     ): List<Resource>
+
+    @GET("home/users")
+    suspend fun getHomeUsers(): HomeUsers
+
+    @GET("user")
+    suspend fun getUser(): PlexAccount
+
+    /**
+     * Returns the [Response] rather than the body: a refused switch carries
+     * its reason in the error body (code 1041 is a wrong PIN), and a thrown
+     * `HttpException` would reach `plexCall`, which keeps only the status.
+     * A null [pin] is omitted from the query.
+     */
+    @POST("home/users/{uuid}/switch")
+    suspend fun switchHomeUser(
+        @Path("uuid") uuid: String,
+        @Query("pin") pin: String?,
+    ): Response<PlexAccount>
 }

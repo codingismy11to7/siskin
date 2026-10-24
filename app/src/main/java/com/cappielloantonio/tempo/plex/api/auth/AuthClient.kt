@@ -9,9 +9,14 @@ import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.api.server.ServerProbe
+import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.plex.models.Pin
+import com.cappielloantonio.tempo.plex.models.PlexAccount
+import com.cappielloantonio.tempo.plex.models.PlexErrorBody
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.plex.plexCall
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import java.time.Instant
 import java.time.format.DateTimeParseException
 
@@ -25,9 +30,12 @@ private const val TAG = "AuthClient"
  */
 class AuthClient(
     api: PlexApi,
+    /** Non-null replaces the stored account token on every call; see [PlexRetrofitFactory.plexTv]. */
+    token: String? = null,
 ) {
     private val service: AuthService =
-        PlexRetrofitFactory.plexTv(api).create(AuthService::class.java)
+        (if (token == null) PlexRetrofitFactory.plexTv(api) else PlexRetrofitFactory.plexTv(api, token))
+            .create(AuthService::class.java)
 
     /**
      * Validated on the way out, so callers get a PIN they can use rather than one
@@ -51,7 +59,74 @@ class AuthClient(
         return plexCall(PlexHost.PlexTv) { service.getResources() }
     }
 
+    /** Members with no uuid are dropped: nothing could switch to them. */
+    suspend fun homeUsers(): Either<PlexTransportFailure, List<HomeUser>> {
+        Log.d(TAG, "homeUsers()")
+        return plexCall(PlexHost.PlexTv) { service.getHomeUsers() }
+            .map { home -> home.users.orEmpty().filter { !it.uuid.isNullOrBlank() } }
+    }
+
+    suspend fun currentUser(): Either<PlexTransportFailure, PlexAccount> = plexCall(PlexHost.PlexTv) { service.getUser() }
+
+    /**
+     * The error body is read inside [plexCall] because reading it is I/O and
+     * can throw `IOException`, which must land in the transport failure
+     * rather than escape this `either`.
+     */
+    suspend fun switchTo(
+        uuid: String,
+        pin: String?,
+    ): Either<SwitchUserError, PlexAccount> =
+        either {
+            Log.d(TAG, "switchTo(protected=${pin != null})")
+            val (code, body, errorBody) =
+                plexCall(PlexHost.PlexTv) {
+                    val response = service.switchHomeUser(uuid, pin)
+                    Triple(response.code(), response.body(), response.errorBody()?.string())
+                }.mapLeft(SwitchUserError::Transport).bind()
+
+            if (code !in 200..299) raise(switchFailure(code, errorBody))
+            ensureNotNull(body?.takeIf { !it.authToken.isNullOrBlank() }) {
+                SwitchUserError.Transport(PlexTransportFailure.Http(PlexHost.PlexTv, code))
+            }
+        }
+
     companion object {
+        private const val WRONG_PIN = 1041
+        private const val HTTP_FORBIDDEN = 403
+        private const val HTTP_TOO_MANY_REQUESTS = 429
+        private val gson = Gson()
+
+        /**
+         * A refused switch, read from its status and plex.tv's error body.
+         * Only 403 *with* code 1041 is a wrong PIN; any other refusal is an
+         * HTTP failure, so an outage never reads as "wrong PIN".
+         */
+        @JvmStatic
+        fun switchFailure(
+            code: Int,
+            errorBody: String?,
+        ): SwitchUserError =
+            when {
+                code == HTTP_TOO_MANY_REQUESTS -> SwitchUserError.RateLimited
+                code == HTTP_FORBIDDEN && WRONG_PIN in errorCodes(errorBody) -> SwitchUserError.WrongPin
+                else -> SwitchUserError.Transport(PlexTransportFailure.Http(PlexHost.PlexTv, code))
+            }
+
+        private fun errorCodes(body: String?): List<Int> {
+            if (body == null) return emptyList()
+            return try {
+                gson
+                    .fromJson(body, PlexErrorBody::class.java)
+                    ?.errors
+                    .orEmpty()
+                    .mapNotNull { it.code }
+            } catch (e: JsonSyntaxException) {
+                Log.d(TAG, "unreadable plex.tv error body", e)
+                emptyList()
+            }
+        }
+
         /** Plex advertises capabilities as a comma-separated list. */
         private const val PROVIDES_SERVER = "server"
 

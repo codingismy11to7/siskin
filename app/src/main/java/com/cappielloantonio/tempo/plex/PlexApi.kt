@@ -198,7 +198,9 @@ class PlexApi(
     /** What the car says it is; UNKNOWN until the startup read lands. */
     val vehicle: VehicleIdentity get() = VehicleInfoReader.identity()
 
-    fun plexTvHeaders(): Map<String, String> = PlexIdentity.headers(clientIdentifier, appVersion, accountToken, language, vehicle)
+    fun plexTvHeaders(): Map<String, String> = plexTvHeaders(accountToken)
+
+    fun plexTvHeaders(token: String?): Map<String, String> = PlexIdentity.headers(clientIdentifier, appVersion, token, language, vehicle)
 
     companion object {
         private const val KEY_CLIENT_ID = "plex_client_identifier"

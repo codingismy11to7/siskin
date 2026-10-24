@@ -88,11 +88,53 @@ class AuthServiceTest {
         }
 
     @Test
+    fun getHomeUsersReadsHomeUsers() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"users":[{"uuid":"u","protected":true}]}"""))
+
+            val home = service().getHomeUsers()
+
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+            assertEquals("/home/users", request.requestUrl?.encodedPath)
+            assertEquals(true, home.users?.single()?.isProtected)
+        }
+
+    @Test
+    fun getUserReadsTheCurrentAccount() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+            service().getUser()
+
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+            assertEquals("/user", request.requestUrl?.encodedPath)
+        }
+
+    @Test
+    fun switchHomeUserPostsAndSendsThePinOnlyWhenGiven() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"authToken":"t"}"""))
+            server.enqueue(MockResponse().setResponseCode(201).setBody("""{"authToken":"t"}"""))
+
+            val response = service().switchHomeUser("abc", "1234")
+            service().switchHomeUser("abc", null)
+
+            val withPin = server.takeRequest()
+            assertEquals("POST", withPin.method)
+            assertEquals("/home/users/abc/switch", withPin.requestUrl?.encodedPath)
+            assertEquals("1234", withPin.requestUrl?.queryParameter("pin"))
+            assertEquals("t", response.body()?.authToken)
+            assertEquals(null, server.takeRequest().requestUrl?.queryParameter("pin"))
+        }
+
+    @Test
     fun everyEndpointIsCovered() {
         // Fails when an endpoint is added to AuthService without a test above.
         // The gap this file closes formed exactly that way.
         assertEquals(
-            setOf("createPin", "getPin", "getResources"),
+            setOf("createPin", "getPin", "getResources", "getHomeUsers", "getUser", "switchHomeUser"),
             annotatedEndpoints(AuthService::class.java),
         )
     }
