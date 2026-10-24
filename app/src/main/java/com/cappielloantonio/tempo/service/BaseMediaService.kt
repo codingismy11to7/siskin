@@ -242,7 +242,7 @@ open class BaseMediaService : MediaLibraryService() {
                         if (PlexMediaMapper.stationTagOf(currentMediaItem) != null) {
                             topUpStation(player, currentMediaItem)
                         } else if (currentMediaItem.mediaMetadata.extras != null) {
-                            MediaManager.scrobble(currentMediaItem, false, player.currentPosition)
+                            MediaManager.scrobble(currentMediaItem, SearchClient.STATE_PLAYING, player.currentPosition)
                         }
 
                         if (player.nextMediaItemIndex == C.INDEX_UNSET) {
@@ -289,7 +289,7 @@ open class BaseMediaService : MediaLibraryService() {
                             player.currentPosition,
                         )
                     } else {
-                        MediaManager.scrobble(player.currentMediaItem, false, player.currentPosition)
+                        MediaManager.scrobble(player.currentMediaItem, SearchClient.STATE_PLAYING, player.currentPosition)
                     }
                 }
 
@@ -300,7 +300,7 @@ open class BaseMediaService : MediaLibraryService() {
                         playbackState == Player.STATE_ENDED &&
                         player.mediaMetadata.extras?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC
                     ) {
-                        MediaManager.scrobble(player.currentMediaItem, true, player.currentPosition)
+                        MediaManager.scrobble(player.currentMediaItem, SearchClient.STATE_STOPPED, player.currentPosition)
                     }
                 }
 
@@ -338,7 +338,7 @@ open class BaseMediaService : MediaLibraryService() {
                             // currentPosition would report the *new* track's position against the
                             // *old* track's ratingKey. positionMs is where playback actually left
                             // the old track -- exactly what a "stopped" report should carry.
-                            MediaManager.scrobble(oldPosition.mediaItem, true, oldPosition.positionMs)
+                            MediaManager.scrobble(oldPosition.mediaItem, SearchClient.STATE_STOPPED, oldPosition.positionMs)
                         }
 
                         if (newPosition.mediaItem
