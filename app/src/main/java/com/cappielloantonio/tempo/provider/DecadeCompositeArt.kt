@@ -83,7 +83,7 @@ object DecadeCompositeArt {
         val response =
             try {
                 runBlocking {
-                    LibraryClient(api, session.serverUri, session.serverToken, { api.accountToken }).getSectionContent(
+                    LibraryClient(api, session.serverUri, session.serverAuthToken, { null }).getSectionContent(
                         sectionKey = session.musicSectionKey,
                         type = PlexItemType.ALBUM,
                         start = 0,

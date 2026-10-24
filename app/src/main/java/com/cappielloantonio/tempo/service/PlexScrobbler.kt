@@ -111,7 +111,7 @@ object PlexScrobbler {
         sent.await()
     }
 
-    private fun currentServer() = Server(api.serverUri, PlexApi.serverTokenOrAccount(api.serverToken, api.accountToken))
+    private fun currentServer() = Server(api.serverUri, api.serverAuthToken)
 
     private suspend fun send(report: Report) {
         searchClient(report.server)

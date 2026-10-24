@@ -32,7 +32,7 @@ class LibraryClient(
     accountToken: () -> String?,
 ) {
     /** Uses whatever server the persisted session names. */
-    constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken, { api.accountToken })
+    constructor(api: PlexApi) : this(api, api.serverUri, api.serverAuthToken, { null })
 
     private val service: LibraryService =
         PlexRetrofitFactory.server(api, serverUri, serverToken, accountToken).create(LibraryService::class.java)

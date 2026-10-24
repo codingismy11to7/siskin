@@ -53,7 +53,9 @@ object PlexRetrofitFactory {
      * [accountToken] is what a null [serverToken] falls back to, read on
      * every request. It has no default because the stored account is the
      * wrong answer for a candidate built mid-sign-in or mid-switch, where it
-     * may still be the previous member's.
+     * may still be the previous member's. A client for the stored session
+     * passes [PlexApi.serverAuthToken] and `{ null }` instead: that already
+     * applies the fallback, and only for a server the account owns.
      */
     fun server(
         api: PlexApi,
@@ -65,7 +67,7 @@ object PlexRetrofitFactory {
             PlexIdentity.headers(
                 api.clientIdentifier,
                 api.appVersion,
-                PlexApi.serverTokenOrAccount(serverToken, accountToken()),
+                serverToken?.takeIf { it.isNotBlank() } ?: accountToken(),
                 api.language,
                 api.vehicle,
             )

@@ -81,6 +81,10 @@ class PlexApi(
     val serverOwned: Boolean
         get() = preferences.getBoolean(KEY_SERVER_OWNED, true)
 
+    /** What a call to the selected server authenticates with; see the companion [serverAuthToken]. */
+    val serverAuthToken: String?
+        get() = serverAuthToken(serverToken, accountToken, serverOwned)
+
     /**
      * Every address the current server advertises, as JSON; null before one has
      * been recorded. Read and written only through ServerAddressBook, which owns
@@ -225,13 +229,16 @@ class PlexApi(
         private val IDENTITY_LOCK = Any()
 
         /**
-         * Which token authenticates a media-server call. Pure and static because
-         * PlexApi itself reads SharedPreferences, which unit tests cannot observe.
+         * Which token authenticates a call to the selected server: its own
+         * token, else the account token -- but only for a server the account
+         * owns, since any other refuses it. Every reader of the stored session
+         * goes through this, so the rule has one home.
          */
         @JvmStatic
-        fun serverTokenOrAccount(
+        fun serverAuthToken(
             serverToken: String?,
             accountToken: String?,
-        ): String? = if (serverToken.isNullOrBlank()) accountToken else serverToken
+            owned: Boolean,
+        ): String? = if (!serverToken.isNullOrBlank()) serverToken else accountToken.takeIf { owned }
     }
 }

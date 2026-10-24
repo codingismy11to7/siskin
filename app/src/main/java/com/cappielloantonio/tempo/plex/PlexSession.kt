@@ -63,6 +63,10 @@ data class PlexSession(
      */
     val owned: Boolean,
 ) {
+    /** See [PlexApi.serverAuthToken]. */
+    val serverAuthToken: String?
+        get() = PlexApi.serverAuthToken(serverToken, accountToken, owned)
+
     companion object {
         /**
          * Builds a session from stored values, or null if any required one is

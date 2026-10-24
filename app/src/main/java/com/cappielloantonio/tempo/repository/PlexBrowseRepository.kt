@@ -114,15 +114,15 @@ class PlexBrowseRepository {
         val session = api.session
         if (cachedLibraryClient == null || session != clientsSession) {
             clientsSession = session
-            cachedLibraryClient = LibraryClient(api, session?.serverUri, session?.serverToken, { api.accountToken })
-            cachedSearchClient = SearchClient(api, session?.serverUri, session?.serverToken, { api.accountToken })
+            cachedLibraryClient = LibraryClient(api, session?.serverUri, session?.serverAuthToken, { null })
+            cachedSearchClient = SearchClient(api, session?.serverUri, session?.serverAuthToken, { null })
         }
     }
 
     private val sectionKey: SectionKey? get() = api.session?.musicSectionKey
     private val serverUri: String? get() = api.session?.serverUri
     private val token: String?
-        get() = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
+        get() = api.session?.serverAuthToken
 
     // ── browse nodes ──────────────────────────────────────────
 

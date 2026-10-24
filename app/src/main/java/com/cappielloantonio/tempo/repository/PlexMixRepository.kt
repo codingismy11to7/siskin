@@ -71,7 +71,7 @@ class PlexMixRepository {
 
     private val serverUri: String? get() = api.session?.serverUri
     private val token: String?
-        get() = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
+        get() = api.session?.serverAuthToken
 
     fun similarTracks(
         ratingKey: String,

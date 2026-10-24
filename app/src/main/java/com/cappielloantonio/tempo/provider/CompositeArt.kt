@@ -368,7 +368,7 @@ object CompositeArt {
         targets: MutableList<FutureTarget<Bitmap>>,
     ): File? {
         val thumbs = covers(api, session)
-        val token = PlexApi.serverTokenOrAccount(session.serverToken, session.accountToken)
+        val token = session.serverAuthToken
 
         // Quarter-size is the norm: every layout but the one-cover case draws
         // into quarter cells, so a pool of two or more is requested at the edge
