@@ -19,10 +19,10 @@ private const val TAG = "PlexAccountStore"
  * outside the app's data directory, where a backup cannot reach them.
  *
  * The account name is the constant [ACCOUNT_NAME] rather than the user's Plex
- * identity, because Siskin never learns it: its auth surface is POST /pins,
- * GET /pins/{id} and GET /resources, and none of those name the account
- * holder. A constant is also a stable key, so "exactly one account" needs no
- * enforcement beyond addressing it by name.
+ * identity, because the account's holder can change underneath it: a Home
+ * switch replaces the token without the person signing in again. A constant is
+ * a stable key, so "exactly one account" needs no enforcement beyond
+ * addressing it by name.
  */
 class PlexAccountStore(
     private val context: Context = App.getContext(),

@@ -260,9 +260,9 @@ Relatedly: never `raise` across a coroutine-builder boundary (`launch`,
 
 ### Credentials — `PlexSession`
 
-Five values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`,
-`machineIdentifier`) describe **one** connection. `PlexApi.session` still reads
-and writes all five as a unit, and the two session writes in `app/src/main` —
+Six values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`,
+`machineIdentifier`, `owned`) describe **one** connection. `PlexApi.session` still reads
+and writes all six as a unit, and the two session writes in `app/src/main` —
 `PlexSignInViewModel.chooseLibrary` and `LibraryPickerRepository.selectLibrary`
 — still construct the whole session in one assignment; that outward shape is
 unchanged. Sign-in and the More tab both talk to a *candidate* server without
@@ -288,7 +288,10 @@ reasoning, including why the token type carries the machine identifier instead
 of a fifth preferences key.
 
 `serverToken` is legitimately null for a server the account owns (those accept
-the account token), so it is not required for a session to exist.
+the account token), and only then: a session whose `owned` is false and has no
+server token is no session. A Plex Home member's own plex.tv token is refused
+by a server they do not own, so the setter writes the server token before the
+account token. See `docs/decisions/2026-10-24-home-user-switching-design.md`.
 
 ### Media service — `service/`
 
