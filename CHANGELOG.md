@@ -11,6 +11,11 @@
 
 ## [Unreleased] — Siskin
 
+- Settings has a "Show Artist Radio" switch, off by default. With it on, an
+  artist's page offers Artist Radio, which plays that artist's Plex station —
+  the artist and music like it — and keeps adding to it as it plays, including
+  after the car restarts the app.
+
 - Settings has a "Show Artist Mix" switch, on by default. Turning it off
   leaves an artist's page as just their albums, without the Mix row above
   them.
