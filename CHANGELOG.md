@@ -14,7 +14,7 @@
 - Siskin can play as anyone in your Plex Home, managed users included. After
   signing in, a Home with more than one member asks who is listening; Settings
   shows who that is and has a Switch user button. A profile with a PIN asks for
-  it on a number pad. Playback, ratings and history then belong to the person
+  it. Playback, ratings and history then belong to the person
   listening, and what they can see is what Plex allows them. Switching stops
   what is playing and clears the queue, since both belong to the previous
   listener.

@@ -68,7 +68,6 @@
     <string name="plex_sign_in_instructions">Scannez le QR code — ou allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_instructions_no_qr">Allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_not_allowed">Ce profil ne peut pas ajouter de comptes, donc Siskin ne peut pas se connecter à Plex ici. Passez à votre propre profil pour vous connecter.</string>
-    <string name="plex_sign_in_pin_delete">Effacer</string>
     <string name="plex_sign_in_qr_description">QR code pour se connecter à Plex</string>
     <string name="plex_sign_in_retry">Réessayer</string>
 

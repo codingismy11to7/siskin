@@ -1,11 +1,16 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.text.InputFilter
+import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.widget.doAfterTextChanged
 import com.cappielloantonio.tempo.R
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
@@ -20,7 +25,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
  * [addChoice] is genuinely used by both screens: the server and library pickers
  * build their lists with it, and settings builds Customize tabs and Sign out
  * with it. [addToggle] and [applyPressFeedback] are settings' alone today, and
- * live here anyway so that a reader comparing a switch row against a button row
+ * [addPinField] is sign-in's; they live here anyway so that a reader comparing a switch row against a button row
  * finds the two decisions side by side rather than in different files.
  *
  * Free functions taking the container, rather than members of a base fragment:
@@ -191,125 +196,45 @@ internal fun applyPressFeedback(view: View) {
 }
 
 /**
- * A PIN pad: four progress dots over a 3×4 grid of digits and a delete key,
- * calling [onComplete] on the fourth digit. Plex Home PINs are always four
- * digits, so there is no OK key to find.
+ * A four-digit PIN field on the system's numeric keyboard, calling [onPin] with
+ * the digits once the fourth is typed, or on the keyboard's Done key if it is
+ * pressed with four. Plex Home PINs are always four digits, so there is no
+ * submit button.
  *
- * A [message] takes the dots' place until the first key press rather than
- * adding a line above them: at 1024×768 one more line pushes the bottom row
- * of keys off the screen.
- *
- * Not the system keyboard: on a head unit it is a small target far from the
- * driver's seat, and these keys are the same arm's-length size as every other
- * row. The screen is parked-only already -- CarHostActivity has no
- * distractionOptimized meta-data -- so nothing here has to be.
- *
- * The digits entered live in this closure, not in the view model: a PIN is
- * never state anything else should see, and losing a half-typed one to a
- * configuration change costs four taps.
+ * The digits live in the field, not in the view model: a PIN is never state
+ * anything else should see. The screen is parked-only already --
+ * CarHostActivity has no distractionOptimized meta-data -- so the keyboard
+ * needs nothing extra.
  */
-internal fun addPinPad(
+internal fun addPinField(
     container: ViewGroup,
-    deleteDescription: String,
-    message: String? = null,
-    onComplete: (String) -> Unit,
-) {
-    val context = container.context
-    val resources = container.resources
-    val entered = StringBuilder()
-
-    val dots =
-        TextView(context).apply {
+    onPin: (String) -> Unit,
+): EditText {
+    val field =
+        EditText(container.context).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            filters = arrayOf(InputFilter.LengthFilter(PIN_LENGTH))
+            imeOptions = EditorInfo.IME_ACTION_DONE
             gravity = Gravity.CENTER_HORIZONTAL
-        }
-
-    fun showDots() {
-        dots.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_DisplaySmall)
-        //noinspection SetTextI18n -- glyphs, not prose
-        dots.text = (0 until PIN_LENGTH).joinToString(" ") { if (it < entered.length) FILLED_DOT else EMPTY_DOT }
-    }
-    if (message == null) {
-        showDots()
-    } else {
-        dots.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleLarge)
-        dots.setTextColor(MaterialColors.getColor(dots, androidx.appcompat.R.attr.colorError))
-        dots.text = message
-    }
-    container.addView(
-        dots,
-        LinearLayout
-            .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            .apply { bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap) },
-    )
-
-    fun key(
-        label: String,
-        onClick: () -> Unit,
-    ) = MaterialButton(context).apply {
-        //noinspection SetTextI18n -- digits and glyphs, not prose
-        text = label
-        minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
-        insetTop = 0
-        insetBottom = 0
-        setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
-        setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary))
-        setOnClickListener { onClick() }
-    }
-
-    val gap = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
-    PIN_ROWS.forEach { row ->
-        val line = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-        row.forEachIndexed { index, label ->
-            val view =
-                when (label) {
-                    null -> {
-                        View(context)
-                    }
-
-                    DELETE -> {
-                        key(DELETE_GLYPH) {
-                            if (entered.isNotEmpty()) entered.deleteCharAt(entered.length - 1)
-                            showDots()
-                        }.apply { contentDescription = deleteDescription }
-                    }
-
-                    else -> {
-                        key(label) {
-                            entered.append(label)
-                            showDots()
-                            if (entered.length == PIN_LENGTH) {
-                                val pin = entered.toString()
-                                entered.clear()
-                                onComplete(pin)
-                            }
-                        }
-                    }
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+            doAfterTextChanged { if (it?.length == PIN_LENGTH) onPin(it.toString()) }
+            setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_DONE && text.length == PIN_LENGTH) {
+                    onPin(text.toString())
+                    true
+                } else {
+                    false
                 }
-            line.addView(
-                view,
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    if (index > 0) marginStart = gap
-                },
-            )
+            }
         }
-        container.addView(
-            line,
-            LinearLayout
-                .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                .apply { bottomMargin = gap },
-        )
-    }
+    container.addView(
+        field,
+        LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        ),
+    )
+    return field
 }
 
 private const val PIN_LENGTH = 4
-private const val DELETE = "delete"
-private const val DELETE_GLYPH = "⌫"
-private const val FILLED_DOT = "●"
-private const val EMPTY_DOT = "○"
-private val PIN_ROWS: List<List<String?>> =
-    listOf(
-        listOf("1", "2", "3"),
-        listOf("4", "5", "6"),
-        listOf("7", "8", "9"),
-        listOf(null, "0", DELETE),
-    )

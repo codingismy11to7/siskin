@@ -75,7 +75,7 @@ class PlexSignInFragmentBackTest {
         assertEquals(false, activity.isFinishing)
     }
 
-    private fun twoMembers() =
+    private fun twoMembers(): PlexSignInState.ChoosingUser =
         PlexSignInState.ChoosingUser(
             nonEmptyListOf(
                 HomeUser().apply {
@@ -104,6 +104,31 @@ class PlexSignInFragmentBackTest {
 
         assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
         assertEquals(false, activity.isFinishing)
+    }
+
+    @Test
+    fun `the PIN screen shows a field and its message, and back returns to the picker`() {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        idle()
+        val activity = controller.get()
+        val viewModel = ViewModelProvider(activity)[PlexSignInViewModel::class.java]
+        val users = twoMembers().users
+
+        viewModel.setStateForTest(
+            PlexSignInState.EnteringPin(users.head, users, messageRes = R.string.plex_sign_in_error_wrong_pin),
+        )
+        idle()
+
+        val root = activity.findViewById<android.view.ViewGroup>(R.id.choice_container)
+        assertEquals(1, root.childCount)
+        assertEquals(true, root.getChildAt(0) is android.widget.EditText)
+        val error = activity.findViewById<android.widget.TextView>(R.id.error_text)
+        assertEquals(android.view.View.VISIBLE, error.visibility)
+
+        activity.onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertEquals(true, viewModel.state.value is PlexSignInState.ChoosingUser)
     }
 
     @Test

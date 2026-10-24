@@ -175,17 +175,16 @@ the edge in English and wraps in German.
 builds its list. A protected member's label carries a trailing lock glyph; the
 current one a check, and tapping it does nothing.
 
-**The PIN pad** is a 3×4 grid of large digit buttons, a delete key and four
-progress dots, and submits itself on the fourth digit. It is not the system
-keyboard, which is clumsy on a head unit. `CarHostActivity` has no
-`distractionOptimized` meta-data, so the platform blocks it while the car is
-moving, and PIN entry is parked-only at no extra cost.
+**The PIN** is a numeric password field on the platform keyboard, and submits
+itself at the fourth number. The screen is parked-only already --
+`CarHostActivity` has no `distractionOptimized` meta-data, so the platform blocks
+it, keyboard included, while the car is moving -- so the keyboard needs nothing
+extra.
 
 New strings, each in all five locales: `car_settings_switch_user`,
 `car_settings_listening_as` (`%1$s`), `plex_sign_in_choose_user`,
 `plex_sign_in_enter_pin` (`%1$s`), `plex_sign_in_error_wrong_pin`,
-`plex_sign_in_error_rate_limited`, `plex_sign_in_error_no_server_access` and
-`plex_sign_in_pin_delete` (the delete key's content description). Member names
+`plex_sign_in_error_rate_limited`, `plex_sign_in_error_no_server_access`. Member names
 are data and are not translated.
 
 ## Alternatives considered

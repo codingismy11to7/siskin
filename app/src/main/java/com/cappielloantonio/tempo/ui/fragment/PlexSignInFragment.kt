@@ -11,6 +11,8 @@ import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.annotation.VisibleForTesting
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
@@ -290,13 +292,13 @@ class PlexSignInFragment : Fragment() {
             }
 
             is PlexSignInState.EnteringPin -> {
-                addPinPad(
-                    bind.choiceContainer,
-                    getString(R.string.plex_sign_in_pin_delete),
-                    state.messageRes?.let { getString(it) },
-                ) {
-                    viewModel.enterPin(it)
+                state.messageRes?.let {
+                    bind.errorText.visibility = View.VISIBLE
+                    bind.errorText.setText(it)
                 }
+                val field = addPinField(bind.choiceContainer) { viewModel.enterPin(it) }
+                field.requestFocus()
+                WindowInsetsControllerCompat(requireActivity().window, field).show(WindowInsetsCompat.Type.ime())
             }
         }
     }
