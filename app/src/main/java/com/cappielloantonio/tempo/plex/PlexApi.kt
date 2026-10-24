@@ -15,7 +15,13 @@ import java.util.UUID
  * The client identifier must be stable for the lifetime of the install -- Plex
  * ties the PIN grant to it, so regenerating it silently invalidates the session.
  */
-class PlexApi {
+class PlexApi(
+    /** A seam for tests that need to observe the order of account writes. */
+    private val accountStore: () -> PlexAccountStore,
+) {
+    /** Java builds this with `new PlexApi()`, which a default argument would not give it. */
+    constructor() : this({ PlexAccountStore() })
+
     private val preferences get() = App.getInstance().preferences
 
     /**
@@ -25,7 +31,7 @@ class PlexApi {
      * this class is built ad hoc at eleven call sites and has no lifecycle to
      * hang a shared instance on.
      */
-    private val accounts get() = PlexAccountStore()
+    private val accounts get() = accountStore()
 
     /** Stable per install; generated once on first use. */
     val clientIdentifier: String
@@ -71,6 +77,10 @@ class PlexApi {
         get() = preferences.getString(KEY_MACHINE_IDENTIFIER, null)
         set(value) = preferences.edit { putString(KEY_MACHINE_IDENTIFIER, value) }
 
+    /** See [PlexSession.owned]. Absent reads as true. */
+    val serverOwned: Boolean
+        get() = preferences.getBoolean(KEY_SERVER_OWNED, true)
+
     /**
      * Every address the current server advertises, as JSON; null before one has
      * been recorded. Read and written only through ServerAddressBook, which owns
@@ -115,6 +125,7 @@ class PlexApi {
                 musicSectionKey,
                 serverToken,
                 machineIdentifier,
+                owned = serverOwned,
             )
         set(value) {
             // Read before the preferences write below overwrites it. Switching
@@ -134,10 +145,12 @@ class PlexApi {
                     remove(KEY_SERVER_URI)
                     remove(KEY_MUSIC_SECTION_KEY)
                     remove(KEY_MACHINE_IDENTIFIER)
+                    remove(KEY_SERVER_OWNED)
                 } else {
                     putString(KEY_SERVER_URI, value.serverUri)
                     putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
                     putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
+                    putBoolean(KEY_SERVER_OWNED, value.owned)
                 }
             }
 
@@ -153,8 +166,19 @@ class PlexApi {
                 ) {
                     accounts.setServerToken(previousMachineIdentifier, null)
                 }
-                accounts.setAccountToken(value.accountToken)
-                accounts.setServerToken(value.machineIdentifier, value.serverToken)
+                // Server token first, so a reader between the two writes pairs
+                // the new server token with the old account token -- which the
+                // server accepts -- rather than a Home member's own plex.tv
+                // token with no server token, which it refuses. With no account
+                // yet there is nothing to file the server token under, and no
+                // old token for anyone to pair it with.
+                if (accounts.hasAccount()) {
+                    accounts.setServerToken(value.machineIdentifier, value.serverToken)
+                    accounts.setAccountToken(value.accountToken)
+                } else {
+                    accounts.setAccountToken(value.accountToken)
+                    accounts.setServerToken(value.machineIdentifier, value.serverToken)
+                }
             }
         }
 
@@ -180,6 +204,7 @@ class PlexApi {
         private const val KEY_SERVER_URI = "plex_server_uri"
         private const val KEY_MUSIC_SECTION_KEY = "plex_music_section_key"
         private const val KEY_MACHINE_IDENTIFIER = "plex_machine_identifier"
+        private const val KEY_SERVER_OWNED = "plex_server_owned"
         private const val KEY_SERVER_CANDIDATES = "plex_server_candidates"
 
         /**

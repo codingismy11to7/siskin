@@ -3,7 +3,7 @@ package com.cappielloantonio.tempo.plex
 /**
  * One signed-in connection: which account, which server, which music library.
  *
- * These five values describe a single connection and are only meaningful
+ * These values describe a single connection and are only meaningful
  * together. Held as separate nullable fields they could be read as a *mixed*
  * set -- a section key from one server beside another server's address -- which
  * would report as signed in and then ask one server for the other's section.
@@ -53,6 +53,14 @@ data class PlexSession(
      * tolerate its absence rather than treat it as a different server.
      */
     val machineIdentifier: String? = null,
+    /**
+     * False only when plex.tv said the account does not own this server. Such a
+     * session is not one without [serverToken]: the account token is refused
+     * there, so [from] reads it as absent rather than letting a reader fall
+     * back to it. Defaults to true, which keeps every session saved before this
+     * field existed exactly as it was.
+     */
+    val owned: Boolean = true,
 ) {
     companion object {
         /**
@@ -66,16 +74,19 @@ data class PlexSession(
             musicSectionKey: String?,
             serverToken: String?,
             machineIdentifier: String? = null,
+            owned: Boolean = true,
         ): PlexSession? {
             if (accountToken.isNullOrBlank()) return null
             if (serverUri.isNullOrBlank()) return null
             if (musicSectionKey.isNullOrBlank()) return null
+            if (!owned && serverToken.isNullOrBlank()) return null
             return PlexSession(
                 accountToken,
                 serverUri,
                 SectionKey(musicSectionKey),
                 serverToken,
                 machineIdentifier,
+                owned,
             )
         }
     }

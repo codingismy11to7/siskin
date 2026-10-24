@@ -73,4 +73,24 @@ class PlexSessionTest {
         assertNotNull(session)
         assertNull(session?.machineIdentifier)
     }
+
+    @Test
+    fun `a server the account does not own needs its own token`() {
+        // A Home member's plex.tv token is refused by a server it does not own
+        // (measured: 401), so falling back to it is never a session.
+        assertNull(PlexSession.from("acct", "http://pms:32400", "3", null, "abc", owned = false))
+        assertNull(PlexSession.from("acct", "http://pms:32400", "3", "  ", "abc", owned = false))
+    }
+
+    @Test
+    fun `an unowned server with its own token is a session`() {
+        val session = PlexSession.from("acct", "http://pms:32400", "3", "srv", "abc", owned = false)
+        assertNotNull(session)
+        assertEquals(false, session!!.owned)
+    }
+
+    @Test
+    fun `owned defaults to true, which is what every older session was`() {
+        assertEquals(true, PlexSession.from("acct", "http://pms:32400", "3", null)!!.owned)
+    }
 }

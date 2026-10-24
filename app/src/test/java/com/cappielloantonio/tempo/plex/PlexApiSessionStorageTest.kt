@@ -120,4 +120,29 @@ class PlexApiSessionStorageTest {
         assertNull(api.serverUri)
         assertNull(api.session)
     }
+
+    @Test
+    fun ownedRoundTripsThroughPreferences() {
+        api.session =
+            PlexSession(
+                accountToken = "acct",
+                serverUri = "https://one.example",
+                musicSectionKey = SectionKey("4"),
+                serverToken = "srv",
+                machineIdentifier = "machine-a",
+                owned = false,
+            )
+
+        assertEquals(false, api.session!!.owned)
+    }
+
+    @Test
+    fun clearingTheSessionForgetsOwnership() {
+        api.session =
+            PlexSession("acct", "https://one.example", SectionKey("4"), "srv", "machine-a", owned = false)
+
+        api.session = null
+
+        assertEquals(true, api.serverOwned)
+    }
 }
