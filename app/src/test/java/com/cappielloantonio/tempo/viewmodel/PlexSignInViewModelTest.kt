@@ -1807,8 +1807,9 @@ class PlexSignInViewModelTest {
             advanceUntilIdle()
             viewModel.chooseUser(jill)
             advanceUntilIdle()
-            // Switched from the PIN's token, not the saved session's.
-            verify(switch).switch(PendingAccount("granted"), jill, null, savedSession)
+            // Switched from the PIN's token, not the saved session's, and
+            // without the saved session: sign-in always runs the pickers.
+            verify(switch).switch(PendingAccount("granted"), jill, null, null)
             viewModel.chooseServer(resource)
             awaitSettled(viewModel)
             viewModel.chooseLibrary((viewModel.state.value as PlexSignInState.ChoosingLibrary).sections.head)
@@ -1933,6 +1934,22 @@ class PlexSignInViewModelTest {
             val authClient =
                 signedInAuthClient(listOf(me, jill)).stub {
                     on { currentUser() } doReturn PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+                }
+            val viewModel = signedInViewModel(authClient)
+
+            viewModel.reopenUserPicker()
+            advanceUntilIdle()
+
+            assertEquals(PlexSignInState.Failed(R.string.plex_sign_in_error_network), viewModel.state.value)
+        }
+
+    @Test
+    fun theSettingsPickerFailsWhenPlexTvNamesNobody() =
+        runTest(dispatcher) {
+            PlexApi().session = savedSession
+            val authClient =
+                signedInAuthClient(listOf(me, jill)).stub {
+                    on { currentUser() } doReturn PlexAccount().right()
                 }
             val viewModel = signedInViewModel(authClient)
 

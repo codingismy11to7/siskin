@@ -235,9 +235,10 @@ class PlexSignInViewModel
                         val users = home.mapLeft(SignInError::Api).bind().toNonEmptyListOrNull()
                         val uuid = current.mapLeft(SignInError::Api).bind().uuid
                         _state.value =
-                            if (users == null) {
+                            if (users == null || uuid == null) {
                                 // Settings offers this only for a Home of two or
-                                // more, so an empty one is plex.tv misanswering.
+                                // more, and every account has a uuid, so either
+                                // missing is plex.tv misanswering.
                                 PlexSignInState.Failed(R.string.plex_sign_in_error_network)
                             } else {
                                 PlexSignInState.ChoosingUser(users, account, uuid)
@@ -288,8 +289,11 @@ class PlexSignInViewModel
 
             attempt =
                 viewModelScope.launch {
+                    // Only settings keeps the saved server -- sign-in always
+                    // runs the pickers -- and only settings sets currentUuid.
+                    val saved = if (currentUuid != null) api.session else null
                     homeUserSwitch
-                        .switch(from, user, pin, api.session)
+                        .switch(from, user, pin, saved)
                         .fold(
                             { error ->
                                 val message = PlexSignInFlow.messageFor(error)
@@ -678,7 +682,10 @@ class PlexSignInViewModel
             //
             // A changed account token clears it too, even on the same server:
             // the player's loaded items carry the previous token in their URLs,
-            // and after a Home switch that token is another member's.
+            // and after a Home switch that token is another member's. A PIN
+            // mints a new token too, so even a same-account re-sign-in clears
+            // it -- acceptable, since the loaded items carry the token that
+            // was just refused.
             val accountChanged = previous != null && previous.accountToken != next.accountToken
             if (accountChanged || LibrarySelection.invalidatesQueue(previous, next)) {
                 Log.d(TAG, "server or account changed; discarding the saved queue")
