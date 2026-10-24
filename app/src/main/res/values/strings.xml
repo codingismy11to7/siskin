@@ -81,7 +81,9 @@
 
     <string name="plex_sign_in_choose_library">Choose a music library</string>
     <string name="plex_sign_in_choose_server">Choose a Plex server</string>
+    <string name="plex_sign_in_choose_user">Who\'s listening?</string>
     <string name="plex_sign_in_connect">Connect to Plex</string>
+    <string name="plex_sign_in_enter_pin">Enter the PIN for %1$s</string>
     <!-- Siskin plays music you already own; every other AAOS music app is a streaming front-end. -->
     <string name="plex_sign_in_tagline">Your car. Your music.</string>
     <string name="plex_sign_in_error_expired">The sign-in code expired.</string>
@@ -98,6 +100,7 @@
     <!-- Shown when the QR image could not be fetched; the code alone still works. -->
     <string name="plex_sign_in_instructions_no_qr">Go to plex.tv/link and enter:</string>
     <string name="plex_sign_in_not_allowed">This profile can\'t add accounts, so Siskin can\'t sign in to Plex here. Switch to your own profile to sign in.</string>
+    <string name="plex_sign_in_pin_delete">Delete</string>
     <string name="plex_sign_in_qr_description">QR code for signing in to Plex</string>
     <string name="plex_sign_in_retry">Try again</string>
 

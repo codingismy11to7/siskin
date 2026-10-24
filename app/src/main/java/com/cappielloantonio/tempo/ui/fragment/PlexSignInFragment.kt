@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
@@ -22,13 +23,15 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentPlexSignInBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
+import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 
 private const val TAG = "PlexSignInFragment"
 
 /**
- * The Plex PIN sign-in screen: a QR code and a short code, then a server picker
- * and a music-library picker.
+ * The Plex PIN sign-in screen: a QR code and a short code, then -- for a Home
+ * with more than one member -- who is listening, then a server picker and a
+ * music-library picker.
  *
  * Both pickers render even for a single candidate. [CarSettingsFragment], where
  * you land once signed in, can now reopen this same picker through its debug
@@ -111,13 +114,17 @@ class PlexSignInFragment : Fragment() {
      * [PlexSignInViewModel.backPressed], which abandons a sign-in that was
      * never started.
      *
-     * Only [PlexSignInState.ChoosingServer] is excepted, and only when pushed.
+     * Settings pushes this screen for Switch user too, and back out of the Home
+     * picker likewise returns there.
+     *
+     * Only [PlexSignInState.ChoosingServer] and [PlexSignInState.ChoosingUser]
+     * are excepted, and only when pushed.
      * Backing out of the *library* picker still belongs to the flow even here:
      * it returns to the server picker one step up, which is a move inside this
      * screen rather than out of it.
      */
     private fun claimsBackPress(state: PlexSignInState): Boolean {
-        if (pushed && state is PlexSignInState.ChoosingServer) return false
+        if (pushed && (state is PlexSignInState.ChoosingServer || state is PlexSignInState.ChoosingUser)) return false
         return viewModel.handlesBackPress(state)
     }
 
@@ -131,18 +138,34 @@ class PlexSignInFragment : Fragment() {
         bind.errorText.visibility = View.GONE
         bind.retryButton.visibility = View.GONE
 
-        bind.stepHeading.setText(
+        bind.stepHeading.text =
             when (state) {
-                is PlexSignInState.ChoosingServer -> R.string.plex_sign_in_choose_server
-                is PlexSignInState.ChoosingLibrary -> R.string.plex_sign_in_choose_library
-                else -> R.string.plex_sign_in_connect
-            },
-        )
+                is PlexSignInState.ChoosingServer -> {
+                    getString(R.string.plex_sign_in_choose_server)
+                }
+
+                is PlexSignInState.ChoosingLibrary -> {
+                    getString(R.string.plex_sign_in_choose_library)
+                }
+
+                is PlexSignInState.ChoosingUser -> {
+                    getString(R.string.plex_sign_in_choose_user)
+                }
+
+                is PlexSignInState.EnteringPin -> {
+                    getString(R.string.plex_sign_in_enter_pin, state.user.title.orEmpty())
+                }
+
+                else -> {
+                    getString(R.string.plex_sign_in_connect)
+                }
+            }
 
         applyArrangement(
             isOpenEndedList =
                 state is PlexSignInState.ChoosingServer ||
-                    state is PlexSignInState.ChoosingLibrary,
+                    state is PlexSignInState.ChoosingLibrary ||
+                    state is PlexSignInState.ChoosingUser,
         )
 
         when (state) {
@@ -254,10 +277,27 @@ class PlexSignInFragment : Fragment() {
             // are the right thing to leave behind.
             is PlexSignInState.Connected -> {}
 
-            // Rendered by the fragment's next change; the state machine is ahead of the UI.
-            is PlexSignInState.ChoosingUser,
-            is PlexSignInState.EnteringPin,
-            -> {}
+            is PlexSignInState.ChoosingUser -> {
+                state.messageRes?.let {
+                    bind.errorText.visibility = View.VISIBLE
+                    bind.errorText.setText(it)
+                }
+                state.users.forEach { user ->
+                    addChoice(bind.choiceContainer, userLabel(user, state.currentUuid)) {
+                        viewModel.chooseUser(user)
+                    }
+                }
+            }
+
+            is PlexSignInState.EnteringPin -> {
+                state.messageRes?.let {
+                    bind.errorText.visibility = View.VISIBLE
+                    bind.errorText.setText(it)
+                }
+                addPinPad(bind.choiceContainer, getString(R.string.plex_sign_in_pin_delete)) {
+                    viewModel.enterPin(it)
+                }
+            }
         }
     }
 
@@ -335,6 +375,22 @@ class PlexSignInFragment : Fragment() {
 
     companion object {
         private const val ARG_PUSHED = "pushed"
+
+        /**
+         * A member's name, with a lock when they have a PIN and a check when
+         * they are the one signed in. Glyphs, not words: there is nothing to
+         * translate, and a name is data.
+         */
+        @VisibleForTesting
+        internal fun userLabel(
+            user: HomeUser,
+            currentUuid: String?,
+        ): String =
+            buildString {
+                append(user.title.orEmpty())
+                if (user.isProtected == true) append("  🔒")
+                if (currentUuid != null && user.uuid == currentUuid) append("  ✓")
+            }
 
         /**
          * This screen, pushed onto the back stack by something that expects

@@ -14,7 +14,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
 /*
  * The rows both car screens build into their `choice_container`.
  *
- * One file rather than two because all three functions here answer the same
+ * One file rather than two because all four functions here answer the same
  * question -- what a control has to look like to be operated at arm's length,
  * in a car -- and the answer is shared even where the callers are not.
  * [addChoice] is genuinely used by both screens: the server and library pickers
@@ -24,7 +24,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
  * finds the two decisions side by side rather than in different files.
  *
  * Free functions taking the container, rather than members of a base fragment:
- * there is nothing to inherit here beyond these three calls, and a shared
+ * there is nothing to inherit here beyond these calls, and a shared
  * superclass would be a second, invisible reason the two screens are coupled --
  * which is what splitting them was meant to remove.
  */
@@ -189,3 +189,116 @@ internal fun applyPressFeedback(view: View) {
     )
     view.setBackgroundResource(ripple.resourceId)
 }
+
+/**
+ * A PIN pad: four progress dots over a 3×4 grid of digits and a delete key,
+ * calling [onComplete] on the fourth digit. Plex Home PINs are always four
+ * digits, so there is no OK key to find.
+ *
+ * Not the system keyboard: on a head unit it is a small target far from the
+ * driver's seat, and these keys are the same arm's-length size as every other
+ * row. The screen is parked-only already -- CarHostActivity has no
+ * distractionOptimized meta-data -- so nothing here has to be.
+ *
+ * The digits entered live in this closure, not in the view model: a PIN is
+ * never state anything else should see, and losing a half-typed one to a
+ * configuration change costs four taps.
+ */
+internal fun addPinPad(
+    container: ViewGroup,
+    deleteDescription: String,
+    onComplete: (String) -> Unit,
+) {
+    val context = container.context
+    val resources = container.resources
+    val entered = StringBuilder()
+
+    val dots =
+        TextView(context).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_DisplaySmall)
+        }
+
+    fun showDots() {
+        //noinspection SetTextI18n -- glyphs, not prose
+        dots.text = (0 until PIN_LENGTH).joinToString(" ") { if (it < entered.length) FILLED_DOT else EMPTY_DOT }
+    }
+    showDots()
+    container.addView(
+        dots,
+        LinearLayout
+            .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            .apply { bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap) },
+    )
+
+    fun key(
+        label: String,
+        onClick: () -> Unit,
+    ) = MaterialButton(context).apply {
+        //noinspection SetTextI18n -- digits and glyphs, not prose
+        text = label
+        minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+        insetTop = 0
+        insetBottom = 0
+        setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+        setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary))
+        setOnClickListener { onClick() }
+    }
+
+    val gap = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
+    PIN_ROWS.forEach { row ->
+        val line = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        row.forEachIndexed { index, label ->
+            val view =
+                when (label) {
+                    null -> {
+                        View(context)
+                    }
+
+                    DELETE -> {
+                        key(DELETE_GLYPH) {
+                            if (entered.isNotEmpty()) entered.deleteCharAt(entered.length - 1)
+                            showDots()
+                        }.apply { contentDescription = deleteDescription }
+                    }
+
+                    else -> {
+                        key(label) {
+                            entered.append(label)
+                            showDots()
+                            if (entered.length == PIN_LENGTH) {
+                                val pin = entered.toString()
+                                entered.clear()
+                                onComplete(pin)
+                            }
+                        }
+                    }
+                }
+            line.addView(
+                view,
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    if (index > 0) marginStart = gap
+                },
+            )
+        }
+        container.addView(
+            line,
+            LinearLayout
+                .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                .apply { bottomMargin = gap },
+        )
+    }
+}
+
+private const val PIN_LENGTH = 4
+private const val DELETE = "delete"
+private const val DELETE_GLYPH = "⌫"
+private const val FILLED_DOT = "●"
+private const val EMPTY_DOT = "○"
+private val PIN_ROWS: List<List<String?>> =
+    listOf(
+        listOf("1", "2", "3"),
+        listOf("4", "5", "6"),
+        listOf("7", "8", "9"),
+        listOf(null, "0", DELETE),
+    )

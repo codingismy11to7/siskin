@@ -49,7 +49,9 @@
 
     <string name="plex_sign_in_choose_library">Choisissez une bibliothèque musicale</string>
     <string name="plex_sign_in_choose_server">Choisissez un serveur Plex</string>
+    <string name="plex_sign_in_choose_user">Qui écoute\u202f?</string>
     <string name="plex_sign_in_connect">Se connecter à Plex</string>
+    <string name="plex_sign_in_enter_pin">Saisissez le code PIN de %1$s</string>
     <string name="plex_sign_in_tagline">Votre voiture. Votre musique.</string>
     <string name="plex_sign_in_error_expired">Le code de connexion a expiré.</string>
     <string name="plex_sign_in_error_lost_candidate">Le serveur sélectionné a été perdu. Veuillez réessayer.</string>
@@ -64,6 +66,7 @@
     <string name="plex_sign_in_instructions">Scannez le QR code — ou allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_instructions_no_qr">Allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_not_allowed">Ce profil ne peut pas ajouter de comptes, donc Siskin ne peut pas se connecter à Plex ici. Passez à votre propre profil pour vous connecter.</string>
+    <string name="plex_sign_in_pin_delete">Effacer</string>
     <string name="plex_sign_in_qr_description">QR code pour se connecter à Plex</string>
     <string name="plex_sign_in_retry">Réessayer</string>
 
