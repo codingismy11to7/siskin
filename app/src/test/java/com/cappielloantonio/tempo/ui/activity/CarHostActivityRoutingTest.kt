@@ -8,10 +8,12 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.ui.fragment.BrowseTabOrderFragment
 import com.cappielloantonio.tempo.ui.fragment.CarSettingsFragment
 import com.cappielloantonio.tempo.ui.fragment.PlexSignInFragment
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
+import org.junit.After
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -43,6 +45,12 @@ class CarHostActivityRoutingTest {
         // choosing a screen -- so a session left behind by another test would
         // decide this one's routing.
         PlexApi().session = null
+        HomeUsersRepository.fetch = { null }
+    }
+
+    @After
+    fun tearDown() {
+        HomeUsersRepository.resetForTest()
     }
 
     private fun signedIn() {

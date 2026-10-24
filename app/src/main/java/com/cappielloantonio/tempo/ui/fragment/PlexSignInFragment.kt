@@ -394,8 +394,8 @@ class PlexSignInFragment : Fragment() {
 
         /**
          * This screen, pushed onto the back stack by something that expects
-         * back to return to it. [CarDebugFragment]'s "Choose server" row is the
-         * only caller.
+         * back to return to it. [CarDebugFragment]'s "Choose server" row and
+         * [CarSettingsFragment]'s "Switch user" row are the callers.
          *
          * The router constructs this fragment directly instead, which is what
          * makes the argument's absence mean "routed".

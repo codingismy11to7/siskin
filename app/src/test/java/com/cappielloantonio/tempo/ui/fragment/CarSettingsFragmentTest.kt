@@ -11,6 +11,9 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.plex.models.HomeUser
+import com.cappielloantonio.tempo.plex.models.PlexAccount
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
@@ -82,6 +85,7 @@ class CarSettingsFragmentTest {
         session = mock()
         MediaBrowserTree.initialize(App.getContext(), mock())
         BrowseTreeInvalidator.attach(session)
+        HomeUsersRepository.fetch = { null }
     }
 
     @After
@@ -89,6 +93,7 @@ class CarSettingsFragmentTest {
         // BrowseTreeInvalidator is a process-wide singleton; leaving a mock
         // attached would leak into whatever test class runs next.
         BrowseTreeInvalidator.detach()
+        HomeUsersRepository.resetForTest()
     }
 
     private fun settingsScreen(): View {
@@ -292,5 +297,61 @@ class CarSettingsFragmentTest {
         // intermittently.
         shadowOf(Looper.getMainLooper()).idle()
         verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
+    }
+
+    private fun home(vararg titles: String) =
+        HomeUsersRepository.Home(
+            users =
+                titles.map { t ->
+                    HomeUser().apply {
+                        uuid = t
+                        title = t
+                    }
+                },
+            current =
+                PlexAccount().apply {
+                    uuid = titles.first()
+                    title = titles.first()
+                },
+        )
+
+    private fun textsIn(view: View): List<TextView> =
+        when (view) {
+            is TextView -> listOf(view)
+            is ViewGroup -> (0 until view.childCount).flatMap { textsIn(view.getChildAt(it)) }
+            else -> emptyList()
+        }
+
+    private fun visibleTexts(view: View) = textsIn(view).filter { it.isShown }.map { it.text.toString() }
+
+    @Test
+    fun `a one-member Home shows no Switch user row`() {
+        HomeUsersRepository.fetch = { home("me") }
+
+        val screen = settingsScreen()
+
+        assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
+    }
+
+    @Test
+    fun `a larger Home shows who is listening and the Switch user row above Sign out`() {
+        HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
+
+        val screen = settingsScreen()
+        val texts = visibleTexts(screen)
+
+        val switchUser = App.getContext().getString(R.string.car_settings_switch_user)
+        val signOut = App.getContext().getString(R.string.car_settings_sign_out)
+        assertTrue(texts.contains(App.getContext().getString(R.string.car_settings_listening_as, "codingismy11to7")))
+        assertEquals(texts.indexOf(signOut) - 1, texts.indexOf(switchUser))
+    }
+
+    @Test
+    fun `a failed Home lookup shows no Switch user row`() {
+        HomeUsersRepository.fetch = { null }
+
+        val screen = settingsScreen()
+
+        assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
     }
 }

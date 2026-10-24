@@ -31,6 +31,8 @@
     <string name="car_settings_artist_mix">Afficher le mix de l\'artiste</string>
     <string name="car_settings_artist_radio">Afficher la radio de l\'artiste</string>
     <string name="car_settings_sign_out">Se déconnecter</string>
+    <string name="car_settings_switch_user">Changer d\'utilisateur</string>
+    <string name="car_settings_listening_as">Écoute en tant que %1$s</string>
     <string name="car_settings_title">Paramètres</string>
     <string name="car_settings_customize_tabs">Personnaliser les onglets</string>
     <string name="car_tab_order_title">Ordre des onglets</string>

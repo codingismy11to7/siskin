@@ -34,6 +34,8 @@
     <string name="car_settings_artist_mix">Show Artist Mix</string>
     <string name="car_settings_artist_radio">Show Artist Radio</string>
     <string name="car_settings_sign_out">Sign out</string>
+    <string name="car_settings_switch_user">Switch user</string>
+    <string name="car_settings_listening_as">Listening as %1$s</string>
     <string name="car_settings_title">Settings</string>
     <string name="car_settings_customize_tabs">Customize tabs</string>
     <string name="car_tab_order_title">Tab order</string>

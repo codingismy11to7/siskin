@@ -31,6 +31,8 @@
     <string name="car_settings_artist_mix">Mostra il mix dell\'artista</string>
     <string name="car_settings_artist_radio">Mostra la radio dell\'artista</string>
     <string name="car_settings_sign_out">Esci</string>
+    <string name="car_settings_switch_user">Cambia utente</string>
+    <string name="car_settings_listening_as">In ascolto come %1$s</string>
     <string name="car_settings_title">Impostazioni</string>
     <string name="car_settings_customize_tabs">Personalizza schede</string>
     <string name="car_tab_order_title">Ordine delle schede</string>

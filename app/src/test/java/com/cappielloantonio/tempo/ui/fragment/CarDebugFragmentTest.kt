@@ -12,6 +12,7 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
@@ -56,6 +57,7 @@ class CarDebugFragmentTest {
 
     @Before
     fun stubTheAccountsServers() {
+        HomeUsersRepository.fetch = { null }
         CarHostActivity.viewModelFactoryForTest =
             object : ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -77,6 +79,7 @@ class CarDebugFragmentTest {
         // Static and Robolectric keeps statics between classes, so leaving this
         // set hands the next suite a stubbed AuthClient.
         CarHostActivity.viewModelFactoryForTest = null
+        HomeUsersRepository.resetForTest()
     }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()

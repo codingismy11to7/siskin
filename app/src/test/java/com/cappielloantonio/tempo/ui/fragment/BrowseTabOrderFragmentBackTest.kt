@@ -5,6 +5,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
@@ -40,6 +41,7 @@ class BrowseTabOrderFragmentBackTest {
     @Before
     fun setUp() {
         BrowseTabOrderFixture.clearSavedOrder()
+        HomeUsersRepository.fetch = { null }
         MediaBrowserTree.initialize(App.getContext(), mock())
         BrowseTreeInvalidator.attach(session)
     }
@@ -49,6 +51,7 @@ class BrowseTabOrderFragmentBackTest {
         // BrowseTreeInvalidator is a process-wide singleton; leaving a mock
         // attached would leak into whatever test class runs next.
         BrowseTreeInvalidator.detach()
+        HomeUsersRepository.resetForTest()
     }
 
     @Test

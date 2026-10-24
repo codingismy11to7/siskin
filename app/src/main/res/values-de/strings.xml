@@ -30,6 +30,8 @@
     <string name="car_settings_artist_mix">Interpreten-Mix anzeigen</string>
     <string name="car_settings_artist_radio">Interpreten-Radio anzeigen</string>
     <string name="car_settings_sign_out">Abmelden</string>
+    <string name="car_settings_switch_user">Benutzer wechseln</string>
+    <string name="car_settings_listening_as">Wiedergabe als %1$s</string>
     <string name="car_settings_title">Einstellungen</string>
     <string name="car_settings_customize_tabs">Tabs anpassen</string>
     <string name="car_tab_order_title">Tab-Reihenfolge</string>

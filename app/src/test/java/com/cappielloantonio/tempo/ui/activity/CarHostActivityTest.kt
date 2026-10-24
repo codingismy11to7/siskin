@@ -7,6 +7,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
@@ -59,6 +60,7 @@ class CarHostActivityTest {
         // by another test -- including one in another class -- would
         // otherwise leak into the tab ids this test asserts on.
         BrowseTabOrderFixture.clearSavedOrder()
+        HomeUsersRepository.fetch = { null }
         player = mock()
         session = mock()
         whenever(session.player).thenReturn(player)
@@ -69,6 +71,7 @@ class CarHostActivityTest {
     @After
     fun tearDown() {
         BrowseTreeInvalidator.detach()
+        HomeUsersRepository.resetForTest()
     }
 
     private fun idleMainLooper() = shadowOf(Looper.getMainLooper()).idle()

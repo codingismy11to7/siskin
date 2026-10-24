@@ -31,6 +31,8 @@
     <string name="car_settings_artist_mix">Mostrar el mix del artista</string>
     <string name="car_settings_artist_radio">Mostrar la radio del artista</string>
     <string name="car_settings_sign_out">Cerrar sesión</string>
+    <string name="car_settings_switch_user">Cambiar de usuario</string>
+    <string name="car_settings_listening_as">Escuchando como %1$s</string>
     <string name="car_settings_title">Ajustes</string>
     <string name="car_settings_customize_tabs">Personalizar pestañas</string>
     <string name="car_tab_order_title">Orden de pestañas</string>
