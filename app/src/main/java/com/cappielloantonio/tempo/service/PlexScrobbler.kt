@@ -115,7 +115,7 @@ object PlexScrobbler {
         val server = api.serverUri to api.serverToken
         val cached = client
         if (cached != null && server == clientServer) return cached
-        return SearchClient(api, server.first, server.second).also {
+        return SearchClient(api, server.first, server.second, { api.accountToken }).also {
             client = it
             clientServer = server
         }

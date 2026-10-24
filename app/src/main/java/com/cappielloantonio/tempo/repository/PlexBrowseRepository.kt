@@ -114,8 +114,8 @@ class PlexBrowseRepository {
         val session = api.session
         if (cachedLibraryClient == null || session != clientsSession) {
             clientsSession = session
-            cachedLibraryClient = LibraryClient(api, session?.serverUri, session?.serverToken)
-            cachedSearchClient = SearchClient(api, session?.serverUri, session?.serverToken)
+            cachedLibraryClient = LibraryClient(api, session?.serverUri, session?.serverToken, { api.accountToken })
+            cachedSearchClient = SearchClient(api, session?.serverUri, session?.serverToken, { api.accountToken })
         }
     }
 

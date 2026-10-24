@@ -37,7 +37,7 @@ class LibraryClientTest {
 
     private fun clientAgainstServer(): LibraryClient {
         val api = PlexApi().apply { serverUri = server.url("/").toString() }
-        return LibraryClient(api, api.serverUri, api.serverToken)
+        return LibraryClient(api, api.serverUri, api.serverToken, { api.accountToken })
     }
 
     private fun response(vararg sections: Directory) =

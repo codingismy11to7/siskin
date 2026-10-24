@@ -49,17 +49,23 @@ object PlexRetrofitFactory {
      * committing a PlexSession. The instance is still pinned to whatever it was
      * given: callers that outlive a server change must rebuild, as
      * PlexBrowseRepository.refreshClients does.
+     *
+     * [accountToken] is what a null [serverToken] falls back to, read on
+     * every request. It has no default because the stored account is the
+     * wrong answer for a candidate built mid-sign-in or mid-switch, where it
+     * may still be the previous member's.
      */
     fun server(
         api: PlexApi,
         serverUri: String?,
         serverToken: String?,
+        accountToken: () -> String?,
     ): Retrofit =
         build(normalize(serverUri)) {
             PlexIdentity.headers(
                 api.clientIdentifier,
                 api.appVersion,
-                PlexApi.serverTokenOrAccount(serverToken, api.accountToken),
+                PlexApi.serverTokenOrAccount(serverToken, accountToken()),
                 api.language,
                 api.vehicle,
             )

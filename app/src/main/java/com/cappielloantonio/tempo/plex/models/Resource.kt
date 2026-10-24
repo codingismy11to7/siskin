@@ -19,3 +19,10 @@ class Resource {
     var owned: Boolean? = null
     var connections: List<Connection>? = null
 }
+
+/**
+ * A server this account does not own and holds no token for. The account's
+ * plex.tv token is refused there, so there is nothing to sign in with.
+ */
+val Resource.refusesAccountToken: Boolean
+    get() = owned == false && accessToken.isNullOrBlank()

@@ -6,6 +6,7 @@ import androidx.media3.common.util.UnstableApi
 import arrow.core.nonEmptyListOf
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.auth.PendingAccount
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
@@ -59,7 +60,7 @@ class PlexSignInFragmentBackTest {
         // than driven through a real sign-in: the press, not the flow that
         // reached it, is what this test is about.
         viewModel.setStateForTest(
-            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer())),
+            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer()), PendingAccount("t")),
         )
         idle()
 
@@ -87,6 +88,7 @@ class PlexSignInFragmentBackTest {
                     title = "b"
                 },
             ),
+            PendingAccount("t"),
         )
 
     @Test
@@ -115,7 +117,7 @@ class PlexSignInFragmentBackTest {
         val users = twoMembers().users
 
         viewModel.setStateForTest(
-            PlexSignInState.EnteringPin(users.head, users, messageRes = R.string.plex_sign_in_error_wrong_pin),
+            PlexSignInState.EnteringPin(users.head, users, PendingAccount("t"), messageRes = R.string.plex_sign_in_error_wrong_pin),
         )
         idle()
 

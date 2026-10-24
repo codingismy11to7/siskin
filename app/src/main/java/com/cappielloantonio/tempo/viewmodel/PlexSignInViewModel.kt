@@ -17,6 +17,7 @@ import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import arrow.core.toNonEmptyListOrNull
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.HomeUserSwitch
 import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
@@ -32,18 +33,21 @@ import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.api.server.ServerProbe
+import com.cappielloantonio.tempo.plex.auth.PendingAccount
 import com.cappielloantonio.tempo.plex.auth.PlexPinState
 import com.cappielloantonio.tempo.plex.auth.PlexSignInFlow
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.HomeUser
-import com.cappielloantonio.tempo.plex.models.PlexAccount
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.plex.models.refusesAccountToken
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.CredentialGate
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -60,7 +64,14 @@ class PlexSignInViewModel
     constructor(
         application: Application,
         private val api: PlexApi = PlexApi(),
+        /** Creates and polls the PIN; nothing else, since no account is pending yet. */
         private val authClient: AuthClient = AuthClient(api),
+        /**
+         * plex.tv as the pending account. Every call after the PIN goes through
+         * this rather than [authClient], whose token is the stored one and may
+         * be someone else's until the commit.
+         */
+        private val authClientFor: (String) -> AuthClient = { token -> AuthClient(api, token) },
         /** The probe is unauthenticated; the identity headers are courtesy, not access. */
         private val probe: ServerProbe =
             ServerProbe(
@@ -69,7 +80,7 @@ class PlexSignInViewModel
         /** Records the server's other addresses when chooseLibrary commits a session. */
         private val addressBook: ServerAddressBook = ServerAddressBook.shared,
         /** The network half of becoming another Home member; see [HomeUserSwitch]. */
-        private val homeUserSwitch: HomeUserSwitch = HomeUserSwitch(api, authClient),
+        private val homeUserSwitch: HomeUserSwitch = HomeUserSwitch(api),
         /**
          * Seam, not a feature. The poll loop's bounds are measured in wall-clock
          * seconds, which a StandardTestDispatcher cannot advance -- so without this
@@ -112,17 +123,6 @@ class PlexSignInViewModel
 
         /** The server picked but not yet committed; chooseLibrary needs it to build a session. */
         private var candidate: Pair<String, Resource>? = null
-
-        /**
-         * A Home member switched to and not yet committed. Their token is held
-         * here rather than written, so abandoning the pickers leaves the
-         * previous session whole -- including at a forced re-sign-in, which
-         * arrives with a session still saved.
-         */
-        private var switched: PlexAccount? = null
-
-        /** Whether the current pass through the pickers began at settings' Switch user. */
-        private var fromSettings = false
 
         /**
          * Chooses the screen for how it was opened.
@@ -171,6 +171,7 @@ class PlexSignInViewModel
          * plex.tv needs to list an account's servers, and `PlexApi.session`'s
          * setter deliberately leaves that token alone when clearing a session --
          * so a signed-in app always has one, and there is nothing to approve.
+         * That stored token is the pass's pending account.
          *
          * Publishes exactly the picker sign-in publishes, with nothing marking it
          * as having come from elsewhere. Getting back out of it is the fragment
@@ -188,23 +189,20 @@ class PlexSignInViewModel
          */
         fun reopenServerPicker() {
             attempt?.cancel()
-            // A switch abandoned at the library picker must not leak its token
-            // into a commit that lists the current member's servers.
-            fromSettings = false
-            switched = null
+            val account = storedAccount() ?: return
             _state.value = PlexSignInState.Working
 
             attempt =
                 viewModelScope.launch {
                     either {
-                        val resources = authClient.getResources().mapLeft(SignInError::Api).bind()
+                        val resources = authClientFor(account.token).getResources().mapLeft(SignInError::Api).bind()
 
                         val servers =
                             ensureNotNull(
                                 AuthClient.mediaServers(resources).toNonEmptyListOrNull(),
                             ) { SignInError.NoServers }
 
-                        _state.value = PlexSignInState.ChoosingServer(servers)
+                        _state.value = PlexSignInState.ChoosingServer(servers, account)
                     }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
                 }
         }
@@ -212,49 +210,77 @@ class PlexSignInViewModel
         /**
          * Settings' Switch user: the Home picker, without a PIN, marking who is
          * signed in now. Pushed like [reopenServerPicker], for the same reason.
+         *
+         * Not knowing who is signed in fails the picker rather than leaving
+         * nobody marked: an unmarked list lets the user "switch" to themselves,
+         * which spends a switch and clears the queue for nothing.
          */
         fun reopenUserPicker() {
             attempt?.cancel()
-            fromSettings = true
-            switched = null
+            val account = storedAccount() ?: return
             _state.value = PlexSignInState.Working
 
             attempt =
                 viewModelScope.launch {
+                    val client = authClientFor(account.token)
+                    // Both answered before either is bound: a raise inside an
+                    // async would cross the coroutine boundary.
+                    val (home, current) =
+                        coroutineScope {
+                            val home = async { client.homeUsers() }
+                            val current = async { client.currentUser() }
+                            home.await() to current.await()
+                        }
                     either {
-                        val users =
-                            ensureNotNull(
-                                authClient
-                                    .homeUsers()
-                                    .mapLeft(SignInError::Api)
-                                    .bind()
-                                    .toNonEmptyListOrNull(),
-                            ) { SignInError.NoCandidate }
-                        val current = authClient.currentUser().getOrNull()?.uuid
-                        _state.value = PlexSignInState.ChoosingUser(users, current)
+                        val users = home.mapLeft(SignInError::Api).bind().toNonEmptyListOrNull()
+                        val uuid = current.mapLeft(SignInError::Api).bind().uuid
+                        _state.value =
+                            if (users == null) {
+                                // Settings offers this only for a Home of two or
+                                // more, so an empty one is plex.tv misanswering.
+                                PlexSignInState.Failed(R.string.plex_sign_in_error_network)
+                            } else {
+                                PlexSignInState.ChoosingUser(users, account, uuid)
+                            }
                     }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
                 }
         }
 
+        /**
+         * The stored account, as the pending one for a pass that starts signed
+         * in. Normally present -- these entry points are reached from settings
+         * -- and Failed rather than a dead screen when it is not.
+         */
+        private fun storedAccount(): PendingAccount? {
+            val token = api.accountToken
+            if (token == null) {
+                Log.d(TAG, "picker reopened with no account token on record")
+                _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
+                return null
+            }
+            return PendingAccount(token)
+        }
+
         fun chooseUser(user: HomeUser) {
             val picker = _state.value as? PlexSignInState.ChoosingUser ?: return
-            if (fromSettings && user.uuid == picker.currentUuid) return
+            if (user.uuid == picker.currentUuid) return
             if (user.isProtected == true) {
-                _state.value = PlexSignInState.EnteringPin(user, picker.users, picker.currentUuid)
+                _state.value = PlexSignInState.EnteringPin(user, picker.users, picker.account, picker.currentUuid)
                 return
             }
-            switchTo(user, null, picker.users, picker.currentUuid)
+            switchTo(user, null, picker.users, picker.account, picker.currentUuid)
         }
 
         fun enterPin(pin: String) {
             val pad = _state.value as? PlexSignInState.EnteringPin ?: return
-            switchTo(pad.user, pin, pad.users, pad.currentUuid)
+            switchTo(pad.user, pin, pad.users, pad.account, pad.currentUuid)
         }
 
         private fun switchTo(
             user: HomeUser,
             pin: String?,
             users: NonEmptyList<HomeUser>,
+            from: PendingAccount,
             currentUuid: String?,
         ) {
             attempt?.cancel()
@@ -263,15 +289,15 @@ class PlexSignInViewModel
             attempt =
                 viewModelScope.launch {
                     homeUserSwitch
-                        .switch(user, pin, if (fromSettings) api.session else null)
+                        .switch(from, user, pin, api.session)
                         .fold(
                             { error ->
                                 val message = PlexSignInFlow.messageFor(error)
                                 _state.value =
                                     if (pin != null && (error == SignInError.WrongPin || error == SignInError.RateLimited)) {
-                                        PlexSignInState.EnteringPin(user, users, currentUuid, message)
+                                        PlexSignInState.EnteringPin(user, users, from, currentUuid, message)
                                     } else {
-                                        PlexSignInState.ChoosingUser(users, currentUuid, message)
+                                        PlexSignInState.ChoosingUser(users, from, currentUuid, message)
                                     }
                             },
                             { afterSwitch(it) },
@@ -281,20 +307,18 @@ class PlexSignInViewModel
 
         @OptIn(UnstableApi::class)
         private fun afterSwitch(outcome: SwitchOutcome) {
-            switched = outcome.account
-
             when (outcome) {
                 is SwitchOutcome.NeedsServer -> {
-                    _state.value = PlexSignInState.ChoosingServer(outcome.servers)
+                    _state.value = PlexSignInState.ChoosingServer(outcome.servers, outcome.account)
                 }
 
                 is SwitchOutcome.NeedsLibrary -> {
                     candidate = outcome.serverUri to outcome.resource
-                    _state.value = PlexSignInState.ChoosingLibrary(outcome.sections, outcome.servers)
+                    _state.value = PlexSignInState.ChoosingLibrary(outcome.sections, outcome.servers, outcome.account)
                 }
 
                 is SwitchOutcome.Committable -> {
-                    commit(outcome.serverUri, outcome.resource, outcome.sectionKey)
+                    commit(outcome.serverUri, outcome.resource, outcome.sectionKey, outcome.account)
                 }
             }
         }
@@ -431,13 +455,13 @@ class PlexSignInViewModel
             val current = _state.value ?: return false
             return when (current) {
                 is PlexSignInState.ChoosingLibrary -> {
-                    _state.value = PlexSignInState.ChoosingServer(current.servers)
+                    _state.value = PlexSignInState.ChoosingServer(current.servers, current.account)
                     true
                 }
 
                 is PlexSignInState.EnteringPin -> {
                     attempt?.cancel()
-                    _state.value = PlexSignInState.ChoosingUser(current.users, current.currentUuid)
+                    _state.value = PlexSignInState.ChoosingUser(current.users, current.account, current.currentUuid)
                     true
                 }
 
@@ -486,8 +510,6 @@ class PlexSignInViewModel
             attempt?.cancel()
             api.session = null
             api.accountToken = null
-            switched = null
-            fromSettings = false
             _state.value = PlexSignInState.Disconnected
         }
 
@@ -499,8 +521,9 @@ class PlexSignInViewModel
             // are what hold it here. Serves two purposes below: restoring the
             // picker on rejection (unchanged), and now also carried forward into a
             // successful ChoosingLibrary so backPressed() has a list to return to
-            // -- still the state's one read, not a second copy of it.
-            val servers = (_state.value as? PlexSignInState.ChoosingServer)?.servers
+            // -- still the state's one read, not a second copy of it. The pending
+            // account is read with it, for the same reason.
+            val picker = _state.value as? PlexSignInState.ChoosingServer
 
             // Picking a server supersedes the poll loop and any earlier pick: an
             // outstanding probe or sections call describes a server the user is no
@@ -514,6 +537,15 @@ class PlexSignInViewModel
                         // Nothing is written here. The session is committed whole in
                         // chooseLibrary, so an abandoned sign-in leaves the previous one
                         // untouched rather than half-cleared.
+                        //
+                        // A null picker means chooseServer was reached from a
+                        // state that is not the picker, which the UI cannot
+                        // currently do; onLeft turns it into Failed.
+                        val from = ensureNotNull(picker) { SignInError.NoCandidate }
+
+                        // Checked before the probe, which can spend seconds racing
+                        // addresses of a server that would be refused anyway.
+                        ensure(!resource.refusesAccountToken) { SignInError.ServerTokenMissing }
 
                         // The probe answering with nothing is the same failure a dead call
                         // is, so it reports as the same thing rather than via a second case.
@@ -525,20 +557,11 @@ class PlexSignInViewModel
 
                         candidate = uri to resource
 
-                        // A Home member's plex.tv token is refused by a server
-                        // they do not own, so without a server token of their
-                        // own there is nothing to sign in with.
-                        ensure(!(resource.owned == false && resource.accessToken.isNullOrBlank())) {
-                            SignInError.ServerTokenMissing
-                        }
-
                         // Built from the candidate directly: nothing is persisted until
                         // chooseLibrary commits a whole PlexSession, so there is no
                         // window in which a reader could see a mixed set.
-                        // A null server token falls back to the *stored* account
-                        // token, which during a switch is the previous member's.
                         val response =
-                            LibraryClient(api, uri, resource.accessToken ?: switched?.authToken)
+                            LibraryClient(api, uri, resource.accessToken) { from.account.token }
                                 .getSections()
                                 .mapLeft(SignInError::Api)
                                 .bind()
@@ -548,20 +571,7 @@ class PlexSignInViewModel
                                 LibraryClient.musicSections(response).toNonEmptyListOrNull(),
                             ) { SignInError.NoLibraries }
 
-                        // servers can only be null here in the same "reached from a
-                        // state that is not the picker" situation the onLeft branch
-                        // below already falls back to Failed for -- see the comment on
-                        // the read above. Mirrored here with the same fallback rather
-                        // than raised through this either block, matching how
-                        // chooseLibrary's own three "normally unreachable" guards
-                        // build Failed directly instead of going through Arrow.
-                        _state.value = servers?.let {
-                            PlexSignInState.ChoosingLibrary(sections, it)
-                        }
-                            ?: run {
-                                Log.d(TAG, "chooseServer succeeded with no server list on record")
-                                PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
-                            }
+                        _state.value = PlexSignInState.ChoosingLibrary(sections, from.servers, from.account)
                     }.onLeft { error ->
                         // Unconditional, and that is the whole decision: every failure
                         // raised in the block above is about the server just picked --
@@ -577,8 +587,8 @@ class PlexSignInViewModel
                         // picker, which the UI cannot currently do.
                         val message = PlexSignInFlow.messageFor(error)
                         _state.value =
-                            if (servers != null) {
-                                PlexSignInState.ChoosingServer(servers, message)
+                            if (picker != null) {
+                                PlexSignInState.ChoosingServer(picker.servers, picker.account, message)
                             } else {
                                 PlexSignInState.Failed(message)
                             }
@@ -592,6 +602,14 @@ class PlexSignInViewModel
             // well as of the flow: nothing still outstanding can publish a Failed over a
             // finished sign-in.
             attempt?.cancel()
+
+            // Normally unreachable: section rows are only drawn for ChoosingLibrary.
+            val account =
+                (_state.value as? PlexSignInState.ChoosingLibrary)?.account ?: run {
+                    Log.d(TAG, "chooseLibrary called outside the library picker")
+                    _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
+                    return
+                }
 
             // Normally unreachable -- chooseServer is what populates candidate, and
             // ChoosingLibrary only exists after it succeeded -- but publishing a
@@ -607,7 +625,7 @@ class PlexSignInViewModel
             // Normally unreachable, same as the candidate check above:
             // LibraryClient.musicSections filters out blank keys before this
             // screen ever sees a Directory, so `section` always has one. Routed
-            // through the same failure path anyway -- these three checks guard
+            // through the same failure path anyway -- these checks guard
             // structurally identical "the state chooseLibrary needs is not there"
             // situations, and a silent return here would be the one that leaves
             // the screen stuck with no retry affordance while its siblings do not.
@@ -618,26 +636,21 @@ class PlexSignInViewModel
                     return
                 }
 
-            commit(uri, resource, SectionKey(key))
+            commit(uri, resource, SectionKey(key), account)
         }
 
+        /**
+         * The flow's only credential write. Everything before it -- the PIN's
+         * token, a switch's, the pickers' choices -- lives in the states, so
+         * `previous` is still the session the user had before the flow began.
+         */
         @OptIn(UnstableApi::class)
         private fun commit(
             uri: String,
             resource: Resource,
             key: SectionKey,
+            account: PendingAccount,
         ) {
-            // Normally unreachable: accountToken is written in signIn() before
-            // ChoosingServer is ever published, so it is always present by the
-            // time the library picker can be shown. A pending switch's token
-            // wins: it is who the user just chose.
-            val token =
-                switched?.authToken ?: api.accountToken ?: run {
-                    Log.d(TAG, "commit called with no account token on record")
-                    _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
-                    return
-                }
-
             // Recorded before the session write below so a re-probe has a list to
             // race the moment this session exists, rather than only after the
             // first recovery escalates all the way to plex.tv.
@@ -646,7 +659,7 @@ class PlexSignInViewModel
             val previous = api.session
             val next =
                 PlexSession(
-                    accountToken = token,
+                    accountToken = account.token,
                     serverUri = uri,
                     musicSectionKey = key,
                     serverToken = resource.accessToken,
@@ -660,31 +673,26 @@ class PlexSignInViewModel
             // and possibly playing, rather than only fresh off a PIN. On that
             // journey `previous` is a live session, so a server change here can
             // leave Room holding rating keys from the server that was just
-            // replaced and ExoPlayer's timeline still pointed at its URLs. The
-            // sign-in journey is unaffected: it always calls chooseLibrary with
-            // `previous == null`, and invalidatesQueue is false whenever the old
-            // session is null.
+            // replaced and ExoPlayer's timeline still pointed at its URLs. A
+            // fresh sign-in has `previous == null` and clears nothing.
             //
-            // A Home-member switch over a saved session clears it too, even on
-            // the same server: the player's loaded items carry the previous
-            // member's token in their URLs.
-            if ((switched != null && previous != null) || LibrarySelection.invalidatesQueue(previous, next)) {
-                Log.d(TAG, "server or Home member changed; discarding the saved queue")
+            // A changed account token clears it too, even on the same server:
+            // the player's loaded items carry the previous token in their URLs,
+            // and after a Home switch that token is another member's.
+            val accountChanged = previous != null && previous.accountToken != next.accountToken
+            if (accountChanged || LibrarySelection.invalidatesQueue(previous, next)) {
+                Log.d(TAG, "server or account changed; discarding the saved queue")
                 QueueRepository().deleteAll()
                 BrowseTreeInvalidator.stopPlayback()
             }
 
             // The one write. Every value lands together or not at all.
             api.session = next
-            switched = null
-            fromSettings = false
             _state.value = PlexSignInState.Done
         }
 
         private fun signIn() {
             attempt?.cancel()
-            fromSettings = false
-            switched = null
 
             attempt =
                 viewModelScope.launch {
@@ -702,31 +710,34 @@ class PlexSignInViewModel
                         val awaiting = PlexSignInFlow.afterPinCreated(created)
                         _state.value = awaiting
 
-                        val authorized = awaitApproval(created, awaiting).bind()
-                        api.accountToken = authorized.authToken
+                        // Held, not written: a forced re-sign-in arrives with a
+                        // session still saved, and backing out of a picker must
+                        // leave it whole.
+                        val account = PendingAccount(awaitApproval(created, awaiting).bind().authToken)
+                        val client = authClientFor(account.token)
                         _state.value = PlexSignInState.Working
 
                         // A Home that will not list is not a reason to fail a
                         // sign-in that has already succeeded: carry on as the
                         // account that approved the PIN.
                         val home =
-                            authClient
+                            client
                                 .homeUsers()
                                 .onLeft { Log.d(TAG, "home listing failed, continuing as the signed-in account: $it") }
                                 .getOrNull()
                                 ?.toNonEmptyListOrNull()
                         if (home != null && home.size > 1) {
-                            _state.value = PlexSignInState.ChoosingUser(home)
+                            _state.value = PlexSignInState.ChoosingUser(home, account)
                             return@either
                         }
 
-                        val resources = authClient.getResources().mapLeft(SignInError::Api).bind()
+                        val resources = client.getResources().mapLeft(SignInError::Api).bind()
                         val servers =
                             ensureNotNull(
                                 AuthClient.mediaServers(resources).toNonEmptyListOrNull(),
                             ) { SignInError.NoServers }
 
-                        _state.value = PlexSignInState.ChoosingServer(servers)
+                        _state.value = PlexSignInState.ChoosingServer(servers, account)
                     }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
                 }
         }

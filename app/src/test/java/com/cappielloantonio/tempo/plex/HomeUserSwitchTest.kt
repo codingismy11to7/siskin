@@ -5,6 +5,7 @@ import arrow.core.left
 import arrow.core.right
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.SwitchUserError
+import com.cappielloantonio.tempo.plex.auth.PendingAccount
 import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.HomeUser
@@ -38,6 +39,9 @@ class HomeUserSwitchTest {
             title = "jill"
         }
 
+    /** Deliberately not the saved session's token: the switch is made from whatever it is given. */
+    private val from = PendingAccount("pending-token")
+
     private val saved =
         PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id", owned = true)
 
@@ -53,21 +57,23 @@ class HomeUserSwitchTest {
     private fun switcher(
         switch: Either<SwitchUserError, PlexAccount> = switched.right(),
         resources: List<Resource> = listOf(shared()),
-        sectionKeys: List<String> = listOf("7"),
+        sectionsAnswer: Either<PlexTransportFailure, PlexResponse> = sections("7").right(),
         seenTokens: MutableList<String?> = mutableListOf(),
     ): Pair<HomeUserSwitch, AuthClient> {
         val current = mock<AuthClient>().stub { on { switchTo(any(), anyOrNull()) } doReturn switch }
         val asNew = mock<AuthClient>().stub { on { getResources() } doReturn resources.right() }
         val switcher =
             HomeUserSwitch(
-                authClient = current,
                 authClientFor = { token ->
-                    assertEquals("jill-token", token)
-                    asNew
+                    when (token) {
+                        "pending-token" -> current
+                        "jill-token" -> asNew
+                        else -> error("plex.tv called as $token")
+                    }
                 },
-                sectionsFor = { _, token ->
-                    seenTokens += token
-                    sections(*sectionKeys.toTypedArray()).right()
+                sectionsFor = { _, serverToken, accountToken ->
+                    seenTokens += serverToken ?: accountToken
+                    sectionsAnswer
                 },
             )
         return switcher to current
@@ -77,12 +83,13 @@ class HomeUserSwitchTest {
     fun keepsTheSavedServerAndLibraryWhenTheNewUserCanSeeBoth() =
         runTest {
             val tokens = mutableListOf<String?>()
-            val outcome = switcher(seenTokens = tokens).first.switch(jill, null, saved).getOrNull()
+            val outcome = switcher(seenTokens = tokens).first.switch(from, jill, null, saved).getOrNull()
 
             assertTrue("got $outcome", outcome is SwitchOutcome.Committable)
             outcome as SwitchOutcome.Committable
             assertEquals("https://saved.example", outcome.serverUri)
             assertEquals(SectionKey("7"), outcome.sectionKey)
+            assertEquals(PendingAccount("jill-token"), outcome.account)
             // The library check runs as the new user's *server* token, never
             // their plex.tv one, which that server refuses.
             assertEquals(listOf<String?>("jill-server-token"), tokens)
@@ -91,13 +98,13 @@ class HomeUserSwitchTest {
     @Test
     fun anOwnedServerWithNoTokenIsAskedAsTheNewUser() =
         runTest {
-            // A null token would reach LibraryClient as "use the stored
-            // account token", which is still the previous member's.
+            // The fallback for a null server token is the new member's token,
+            // never the stored one, which is still the previous member's.
             val ownedUnknown = aMediaServer(accessToken = null, clientIdentifier = "machine-id")
             val ownedTrue = aMediaServer(accessToken = null, clientIdentifier = "machine-id").apply { owned = true }
             for (resource in listOf(ownedUnknown, ownedTrue)) {
                 val tokens = mutableListOf<String?>()
-                val outcome = switcher(resources = listOf(resource), seenTokens = tokens).first.switch(jill, null, saved).getOrNull()
+                val outcome = switcher(resources = listOf(resource), seenTokens = tokens).first.switch(from, jill, null, saved).getOrNull()
 
                 assertTrue("got $outcome", outcome is SwitchOutcome.Committable)
                 assertEquals(listOf<String?>("jill-token"), tokens)
@@ -107,7 +114,7 @@ class HomeUserSwitchTest {
     @Test
     fun asksForALibraryWhenTheSavedOneIsHiddenFromTheNewUser() =
         runTest {
-            val outcome = switcher(sectionKeys = listOf("3", "4")).first.switch(jill, null, saved).getOrNull()
+            val outcome = switcher(sectionsAnswer = sections("3", "4").right()).first.switch(from, jill, null, saved).getOrNull()
 
             assertTrue("got $outcome", outcome is SwitchOutcome.NeedsLibrary)
             assertEquals(listOf("3", "4"), (outcome as SwitchOutcome.NeedsLibrary).sections.map { it.key })
@@ -117,7 +124,7 @@ class HomeUserSwitchTest {
     fun asksForAServerWhenTheSavedOneIsNotTheNewUsers() =
         runTest {
             val other = aMediaServer(accessToken = "x", clientIdentifier = "other-machine")
-            val outcome = switcher(resources = listOf(other)).first.switch(jill, null, saved).getOrNull()
+            val outcome = switcher(resources = listOf(other)).first.switch(from, jill, null, saved).getOrNull()
 
             assertTrue("got $outcome", outcome is SwitchOutcome.NeedsServer)
         }
@@ -126,7 +133,7 @@ class HomeUserSwitchTest {
     fun asksForAServerWhenThereIsNoSavedSession() =
         runTest {
             // Sign-in: nothing is saved yet, so there is nothing to keep.
-            val outcome = switcher().first.switch(jill, null, null).getOrNull()
+            val outcome = switcher().first.switch(from, jill, null, null).getOrNull()
 
             assertTrue("got $outcome", outcome is SwitchOutcome.NeedsServer)
         }
@@ -134,27 +141,60 @@ class HomeUserSwitchTest {
     @Test
     fun refusesAnUnownedServerThatCameWithNoToken() =
         runTest {
-            val result = switcher(resources = listOf(shared(token = null))).first.switch(jill, null, saved)
+            val result = switcher(resources = listOf(shared(token = null))).first.switch(from, jill, null, saved)
 
             assertEquals(SignInError.ServerTokenMissing.left(), result)
         }
 
     @Test
-    fun sendsThePinItWasGiven() =
+    fun aSavedServerWithNoMusicFallsBackToTheServerPicker() =
+        runTest {
+            val outcome = switcher(sectionsAnswer = sections().right()).first.switch(from, jill, null, saved).getOrNull()
+
+            assertTrue("got $outcome", outcome is SwitchOutcome.NeedsServer)
+        }
+
+    @Test
+    fun aResourcesFailureStillFailsTheSwitch() =
+        runTest {
+            val failure = PlexTransportFailure.Unreachable(PlexHost.PlexTv)
+            val current = mock<AuthClient>().stub { on { switchTo(any(), anyOrNull()) } doReturn switched.right() }
+            val asNew = mock<AuthClient>().stub { on { getResources() } doReturn failure.left() }
+            val result =
+                HomeUserSwitch(
+                    { token -> if (token == "pending-token") current else asNew },
+                    { _, _, _ -> error("not reached") },
+                ).switch(from, jill, null, saved)
+
+            assertEquals(SignInError.Api(failure).left(), result)
+        }
+
+    @Test
+    fun switchesFromTheTokenItIsGiven() =
         runTest {
             val (switcher, current) = switcher()
-            switcher.switch(jill, "4321", saved)
+            switcher.switch(from, jill, "4321", saved)
 
+            // authClientFor rejects every other token, so reaching this means
+            // the switch was made as `from`, not as the saved session.
             verify(current).switchTo("jill-uuid", "4321")
         }
 
     @Test
     fun mapsSwitchRefusalsToSignInErrors() =
         runTest {
-            assertEquals(SignInError.WrongPin.left(), switcher(switch = SwitchUserError.WrongPin.left()).first.switch(jill, "0000", saved))
+            assertEquals(
+                SignInError.WrongPin.left(),
+                switcher(switch = SwitchUserError.WrongPin.left()).first.switch(from, jill, "0000", saved),
+            )
             assertEquals(
                 SignInError.RateLimited.left(),
-                switcher(switch = SwitchUserError.RateLimited.left()).first.switch(jill, "0000", saved),
+                switcher(switch = SwitchUserError.RateLimited.left()).first.switch(from, jill, "0000", saved),
+            )
+            val failure = PlexTransportFailure.Unreachable(PlexHost.PlexTv)
+            assertEquals(
+                SignInError.Api(failure).left(),
+                switcher(switch = SwitchUserError.Transport(failure).left()).first.switch(from, jill, "0000", saved),
             )
         }
 
@@ -163,7 +203,10 @@ class HomeUserSwitchTest {
         runTest {
             val asNew = mock<AuthClient>()
             val current = mock<AuthClient>().stub { on { switchTo(any(), anyOrNull()) } doReturn SwitchUserError.WrongPin.left() }
-            HomeUserSwitch(current, { asNew }, { _, _ -> error("not reached") }).switch(jill, "0000", saved)
+            HomeUserSwitch(
+                { token -> if (token == "pending-token") current else asNew },
+                { _, _, _ -> error("not reached") },
+            ).switch(from, jill, "0000", saved)
 
             verify(asNew, never()).getResources()
         }

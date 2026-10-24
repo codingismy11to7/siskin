@@ -22,6 +22,7 @@ import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.plex.models.refusesAccountToken
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.CarSignInResolution
 import com.cappielloantonio.tempo.util.Constants
@@ -169,6 +170,14 @@ class LibraryPickerRepository {
                     return@launch
                 }
 
+                // Before the probe: a server that will be refused anyway should
+                // not cost a race across every advertised address first.
+                if (resource.refusesAccountToken) {
+                    Log.d(TAG, "${resource.name} is not owned and came with no server token")
+                    future.set(messageResult(R.string.plex_sign_in_error_no_server_access))
+                    return@launch
+                }
+
                 val probe =
                     ServerProbe(
                         headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null, api.language, api.vehicle),
@@ -180,16 +189,10 @@ class LibraryPickerRepository {
                     return@launch
                 }
 
-                if (refusesAccountToken(resource)) {
-                    Log.d(TAG, "${resource.name} is not owned and came with no server token")
-                    future.set(messageResult(R.string.plex_sign_in_error_no_server_access))
-                    return@launch
-                }
-
                 candidates[machineIdentifier] = uri to resource
 
                 val sections =
-                    LibraryClient(api, uri, resource.accessToken)
+                    LibraryClient(api, uri, resource.accessToken, { api.accountToken })
                         .getSections()
                         .getOrElse { failure ->
                             // It answered ServerProbe a moment ago, so this is the
@@ -280,7 +283,7 @@ class LibraryPickerRepository {
 
         // A Home member's plex.tv token is refused by a server they do not
         // own, so committing this would sign them out on the first request.
-        if (refusesAccountToken(resource)) {
+        if (resource.refusesAccountToken) {
             Log.d(TAG, "${resource.name} is not owned and came with no server token")
             future.set(messageResult(R.string.plex_sign_in_error_no_server_access))
             return future
@@ -413,8 +416,6 @@ class LibraryPickerRepository {
          * library" a second time.
          */
         const val CONFIRMED_SUFFIX = ":confirmed"
-
-        private fun refusesAccountToken(resource: Resource): Boolean = resource.owned == false && resource.accessToken.isNullOrBlank()
 
         /** U+2713 CHECK MARK. The tick is the only signal of which library is in use. */
         private const val TICK = "✓ "

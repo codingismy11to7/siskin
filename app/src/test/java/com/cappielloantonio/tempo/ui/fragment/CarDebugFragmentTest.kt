@@ -70,6 +70,7 @@ class CarDebugFragmentTest {
                     return PlexSignInViewModel(
                         RuntimeEnvironment.getApplication(),
                         authClient = authClient,
+                        authClientFor = { authClient },
                     ) as T
                 }
             }

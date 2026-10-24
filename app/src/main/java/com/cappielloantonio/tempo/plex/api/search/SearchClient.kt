@@ -20,18 +20,20 @@ private const val TAG = "SearchClient"
  * Pinned to the [serverUri] it was constructed with and never re-reads it --
  * discard and reconstruct whenever the server changes. Taking the address as a
  * parameter is what lets sign-in read a candidate server's sections before it
- * has committed a [com.cappielloantonio.tempo.plex.PlexSession].
+ * has committed a [com.cappielloantonio.tempo.plex.PlexSession]; see
+ * [PlexRetrofitFactory.server] for why [accountToken] is explicit.
  */
 class SearchClient(
     api: PlexApi,
     serverUri: String?,
     serverToken: String?,
+    accountToken: () -> String?,
 ) {
     /** Uses whatever server the persisted session names. */
-    constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken)
+    constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken, { api.accountToken })
 
     private val service: SearchService =
-        PlexRetrofitFactory.server(api, serverUri, serverToken).create(SearchService::class.java)
+        PlexRetrofitFactory.server(api, serverUri, serverToken, accountToken).create(SearchService::class.java)
 
     /**
      * [type] is a PlexItemType value and is not optional: Plex rejects a search

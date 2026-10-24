@@ -9,20 +9,21 @@ import arrow.core.toNonEmptyListOrNull
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.SwitchUserError
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
+import com.cappielloantonio.tempo.plex.auth.PendingAccount
 import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.HomeUser
-import com.cappielloantonio.tempo.plex.models.PlexAccount
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.plex.models.refusesAccountToken
 
 /** Where a switch leaves the user. Nothing in it has been persisted. */
 sealed interface SwitchOutcome {
-    val account: PlexAccount
+    val account: PendingAccount
 
     /** The saved server and library are both visible to the new user. */
     data class Committable(
-        override val account: PlexAccount,
+        override val account: PendingAccount,
         val serverUri: String,
         val resource: Resource,
         val sectionKey: SectionKey,
@@ -30,7 +31,7 @@ sealed interface SwitchOutcome {
 
     /** The saved server is visible, its library is not. */
     data class NeedsLibrary(
-        override val account: PlexAccount,
+        override val account: PendingAccount,
         val serverUri: String,
         val resource: Resource,
         val sections: NonEmptyList<Directory>,
@@ -39,7 +40,7 @@ sealed interface SwitchOutcome {
 
     /** Nothing saved, or the saved server is not the new user's. */
     data class NeedsServer(
-        override val account: PlexAccount,
+        override val account: PendingAccount,
         val servers: NonEmptyList<Resource>,
     ) : SwitchOutcome
 }
@@ -55,25 +56,29 @@ sealed interface SwitchOutcome {
  * See the 2026-10-24 Home user switching design for the measurements.
  */
 class HomeUserSwitch(
-    private val authClient: AuthClient,
     private val authClientFor: (String) -> AuthClient,
-    private val sectionsFor: suspend (serverUri: String, serverToken: String?) -> Either<PlexTransportFailure, PlexResponse>,
+    private val sectionsFor: suspend (
+        serverUri: String,
+        serverToken: String?,
+        accountToken: String,
+    ) -> Either<PlexTransportFailure, PlexResponse>,
 ) {
-    constructor(api: PlexApi, authClient: AuthClient) : this(
-        authClient,
+    constructor(api: PlexApi) : this(
         { token -> AuthClient(api, token) },
-        { uri, token -> LibraryClient(api, uri, token).getSections() },
+        { uri, serverToken, accountToken -> LibraryClient(api, uri, serverToken) { accountToken }.getSections() },
     )
 
+    /** [from] is the token doing the switching, which need not be the stored one. */
     suspend fun switch(
+        from: PendingAccount,
         user: HomeUser,
         pin: String?,
         saved: PlexSession?,
     ): Either<SignInError, SwitchOutcome> =
         either {
             val uuid = ensureNotNull(user.uuid) { SignInError.NoCandidate }
-            val account =
-                authClient
+            val switched =
+                authClientFor(from.token)
                     .switchTo(uuid, pin)
                     .mapLeft {
                         when (it) {
@@ -82,32 +87,30 @@ class HomeUserSwitch(
                             is SwitchUserError.Transport -> SignInError.Api(it.failure)
                         }
                     }.bind()
-            val token = ensureNotNull(account.authToken) { SignInError.NoCandidate }
+            val account = PendingAccount(ensureNotNull(switched.authToken) { SignInError.NoCandidate })
 
-            val resources = authClientFor(token).getResources().mapLeft(SignInError::Api).bind()
+            val resources = authClientFor(account.token).getResources().mapLeft(SignInError::Api).bind()
             val servers =
                 ensureNotNull(AuthClient.mediaServers(resources).toNonEmptyListOrNull()) { SignInError.NoServers }
 
-            val savedSession = saved ?: return@either SwitchOutcome.NeedsServer(account, servers)
-            val machine = savedSession.machineIdentifier
+            val session = saved ?: return@either SwitchOutcome.NeedsServer(account, servers)
+            val machine = session.machineIdentifier
             val resource =
                 servers.firstOrNull { !machine.isNullOrBlank() && it.clientIdentifier == machine }
                     ?: return@either SwitchOutcome.NeedsServer(account, servers)
 
-            ensure(!(resource.owned == false && resource.accessToken.isNullOrBlank())) { SignInError.ServerTokenMissing }
+            ensure(!resource.refusesAccountToken) { SignInError.ServerTokenMissing }
 
-            // A null server token would fall back to the *stored* account
-            // token, which is still the previous member's.
             val response =
-                sectionsFor(savedSession.serverUri, resource.accessToken ?: token).mapLeft(SignInError::Api).bind()
+                sectionsFor(session.serverUri, resource.accessToken, account.token).mapLeft(SignInError::Api).bind()
             val sections =
                 LibraryClient.musicSections(response).toNonEmptyListOrNull()
                     ?: return@either SwitchOutcome.NeedsServer(account, servers)
 
-            if (sections.any { it.key == savedSession.musicSectionKey.value }) {
-                SwitchOutcome.Committable(account, savedSession.serverUri, resource, savedSession.musicSectionKey)
+            if (sections.any { it.key == session.musicSectionKey.value }) {
+                SwitchOutcome.Committable(account, session.serverUri, resource, session.musicSectionKey)
             } else {
-                SwitchOutcome.NeedsLibrary(account, savedSession.serverUri, resource, sections, servers)
+                SwitchOutcome.NeedsLibrary(account, session.serverUri, resource, sections, servers)
             }
         }
 }
