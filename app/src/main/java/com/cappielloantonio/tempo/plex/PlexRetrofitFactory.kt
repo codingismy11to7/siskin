@@ -150,6 +150,8 @@ object PlexRetrofitFactory {
             // X-Plex-Token is a full account credential; HEADERS logging would
             // otherwise write it to logcat verbatim on every request.
             redactHeader("X-Plex-Token")
+            // A Home member's PIN rides in the switch request's query string.
+            redactQueryParams("pin")
         }
 
     /**
