@@ -42,6 +42,12 @@ on_exit() {
     echo "::warning::on-exit.png: screencap failed (device or transport problem)" >&2
   fi
 
+  # "Process crashed" is all `am instrument` says; whether the app threw or the
+  # system killed it is only in logcat, and the emulator is gone after this job.
+  if [ "${rc}" -ne 0 ] && ! adb logcat -d -b all > "${SHOTS}/logcat.txt" 2>/dev/null; then
+    echo "::warning::logcat.txt: logcat dump failed (device or transport problem)" >&2
+  fi
+
   if ! adb shell am force-stop --user "${USER_ID}" "${PKG}"; then
     echo "::warning::cleanup: could not force-stop ${PKG} (device or transport problem)" >&2
   fi

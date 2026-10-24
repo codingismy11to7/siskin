@@ -219,8 +219,8 @@ jobs:
             ./gradlew installDebug installDebugAndroidTest
             ./scripts/emulator-smoke-test.sh
 
-      # The script's EXIT trap screenshots on every run, pass or fail, so a red
-      # run carries evidence too. No instrumentation-report step: this job drives
+      # The script's EXIT trap screenshots on every run, pass or fail, and dumps
+      # logcat.txt beside it on a failure, so a red run carries evidence too. No instrumentation-report step: this job drives
       # `am instrument` directly rather than connectedAndroidTest, so that
       # report directory is never written.
       - name: Upload emulator screenshots
