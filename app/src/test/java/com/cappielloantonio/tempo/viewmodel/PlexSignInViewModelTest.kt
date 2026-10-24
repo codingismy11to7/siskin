@@ -347,6 +347,7 @@ class PlexSignInViewModelTest {
                     musicSectionKey = SectionKey(sectionKey),
                     serverToken = accessToken,
                     machineIdentifier = machineIdentifier,
+                    owned = true,
                 ),
                 PlexApi().session,
             )
@@ -548,6 +549,7 @@ class PlexSignInViewModelTest {
                     musicSectionKey = SectionKey("9"),
                     serverToken = "old-server-tok",
                     machineIdentifier = "old-machine",
+                    owned = true,
                 )
 
             // aMediaServer()'s default clientIdentifier is "machine-id", which
@@ -580,6 +582,7 @@ class PlexSignInViewModelTest {
                     // Matches aMediaServer()'s default clientIdentifier below: same
                     // server, different library.
                     machineIdentifier = "machine-id",
+                    owned = true,
                 )
 
             val (viewModel, section) = setUpToChoosingLibrary(aMediaServer(accessToken = "new-tok"))
@@ -803,6 +806,7 @@ class PlexSignInViewModelTest {
                     serverUri = "https://example.invalid",
                     musicSectionKey = SectionKey("1"),
                     serverToken = null,
+                    owned = true,
                 )
             val viewModel =
                 PlexSignInViewModel(
@@ -1253,6 +1257,7 @@ class PlexSignInViewModelTest {
                     serverUri = "https://example.invalid",
                     musicSectionKey = SectionKey("1"),
                     serverToken = null,
+                    owned = true,
                 )
 
             val viewModel =
@@ -1310,6 +1315,7 @@ class PlexSignInViewModelTest {
                     serverUri = "https://example.invalid",
                     musicSectionKey = SectionKey("1"),
                     serverToken = null,
+                    owned = true,
                 )
 
             val viewModel =
@@ -1339,6 +1345,7 @@ class PlexSignInViewModelTest {
                     serverUri = "https://example.invalid",
                     musicSectionKey = SectionKey("1"),
                     serverToken = null,
+                    owned = true,
                 )
 
             val viewModel =
@@ -1373,6 +1380,7 @@ class PlexSignInViewModelTest {
                     serverUri = "https://example.invalid",
                     musicSectionKey = SectionKey("1"),
                     serverToken = null,
+                    owned = true,
                 )
 
             val viewModel =
@@ -1410,6 +1418,7 @@ class PlexSignInViewModelTest {
                     serverUri = "https://example.invalid",
                     musicSectionKey = SectionKey("1"),
                     serverToken = null,
+                    owned = true,
                 )
 
             val viewModel =
@@ -1594,24 +1603,101 @@ class PlexSignInViewModelTest {
         }
 
     @Test
-    fun aSwitchDuringSignInBecomesTheAccountAndListsTheirServers() =
+    fun aSwitchDuringSignInBecomesTheAccountAtCommit() =
         runTest(dispatcher) {
-            val outcome = SwitchOutcome.NeedsServer(account("jill-token"), nonEmptyListOf(aMediaServer(accessToken = "s")))
+            PlexApi().accountToken = "granted"
+            // Owned, with no server token: the sections call has to carry the
+            // switched member's token rather than fall back to the stored one.
+            val owned = aMediaServer(accessToken = null)
+            val outcome = SwitchOutcome.NeedsServer(account("jill-token"), nonEmptyListOf(owned))
             val switch = mock<HomeUserSwitch>().stub { on { switch(any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
-            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = switch)
+            val probe = mock<ServerProbe>().stub { on { bestConnectionUri(any()) } doReturn server.url("/").toString() }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), probe = probe, homeUserSwitch = switch)
             viewModel.setStateForTest(PlexSignInState.ChoosingUser(nonEmptyListOf(me, jill)))
 
             viewModel.chooseUser(jill)
             advanceUntilIdle()
 
             assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+            assertEquals("nothing is written before the commit", "granted", PlexApi().accountToken)
+
+            viewModel.chooseServer(owned)
+            awaitSettled(viewModel)
+            assertEquals("jill-token", server.takeRequest().getHeader("X-Plex-Token"))
+            viewModel.chooseLibrary((viewModel.state.value as PlexSignInState.ChoosingLibrary).sections.head)
+            shadowOf(Looper.getMainLooper()).idle()
+
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            assertEquals("jill-token", PlexApi().session!!.accountToken)
             assertEquals("jill-token", PlexApi().accountToken)
+            // A fresh sign-in has no previous listener's queue to discard.
+            verify(player, never()).stop()
+        }
+
+    @Test
+    fun aSwitchAbandonedAtAForcedSignInLeavesTheSavedSessionWhole() =
+        runTest(dispatcher) {
+            PlexApi().session = PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id", owned = true)
+            val outcome = SwitchOutcome.NeedsServer(account("jill-token"), nonEmptyListOf(aMediaServer(accessToken = "s")))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = signedInAuthClient(listOf(me, jill)),
+                    homeUserSwitch = switch,
+                )
+
+            viewModel.open(forceSignIn = true)
+            advanceUntilIdle()
+            assertTrue("got ${viewModel.state.value}", viewModel.state.value is PlexSignInState.ChoosingUser)
+            val tokenBefore = PlexApi().accountToken
+            val sessionBefore = PlexApi().session
+
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+            assertTrue(viewModel.backPressed())
+
+            assertEquals(tokenBefore, PlexApi().accountToken)
+            assertEquals(sessionBefore, PlexApi().session)
+        }
+
+    @Test
+    fun aSwitchCommittedAtAForcedSignInClearsTheQueue() =
+        runTest(dispatcher) {
+            PlexApi().session = PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id", owned = true)
+            val resource = aMediaServer(accessToken = "jill-server", clientIdentifier = "machine-id")
+            val outcome = SwitchOutcome.NeedsServer(account("jill-token"), nonEmptyListOf(resource))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val probe = mock<ServerProbe>().stub { on { bestConnectionUri(any()) } doReturn server.url("/").toString() }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("7")))
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = signedInAuthClient(listOf(me, jill)),
+                    probe = probe,
+                    homeUserSwitch = switch,
+                )
+
+            viewModel.open(forceSignIn = true)
+            advanceUntilIdle()
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+            viewModel.chooseServer(resource)
+            awaitSettled(viewModel)
+            viewModel.chooseLibrary((viewModel.state.value as PlexSignInState.ChoosingLibrary).sections.head)
+            shadowOf(Looper.getMainLooper()).idle()
+
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            assertEquals("jill-token", PlexApi().session!!.accountToken)
+            verify(player).stop()
         }
 
     @Test
     fun aSwitchFromSettingsCommitsWholeAndClearsTheQueue() =
         runTest(dispatcher) {
-            PlexApi().session = PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id")
+            PlexApi().session = PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id", owned = true)
             val resource = aMediaServer(accessToken = "jill-server", clientIdentifier = "machine-id").apply { owned = false }
             val outcome = SwitchOutcome.Committable(account("jill-token"), "https://saved.example", resource, SectionKey("7"))
             val switch = mock<HomeUserSwitch>().stub { on { switch(any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
@@ -1655,7 +1741,7 @@ class PlexSignInViewModelTest {
     @Test
     fun anAbandonedSwitchDoesNotLeakIntoALaterChooseServer() =
         runTest(dispatcher) {
-            PlexApi().session = PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id")
+            PlexApi().session = PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id", owned = true)
             val outcome = SwitchOutcome.NeedsServer(account("jill-token"), nonEmptyListOf(aMediaServer(accessToken = "s")))
             val switch = mock<HomeUserSwitch>().stub { on { switch(any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
             val probe = mock<ServerProbe>().stub { on { bestConnectionUri(any()) } doReturn server.url("/").toString() }

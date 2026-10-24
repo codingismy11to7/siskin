@@ -114,10 +114,10 @@ class PlexSignInViewModel
         private var candidate: Pair<String, Resource>? = null
 
         /**
-         * A Home member switched to from settings and not yet committed. Their
-         * token is held here rather than written, so abandoning the pickers
-         * leaves the previous member's session whole. At sign-in there is no
-         * session to protect, so the token is written straight away instead.
+         * A Home member switched to and not yet committed. Their token is held
+         * here rather than written, so abandoning the pickers leaves the
+         * previous session whole -- including at a forced re-sign-in, which
+         * arrives with a session still saved.
          */
         private var switched: PlexAccount? = null
 
@@ -281,13 +281,7 @@ class PlexSignInViewModel
 
         @OptIn(UnstableApi::class)
         private fun afterSwitch(outcome: SwitchOutcome) {
-            if (fromSettings) {
-                switched = outcome.account
-            } else {
-                // No session yet, so nothing can read this beside a server it
-                // does not belong to.
-                api.accountToken = outcome.account.authToken
-            }
+            switched = outcome.account
 
             when (outcome) {
                 is SwitchOutcome.NeedsServer -> {
@@ -541,8 +535,10 @@ class PlexSignInViewModel
                         // Built from the candidate directly: nothing is persisted until
                         // chooseLibrary commits a whole PlexSession, so there is no
                         // window in which a reader could see a mixed set.
+                        // A null server token falls back to the *stored* account
+                        // token, which during a switch is the previous member's.
                         val response =
-                            LibraryClient(api, uri, resource.accessToken)
+                            LibraryClient(api, uri, resource.accessToken ?: switched?.authToken)
                                 .getSections()
                                 .mapLeft(SignInError::Api)
                                 .bind()
@@ -669,15 +665,16 @@ class PlexSignInViewModel
             // `previous == null`, and invalidatesQueue is false whenever the old
             // session is null.
             //
-            // A Home-member switch clears it too, even on the same server: the
-            // player's loaded items carry the previous member's token in their URLs.
-            if (switched != null || LibrarySelection.invalidatesQueue(previous, next)) {
+            // A Home-member switch over a saved session clears it too, even on
+            // the same server: the player's loaded items carry the previous
+            // member's token in their URLs.
+            if ((switched != null && previous != null) || LibrarySelection.invalidatesQueue(previous, next)) {
                 Log.d(TAG, "server or Home member changed; discarding the saved queue")
                 QueueRepository().deleteAll()
                 BrowseTreeInvalidator.stopPlayback()
             }
 
-            // The one write. All five values land together or not at all.
+            // The one write. Every value lands together or not at all.
             api.session = next
             switched = null
             fromSettings = false
