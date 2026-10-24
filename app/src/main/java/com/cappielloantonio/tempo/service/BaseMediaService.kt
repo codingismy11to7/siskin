@@ -42,7 +42,7 @@ import com.cappielloantonio.tempo.equalizer.ExternalBackend
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
-import com.cappielloantonio.tempo.plex.api.search.SearchClient
+import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.repository.PlexRadioRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
@@ -90,7 +90,7 @@ open class BaseMediaService : MediaLibraryService() {
         StationTopUp(
             extend = { tag -> ServerAddressBook.shared.withAddressRecovery { radio.extendStation(tag) } },
             report = { item, position ->
-                PlexScrobbler.reportNow(item, playbackReporter?.state ?: SearchClient.STATE_PLAYING, position)
+                PlexScrobbler.reportNow(item, playbackReporter?.state ?: TimelineState.PLAYING, position)
             },
         )
     }

@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -33,7 +34,7 @@ class PlaybackReporterTest {
         whenever(player.currentMediaItem).thenReturn(track)
         whenever(player.currentPosition).thenReturn(5_000L)
         playing()
-        reporter = PlaybackReporter(player, { item, state, ms -> reports += "${item.mediaId} $state $ms" })
+        reporter = PlaybackReporter(player, { item, state, ms -> reports += "${item.mediaId} ${state.wire} $ms" })
     }
 
     private fun playing() = given(Player.STATE_READY, playWhenReady = true, isPlaying = true)
@@ -152,7 +153,7 @@ class PlaybackReporterTest {
         reporter.onMediaItemTransition(track, Player.MEDIA_ITEM_TRANSITION_REASON_SEEK)
 
         assertEquals(emptyList<String>(), reports)
-        assertEquals("paused", reporter.state)
+        assertEquals(TimelineState.PAUSED, reporter.state)
     }
 
     @Test

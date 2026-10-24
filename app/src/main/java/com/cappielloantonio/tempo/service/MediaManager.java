@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.service;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
 import androidx.media3.common.MediaItem;
@@ -9,6 +10,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaBrowser;
 
 import com.cappielloantonio.tempo.plex.PlexMediaMapper;
+import com.cappielloantonio.tempo.plex.api.search.TimelineState;
 import com.cappielloantonio.tempo.repository.PlexMixRepository;
 import com.cappielloantonio.tempo.repository.QueueRepository;
 import com.cappielloantonio.tempo.util.Preferences;
@@ -52,7 +54,8 @@ public class MediaManager {
      * of how much actually played, so it silently never registers a play. Callers must pass the
      * real position at the moment of the event, not a placeholder.
      */
-    public static void scrobble(MediaItem mediaItem, String state, long positionMs) {
+    public static void scrobble(
+            MediaItem mediaItem, @NonNull TimelineState state, long positionMs) {
         if (mediaItem == null || mediaItem.mediaMetadata.extras == null) return;
 
         String ratingKey = mediaItem.mediaMetadata.extras.getString(PlexMediaMapper.EXTRA_ID);

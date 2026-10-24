@@ -5,7 +5,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
-import com.cappielloantonio.tempo.plex.api.search.SearchClient
+import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -72,7 +72,7 @@ class MediaManagerScrobbleTest {
     fun scrobbleSendsTheGivenPositionRatherThanZero() {
         server.enqueue(MockResponse().setResponseCode(200))
 
-        MediaManager.scrobble(trackItem("42", "/library/parts/99"), SearchClient.STATE_STOPPED, 123_456L)
+        MediaManager.scrobble(trackItem("42", "/library/parts/99"), TimelineState.STOPPED, 123_456L)
 
         val request =
             server.takeRequest(5, TimeUnit.SECONDS)
@@ -88,7 +88,7 @@ class MediaManagerScrobbleTest {
         // valid value to send, not something scrobble should reject or alter.
         server.enqueue(MockResponse().setResponseCode(200))
 
-        MediaManager.scrobble(trackItem("42", "/library/parts/99"), SearchClient.STATE_PLAYING, 0L)
+        MediaManager.scrobble(trackItem("42", "/library/parts/99"), TimelineState.PLAYING, 0L)
 
         val request =
             server.takeRequest(5, TimeUnit.SECONDS)
@@ -117,7 +117,7 @@ class MediaManagerScrobbleTest {
                         ).build(),
                 ).build()
 
-        MediaManager.scrobble(item, SearchClient.STATE_PLAYING, 0L)
+        MediaManager.scrobble(item, TimelineState.PLAYING, 0L)
 
         val url = server.takeRequest(5, TimeUnit.SECONDS)!!.requestUrl!!
         assertEquals("1381657", url.queryParameter("playQueueItemID"))
@@ -128,7 +128,7 @@ class MediaManagerScrobbleTest {
     fun anOrdinaryTrackNamesNoQueue() {
         server.enqueue(MockResponse().setResponseCode(200))
 
-        MediaManager.scrobble(trackItem("42", "/library/parts/99"), SearchClient.STATE_PLAYING, 0L)
+        MediaManager.scrobble(trackItem("42", "/library/parts/99"), TimelineState.PLAYING, 0L)
 
         val url = server.takeRequest(5, TimeUnit.SECONDS)!!.requestUrl!!
         assertEquals(null, url.queryParameter("playQueueItemID"))
@@ -138,7 +138,7 @@ class MediaManagerScrobbleTest {
     fun aPauseIsReportedAsPaused() {
         server.enqueue(MockResponse().setResponseCode(200))
 
-        MediaManager.scrobble(trackItem("42", "/library/parts/99"), SearchClient.STATE_PAUSED, 61_000L)
+        MediaManager.scrobble(trackItem("42", "/library/parts/99"), TimelineState.PAUSED, 61_000L)
 
         val url = server.takeRequest(5, TimeUnit.SECONDS)!!.requestUrl!!
         assertEquals("paused", url.queryParameter("state"))

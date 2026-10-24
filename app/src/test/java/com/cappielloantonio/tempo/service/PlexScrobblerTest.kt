@@ -1,7 +1,7 @@
 package com.cappielloantonio.tempo.service
 
 import com.cappielloantonio.tempo.plex.PlexApi
-import com.cappielloantonio.tempo.plex.api.search.SearchClient
+import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -32,7 +32,7 @@ class PlexScrobblerTest {
 
     private fun report(
         ratingKey: String,
-        state: String,
+        state: TimelineState,
     ) = PlexScrobbler.report(ratingKey, "/library/parts/1", state, 0L, null)
 
     private fun nextState(server: MockWebServer = this.server) =
@@ -44,8 +44,8 @@ class PlexScrobblerTest {
         server.enqueue(MockResponse().setResponseCode(200).setHeadersDelay(1, TimeUnit.SECONDS))
         server.enqueue(MockResponse().setResponseCode(200))
 
-        report("42", SearchClient.STATE_PLAYING)
-        report("42", SearchClient.STATE_PAUSED)
+        report("42", TimelineState.PLAYING)
+        report("42", TimelineState.PAUSED)
 
         assertEquals("playing", nextState())
         assertNull(server.takeRequest(500, TimeUnit.MILLISECONDS))
@@ -55,14 +55,14 @@ class PlexScrobblerTest {
     @Test
     fun aServerChangeIsFollowed() {
         server.enqueue(MockResponse().setResponseCode(200))
-        report("42", SearchClient.STATE_PLAYING)
+        report("42", TimelineState.PLAYING)
         assertEquals("playing", nextState())
 
         MockWebServer().use { other ->
             other.enqueue(MockResponse().setResponseCode(200))
             PlexApi().serverUri = other.url("/").toString()
 
-            report("42", SearchClient.STATE_PAUSED)
+            report("42", TimelineState.PAUSED)
 
             assertEquals("paused", nextState(other))
         }
