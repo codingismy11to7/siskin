@@ -37,7 +37,7 @@ class PlexApiWriteOrderTest {
         whenever(store.hasAccount()).thenReturn(true)
         val api = PlexApi { store }
 
-        api.session = PlexSession("acct", "https://one.example", SectionKey("4"), null, "machine-a")
+        api.session = PlexSession("acct", "https://one.example", SectionKey("4"), null, "machine-a", owned = true)
 
         inOrder(store) {
             verify(store).setAccountToken("acct")
@@ -53,7 +53,7 @@ class PlexApiWriteOrderTest {
         whenever(store.hasAccount()).thenReturn(false)
         val api = PlexApi { store }
 
-        api.session = PlexSession("acct", "https://one.example", SectionKey("4"), "srv", "machine-a")
+        api.session = PlexSession("acct", "https://one.example", SectionKey("4"), "srv", "machine-a", owned = true)
 
         inOrder(store) {
             verify(store).setAccountToken("acct")

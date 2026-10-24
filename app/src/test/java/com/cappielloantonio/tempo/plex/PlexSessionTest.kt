@@ -12,6 +12,7 @@ class PlexSessionTest {
             serverUri = "https://server.example/",
             musicSectionKey = SectionKey("3"),
             serverToken = null,
+            owned = true,
         )
 
     @Test

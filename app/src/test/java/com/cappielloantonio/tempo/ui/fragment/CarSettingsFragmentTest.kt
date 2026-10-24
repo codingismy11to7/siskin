@@ -76,6 +76,7 @@ class CarSettingsFragmentTest {
                 serverUri = "https://example.invalid",
                 musicSectionKey = SectionKey("1"),
                 serverToken = null,
+                owned = true,
             )
 
         // A live session is what makes the artists-by-initial row's

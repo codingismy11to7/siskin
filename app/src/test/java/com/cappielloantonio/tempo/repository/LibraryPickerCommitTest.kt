@@ -46,7 +46,7 @@ class LibraryPickerCommitTest {
         // Robolectric caches SharedPreferences statically across methods, so every
         // field this test depends on is reset rather than assumed absent.
         api.accountToken = "acct"
-        api.session = PlexSession("acct", "http://pms:32400", SectionKey("3"), null, "abc123")
+        api.session = PlexSession("acct", "http://pms:32400", SectionKey("3"), null, "abc123", owned = true)
         // Every successful selectLibrary in this file now writes this key via
         // addressBook.adopt(), so it needs the same reset as accountToken/session
         // above -- otherwise a list stored by one test method would still be
@@ -194,6 +194,46 @@ class LibraryPickerCommitTest {
         assertEquals(SectionKey("7"), session?.musicSectionKey)
         assertEquals("srv-tok", session?.serverToken)
         assertEquals("xyz999", session?.machineIdentifier)
+    }
+
+    @Test
+    fun `a commit to a server the account does not own is saved as unowned`() {
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://newserver:32400",
+            resource = resource(id = "xyz999", accessToken = "srv-tok").apply { owned = false },
+            sectionKey = "7",
+            libraryName = "Soundtrack",
+        )
+
+        repo.selectLibrary("xyz999|7").get()
+
+        assertEquals(false, api.session?.owned)
+        assertEquals("srv-tok", api.session?.serverToken)
+    }
+
+    @Test
+    fun `an unowned server with no token of its own is refused without touching the session`() {
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://newserver:32400",
+            resource = resource(id = "xyz999", accessToken = null).apply { owned = false },
+            sectionKey = "7",
+            libraryName = "Soundtrack",
+        )
+        val before = api.session
+
+        val result = repo.selectLibrary("xyz999|7").get()
+
+        assertEquals(before, api.session)
+        assertEquals(
+            App.getContext().getString(R.string.plex_sign_in_error_no_server_access),
+            result.value
+                ?.single()
+                ?.mediaMetadata
+                ?.title
+                ?.toString(),
+        )
     }
 
     @Test

@@ -180,6 +180,12 @@ class LibraryPickerRepository {
                     return@launch
                 }
 
+                if (refusesAccountToken(resource)) {
+                    Log.d(TAG, "${resource.name} is not owned and came with no server token")
+                    future.set(messageResult(R.string.plex_sign_in_error_no_server_access))
+                    return@launch
+                }
+
                 candidates[machineIdentifier] = uri to resource
 
                 val sections =
@@ -272,6 +278,14 @@ class LibraryPickerRepository {
             return future
         }
 
+        // A Home member's plex.tv token is refused by a server they do not
+        // own, so committing this would sign them out on the first request.
+        if (refusesAccountToken(resource)) {
+            Log.d(TAG, "${resource.name} is not owned and came with no server token")
+            future.set(messageResult(R.string.plex_sign_in_error_no_server_access))
+            return future
+        }
+
         val previous = api.session
         val next =
             PlexSession(
@@ -280,6 +294,7 @@ class LibraryPickerRepository {
                 musicSectionKey = SectionKey(sectionKey),
                 serverToken = resource.accessToken,
                 machineIdentifier = resource.clientIdentifier,
+                owned = resource.owned != false,
             )
 
         if (LibrarySelection.invalidatesQueue(previous, next)) {
@@ -398,6 +413,8 @@ class LibraryPickerRepository {
          * library" a second time.
          */
         const val CONFIRMED_SUFFIX = ":confirmed"
+
+        private fun refusesAccountToken(resource: Resource): Boolean = resource.owned == false && resource.accessToken.isNullOrBlank()
 
         /** U+2713 CHECK MARK. The tick is the only signal of which library is in use. */
         private const val TICK = "✓ "

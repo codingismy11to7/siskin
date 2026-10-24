@@ -190,6 +190,7 @@ class ServerAddressBookTest {
                 musicSectionKey = SectionKey("5"),
                 serverToken = "server-token",
                 machineIdentifier = machineIdentifier,
+                owned = true,
             )
     }
 
@@ -484,6 +485,7 @@ class ServerAddressBookTest {
                                 musicSectionKey = SectionKey("7"),
                                 serverToken = "other-server-token",
                                 machineIdentifier = "machine-b",
+                                owned = true,
                             )
                         "https://public.example"
                     }
@@ -529,6 +531,7 @@ class ServerAddressBookTest {
                                 musicSectionKey = SectionKey("9"),
                                 serverToken = "server-token",
                                 machineIdentifier = "machine-a",
+                                owned = true,
                             )
                         "https://public.example"
                     }

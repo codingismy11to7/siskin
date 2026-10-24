@@ -57,10 +57,11 @@ data class PlexSession(
      * False only when plex.tv said the account does not own this server. Such a
      * session is not one without [serverToken]: the account token is refused
      * there, so [from] reads it as absent rather than letting a reader fall
-     * back to it. Defaults to true, which keeps every session saved before this
-     * field existed exactly as it was.
+     * back to it. Deliberately without a default here, so every construction
+     * site has to say; [from] defaults it to true, which keeps every session
+     * saved before this field existed exactly as it was.
      */
-    val owned: Boolean = true,
+    val owned: Boolean,
 ) {
     companion object {
         /**

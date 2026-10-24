@@ -60,6 +60,7 @@ class CarHostActivityRoutingTest {
                 serverUri = "https://example.invalid",
                 musicSectionKey = SectionKey("1"),
                 serverToken = null,
+                owned = true,
             )
     }
 

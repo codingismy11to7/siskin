@@ -46,6 +46,7 @@ class PlexAccountRemovalTest {
                 musicSectionKey = SectionKey("4"),
                 serverToken = "srv",
                 machineIdentifier = "machine-a",
+                owned = true,
             )
 
         var notified = false
