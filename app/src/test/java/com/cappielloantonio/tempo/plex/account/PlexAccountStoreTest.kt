@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.plex.account
 
+import android.accounts.Account
 import android.accounts.AccountManager
 import android.content.Context
 import com.cappielloantonio.tempo.R
@@ -13,8 +14,13 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
+import org.robolectric.shadows.ShadowAccountManager
 
 @RunWith(RobolectricTestRunner::class)
+@Config(shadows = [DeviceAccountManagerShadow::class])
 class PlexAccountStoreTest {
     private val context: Context = RuntimeEnvironment.getApplication()
     private lateinit var store: PlexAccountStore
@@ -102,5 +108,48 @@ class PlexAccountStoreTest {
         store.setServerToken("machine-a", "orphan")
 
         assertNull(store.serverToken("machine-a"))
+    }
+
+    @Test
+    fun anUnchangedAccountTokenKeepsEveryServerToken() {
+        store.setAccountToken("acct")
+        store.setServerToken("machine-a", "token-a")
+
+        store.setAccountToken("acct")
+
+        assertEquals("token-a", store.serverToken("machine-a"))
+    }
+
+    @Test
+    fun aChangedAccountTokenDropsEveryServerToken() {
+        // What the device does, and what PlexApi.session's write order is
+        // built around.
+        store.setAccountToken("acct")
+        store.setServerToken("machine-a", "token-a")
+
+        store.setAccountToken("other")
+
+        assertEquals("other", store.accountToken())
+        assertNull(store.serverToken("machine-a"))
+    }
+}
+
+/**
+ * Robolectric's account manager keeps auth tokens across a password change. A
+ * device's does not -- `AccountManagerService.setPasswordInternal` deletes
+ * every auth token on the account -- so this shadow does the same.
+ */
+@Implements(AccountManager::class)
+class DeviceAccountManagerShadow : ShadowAccountManager() {
+    @Implementation
+    override fun setPassword(
+        account: Account,
+        password: String?,
+    ) {
+        super.setPassword(account, password)
+        val field = ShadowAccountManager::class.java.getDeclaredField("authTokens")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        (field.get(this) as MutableMap<Account, MutableMap<String, String>>)[account]?.clear()
     }
 }

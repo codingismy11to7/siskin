@@ -145,26 +145,31 @@ class PlexApi(
                 return
             }
 
-            // Ordered so a reader between any two writes sees credentials the
-            // selected server accepts, never a Home member's plex.tv token with
-            // no server token of theirs. A new server token goes in first,
-            // invisible until the preferences name its machine; a cleared one
-            // goes last, so the new account token meets the old server token
-            // rather than nothing. With no account there is nothing to file a
-            // server token under, and no old token for anyone to pair it with.
-            if (accounts.hasAccount() && value.serverToken != null) {
-                accounts.setServerToken(value.machineIdentifier, value.serverToken)
-                writeServerPreferences(value)
+            // On a device, changing the account token deletes every server
+            // token, so a reader between two writes must see either credentials
+            // the selected server accepts or no session -- never a plex.tv
+            // token with no server token on a server that account does not
+            // own, which the server answers with 401. A changed token is
+            // therefore written only once the stored session is marked not
+            // owned, which reads as none without a server token.
+            val stored = accounts.accountToken()
+            if (stored != null && stored != value.accountToken) {
+                markServerNotOwned()
                 accounts.setAccountToken(value.accountToken)
+                writeServerPreferences(value)
             } else {
-                accounts.setAccountToken(value.accountToken)
                 writeServerPreferences(value)
-                accounts.setServerToken(value.machineIdentifier, value.serverToken)
+                accounts.setAccountToken(value.accountToken)
             }
+            accounts.setServerToken(value.machineIdentifier, value.serverToken)
             if (previousMachineIdentifier != null && previousMachineIdentifier != value.machineIdentifier) {
                 accounts.setServerToken(previousMachineIdentifier, null)
             }
         }
+
+    private fun markServerNotOwned() {
+        preferences.edit { putBoolean(KEY_SERVER_OWNED, false) }
+    }
 
     /** The four session values preferences hold, in one edit. */
     private fun writeServerPreferences(value: PlexSession?) {

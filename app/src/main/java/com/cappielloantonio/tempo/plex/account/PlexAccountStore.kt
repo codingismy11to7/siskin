@@ -45,6 +45,10 @@ class PlexAccountStore(
      * Deliberately *not* remove-then-add: removal fires the accounts-updated
      * listener that clears the session, so a re-sign-in would trip its own
      * sign-out handler partway through.
+     *
+     * An unchanged token is not written at all: on a device,
+     * [AccountManager.setPassword] deletes every auth token on the account, so
+     * re-writing the same password would drop every server token with it.
      */
     fun setAccountToken(value: String?) {
         val existing = account
@@ -71,6 +75,8 @@ class PlexAccountStore(
                     )
                 }
             }
+
+            manager.getPassword(existing) == value -> {}
 
             else -> {
                 manager.setPassword(existing, value)
