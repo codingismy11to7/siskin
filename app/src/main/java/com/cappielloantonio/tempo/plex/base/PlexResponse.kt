@@ -34,6 +34,12 @@ class MediaContainer {
      */
     var offset: Int? = null
 
+    /** Present only on a play-queue response. */
+    var playQueueID: Long? = null
+
+    /** Present only on `GET /identity`. */
+    var machineIdentifier: String? = null
+
     /** Items: tracks, albums, artists, playlists. */
     @SerializedName("Metadata")
     var metadata: List<Metadata>? = null

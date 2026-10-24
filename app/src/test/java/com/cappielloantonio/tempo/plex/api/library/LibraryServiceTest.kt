@@ -401,6 +401,108 @@ class LibraryServiceTest {
     }
 
     @Test
+    fun getMetadataWithStationsAsksForStations() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+            service().getMetadataWithStations("270597")
+
+            val request = server.takeRequest()
+            assertEquals("/library/metadata/270597", request.requestUrl?.encodedPath)
+            assertEquals("1", request.requestUrl?.queryParameter("includeStations"))
+        }
+
+    @Test
+    fun anArtistsStationParsesFromTheStationsObject() =
+        runTest {
+            // Captured from a live PMS: Stations is an object holding Metadata,
+            // not an array like most child containers.
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    {"MediaContainer":{"size":1,"Metadata":[{"ratingKey":"270597","type":"artist",
+                    "title":"Trail of Dead","Stations":{"size":1,"Metadata":[{"key":
+                    "/library/metadata/270597/station/9d14bcfd-e64b-469d-ad61-3cc10702d03b?type=10",
+                    "type":"playlist","title":"Trail of Dead Radio","radio":"1"}]}}]}}
+                    """.trimIndent(),
+                ),
+            )
+
+            val artist =
+                service()
+                    .getMetadataWithStations("270597")
+                    .mediaContainer!!
+                    .metadata!!
+                    .single()
+
+            assertEquals(
+                "/library/metadata/270597/station/9d14bcfd-e64b-469d-ad61-3cc10702d03b?type=10",
+                artist.stations!!
+                    .metadata!!
+                    .single()
+                    .key,
+            )
+        }
+
+    @Test
+    fun getIdentityAsksTheServerForItsMachineIdentifier() =
+        runTest {
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """{"MediaContainer":{"size":0,"machineIdentifier":"abc123"}}""",
+                ),
+            )
+
+            val identity = service().getIdentity()
+
+            assertEquals("/identity", server.takeRequest().requestUrl?.encodedPath)
+            assertEquals("abc123", identity.mediaContainer!!.machineIdentifier)
+        }
+
+    @Test
+    fun createPlayQueuePostsAStationUri() =
+        runTest {
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    {"MediaContainer":{"playQueueID":32194,"size":1,"Metadata":[
+                    {"ratingKey":"270615","type":"track","title":"Baudelaire","playQueueItemID":1381657}]}}
+                    """.trimIndent(),
+                ),
+            )
+            val uri = "server://abc123/com.plexapp.plugins.library/library/metadata/270597/station/u?type=10"
+
+            val queue = service().createPlayQueue(type = "audio", uri = uri, repeat = 0)
+
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertEquals("/playQueues", request.requestUrl?.encodedPath)
+            assertEquals("audio", request.requestUrl?.queryParameter("type"))
+            assertEquals(uri, request.requestUrl?.queryParameter("uri"))
+            assertEquals("0", request.requestUrl?.queryParameter("repeat"))
+            assertEquals(32194L, queue.mediaContainer!!.playQueueID)
+            assertEquals(
+                1381657L,
+                queue.mediaContainer!!
+                    .metadata!!
+                    .single()
+                    .playQueueItemID,
+            )
+        }
+
+    @Test
+    fun getPlayQueueReadsOneQueueBack() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+            service().getPlayQueue(32194L)
+
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+            assertEquals("/playQueues/32194", request.requestUrl?.encodedPath)
+        }
+
+    @Test
     fun everyEndpointIsCovered() {
         // Fails when an endpoint is added to LibraryService without a test
         // above. The gap this file closes formed exactly that way.
@@ -416,6 +518,10 @@ class LibraryServiceTest {
                 "getFirstCharacters",
                 "getFirstCharacterContent",
                 "getByPath",
+                "getMetadataWithStations",
+                "getIdentity",
+                "createPlayQueue",
+                "getPlayQueue",
             ),
             annotatedEndpoints(LibraryService::class.java),
         )

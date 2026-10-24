@@ -89,6 +89,23 @@ class LibraryClient(
     suspend fun getMetadata(ratingKey: RatingKey): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getMetadata(ratingKey.value) }
 
+    suspend fun getMetadataWithStations(ratingKey: RatingKey): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "getMetadataWithStations($ratingKey)")
+        return plexCall(PlexHost.Server) { service.getMetadataWithStations(ratingKey.value) }
+    }
+
+    suspend fun getIdentity(): Either<PlexTransportFailure, PlexResponse> = plexCall(PlexHost.Server) { service.getIdentity() }
+
+    suspend fun createPlayQueue(uri: String): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "createPlayQueue($uri)")
+        return plexCall(PlexHost.Server) { service.createPlayQueue(type = "audio", uri = uri, repeat = 0) }
+    }
+
+    suspend fun getPlayQueue(playQueueId: Long): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "getPlayQueue($playQueueId)")
+        return plexCall(PlexHost.Server) { service.getPlayQueue(playQueueId) }
+    }
+
     suspend fun getSectionHubs(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getSectionHubs(sectionKey.value) }
 

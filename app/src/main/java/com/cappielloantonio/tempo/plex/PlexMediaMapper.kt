@@ -49,6 +49,29 @@ object PlexMediaMapper {
     const val EXTRA_PARENT_ID = "parent_id"
     const val EXTRA_PART_KEY = "partKey"
     const val EXTRA_THUMB = "thumb"
+    const val EXTRA_PLAY_QUEUE_ID = "playQueueId"
+    const val EXTRA_PLAY_QUEUE_ITEM_ID = "playQueueItemId"
+    const val EXTRA_STATION_ARTIST_ID = "stationArtistId"
+
+    /**
+     * Which artist station a track came from, and where it sits in that
+     * station's server-side play queue. The station's whole state: there is
+     * no "active station" anywhere else. See
+     * docs/decisions/2026-10-23-artist-radio-design.md.
+     */
+    data class StationTag(
+        val playQueueId: Long,
+        val playQueueItemId: Long,
+        val artistRatingKey: String,
+    )
+
+    @JvmStatic
+    fun stationTagOf(item: MediaItem?): StationTag? {
+        val extras = item?.mediaMetadata?.extras ?: return null
+        if (!extras.containsKey(EXTRA_PLAY_QUEUE_ID) || !extras.containsKey(EXTRA_PLAY_QUEUE_ITEM_ID)) return null
+        val artist = extras.getString(EXTRA_STATION_ARTIST_ID) ?: return null
+        return StationTag(extras.getLong(EXTRA_PLAY_QUEUE_ID), extras.getLong(EXTRA_PLAY_QUEUE_ITEM_ID), artist)
+    }
 
     /**
      * Plex rates 0-10; this app writes this value for a hearted track, so
@@ -135,6 +158,7 @@ object PlexMediaMapper {
         parentId: String?,
         serverUri: String?,
         token: String?,
+        station: StationTag? = null,
     ): MediaItem {
         val streamUrl = MediaUrlBuilder.streamUrl(serverUri, partKey, token)
         val uri = streamUrl?.toUri() ?: Uri.EMPTY
@@ -152,6 +176,11 @@ object PlexMediaMapper {
                 putString(EXTRA_PART_KEY, partKey)
                 putString(EXTRA_THUMB, thumb)
                 if (parentId != null) putString(EXTRA_PARENT_ID, parentId)
+                if (station != null) {
+                    putLong(EXTRA_PLAY_QUEUE_ID, station.playQueueId)
+                    putLong(EXTRA_PLAY_QUEUE_ITEM_ID, station.playQueueItemId)
+                    putString(EXTRA_STATION_ARTIST_ID, station.artistRatingKey)
+                }
             }
 
         val metadata =
@@ -195,6 +224,7 @@ object PlexMediaMapper {
         parentId: String?,
         serverUri: String?,
         token: String?,
+        station: StationTag? = null,
     ): MediaItem? {
         val ratingKey = metadata.ratingKey?.takeIf { it.isNotBlank() } ?: return null
         return buildTrackMediaItem(
@@ -212,6 +242,7 @@ object PlexMediaMapper {
             parentId = parentId,
             serverUri = serverUri,
             token = token,
+            station = station,
         )
     }
 
@@ -235,6 +266,7 @@ object PlexMediaMapper {
         val year: Int?,
         val grandparentRatingKey: String?,
         val isHearted: Boolean,
+        val station: StationTag? = null,
     )
 
     @JvmStatic
@@ -256,6 +288,7 @@ object PlexMediaMapper {
             year = item.mediaMetadata.releaseYear,
             grandparentRatingKey = extras?.getString(EXTRA_ARTIST_ID),
             isHearted = (item.mediaMetadata.userRating as? HeartRating)?.isHeart == true,
+            station = stationTagOf(item),
         )
     }
 
@@ -314,15 +347,17 @@ object PlexMediaMapper {
      * localConfiguration would make resolveQueueForItem treat the row as already
      * resolved and "play" a track with no stream.
      *
-     * The icon is media3's own Material shuffle glyph rather than a vendored
-     * copy. It is not declared in media3's public.xml, so a rename on upgrade
-     * would break this reference -- as a compile error, which is why relying on
+     * The icon defaults to media3's own Material shuffle glyph rather than a
+     * vendored copy, and the caller may pass another (the radio row does). The
+     * glyph is not declared in media3's public.xml, so a rename on upgrade
+     * would break the reference -- as a compile error, which is why relying on
      * it is acceptable.
      */
     @JvmStatic
     fun mixRowToMediaItem(
         mediaId: String,
         title: String?,
+        iconRes: Int = androidx.media3.session.R.drawable.media3_icon_shuffle_on,
     ): MediaItem =
         MediaItem
             .Builder()
@@ -334,7 +369,7 @@ object PlexMediaMapper {
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                    .setArtworkUri(ResourceUris.forResource(androidx.media3.session.R.drawable.media3_icon_shuffle_on))
+                    .setArtworkUri(ResourceUris.forResource(iconRes))
                     .build(),
             ).build()
 

@@ -92,6 +92,15 @@ class CarSettingsFragment : Fragment() {
             BrowseTreeInvalidator.invalidateArtistPages()
         }
 
+        addToggle(
+            rows,
+            getString(R.string.car_settings_artist_radio),
+            Preferences.isArtistRadioEnabled(),
+        ) {
+            Preferences.setArtistRadioEnabled(it)
+            BrowseTreeInvalidator.invalidateArtistPages()
+        }
+
         // A destination rather than a toggle, so it takes addChoice. Below the
         // toggles and above Sign out: it is a setting, and a destructive
         // terminal action still belongs last.

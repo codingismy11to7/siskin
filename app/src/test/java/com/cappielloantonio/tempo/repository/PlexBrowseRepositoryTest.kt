@@ -10,6 +10,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
@@ -64,6 +65,7 @@ class PlexBrowseRepositoryTest {
         // turning the mix off would otherwise remove the row from every
         // artist page after it.
         Preferences.setArtistMixEnabled(true)
+        Preferences.setArtistRadioEnabled(false)
     }
 
     @After
@@ -263,6 +265,49 @@ class PlexBrowseRepositoryTest {
     private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) = future.get(10, TimeUnit.SECONDS)
 
     @Test
+    fun aRadioRowResolvesToTheStationsTracks() {
+        fixture.server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse =
+                    when (request.requestUrl!!.encodedPath) {
+                        "/library/metadata/15100" -> {
+                            MockResponse().setResponseCode(200).setBody(
+                                """{"MediaContainer":{"Metadata":[{"ratingKey":"15100","type":"artist","Stations":{"Metadata":[{"key":"/library/metadata/15100/station/u?type=10"}]}}]}}""",
+                            )
+                        }
+
+                        "/identity" -> {
+                            MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"machineIdentifier":"m"}}""")
+                        }
+
+                        "/playQueues" -> {
+                            MockResponse().setResponseCode(200).setBody(
+                                """{"MediaContainer":{"playQueueID":9,"Metadata":[{"ratingKey":"5","type":"track","playQueueItemID":50}]}}""",
+                            )
+                        }
+
+                        else -> {
+                            MockResponse().setResponseCode(500)
+                        }
+                    }
+            }
+
+        val result = await(PlexBrowseRepository().getArtistRadioTracks("15100"))
+
+        assertEquals(listOf("5"), result.value!!.map { it.mediaId })
+        assertEquals(PlexMediaMapper.StationTag(9, 50, "15100"), PlexMediaMapper.stationTagOf(result.value!!.single()))
+    }
+
+    @Test
+    fun aRejectedStationIsAnErrorTheCarCanShow() {
+        server.enqueue(MockResponse().setResponseCode(403))
+
+        val result = await(PlexBrowseRepository().getArtistRadioTracks("15100"))
+
+        assertTrue(result.resultCode != LibraryResult.RESULT_SUCCESS)
+    }
+
+    @Test
     fun anArtistsAlbumsComeFromTheSectionFilteredByArtistNotFromItsChildren() {
         // Measured against a live PMS 1.43.3 library: an artist's
         // /library/metadata/{id}/children silently omits albums. Five of the
@@ -307,6 +352,37 @@ class PlexBrowseRepositoryTest {
         // A non-null localConfiguration would make resolveQueueForItem treat the
         // row as an already-resolved track and play a stream that does not exist.
         assertNull(row.localConfiguration)
+    }
+
+    @Test
+    fun anArtistOffersRadioAfterItsMixWhenAskedTo() {
+        Preferences.setArtistRadioEnabled(true)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77")))
+
+        val result = await(PlexBrowseRepository().getArtistAlbums(Constants.ALBUM_ID, "15100"))
+
+        assertEquals(
+            listOf(Constants.MIX_ARTIST_ID + "15100", Constants.MIX_RADIO_ARTIST_ID + "15100", Constants.ALBUM_ID + "77"),
+            result.value!!.map { it.mediaId },
+        )
+        val radio = result.value!![1]
+        assertEquals(true, radio.mediaMetadata.isPlayable)
+        assertEquals(false, radio.mediaMetadata.isBrowsable)
+        assertNull(radio.localConfiguration)
+    }
+
+    @Test
+    fun radioStandsAloneWhenTheMixIsOff() {
+        Preferences.setArtistMixEnabled(false)
+        Preferences.setArtistRadioEnabled(true)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77")))
+
+        val result = await(PlexBrowseRepository().getArtistAlbums(Constants.ALBUM_ID, "15100"))
+
+        assertEquals(
+            listOf(Constants.MIX_RADIO_ARTIST_ID + "15100", Constants.ALBUM_ID + "77"),
+            result.value!!.map { it.mediaId },
+        )
     }
 
     @Test

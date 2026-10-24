@@ -4,6 +4,7 @@ import android.util.Log
 import arrow.core.Either
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.RatingKey
@@ -62,12 +63,27 @@ class SearchClient(
         return plexCall(PlexHost.Server) { service.getPlaylist(playlistId.value) }
     }
 
+    /**
+     * [station] names the play queue a station track belongs to; it is what
+     * makes the server extend the station. See the 2026-10-23 artist radio design.
+     */
     suspend fun reportProgress(
         ratingKey: RatingKey,
         key: String,
         state: String,
         timeMs: Long,
-    ): Either<PlexTransportFailure, Unit> = plexCall(PlexHost.Server) { service.reportProgress(ratingKey.value, key, state, timeMs) }
+        station: PlexMediaMapper.StationTag? = null,
+    ): Either<PlexTransportFailure, Unit> =
+        plexCall(PlexHost.Server) {
+            service.reportProgress(
+                ratingKey.value,
+                key,
+                state,
+                timeMs,
+                station?.playQueueItemId,
+                station?.let { "/playQueues/${it.playQueueId}" },
+            )
+        }
 
     /**
      * A `Right` is the success case: the service call returns Unit and any

@@ -93,6 +93,8 @@ class PlexBrowseRepository {
                 cachedLibraryClient!!
             }
 
+    private val radio = PlexRadioRepository(api) { libraryClient }
+
     private val searchClient: SearchClient
         get() =
             synchronized(this) {
@@ -556,7 +558,10 @@ class PlexBrowseRepository {
                 artistId = artistRatingKey,
             )
         }) { body ->
-            listOfNotNull(shuffleArtistRow(artistRatingKey).takeIf { Preferences.isArtistMixEnabled() }) +
+            listOfNotNull(
+                shuffleArtistRow(artistRatingKey).takeIf { Preferences.isArtistMixEnabled() },
+                radioArtistRow(artistRatingKey).takeIf { Preferences.isArtistRadioEnabled() },
+            ) +
                 itemsOf(body, TYPE_ALBUM).mapNotNull {
                     PlexMediaMapper.albumToMediaItem(it, albumPrefix)
                 }
@@ -569,6 +574,13 @@ class PlexBrowseRepository {
             App.getContext().getString(R.string.browse_mix_artist),
         )
 
+    private fun radioArtistRow(artistRatingKey: String): MediaItem =
+        PlexMediaMapper.mixRowToMediaItem(
+            Constants.MIX_RADIO_ARTIST_ID + artistRatingKey,
+            App.getContext().getString(R.string.browse_radio_artist),
+            androidx.media3.session.R.drawable.media3_icon_radio,
+        )
+
     fun getArtistTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
         return fetch({ artistMixRequest(key, artistRatingKey) }) { body ->
@@ -576,6 +588,16 @@ class PlexBrowseRepository {
                 PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
             }
         }
+    }
+
+    /**
+     * Starts the artist's station. Through [fetch], so an HTTP failure becomes
+     * a result the car can act on and a transport failure reads as unreachable,
+     * the same as every other Mix row.
+     */
+    fun getArtistRadioTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        sectionKey ?: return errorFuture()
+        return fetch({ radio.startStation(artistRatingKey) }) { radio.stationTracks(it, artistRatingKey) }
     }
 
     /**

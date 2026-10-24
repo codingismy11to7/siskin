@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.plex.api.library
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Url
@@ -135,6 +136,38 @@ interface LibraryService {
     @GET("library/metadata/{ids}")
     suspend fun getMetadata(
         @Path("ids") ratingKeys: String,
+    ): PlexResponse
+
+    /**
+     * [getMetadata] plus the item's stations. Kept separate so ordinary
+     * metadata reads do not pay for a station the server mints per request.
+     */
+    @GET("library/metadata/{id}")
+    suspend fun getMetadataWithStations(
+        @Path("id") ratingKey: String,
+        @Query("includeStations") includeStations: Int = 1,
+    ): PlexResponse
+
+    /** The server's own identity; the machine identifier a play-queue uri names. */
+    @GET("identity")
+    suspend fun getIdentity(): PlexResponse
+
+    /**
+     * Starts a play queue from a library uri -- for a station,
+     * `server://{machine}/com.plexapp.plugins.library{stationKey}`. See
+     * docs/decisions/2026-10-23-artist-radio-design.md for what a station
+     * queue does after this.
+     */
+    @POST("playQueues")
+    suspend fun createPlayQueue(
+        @Query("type") type: String,
+        @Query("uri") uri: String,
+        @Query("repeat") repeat: Int,
+    ): PlexResponse
+
+    @GET("playQueues/{id}")
+    suspend fun getPlayQueue(
+        @Path("id") playQueueId: Long,
     ): PlexResponse
 
     @GET("hubs/sections/{sectionId}")

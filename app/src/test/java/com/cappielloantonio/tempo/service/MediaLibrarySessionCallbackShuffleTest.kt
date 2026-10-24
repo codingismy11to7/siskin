@@ -297,6 +297,22 @@ class MediaLibrarySessionCallbackShuffleTest {
     }
 
     /**
+     * A station plays in the server's order: the server advances its window
+     * along that order, so a shuffled station would skip ahead of what the
+     * server thinks is playing.
+     */
+    @Test
+    fun aStationIsServedInTheServersOrder() {
+        val tracks = albumTracks("1", "2", "3", "4", "5", "6", "7", "8")
+        whenever(browseRepository.getArtistRadioTracks(ARTIST)).thenReturn(itemList(tracks))
+
+        val result = setMediaItems(MediaItem.Builder().setMediaId(Constants.MIX_RADIO_ARTIST_ID + ARTIST).build())
+
+        assertEquals(tracks.map { it.mediaId }, result.mediaItems.map { it.mediaId })
+        assertShuffleUntouched()
+    }
+
+    /**
      * `onAddMediaItems` is not only a browse-tap path: MediaManager's continuous
      * play appends instant-mix tracks to a running queue through
      * `browser.addMediaItems`. This is the case that made a shuffle write here
