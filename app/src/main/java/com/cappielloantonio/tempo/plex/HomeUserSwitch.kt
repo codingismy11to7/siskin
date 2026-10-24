@@ -3,7 +3,6 @@ package com.cappielloantonio.tempo.plex
 import arrow.core.Either
 import arrow.core.NonEmptyList
 import arrow.core.raise.either
-import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import arrow.core.toNonEmptyListOrNull
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
@@ -38,7 +37,10 @@ sealed interface SwitchOutcome {
         val servers: NonEmptyList<Resource>,
     ) : SwitchOutcome
 
-    /** Nothing saved, or the saved server is not the new user's. */
+    /**
+     * Nothing saved, the saved server is not the new user's, or it could not
+     * be confirmed for them. The server picker re-probes whatever is chosen.
+     */
     data class NeedsServer(
         override val account: PendingAccount,
         val servers: NonEmptyList<Resource>,
@@ -54,6 +56,11 @@ sealed interface SwitchOutcome {
  * The new member's plex.tv token is refused by a server they do not own, so
  * every server call here uses the per-server token `/resources` hands back.
  * See the 2026-10-24 Home user switching design for the measurements.
+ *
+ * Only the switch and `/resources` can fail it. Anything wrong with the saved
+ * server lands on [SwitchOutcome.NeedsServer] instead: the minted token has
+ * already spent one of Plex's few allowed switches, and the saved address is
+ * often a home LAN one the car cannot reach on the road.
  */
 class HomeUserSwitch(
     private val authClientFor: (String) -> AuthClient,
@@ -93,24 +100,27 @@ class HomeUserSwitch(
             val servers =
                 ensureNotNull(AuthClient.mediaServers(resources).toNonEmptyListOrNull()) { SignInError.NoServers }
 
-            val session = saved ?: return@either SwitchOutcome.NeedsServer(account, servers)
-            val machine = session.machineIdentifier
-            val resource =
-                servers.firstOrNull { !machine.isNullOrBlank() && it.clientIdentifier == machine }
-                    ?: return@either SwitchOutcome.NeedsServer(account, servers)
-
-            ensure(!resource.refusesAccountToken) { SignInError.ServerTokenMissing }
-
-            val response =
-                sectionsFor(session.serverUri, resource.accessToken, account.token).mapLeft(SignInError::Api).bind()
-            val sections =
-                LibraryClient.musicSections(response).toNonEmptyListOrNull()
-                    ?: return@either SwitchOutcome.NeedsServer(account, servers)
-
-            if (sections.any { it.key == session.musicSectionKey.value }) {
-                SwitchOutcome.Committable(account, session.serverUri, resource, session.musicSectionKey)
-            } else {
-                SwitchOutcome.NeedsLibrary(account, session.serverUri, resource, sections, servers)
-            }
+            keepSaved(account, servers, saved) ?: SwitchOutcome.NeedsServer(account, servers)
         }
+
+    /** Null whenever the saved server cannot be confirmed for [account]. */
+    private suspend fun keepSaved(
+        account: PendingAccount,
+        servers: NonEmptyList<Resource>,
+        saved: PlexSession?,
+    ): SwitchOutcome? {
+        val session = saved ?: return null
+        val machine = session.machineIdentifier?.takeIf { it.isNotBlank() } ?: return null
+        val resource = servers.firstOrNull { it.clientIdentifier == machine } ?: return null
+        if (resource.refusesAccountToken) return null
+
+        val response = sectionsFor(session.serverUri, resource.accessToken, account.token).getOrNull() ?: return null
+        val sections = LibraryClient.musicSections(response).toNonEmptyListOrNull() ?: return null
+
+        return if (sections.any { it.key == session.musicSectionKey.value }) {
+            SwitchOutcome.Committable(account, session.serverUri, resource, session.musicSectionKey)
+        } else {
+            SwitchOutcome.NeedsLibrary(account, session.serverUri, resource, sections, servers)
+        }
+    }
 }

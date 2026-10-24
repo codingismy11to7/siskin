@@ -139,11 +139,38 @@ class HomeUserSwitchTest {
         }
 
     @Test
-    fun refusesAnUnownedServerThatCameWithNoToken() =
+    fun anUnownedSavedServerWithNoTokenFallsBackToTheServerPicker() =
         runTest {
-            val result = switcher(resources = listOf(shared(token = null))).first.switch(from, jill, null, saved)
+            val outcome = switcher(resources = listOf(shared(token = null))).first.switch(from, jill, null, saved).getOrNull()
 
-            assertEquals(SignInError.ServerTokenMissing.left(), result)
+            assertTrue("got $outcome", outcome is SwitchOutcome.NeedsServer)
+            assertEquals(PendingAccount("jill-token"), outcome!!.account)
+        }
+
+    @Test
+    fun anUnreachableSavedServerFallsBackToTheServerPicker() =
+        runTest {
+            // Typically the home LAN address, from the road.
+            val outcome =
+                switcher(sectionsAnswer = PlexTransportFailure.Unreachable(PlexHost.Server).left())
+                    .first
+                    .switch(from, jill, null, saved)
+                    .getOrNull()
+
+            assertTrue("got $outcome", outcome is SwitchOutcome.NeedsServer)
+            assertEquals(PendingAccount("jill-token"), outcome!!.account)
+        }
+
+    @Test
+    fun anHttpErrorFromTheSavedServerFallsBackToTheServerPicker() =
+        runTest {
+            val outcome =
+                switcher(sectionsAnswer = PlexTransportFailure.Http(PlexHost.Server, 401).left())
+                    .first
+                    .switch(from, jill, null, saved)
+                    .getOrNull()
+
+            assertTrue("got $outcome", outcome is SwitchOutcome.NeedsServer)
         }
 
     @Test
