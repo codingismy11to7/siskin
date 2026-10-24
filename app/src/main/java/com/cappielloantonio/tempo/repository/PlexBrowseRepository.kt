@@ -556,7 +556,10 @@ class PlexBrowseRepository {
                 artistId = artistRatingKey,
             )
         }) { body ->
-            listOfNotNull(shuffleArtistRow(artistRatingKey).takeIf { Preferences.isArtistMixEnabled() }) +
+            listOfNotNull(
+                shuffleArtistRow(artistRatingKey).takeIf { Preferences.isArtistMixEnabled() },
+                radioArtistRow(artistRatingKey).takeIf { Preferences.isArtistRadioEnabled() },
+            ) +
                 itemsOf(body, TYPE_ALBUM).mapNotNull {
                     PlexMediaMapper.albumToMediaItem(it, albumPrefix)
                 }
@@ -567,6 +570,13 @@ class PlexBrowseRepository {
         PlexMediaMapper.mixRowToMediaItem(
             Constants.MIX_ARTIST_ID + artistRatingKey,
             App.getContext().getString(R.string.browse_mix_artist),
+        )
+
+    private fun radioArtistRow(artistRatingKey: String): MediaItem =
+        PlexMediaMapper.mixRowToMediaItem(
+            Constants.MIX_RADIO_ARTIST_ID + artistRatingKey,
+            App.getContext().getString(R.string.browse_radio_artist),
+            androidx.media3.session.R.drawable.media3_icon_radio,
         )
 
     fun getArtistTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {

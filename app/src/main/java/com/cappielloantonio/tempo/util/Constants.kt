@@ -134,6 +134,7 @@ object Constants {
     const val MIX_PLAYLIST_ID = "[shufflePlaylistID]"
     const val MIX_DECADE_ID = "[shuffleDecadeID]"
     const val MIX_HUB_ID = "[shuffleHubID]"
+    const val MIX_RADIO_ARTIST_ID = "[radioArtistID]"
 
     // Source tag for the most recent browse list.
     const val QUEUE_CACHED_SOURCE = "[aaQueueCachedSource]"

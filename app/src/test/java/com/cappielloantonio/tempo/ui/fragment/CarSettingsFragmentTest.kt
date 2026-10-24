@@ -65,6 +65,7 @@ class CarSettingsFragmentTest {
             .remove("replay_gain_mode")
             .remove("artists_by_initial")
             .remove("artist_mix")
+            .remove("artist_radio")
             .commit()
         PlexApi().session =
             PlexSession(
@@ -130,11 +131,13 @@ class CarSettingsFragmentTest {
 
     private fun artistMixSwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_artist_mix))
 
+    private fun artistRadioSwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_artist_radio))
+
     @Test
     fun `settings offers every toggle at its default`() {
         val screen = settingsScreen()
 
-        assertEquals(4, switchesIn(screen).size)
+        assertEquals(5, switchesIn(screen).size)
         // The defaults differ, and each is a decision: continuous play is off
         // because reaching the end of a queue is not a request for more music,
         // and replay gain is off because a library carrying no ReplayGain tags
@@ -146,6 +149,8 @@ class CarSettingsFragmentTest {
         assertTrue(artistsByInitialSwitch(screen).isChecked)
         // On because every install so far has shown the row.
         assertTrue(artistMixSwitch(screen).isChecked)
+        // Off: radio is an addition, and every row pushes the albums down.
+        assertFalse(artistRadioSwitch(screen).isChecked)
     }
 
     @Test
@@ -234,6 +239,7 @@ class CarSettingsFragmentTest {
         assertFalse(Preferences.isContinuousPlayEnabled())
         assertTrue(Preferences.isArtistsByInitialEnabled())
         assertTrue(Preferences.isArtistMixEnabled())
+        assertFalse(Preferences.isArtistRadioEnabled())
     }
 
     @Test
@@ -249,6 +255,19 @@ class CarSettingsFragmentTest {
 
         // Settings is usually opened from an artist page, which the car shows
         // again from its cache on the way back unless it is told otherwise.
+        shadowOf(Looper.getMainLooper()).idle()
+        verify(session).notifyChildrenChanged(eq(Constants.ARTIST_ID + "15100"), any(), eq(null))
+    }
+
+    @Test
+    fun `tapping the artist radio row turns it on and refreshes artist pages`() {
+        BrowseTreeInvalidator.rememberArtistPage(Constants.ARTIST_ID + "15100")
+        val toggle = artistRadioSwitch(settingsScreen())
+
+        (toggle.parent as View).performClick()
+
+        assertTrue(Preferences.isArtistRadioEnabled())
+        assertTrue(artistRadioSwitch(settingsScreen()).isChecked)
         shadowOf(Looper.getMainLooper()).idle()
         verify(session).notifyChildrenChanged(eq(Constants.ARTIST_ID + "15100"), any(), eq(null))
     }

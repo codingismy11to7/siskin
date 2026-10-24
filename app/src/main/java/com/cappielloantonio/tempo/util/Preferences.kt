@@ -27,6 +27,7 @@ object Preferences {
     private const val CONTINUOUS_PLAY = "continuous_play"
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val ARTIST_MIX = "artist_mix"
+    private const val ARTIST_RADIO = "artist_radio"
     private const val BROWSE_TAB_ORDER = "browse_tab_order"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
     private const val MIX_TRACK_LIMIT = "mix_track_limit"
@@ -254,6 +255,15 @@ object Preferences {
     @JvmStatic
     fun setArtistMixEnabled(enabled: Boolean) {
         App.getInstance().preferences.edit { putBoolean(ARTIST_MIX, enabled) }
+    }
+
+    /** Whether an artist's page offers that artist's Plex radio station. */
+    @JvmStatic
+    fun isArtistRadioEnabled(): Boolean = App.getInstance().preferences.getBoolean(ARTIST_RADIO, false)
+
+    @JvmStatic
+    fun setArtistRadioEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit { putBoolean(ARTIST_RADIO, enabled) }
     }
 
     /**

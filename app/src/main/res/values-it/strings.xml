@@ -2,6 +2,7 @@
     <string name="browse_albums">Album</string>
     <string name="browse_artists">Artisti</string>
     <string name="browse_mix_artist">Mix dell\'artista</string>
+    <string name="browse_radio_artist">Radio dell\'artista</string>
     <string name="browse_mix_playlist">Mix della playlist</string>
     <string name="browse_library_picker_no_music">Nessuna libreria musicale su questo server</string>
     <string name="browse_library_picker_offline">Impossibile raggiungere plex.tv per elencare i tuoi server</string>
@@ -28,6 +29,7 @@
     <string name="car_settings_replay_gain">Livellamento del volume</string>
     <string name="car_settings_artists_by_initial">Mostra artisti per iniziale</string>
     <string name="car_settings_artist_mix">Mostra il mix dell\'artista</string>
+    <string name="car_settings_artist_radio">Mostra la radio dell\'artista</string>
     <string name="car_settings_sign_out">Esci</string>
     <string name="car_settings_title">Impostazioni</string>
     <string name="car_settings_customize_tabs">Personalizza schede</string>

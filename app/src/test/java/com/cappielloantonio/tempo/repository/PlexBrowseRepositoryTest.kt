@@ -64,6 +64,7 @@ class PlexBrowseRepositoryTest {
         // turning the mix off would otherwise remove the row from every
         // artist page after it.
         Preferences.setArtistMixEnabled(true)
+        Preferences.setArtistRadioEnabled(false)
     }
 
     @After
@@ -307,6 +308,37 @@ class PlexBrowseRepositoryTest {
         // A non-null localConfiguration would make resolveQueueForItem treat the
         // row as an already-resolved track and play a stream that does not exist.
         assertNull(row.localConfiguration)
+    }
+
+    @Test
+    fun anArtistOffersRadioAfterItsMixWhenAskedTo() {
+        Preferences.setArtistRadioEnabled(true)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77")))
+
+        val result = await(PlexBrowseRepository().getArtistAlbums(Constants.ALBUM_ID, "15100"))
+
+        assertEquals(
+            listOf(Constants.MIX_ARTIST_ID + "15100", Constants.MIX_RADIO_ARTIST_ID + "15100", Constants.ALBUM_ID + "77"),
+            result.value!!.map { it.mediaId },
+        )
+        val radio = result.value!![1]
+        assertEquals(true, radio.mediaMetadata.isPlayable)
+        assertEquals(false, radio.mediaMetadata.isBrowsable)
+        assertNull(radio.localConfiguration)
+    }
+
+    @Test
+    fun radioStandsAloneWhenTheMixIsOff() {
+        Preferences.setArtistMixEnabled(false)
+        Preferences.setArtistRadioEnabled(true)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(albumsBody("77")))
+
+        val result = await(PlexBrowseRepository().getArtistAlbums(Constants.ALBUM_ID, "15100"))
+
+        assertEquals(
+            listOf(Constants.MIX_RADIO_ARTIST_ID + "15100", Constants.ALBUM_ID + "77"),
+            result.value!!.map { it.mediaId },
+        )
     }
 
     @Test

@@ -2,6 +2,7 @@
     <string name="browse_albums">Alben</string>
     <string name="browse_artists">Interpreten</string>
     <string name="browse_mix_artist">Interpreten-Mix</string>
+    <string name="browse_radio_artist">Interpreten-Radio</string>
     <string name="browse_mix_playlist">Wiedergabelisten-Mix</string>
     <string name="browse_library_picker_no_music">Keine Musikbibliotheken auf diesem Server</string>
     <string name="browse_library_picker_offline">plex.tv nicht erreichbar, um deine Server aufzulisten</string>
@@ -27,6 +28,7 @@
     <string name="car_settings_replay_gain">Lautstärkeangleichung</string>
     <string name="car_settings_artists_by_initial">Interpreten nach Anfangsbuchstaben</string>
     <string name="car_settings_artist_mix">Interpreten-Mix anzeigen</string>
+    <string name="car_settings_artist_radio">Interpreten-Radio anzeigen</string>
     <string name="car_settings_sign_out">Abmelden</string>
     <string name="car_settings_title">Einstellungen</string>
     <string name="car_settings_customize_tabs">Tabs anpassen</string>
