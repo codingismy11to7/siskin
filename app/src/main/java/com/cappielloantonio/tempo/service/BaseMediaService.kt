@@ -89,7 +89,9 @@ open class BaseMediaService : MediaLibraryService() {
         val radio = PlexRadioRepository()
         StationTopUp(
             extend = { tag -> ServerAddressBook.shared.withAddressRecovery { radio.extendStation(tag) } },
-            report = { item, position -> PlexScrobbler.reportNow(item, SearchClient.STATE_PLAYING, position) },
+            report = { item, position ->
+                PlexScrobbler.reportNow(item, playbackReporter?.state ?: SearchClient.STATE_PLAYING, position)
+            },
         )
     }
 
@@ -244,8 +246,6 @@ open class BaseMediaService : MediaLibraryService() {
                         // finish reporting before it reads the queue back.
                         if (PlexMediaMapper.stationTagOf(currentMediaItem) != null) {
                             topUpStation(player, currentMediaItem)
-                        } else if (currentMediaItem.mediaMetadata.extras != null) {
-                            MediaManager.scrobble(currentMediaItem, SearchClient.STATE_PLAYING, player.currentPosition)
                         }
 
                         if (player.nextMediaItemIndex == C.INDEX_UNSET) {
@@ -291,19 +291,6 @@ open class BaseMediaService : MediaLibraryService() {
                             player.currentMediaItem,
                             player.currentPosition,
                         )
-                    } else {
-                        MediaManager.scrobble(player.currentMediaItem, SearchClient.STATE_PLAYING, player.currentPosition)
-                    }
-                }
-
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    Log.d(TAG, "onPlaybackStateChanged")
-                    super.onPlaybackStateChanged(playbackState)
-                    if (!player.hasNextMediaItem() &&
-                        playbackState == Player.STATE_ENDED &&
-                        player.mediaMetadata.extras?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC
-                    ) {
-                        MediaManager.scrobble(player.currentMediaItem, SearchClient.STATE_STOPPED, player.currentPosition)
                     }
                 }
 
@@ -331,19 +318,6 @@ open class BaseMediaService : MediaLibraryService() {
                     }
 
                     if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) {
-                        if (oldPosition.mediaItem
-                                ?.mediaMetadata
-                                ?.extras
-                                ?.getString(PlexMediaMapper.EXTRA_TYPE) == Constants.MEDIA_TYPE_MUSIC
-                        ) {
-                            // oldPosition.positionMs, not player.currentPosition: by the time this
-                            // fires the player has already moved onto the next item, so
-                            // currentPosition would report the *new* track's position against the
-                            // *old* track's ratingKey. positionMs is where playback actually left
-                            // the old track -- exactly what a "stopped" report should carry.
-                            MediaManager.scrobble(oldPosition.mediaItem, SearchClient.STATE_STOPPED, oldPosition.positionMs)
-                        }
-
                         if (newPosition.mediaItem
                                 ?.mediaMetadata
                                 ?.extras
