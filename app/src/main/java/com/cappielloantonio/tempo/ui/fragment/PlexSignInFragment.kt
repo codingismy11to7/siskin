@@ -290,11 +290,11 @@ class PlexSignInFragment : Fragment() {
             }
 
             is PlexSignInState.EnteringPin -> {
-                state.messageRes?.let {
-                    bind.errorText.visibility = View.VISIBLE
-                    bind.errorText.setText(it)
-                }
-                addPinPad(bind.choiceContainer, getString(R.string.plex_sign_in_pin_delete)) {
+                addPinPad(
+                    bind.choiceContainer,
+                    getString(R.string.plex_sign_in_pin_delete),
+                    state.messageRes?.let { getString(it) },
+                ) {
                     viewModel.enterPin(it)
                 }
             }

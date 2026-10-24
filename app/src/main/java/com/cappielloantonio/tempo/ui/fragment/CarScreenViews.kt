@@ -195,6 +195,10 @@ internal fun applyPressFeedback(view: View) {
  * calling [onComplete] on the fourth digit. Plex Home PINs are always four
  * digits, so there is no OK key to find.
  *
+ * A [message] takes the dots' place until the first key press rather than
+ * adding a line above them: at 1024×768 one more line pushes the bottom row
+ * of keys off the screen.
+ *
  * Not the system keyboard: on a head unit it is a small target far from the
  * driver's seat, and these keys are the same arm's-length size as every other
  * row. The screen is parked-only already -- CarHostActivity has no
@@ -207,6 +211,7 @@ internal fun applyPressFeedback(view: View) {
 internal fun addPinPad(
     container: ViewGroup,
     deleteDescription: String,
+    message: String? = null,
     onComplete: (String) -> Unit,
 ) {
     val context = container.context
@@ -216,14 +221,20 @@ internal fun addPinPad(
     val dots =
         TextView(context).apply {
             gravity = Gravity.CENTER_HORIZONTAL
-            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_DisplaySmall)
         }
 
     fun showDots() {
+        dots.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_DisplaySmall)
         //noinspection SetTextI18n -- glyphs, not prose
         dots.text = (0 until PIN_LENGTH).joinToString(" ") { if (it < entered.length) FILLED_DOT else EMPTY_DOT }
     }
-    showDots()
+    if (message == null) {
+        showDots()
+    } else {
+        dots.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleLarge)
+        dots.setTextColor(MaterialColors.getColor(dots, androidx.appcompat.R.attr.colorError))
+        dots.text = message
+    }
     container.addView(
         dots,
         LinearLayout
