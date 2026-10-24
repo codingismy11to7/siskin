@@ -1653,6 +1653,40 @@ class PlexSignInViewModelTest {
         }
 
     @Test
+    fun anAbandonedSwitchDoesNotLeakIntoALaterChooseServer() =
+        runTest(dispatcher) {
+            PlexApi().session = PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id")
+            val outcome = SwitchOutcome.NeedsServer(account("jill-token"), nonEmptyListOf(aMediaServer(accessToken = "s")))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val probe = mock<ServerProbe>().stub { on { bestConnectionUri(any()) } doReturn server.url("/").toString() }
+            server.enqueue(MockResponse().setResponseCode(200).setBody(sectionsBody("5")))
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = signedInAuthClient(listOf(me, jill)),
+                    probe = probe,
+                    homeUserSwitch = switch,
+                )
+
+            viewModel.reopenUserPicker()
+            advanceUntilIdle()
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+
+            viewModel.reopenServerPicker()
+            advanceUntilIdle()
+            val servers = (viewModel.state.value as PlexSignInState.ChoosingServer).servers
+            viewModel.chooseServer(servers.head)
+            awaitSettled(viewModel)
+            viewModel.chooseLibrary((viewModel.state.value as PlexSignInState.ChoosingLibrary).sections.head)
+            shadowOf(Looper.getMainLooper()).idle()
+
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            assertEquals("admin-token", PlexApi().session!!.accountToken)
+            verify(player, never()).stop()
+        }
+
+    @Test
     fun anUnownedServerWithNoTokenIsRefusedAtThePicker() =
         runTest(dispatcher) {
             val unowned = aMediaServer(accessToken = null).apply { owned = false }

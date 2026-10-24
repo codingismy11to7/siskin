@@ -188,6 +188,10 @@ class PlexSignInViewModel
          */
         fun reopenServerPicker() {
             attempt?.cancel()
+            // A switch abandoned at the library picker must not leak its token
+            // into a commit that lists the current member's servers.
+            fromSettings = false
+            switched = null
             _state.value = PlexSignInState.Working
 
             attempt =
