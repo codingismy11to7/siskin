@@ -135,53 +135,53 @@ class PlexApi(
             // leaving.
             val previousMachineIdentifier = machineIdentifier
 
-            // Preferences first. The account writes below take
-            // previousMachineIdentifier and value.machineIdentifier as
-            // explicit arguments rather than re-reading the machineIdentifier
-            // property, so nothing here depends on this edit having landed
-            // yet -- only previousMachineIdentifier, captured above, does.
-            preferences.edit {
-                if (value == null) {
-                    remove(KEY_SERVER_URI)
-                    remove(KEY_MUSIC_SECTION_KEY)
-                    remove(KEY_MACHINE_IDENTIFIER)
-                    remove(KEY_SERVER_OWNED)
-                } else {
-                    putString(KEY_SERVER_URI, value.serverUri)
-                    putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
-                    putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
-                    putBoolean(KEY_SERVER_OWNED, value.owned)
-                }
-            }
-
             if (value == null) {
+                writeServerPreferences(null)
                 // Clearing the session deliberately leaves accountToken alone --
                 // the PIN grant is still valid and plex.tv calls still need it.
                 // The server token goes, because it belongs to a server that is
                 // no longer selected.
                 accounts.setServerToken(previousMachineIdentifier, null)
+                return
+            }
+
+            // Ordered so a reader between any two writes sees credentials the
+            // selected server accepts, never a Home member's plex.tv token with
+            // no server token of theirs. A new server token goes in first,
+            // invisible until the preferences name its machine; a cleared one
+            // goes last, so the new account token meets the old server token
+            // rather than nothing. With no account there is nothing to file a
+            // server token under, and no old token for anyone to pair it with.
+            if (accounts.hasAccount() && value.serverToken != null) {
+                accounts.setServerToken(value.machineIdentifier, value.serverToken)
+                writeServerPreferences(value)
+                accounts.setAccountToken(value.accountToken)
             } else {
-                if (previousMachineIdentifier != null &&
-                    previousMachineIdentifier != value.machineIdentifier
-                ) {
-                    accounts.setServerToken(previousMachineIdentifier, null)
-                }
-                // Order the two writes so a reader between them never pairs a
-                // Home member's plex.tv token with no server token, which the
-                // server refuses. A new server token goes first (new server
-                // token + old account token is accepted); clearing one goes
-                // second (new account token + old server token is accepted).
-                // With no account yet there is nothing to file the server token
-                // under, and no old token for anyone to pair it with.
-                if (accounts.hasAccount() && value.serverToken != null) {
-                    accounts.setServerToken(value.machineIdentifier, value.serverToken)
-                    accounts.setAccountToken(value.accountToken)
-                } else {
-                    accounts.setAccountToken(value.accountToken)
-                    accounts.setServerToken(value.machineIdentifier, value.serverToken)
-                }
+                accounts.setAccountToken(value.accountToken)
+                writeServerPreferences(value)
+                accounts.setServerToken(value.machineIdentifier, value.serverToken)
+            }
+            if (previousMachineIdentifier != null && previousMachineIdentifier != value.machineIdentifier) {
+                accounts.setServerToken(previousMachineIdentifier, null)
             }
         }
+
+    /** The four session values preferences hold, in one edit. */
+    private fun writeServerPreferences(value: PlexSession?) {
+        preferences.edit {
+            if (value == null) {
+                remove(KEY_SERVER_URI)
+                remove(KEY_MUSIC_SECTION_KEY)
+                remove(KEY_MACHINE_IDENTIFIER)
+                remove(KEY_SERVER_OWNED)
+            } else {
+                putString(KEY_SERVER_URI, value.serverUri)
+                putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
+                putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
+                putBoolean(KEY_SERVER_OWNED, value.owned)
+            }
+        }
+    }
 
     val appVersion: String get() = BuildConfig.VERSION_NAME
 
