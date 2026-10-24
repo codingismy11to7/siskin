@@ -347,9 +347,10 @@ object PlexMediaMapper {
      * localConfiguration would make resolveQueueForItem treat the row as already
      * resolved and "play" a track with no stream.
      *
-     * The icon is media3's own Material shuffle glyph rather than a vendored
-     * copy. It is not declared in media3's public.xml, so a rename on upgrade
-     * would break this reference -- as a compile error, which is why relying on
+     * The icon defaults to media3's own Material shuffle glyph rather than a
+     * vendored copy, and the caller may pass another (the radio row does). The
+     * glyph is not declared in media3's public.xml, so a rename on upgrade
+     * would break the reference -- as a compile error, which is why relying on
      * it is acceptable.
      */
     @JvmStatic

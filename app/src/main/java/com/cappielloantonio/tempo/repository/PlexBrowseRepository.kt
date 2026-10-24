@@ -595,8 +595,10 @@ class PlexBrowseRepository {
      * a result the car can act on and a transport failure reads as unreachable,
      * the same as every other Mix row.
      */
-    fun getArtistRadioTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        fetch({ radio.startStation(artistRatingKey) }) { radio.stationTracks(it, artistRatingKey) }
+    fun getArtistRadioTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        sectionKey ?: return errorFuture()
+        return fetch({ radio.startStation(artistRatingKey) }) { radio.stationTracks(it, artistRatingKey) }
+    }
 
     /**
      * Unsorted under the limit and `sort=random` over it -- the two do not

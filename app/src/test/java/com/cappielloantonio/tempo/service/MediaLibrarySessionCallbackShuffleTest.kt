@@ -325,7 +325,6 @@ class MediaLibrarySessionCallbackShuffleTest {
      * reintroduced write would be least visible in review and most annoying in
      * the car.
      */
-
     @Test
     fun addingTracksToARunningQueueLeavesShuffleAlone() {
         val mixTrack = albumTracks("9").single()

@@ -431,8 +431,8 @@ class MediaLibrarySessionCallback(
         Log.d(TAG, "extras: ${extras?.keySet()?.joinToString { key -> "$key=${extras.getString(key)}" } ?: "null"}")
 
         // This path cannot choose a start index -- it returns a bare list -- and
-        // does not need to: the list it returns is already shuffled, so track
-        // one is a random draw.
+        // does not need to: resolveQueueForItem shuffles a Mix, so track one is a
+        // random draw, and leaves a station in the server order it came in.
         return resolveQueueForItem(firstItem, mediaItems)
     }
 
