@@ -104,8 +104,8 @@ A commit whose account token differs from the saved session's clears the queue
 and stops playback, as `LibrarySelection.invalidatesQueue` already does for a
 server change. A switch always changes it, so the session does not have to
 record whose it is to tell. A PIN mints a new token too, so even a same-account
-re-sign-in clears the queue; that is accepted, since the loaded items carry the
-token that was just refused. Keeping the queue was rejected because the
+re-sign-in clears the queue; that is accepted, since a re-sign-in is rare and
+usually follows a refused token. Keeping the queue was rejected because the
 player's loaded items carry the previous user's token in their stream URLs, so
 playback would continue as one user while timeline reports went out as another.
 
@@ -158,9 +158,9 @@ inspect instead of an `HttpException` whose body `plexCall` would discard.
 **A managed user's account token must never be readable without that user's
 server token.** Today `PlexApi.session`'s setter writes the account token, then
 the server token. Between them a reader sees the new account token beside the
-old server token — or none — and the reader falls back to the account token. For an owner that fallback is correct. For a managed user it
-sends the raw switched token, the server answers 401, and the car offers "sign
-in again".
+old server token — or none — and the reader falls back to the account token. For
+an owner that fallback is correct. For a managed user it sends the raw switched
+token, the server answers 401, and the car offers "sign in again".
 
 Two changes close it. The first is the order of the writes:
 

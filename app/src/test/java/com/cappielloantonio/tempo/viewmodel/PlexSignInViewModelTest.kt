@@ -318,11 +318,11 @@ class PlexSignInViewModelTest {
     @Test
     fun chooseLibraryCommitsAllValuesTogether() =
         runTest(dispatcher) {
-            // The other half: once a library is picked, all five values land in
-            // one write, matching the account token from sign-in, the URI the
-            // probe returned (not something chooseLibrary re-derives), the
-            // section the user picked, that server's own access token, and its
-            // machine identifier.
+            // The other half: once a library is picked, every session value
+            // lands in one write, matching the account token from sign-in, the
+            // URI the probe returned (not something chooseLibrary re-derives),
+            // the section the user picked, that server's own access token, and
+            // its machine identifier.
             val accessToken = "resource-access-token"
             val machineIdentifier = "machine-id"
             val resource = aMediaServer(accessToken = accessToken, clientIdentifier = machineIdentifier)

@@ -684,8 +684,8 @@ class PlexSignInViewModel
             // the player's loaded items carry the previous token in their URLs,
             // and after a Home switch that token is another member's. A PIN
             // mints a new token too, so even a same-account re-sign-in clears
-            // it -- acceptable, since the loaded items carry the token that
-            // was just refused.
+            // it. That is accepted: a re-sign-in is rare and usually follows a
+            // refused token.
             val write = {
                 // The one write. Every value lands together or not at all.
                 api.session = next
