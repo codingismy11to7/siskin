@@ -6,6 +6,7 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
+import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +35,7 @@ object PlexScrobbler {
     private class Report(
         val ratingKey: String,
         val partKey: String,
-        val state: String,
+        val state: TimelineState,
         val timeMs: Long,
         val station: PlexMediaMapper.StationTag?,
         val sent: CompletableDeferred<Unit>? = null,
@@ -74,7 +75,7 @@ object PlexScrobbler {
     fun report(
         ratingKey: String,
         partKey: String,
-        state: String,
+        state: TimelineState,
         timeMs: Long,
         station: PlexMediaMapper.StationTag?,
     ) {
@@ -88,7 +89,7 @@ object PlexScrobbler {
      */
     suspend fun reportNow(
         item: MediaItem,
-        state: String,
+        state: TimelineState,
         timeMs: Long,
     ) {
         val extras = item.mediaMetadata.extras ?: return

@@ -70,7 +70,7 @@ class SearchClient(
     suspend fun reportProgress(
         ratingKey: RatingKey,
         key: String,
-        state: String,
+        state: TimelineState,
         timeMs: Long,
         station: PlexMediaMapper.StationTag? = null,
     ): Either<PlexTransportFailure, Unit> =
@@ -78,7 +78,7 @@ class SearchClient(
             service.reportProgress(
                 ratingKey.value,
                 key,
-                state,
+                state.wire,
                 timeMs,
                 station?.playQueueItemId,
                 station?.let { "/playQueues/${it.playQueueId}" },
@@ -101,10 +101,6 @@ class SearchClient(
         private const val DEFAULT_SEARCH_LIMIT = 50
 
         private const val LIBRARY_IDENTIFIER = "com.plexapp.plugins.library"
-
-        const val STATE_PLAYING = "playing"
-        const val STATE_PAUSED = "paused"
-        const val STATE_STOPPED = "stopped"
 
         /**
          * Plex's 0-10 scale: 10 is five stars.
