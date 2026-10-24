@@ -79,6 +79,9 @@ class SignInErrorTest {
                 SignInError.NoServers,
                 SignInError.NoLibraries,
                 SignInError.NoCandidate,
+                SignInError.WrongPin,
+                SignInError.RateLimited,
+                SignInError.ServerTokenMissing,
             )
 
         val messages = errors.map { PlexSignInFlow.messageFor(it) }
@@ -89,6 +92,22 @@ class SignInErrorTest {
             errors.size,
             messages.toSet().size,
         )
-        assertTrue(messages.size == 7)
+        assertTrue(messages.size == 10)
+    }
+
+    @Test
+    fun switchFailuresHaveTheirOwnMessages() {
+        assertEquals(
+            R.string.plex_sign_in_error_wrong_pin,
+            PlexSignInFlow.messageFor(SignInError.WrongPin),
+        )
+        assertEquals(
+            R.string.plex_sign_in_error_rate_limited,
+            PlexSignInFlow.messageFor(SignInError.RateLimited),
+        )
+        assertEquals(
+            R.string.plex_sign_in_error_no_server_access,
+            PlexSignInFlow.messageFor(SignInError.ServerTokenMissing),
+        )
     }
 }

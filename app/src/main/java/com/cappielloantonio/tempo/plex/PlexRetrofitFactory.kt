@@ -26,7 +26,18 @@ object PlexRetrofitFactory {
     /** Syntactically valid but unreachable; used before a server is discovered. */
     private const val PLACEHOLDER_BASE_URL = "https://localhost/"
 
-    fun plexTv(api: PlexApi): Retrofit = build(PLEX_TV_BASE_URL, api::plexTvHeaders)
+    fun plexTv(api: PlexApi): Retrofit = build(PLEX_TV_BASE_URL) { api.plexTvHeaders() }
+
+    /**
+     * plex.tv as [token] rather than as the stored account. A Home switch
+     * needs this: the new member's token has to list their servers before
+     * anything is persisted, and the identity interceptor would otherwise
+     * overwrite any per-request token with the stored one.
+     */
+    fun plexTv(
+        api: PlexApi,
+        token: String,
+    ): Retrofit = build(PLEX_TV_BASE_URL) { api.plexTvHeaders(token) }
 
     /**
      * Bakes [serverUri] into the returned instance's base URL, and uses
@@ -38,17 +49,25 @@ object PlexRetrofitFactory {
      * committing a PlexSession. The instance is still pinned to whatever it was
      * given: callers that outlive a server change must rebuild, as
      * PlexBrowseRepository.refreshClients does.
+     *
+     * [accountToken] is what a null [serverToken] falls back to, read on
+     * every request. It has no default because the stored account is the
+     * wrong answer for a candidate built mid-sign-in or mid-switch, where it
+     * may still be the previous member's. A client for the stored session
+     * passes [PlexApi.serverAuthToken] and `{ null }` instead: that already
+     * applies the fallback, and only for a server the account owns.
      */
     fun server(
         api: PlexApi,
         serverUri: String?,
         serverToken: String?,
+        accountToken: () -> String?,
     ): Retrofit =
         build(normalize(serverUri)) {
             PlexIdentity.headers(
                 api.clientIdentifier,
                 api.appVersion,
-                PlexApi.serverTokenOrAccount(serverToken, api.accountToken),
+                serverToken?.takeIf { it.isNotBlank() } ?: accountToken(),
                 api.language,
                 api.vehicle,
             )
@@ -139,6 +158,8 @@ object PlexRetrofitFactory {
             // X-Plex-Token is a full account credential; HEADERS logging would
             // otherwise write it to logcat verbatim on every request.
             redactHeader("X-Plex-Token")
+            // A Home member's PIN rides in the switch request's query string.
+            redactQueryParams("pin")
         }
 
     /**

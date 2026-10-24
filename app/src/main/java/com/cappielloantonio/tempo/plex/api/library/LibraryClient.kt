@@ -22,18 +22,20 @@ private const val TAG = "LibraryClient"
  * Pinned to the [serverUri] it was constructed with and never re-reads it --
  * discard and reconstruct whenever the server changes. Taking the address as a
  * parameter is what lets sign-in read a candidate server's sections before it
- * has committed a [com.cappielloantonio.tempo.plex.PlexSession].
+ * has committed a [com.cappielloantonio.tempo.plex.PlexSession]; see
+ * [PlexRetrofitFactory.server] for why [accountToken] is explicit.
  */
 class LibraryClient(
     api: PlexApi,
     serverUri: String?,
     serverToken: String?,
+    accountToken: () -> String?,
 ) {
     /** Uses whatever server the persisted session names. */
-    constructor(api: PlexApi) : this(api, api.serverUri, api.serverToken)
+    constructor(api: PlexApi) : this(api, api.serverUri, api.serverAuthToken, { null })
 
     private val service: LibraryService =
-        PlexRetrofitFactory.server(api, serverUri, serverToken).create(LibraryService::class.java)
+        PlexRetrofitFactory.server(api, serverUri, serverToken, accountToken).create(LibraryService::class.java)
 
     suspend fun getSections(): Either<PlexTransportFailure, PlexResponse> {
         Log.d(TAG, "getSections()")

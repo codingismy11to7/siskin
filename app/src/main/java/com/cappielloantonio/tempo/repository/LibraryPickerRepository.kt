@@ -22,6 +22,7 @@ import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.plex.models.refusesAccountToken
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.CarSignInResolution
 import com.cappielloantonio.tempo.util.Constants
@@ -169,6 +170,14 @@ class LibraryPickerRepository {
                     return@launch
                 }
 
+                // Before the probe: a server that will be refused anyway should
+                // not cost a race across every advertised address first.
+                if (resource.refusesAccountToken) {
+                    Log.d(TAG, "${resource.name} is not owned and came with no server token")
+                    future.set(messageResult(R.string.plex_sign_in_error_no_server_access))
+                    return@launch
+                }
+
                 val probe =
                     ServerProbe(
                         headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null, api.language, api.vehicle),
@@ -183,7 +192,7 @@ class LibraryPickerRepository {
                 candidates[machineIdentifier] = uri to resource
 
                 val sections =
-                    LibraryClient(api, uri, resource.accessToken)
+                    LibraryClient(api, uri, resource.accessToken, { api.accountToken })
                         .getSections()
                         .getOrElse { failure ->
                             // It answered ServerProbe a moment ago, so this is the
@@ -272,6 +281,14 @@ class LibraryPickerRepository {
             return future
         }
 
+        // A Home member's plex.tv token is refused by a server they do not
+        // own, so committing this would sign them out on the first request.
+        if (resource.refusesAccountToken) {
+            Log.d(TAG, "${resource.name} is not owned and came with no server token")
+            future.set(messageResult(R.string.plex_sign_in_error_no_server_access))
+            return future
+        }
+
         val previous = api.session
         val next =
             PlexSession(
@@ -280,7 +297,34 @@ class LibraryPickerRepository {
                 musicSectionKey = SectionKey(sectionKey),
                 serverToken = resource.accessToken,
                 machineIdentifier = resource.clientIdentifier,
+                owned = resource.owned != false,
             )
+
+        val commit: () -> Unit = {
+            // Recorded before the session write below so a re-probe has a list to
+            // race the moment this session exists, rather than only after the
+            // first recovery escalates all the way to plex.tv.
+            addressBook.adopt(resource, uri)
+
+            api.session = next
+
+            // The three music tabs are showing the old library. PlexBrowseRepository
+            // rebuilds its own clients on the next call because refreshClients()
+            // compares sessions, so only the car needs telling.
+            //
+            // These two have opposite threading contracts -- invalidateRoot() must be
+            // called on the main thread, invalidateNode() posts to it -- which is only
+            // safe because this runs on the car's callback thread or, after a stop,
+            // on the main thread, and not on this class's IO scope. Moving this body
+            // into a coroutine means posting invalidateRoot() as well.
+            BrowseTreeInvalidator.invalidateRoot()
+            BrowseTreeInvalidator.invalidateNode(
+                Constants.PICK_SERVER_ID + machineIdentifier,
+                0,
+            )
+
+            future.set(LibraryResult.ofItemList(ImmutableList.of(confirmationRow(payload)), null))
+        }
 
         if (LibrarySelection.invalidatesQueue(previous, next)) {
             // Rating keys are server-wide, so only a server change makes the
@@ -291,33 +335,12 @@ class LibraryPickerRepository {
             // Room is only half of the queue. ExoPlayer's timeline still holds
             // the old server's URLs, so without this the current track plays on,
             // the next one 404s, and BaseMediaService.onPlayerError re-prepares
-            // that dead URL every five seconds.
-            BrowseTreeInvalidator.stopPlayback()
+            // that dead URL every five seconds. The commit waits for the stop, so
+            // the outgoing track's final report goes out to the server it came from.
+            BrowseTreeInvalidator.stopPlayback(then = commit)
+        } else {
+            commit()
         }
-
-        // Recorded before the session write below so a re-probe has a list to
-        // race the moment this session exists, rather than only after the
-        // first recovery escalates all the way to plex.tv.
-        addressBook.adopt(resource, uri)
-
-        api.session = next
-
-        // The three music tabs are showing the old library. PlexBrowseRepository
-        // rebuilds its own clients on the next call because refreshClients()
-        // compares sessions, so only the car needs telling.
-        //
-        // These two have opposite threading contracts -- invalidateRoot() must be
-        // called on the main thread, invalidateNode() posts to it -- which is only
-        // safe because selectLibrary runs on the car's callback thread and not on
-        // this class's IO scope. Moving this body into a coroutine means posting
-        // invalidateRoot() as well.
-        BrowseTreeInvalidator.invalidateRoot()
-        BrowseTreeInvalidator.invalidateNode(
-            Constants.PICK_SERVER_ID + machineIdentifier,
-            0,
-        )
-
-        future.set(LibraryResult.ofItemList(ImmutableList.of(confirmationRow(payload)), null))
         return future
     }
 

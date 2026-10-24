@@ -46,7 +46,7 @@ class LibraryPickerCommitTest {
         // Robolectric caches SharedPreferences statically across methods, so every
         // field this test depends on is reset rather than assumed absent.
         api.accountToken = "acct"
-        api.session = PlexSession("acct", "http://pms:32400", SectionKey("3"), null, "abc123")
+        api.session = PlexSession("acct", "http://pms:32400", SectionKey("3"), null, "abc123", owned = true)
         // Every successful selectLibrary in this file now writes this key via
         // addressBook.adopt(), so it needs the same reset as accountToken/session
         // above -- otherwise a list stored by one test method would still be
@@ -138,6 +138,13 @@ class LibraryPickerCommitTest {
         throw AssertionError("'$id' never appeared in the queue within ${timeoutMs}ms")
     }
 
+    /**
+     * A server change commits only after the posted stop has run on the
+     * paused main looper, so the future cannot complete until it is idled.
+     */
+    private fun LibraryPickerRepository.selectNow(payload: String) =
+        selectLibrary(payload).also { shadowOf(Looper.getMainLooper()).idle() }.get()
+
     /** Seeds the queue and blocks until the seed is actually visible. */
     private fun seedQueue(id: String) {
         QueueRepository().insertAll(listOf(track(id)), true, 0)
@@ -182,7 +189,7 @@ class LibraryPickerCommitTest {
             libraryName = "Soundtrack",
         )
 
-        val result = repo.selectLibrary("xyz999|7").get()
+        val result = repo.selectNow("xyz999|7")
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         // Read once so a partial write -- e.g. serverUri moved but
@@ -194,6 +201,46 @@ class LibraryPickerCommitTest {
         assertEquals(SectionKey("7"), session?.musicSectionKey)
         assertEquals("srv-tok", session?.serverToken)
         assertEquals("xyz999", session?.machineIdentifier)
+    }
+
+    @Test
+    fun `a commit to a server the account does not own is saved as unowned`() {
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://newserver:32400",
+            resource = resource(id = "xyz999", accessToken = "srv-tok").apply { owned = false },
+            sectionKey = "7",
+            libraryName = "Soundtrack",
+        )
+
+        repo.selectNow("xyz999|7")
+
+        assertEquals(false, api.session?.owned)
+        assertEquals("srv-tok", api.session?.serverToken)
+    }
+
+    @Test
+    fun `an unowned server with no token of its own is refused without touching the session`() {
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://newserver:32400",
+            resource = resource(id = "xyz999", accessToken = null).apply { owned = false },
+            sectionKey = "7",
+            libraryName = "Soundtrack",
+        )
+        val before = api.session
+
+        val result = repo.selectNow("xyz999|7")
+
+        assertEquals(before, api.session)
+        assertEquals(
+            App.getContext().getString(R.string.plex_sign_in_error_no_server_access),
+            result.value
+                ?.single()
+                ?.mediaMetadata
+                ?.title
+                ?.toString(),
+        )
     }
 
     @Test
@@ -210,7 +257,7 @@ class LibraryPickerCommitTest {
             libraryName = "Soundtrack",
         )
 
-        repo.selectLibrary("xyz999|7").get()
+        repo.selectNow("xyz999|7")
 
         val stored = ServerAddressBook.newForTest(api).storedCandidates("xyz999")
         assertNotNull("selectLibrary must record the address list", stored)
@@ -231,7 +278,7 @@ class LibraryPickerCommitTest {
             sectionKey = "7",
             libraryName = "Soundtrack",
         )
-        repo.selectLibrary("abc123|7").get()
+        repo.selectNow("abc123|7")
 
         assertTrue(queueIdsAfterBarrier().contains("keep-me"))
     }
@@ -247,7 +294,7 @@ class LibraryPickerCommitTest {
             sectionKey = "7",
             libraryName = "Soundtrack",
         )
-        repo.selectLibrary("xyz999|7").get()
+        repo.selectNow("xyz999|7")
 
         assertFalse(queueIdsAfterBarrier().contains("keep-me"))
     }
@@ -261,17 +308,36 @@ class LibraryPickerCommitTest {
             sectionKey = "7",
             libraryName = "Soundtrack",
         )
-        repo.selectLibrary("xyz999|7").get()
-
-        // stopPlayback posts to the main thread, and Robolectric's looper is
-        // paused, so without this the queued Player calls never run and the
-        // verifications below would fail whether or not the fix is present.
-        shadowOf(Looper.getMainLooper()).idle()
+        repo.selectNow("xyz999|7")
 
         // Deleting the Room queue is not enough on its own: ExoPlayer's timeline
         // still holds the old server's stream URLs.
         verify(player).stop()
         verify(player).clearMediaItems()
+    }
+
+    @Test
+    fun `a server change is written only once the player has stopped`() {
+        // Clearing the player reports the outgoing track stopped, and that
+        // report reads the stored server.
+        var serverWhenCleared: String? = null
+        whenever(player.clearMediaItems()).thenAnswer { serverWhenCleared = api.machineIdentifier }
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://otherserver:32400",
+            resource = resource(id = "xyz999"),
+            sectionKey = "7",
+            libraryName = "Soundtrack",
+        )
+
+        val result = repo.selectLibrary("xyz999|7")
+        assertEquals("abc123", api.machineIdentifier)
+        assertFalse(result.isDone)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals("abc123", serverWhenCleared)
+        assertEquals("xyz999", api.machineIdentifier)
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.get().resultCode)
     }
 
     @Test
@@ -283,7 +349,7 @@ class LibraryPickerCommitTest {
             sectionKey = "7",
             libraryName = "Soundtrack",
         )
-        repo.selectLibrary("abc123|7").get()
+        repo.selectNow("abc123|7")
         shadowOf(Looper.getMainLooper()).idle()
 
         // Rating keys are server-wide, so the queue -- and what is playing from
@@ -311,7 +377,7 @@ class LibraryPickerCommitTest {
         // The car caches a browse list and does not re-fetch it on the way back,
         // so the tap on the first server's list arrives after the second server
         // has already been entered.
-        val result = repo.selectLibrary("aaa111|1").get()
+        val result = repo.selectNow("aaa111|1")
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         val session = api.session
@@ -333,7 +399,7 @@ class LibraryPickerCommitTest {
         val before = api.session
 
         // Payload names abc123, but the held candidate is for xyz999.
-        val result = repo.selectLibrary("abc123|7").get()
+        val result = repo.selectNow("abc123|7")
 
         assertEquals(SessionError.ERROR_INVALID_STATE, result.resultCode)
         assertEquals(before, api.session)
@@ -350,7 +416,7 @@ class LibraryPickerCommitTest {
         )
         val before = api.session
 
-        val result = repo.selectLibrary("abc123|").get()
+        val result = repo.selectNow("abc123|")
 
         assertEquals(SessionError.ERROR_INVALID_STATE, result.resultCode)
         assertEquals(before, api.session)
@@ -368,7 +434,7 @@ class LibraryPickerCommitTest {
             libraryName = "Soundtrack",
         )
 
-        val result = repo.selectLibrary("xyz999|7").get()
+        val result = repo.selectNow("xyz999|7")
 
         assertEquals(SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED, result.resultCode)
         // api.session itself would read null either way here, since accountToken
@@ -448,7 +514,7 @@ class LibraryPickerCommitTest {
             libraryName = "Big Music Library",
         )
 
-        val result = repo.selectLibrary("abc123|7").get()
+        val result = repo.selectNow("abc123|7")
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         val item = requireNotNull(result.value).single()

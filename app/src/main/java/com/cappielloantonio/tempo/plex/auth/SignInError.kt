@@ -43,4 +43,17 @@ sealed interface SignInError {
      * the screen stuck rather than telling the user to start over.
      */
     data object NoCandidate : SignInError
+
+    /** plex.tv refused the Home member's PIN (403, code 1041). */
+    data object WrongPin : SignInError
+
+    /** plex.tv is rate-limiting Home switches (429). */
+    data object RateLimited : SignInError
+
+    /**
+     * The chosen server does not belong to this account and plex.tv gave no
+     * token for it. The account token would be refused there, so there is
+     * nothing to sign in with.
+     */
+    data object ServerTokenMissing : SignInError
 }

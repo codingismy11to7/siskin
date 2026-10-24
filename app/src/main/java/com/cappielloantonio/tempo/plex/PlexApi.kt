@@ -15,7 +15,13 @@ import java.util.UUID
  * The client identifier must be stable for the lifetime of the install -- Plex
  * ties the PIN grant to it, so regenerating it silently invalidates the session.
  */
-class PlexApi {
+class PlexApi(
+    /** A seam for tests that need to observe the order of account writes. */
+    private val accountStore: () -> PlexAccountStore,
+) {
+    /** Java builds this with `new PlexApi()`, which a default argument would not give it. */
+    constructor() : this({ PlexAccountStore() })
+
     private val preferences get() = App.getInstance().preferences
 
     /**
@@ -25,7 +31,7 @@ class PlexApi {
      * this class is built ad hoc at eleven call sites and has no lifecycle to
      * hang a shared instance on.
      */
-    private val accounts get() = PlexAccountStore()
+    private val accounts get() = accountStore()
 
     /** Stable per install; generated once on first use. */
     val clientIdentifier: String
@@ -71,6 +77,14 @@ class PlexApi {
         get() = preferences.getString(KEY_MACHINE_IDENTIFIER, null)
         set(value) = preferences.edit { putString(KEY_MACHINE_IDENTIFIER, value) }
 
+    /** See [PlexSession.owned]. Absent reads as true. */
+    val serverOwned: Boolean
+        get() = preferences.getBoolean(KEY_SERVER_OWNED, true)
+
+    /** What a call to the selected server authenticates with; see the companion [serverAuthToken]. */
+    val serverAuthToken: String?
+        get() = serverAuthToken(serverToken, accountToken, serverOwned)
+
     /**
      * Every address the current server advertises, as JSON; null before one has
      * been recorded. Read and written only through ServerAddressBook, which owns
@@ -94,16 +108,18 @@ class PlexApi {
      * lands last, a lookup for the current server can only return that
      * server's own token or null, never a token belonging to a different one.
      *
-     * It does not close the read window. This getter still makes five
-     * independent reads -- accountToken, serverUri, musicSectionKey,
-     * serverToken (which itself re-reads machineIdentifier), and
-     * machineIdentifier again -- and a write landing between any two of them
-     * can still hand back a session assembled from two servers, e.g. an old
+     * It does not close the read window. This getter makes six independent
+     * reads -- accountToken, serverUri, musicSectionKey, serverToken (which
+     * itself re-reads machineIdentifier), machineIdentifier again, and
+     * [serverOwned] -- and a write landing between any two of them can still
+     * hand back a session assembled from two servers, e.g. an old
      * [serverUri] beside a [serverToken] for the server a concurrent write
-     * just switched *to*. That is not new: the pre-account-store getter read
-     * the same five preference keys independently and had the identical
-     * exposure -- only the span changed, from an in-memory map read to two
-     * Binder round trips. Narrowing it would mean making this getter atomic,
+     * just switched *to*. [serverOwned] is the read the not-owned guard
+     * depends on, so the setter marks it before the token write rather than
+     * relying on it landing beside the other preferences. The exposure is
+     * not new: the pre-account-store getter read its preference keys
+     * independently too -- only the span changed, from an in-memory map read
+     * to two Binder round trips. Narrowing it would mean making this getter atomic,
      * which was considered and rejected; see the design doc's "Alternatives
      * considered".
      */
@@ -115,6 +131,7 @@ class PlexApi {
                 musicSectionKey,
                 serverToken,
                 machineIdentifier,
+                owned = serverOwned,
             )
         set(value) {
             // Read before the preferences write below overwrites it. Switching
@@ -124,39 +141,58 @@ class PlexApi {
             // leaving.
             val previousMachineIdentifier = machineIdentifier
 
-            // Preferences first. The account writes below take
-            // previousMachineIdentifier and value.machineIdentifier as
-            // explicit arguments rather than re-reading the machineIdentifier
-            // property, so nothing here depends on this edit having landed
-            // yet -- only previousMachineIdentifier, captured above, does.
-            preferences.edit {
-                if (value == null) {
-                    remove(KEY_SERVER_URI)
-                    remove(KEY_MUSIC_SECTION_KEY)
-                    remove(KEY_MACHINE_IDENTIFIER)
-                } else {
-                    putString(KEY_SERVER_URI, value.serverUri)
-                    putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
-                    putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
-                }
-            }
-
             if (value == null) {
+                writeServerPreferences(null)
                 // Clearing the session deliberately leaves accountToken alone --
                 // the PIN grant is still valid and plex.tv calls still need it.
                 // The server token goes, because it belongs to a server that is
                 // no longer selected.
                 accounts.setServerToken(previousMachineIdentifier, null)
-            } else {
-                if (previousMachineIdentifier != null &&
-                    previousMachineIdentifier != value.machineIdentifier
-                ) {
-                    accounts.setServerToken(previousMachineIdentifier, null)
-                }
+                return
+            }
+
+            // On a device, changing the account token deletes every server
+            // token, so a reader between two writes must see either credentials
+            // the selected server accepts or no session -- never a plex.tv
+            // token with no server token on a server that account does not
+            // own, which the server answers with 401. A changed token is
+            // therefore written only once the stored session is marked not
+            // owned, which reads as none without a server token.
+            val stored = accounts.accountToken()
+            if (stored != null && stored != value.accountToken) {
+                markServerNotOwned()
                 accounts.setAccountToken(value.accountToken)
-                accounts.setServerToken(value.machineIdentifier, value.serverToken)
+                writeServerPreferences(value)
+            } else {
+                writeServerPreferences(value)
+                accounts.setAccountToken(value.accountToken)
+            }
+            accounts.setServerToken(value.machineIdentifier, value.serverToken)
+            if (previousMachineIdentifier != null && previousMachineIdentifier != value.machineIdentifier) {
+                accounts.setServerToken(previousMachineIdentifier, null)
             }
         }
+
+    private fun markServerNotOwned() {
+        preferences.edit { putBoolean(KEY_SERVER_OWNED, false) }
+    }
+
+    /** The four session values preferences hold, in one edit. */
+    private fun writeServerPreferences(value: PlexSession?) {
+        preferences.edit {
+            if (value == null) {
+                remove(KEY_SERVER_URI)
+                remove(KEY_MUSIC_SECTION_KEY)
+                remove(KEY_MACHINE_IDENTIFIER)
+                remove(KEY_SERVER_OWNED)
+            } else {
+                putString(KEY_SERVER_URI, value.serverUri)
+                putString(KEY_MUSIC_SECTION_KEY, value.musicSectionKey.value)
+                putString(KEY_MACHINE_IDENTIFIER, value.machineIdentifier)
+                putBoolean(KEY_SERVER_OWNED, value.owned)
+            }
+        }
+    }
 
     val appVersion: String get() = BuildConfig.VERSION_NAME
 
@@ -173,13 +209,16 @@ class PlexApi {
     /** What the car says it is; UNKNOWN until the startup read lands. */
     val vehicle: VehicleIdentity get() = VehicleInfoReader.identity()
 
-    fun plexTvHeaders(): Map<String, String> = PlexIdentity.headers(clientIdentifier, appVersion, accountToken, language, vehicle)
+    fun plexTvHeaders(): Map<String, String> = plexTvHeaders(accountToken)
+
+    fun plexTvHeaders(token: String?): Map<String, String> = PlexIdentity.headers(clientIdentifier, appVersion, token, language, vehicle)
 
     companion object {
         private const val KEY_CLIENT_ID = "plex_client_identifier"
         private const val KEY_SERVER_URI = "plex_server_uri"
         private const val KEY_MUSIC_SECTION_KEY = "plex_music_section_key"
         private const val KEY_MACHINE_IDENTIFIER = "plex_machine_identifier"
+        private const val KEY_SERVER_OWNED = "plex_server_owned"
         private const val KEY_SERVER_CANDIDATES = "plex_server_candidates"
 
         /**
@@ -192,13 +231,16 @@ class PlexApi {
         private val IDENTITY_LOCK = Any()
 
         /**
-         * Which token authenticates a media-server call. Pure and static because
-         * PlexApi itself reads SharedPreferences, which unit tests cannot observe.
+         * Which token authenticates a call to the selected server: its own
+         * token, else the account token -- but only for a server the account
+         * owns, since any other refuses it. Every reader of the stored session
+         * goes through this, so the rule has one home.
          */
         @JvmStatic
-        fun serverTokenOrAccount(
+        fun serverAuthToken(
             serverToken: String?,
             accountToken: String?,
-        ): String? = if (serverToken.isNullOrBlank()) accountToken else serverToken
+            owned: Boolean,
+        ): String? = if (!serverToken.isNullOrBlank()) serverToken else accountToken.takeIf { owned }
     }
 }

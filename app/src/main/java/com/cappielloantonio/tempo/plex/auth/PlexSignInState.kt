@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.plex.auth
 import androidx.annotation.StringRes
 import arrow.core.NonEmptyList
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.plex.models.Resource
 
 /**
@@ -63,9 +64,13 @@ sealed interface PlexSignInState {
      * rather than abandon a sign-in nobody started -- but that is the fragment
      * back stack's job, not this type's. See
      * [com.cappielloantonio.tempo.ui.fragment.CarDebugFragment]'s `chooseServer`.
+     *
+     * [account] is who a commit from here signs in as. Nothing has been
+     * written for it yet; see [PendingAccount].
      */
     data class ChoosingServer(
         val servers: NonEmptyList<Resource>,
+        val account: PendingAccount,
         @param:StringRes val messageRes: Int? = null,
     ) : PlexSignInState
 
@@ -80,10 +85,45 @@ sealed interface PlexSignInState {
      * simply carries the same value forward into this one rather than caching
      * it anywhere else. See the comment on that read for why a parallel field
      * is the thing being avoided (issue #18).
+     *
+     * [account] is carried forward the same way, and is the account token the
+     * commit from here writes.
      */
     data class ChoosingLibrary(
         val sections: NonEmptyList<Directory>,
         val servers: NonEmptyList<Resource>,
+        val account: PendingAccount,
+    ) : PlexSignInState
+
+    /**
+     * Who is listening, for a Home with more than one member. Non-empty by
+     * construction; a one-member Home never shows this.
+     *
+     * [currentUuid] is set only when opened from settings, where it marks the
+     * active member and tapping it does nothing. At sign-in it is null and
+     * every member, the signed-in one included, is a switch.
+     *
+     * [account] is the token a switch is made *from*: the one that approved
+     * the PIN at sign-in, the stored one from settings.
+     */
+    data class ChoosingUser(
+        val users: NonEmptyList<HomeUser>,
+        val account: PendingAccount,
+        val currentUuid: String? = null,
+        @param:StringRes val messageRes: Int? = null,
+    ) : PlexSignInState
+
+    /**
+     * A protected member's PIN. Carries [users], [account] and [currentUuid]
+     * so that back returns to the picker intact, as [ChoosingLibrary] carries
+     * `servers`.
+     */
+    data class EnteringPin(
+        val user: HomeUser,
+        val users: NonEmptyList<HomeUser>,
+        val account: PendingAccount,
+        val currentUuid: String? = null,
+        @param:StringRes val messageRes: Int? = null,
     ) : PlexSignInState
 
     data class Failed(

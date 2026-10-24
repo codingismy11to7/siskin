@@ -1,11 +1,16 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.text.InputFilter
+import android.text.InputType
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.widget.doAfterTextChanged
 import com.cappielloantonio.tempo.R
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
@@ -14,17 +19,17 @@ import com.google.android.material.materialswitch.MaterialSwitch
 /*
  * The rows both car screens build into their `choice_container`.
  *
- * One file rather than two because all three functions here answer the same
+ * One file rather than two because all four functions here answer the same
  * question -- what a control has to look like to be operated at arm's length,
  * in a car -- and the answer is shared even where the callers are not.
  * [addChoice] is genuinely used by both screens: the server and library pickers
  * build their lists with it, and settings builds Customize tabs and Sign out
  * with it. [addToggle] and [applyPressFeedback] are settings' alone today, and
- * live here anyway so that a reader comparing a switch row against a button row
+ * [addPinField] is sign-in's; they live here anyway so that a reader comparing a switch row against a button row
  * finds the two decisions side by side rather than in different files.
  *
  * Free functions taking the container, rather than members of a base fragment:
- * there is nothing to inherit here beyond these three calls, and a shared
+ * there is nothing to inherit here beyond these calls, and a shared
  * superclass would be a second, invisible reason the two screens are coupled --
  * which is what splitting them was meant to remove.
  */
@@ -189,3 +194,38 @@ internal fun applyPressFeedback(view: View) {
     )
     view.setBackgroundResource(ripple.resourceId)
 }
+
+/**
+ * A four-digit PIN field on the system's numeric keyboard, calling [onPin] with
+ * the digits once the fourth is typed. Plex Home PINs are always four digits,
+ * so there is no submit button, and the keyboard's Done key only closes it.
+ *
+ * The digits live in the field, not in the view model: a PIN is never state
+ * anything else should see. The screen is parked-only already --
+ * CarHostActivity has no distractionOptimized meta-data -- so the keyboard
+ * needs nothing extra.
+ */
+internal fun addPinField(
+    container: ViewGroup,
+    onPin: (String) -> Unit,
+): EditText {
+    val field =
+        EditText(container.context).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            filters = arrayOf(InputFilter.LengthFilter(PIN_LENGTH))
+            imeOptions = EditorInfo.IME_ACTION_DONE
+            gravity = Gravity.CENTER_HORIZONTAL
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+            doAfterTextChanged { if (it?.length == PIN_LENGTH) onPin(it.toString()) }
+        }
+    container.addView(
+        field,
+        LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        ),
+    )
+    return field
+}
+
+private const val PIN_LENGTH = 4

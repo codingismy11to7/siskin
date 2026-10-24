@@ -31,6 +31,8 @@
     <string name="car_settings_artist_mix">Afficher le mix de l\'artiste</string>
     <string name="car_settings_artist_radio">Afficher la radio de l\'artiste</string>
     <string name="car_settings_sign_out">Se déconnecter</string>
+    <string name="car_settings_switch_user">Changer d\'utilisateur</string>
+    <string name="car_settings_listening_as">Écoute en tant que %1$s</string>
     <string name="car_settings_title">Paramètres</string>
     <string name="car_settings_customize_tabs">Personnaliser les onglets</string>
     <string name="car_tab_order_title">Ordre des onglets</string>
@@ -49,15 +51,20 @@
 
     <string name="plex_sign_in_choose_library">Choisissez une bibliothèque musicale</string>
     <string name="plex_sign_in_choose_server">Choisissez un serveur Plex</string>
+    <string name="plex_sign_in_choose_user">Qui écoute\u202f?</string>
     <string name="plex_sign_in_connect">Se connecter à Plex</string>
+    <string name="plex_sign_in_enter_pin">Saisissez le code PIN de %1$s</string>
     <string name="plex_sign_in_tagline">Votre voiture. Votre musique.</string>
     <string name="plex_sign_in_error_expired">Le code de connexion a expiré.</string>
     <string name="plex_sign_in_error_lost_candidate">Le serveur sélectionné a été perdu. Veuillez réessayer.</string>
     <string name="plex_sign_in_error_network">Impossible de joindre plex.tv.</string>
     <string name="plex_sign_in_error_no_libraries">Ce serveur n\'a aucune bibliothèque musicale.</string>
+    <string name="plex_sign_in_error_no_server_access">Cet utilisateur n\'a pas accès à ce serveur.</string>
     <string name="plex_sign_in_error_no_servers">Ce compte Plex n\'a aucun serveur multimédia joignable.</string>
     <string name="plex_sign_in_error_pin">Plex n\'a pas renvoyé de code de connexion.</string>
+    <string name="plex_sign_in_error_rate_limited">Trop de tentatives. Patientez un instant, puis réessayez.</string>
     <string name="plex_sign_in_error_server_unreachable">Impossible de joindre ce serveur Plex.</string>
+    <string name="plex_sign_in_error_wrong_pin">Code PIN incorrect. Réessayez.</string>
     <string name="plex_sign_in_instructions">Scannez le QR code — ou allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_instructions_no_qr">Allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_not_allowed">Ce profil ne peut pas ajouter de comptes, donc Siskin ne peut pas se connecter à Plex ici. Passez à votre propre profil pour vous connecter.</string>

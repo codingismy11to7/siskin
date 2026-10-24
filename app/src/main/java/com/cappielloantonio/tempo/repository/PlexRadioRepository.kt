@@ -67,7 +67,7 @@ class PlexRadioRepository(
     ): List<MediaItem> {
         val playQueueId = response.mediaContainer?.playQueueID ?: return emptyList()
         val serverUri = api.session?.serverUri
-        val token = PlexApi.serverTokenOrAccount(api.session?.serverToken, api.accountToken)
+        val token = api.session?.serverAuthToken
         return PlexBrowseRepository.tracksOf(response).mapNotNull { track ->
             val itemId = track.playQueueItemID ?: return@mapNotNull null
             PlexMediaMapper.trackToMediaItem(

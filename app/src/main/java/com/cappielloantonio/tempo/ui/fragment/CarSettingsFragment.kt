@@ -7,19 +7,23 @@ import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import com.cappielloantonio.tempo.BuildConfig
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentCarSettingsBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
+import kotlinx.coroutines.launch
 
 /**
  * What the car shows once there is a session: the toggles, the route to the
- * tab-order screen, Sign out, and the version line that opens the debug screen.
+ * tab-order screen, Switch user, Sign out, and the version line that opens the
+ * debug screen.
  *
  * Reached by state, not by a caller. [CarHostActivity] routes
  * [com.cappielloantonio.tempo.plex.auth.PlexSignInState.Connected] here and
@@ -27,7 +31,8 @@ import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
  * this fragment performs, it is a state change that moves the activity off this
  * screen. See the activity's KDoc for why the routing lives there.
  *
- * Builds its rows once, in [onCreateView], rather than observing state: the
+ * Builds its rows once, in [onCreateView], rather than observing state (except
+ * that Switch user's visibility waits on a plex.tv answer): the
  * only state this screen is ever shown for is Connected, and the one transition
  * out of it is the one that replaces this fragment. Preferences are therefore
  * read at build time -- which is also true on the way back from
@@ -112,6 +117,14 @@ class CarSettingsFragment : Fragment() {
                 .commit()
         }
 
+        // Hidden until the Home answers. Built here with the others so it holds
+        // its place above Sign out; shown only for a Home with more than one
+        // member, and never after a failed lookup -- a plex.tv outage should
+        // not put a dead row in settings.
+        val switchUser =
+            addChoice(rows, getString(R.string.car_settings_switch_user)) { switchUser() }
+                .apply { visibility = View.GONE }
+
         addChoice(rows, getString(R.string.car_settings_sign_out)) {
             viewModel.signOut()
             (requireActivity() as LoginHost).onSignedOut()
@@ -142,7 +155,37 @@ class CarSettingsFragment : Fragment() {
         bind.versionText.isFocusable = true
         applyPressFeedback(bind.versionText)
 
+        viewLifecycleOwner.lifecycleScope.launch {
+            val home = HomeUsersRepository.fetch() ?: return@launch
+            if (home.users.size < 2) return@launch
+            val bind = this@CarSettingsFragment.bind ?: return@launch
+            bind.listeningAs.text = getString(R.string.car_settings_listening_as, home.current.title.orEmpty())
+            bind.listeningAs.visibility = View.VISIBLE
+            (bind.tagline.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin =
+                (8 * resources.displayMetrics.density).toInt()
+            bind.tagline.requestLayout()
+            switchUser.visibility = View.VISIBLE
+        }
+
         return bind.root
+    }
+
+    /**
+     * Pushed, as the debug screen's Choose server is, so back returns here.
+     *
+     * The push is executed before the state changes. `commit()` alone is
+     * asynchronous, so the router would see the new state with an empty back
+     * stack and replace the pushed screen with a routed one -- whose back
+     * signs out on screen instead of returning here.
+     */
+    private fun switchUser() {
+        parentFragmentManager
+            .beginTransaction()
+            .replace(R.id.car_host_container, PlexSignInFragment.pushed())
+            .addToBackStack(null)
+            .commit()
+        parentFragmentManager.executePendingTransactions()
+        viewModel.reopenUserPicker()
     }
 
     override fun onDestroyView() {

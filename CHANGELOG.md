@@ -11,6 +11,14 @@
 
 ## [Unreleased] — Siskin
 
+- Siskin can play as anyone in your Plex Home, managed users included. After
+  signing in, a Home with more than one member asks who is listening; Settings
+  shows who that is and has a Switch user button. A profile with a PIN asks for
+  it. Playback, ratings and history then belong to the person
+  listening, and what they can see is what Plex allows them. Switching stops
+  what is playing and clears the queue, since both belong to the previous
+  listener.
+
 - The Plex server now follows playback as it happens: Siskin reports its
   position every ten seconds while playing and says when it pauses, so the
   server's Now Playing shows the car live instead of frozen at the start of

@@ -22,6 +22,7 @@ class CredentialGateTest {
             serverUri = "https://192.168.1.10:32400",
             musicSectionKey = SectionKey("3"),
             serverToken = null,
+            owned = true,
         )
 
     // App caches SharedPreferences in a static field Robolectric does not reset

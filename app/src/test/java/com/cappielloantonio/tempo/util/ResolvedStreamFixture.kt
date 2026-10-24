@@ -74,6 +74,7 @@ class ResolvedStreamFixture {
                 musicSectionKey = SectionKey("5"),
                 serverToken = "server-token",
                 machineIdentifier = "machine-a",
+                owned = true,
             )
     }
 

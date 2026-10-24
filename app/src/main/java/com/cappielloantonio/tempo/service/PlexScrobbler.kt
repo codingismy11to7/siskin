@@ -30,14 +30,26 @@ private const val TAG = "PlexScrobbler"
  * Reports are sent one at a time, in the order they were made. The server keeps
  * whichever state it heard last, so a heartbeat overtaken by the pause that
  * followed it would leave a paused car showing as playing.
+ *
+ * A "stopped" report snapshots the server and token on the calling thread; the
+ * rest resolve them when sent, off the main thread, as reading them costs
+ * AccountManager Binder calls. The snapshot exists for the final "stopped" of a
+ * track left by a Home switch, queued just before the new member's session is
+ * written, which must still go out as the member who played it.
  */
 object PlexScrobbler {
+    private data class Server(
+        val uri: String?,
+        val token: String?,
+    )
+
     private class Report(
         val ratingKey: String,
         val partKey: String,
         val state: TimelineState,
         val timeMs: Long,
         val station: PlexMediaMapper.StationTag?,
+        val server: Server?,
         val sent: CompletableDeferred<Unit>? = null,
     )
 
@@ -47,7 +59,7 @@ object PlexScrobbler {
 
     // Touched only by the one coroutine draining the queue.
     private var client: SearchClient? = null
-    private var clientServer: Pair<String?, String?>? = null
+    private var clientServer: Server? = null
 
     // Process-scoped, and deliberately never cancelled: a scrobble outlives the
     // track it describes -- the "stopped" report is sent as the item is being
@@ -79,7 +91,7 @@ object PlexScrobbler {
         timeMs: Long,
         station: PlexMediaMapper.StationTag?,
     ) {
-        queue.trySend(Report(ratingKey, partKey, state, timeMs, station))
+        queue.trySend(Report(ratingKey, partKey, state, timeMs, station, snapshotFor(state)))
     }
 
     /**
@@ -96,12 +108,16 @@ object PlexScrobbler {
         val ratingKey = extras.getString(PlexMediaMapper.EXTRA_ID) ?: return
         val partKey = extras.getString(PlexMediaMapper.EXTRA_PART_KEY) ?: return
         val sent = CompletableDeferred<Unit>()
-        queue.trySend(Report(ratingKey, partKey, state, timeMs, PlexMediaMapper.stationTagOf(item), sent))
+        queue.trySend(Report(ratingKey, partKey, state, timeMs, PlexMediaMapper.stationTagOf(item), snapshotFor(state), sent))
         sent.await()
     }
 
+    private fun currentServer() = Server(api.serverUri, api.serverAuthToken)
+
+    private fun snapshotFor(state: TimelineState) = if (state == TimelineState.STOPPED) currentServer() else null
+
     private suspend fun send(report: Report) {
-        searchClient()
+        searchClient(report.server ?: currentServer())
             .reportProgress(RatingKey(report.ratingKey), report.partKey, report.state, report.timeMs, report.station)
             .onLeft { Log.w(TAG, "scrobble failed: $it") }
     }
@@ -111,11 +127,11 @@ object PlexScrobbler {
      * address and token it was built with. A heartbeat every ten seconds is too
      * often to build a Retrofit per report.
      */
-    private fun searchClient(): SearchClient {
-        val server = api.serverUri to api.serverToken
+    private fun searchClient(server: Server): SearchClient {
         val cached = client
         if (cached != null && server == clientServer) return cached
-        return SearchClient(api, server.first, server.second).also {
+        // The token is already resolved, so there is nothing to fall back to.
+        return SearchClient(api, server.uri, server.token, { null }).also {
             client = it
             clientServer = server
         }

@@ -43,6 +43,7 @@ class CompositeArtCacheTest {
         musicSectionKey = SectionKey(sectionKey),
         serverToken = null,
         machineIdentifier = machineIdentifier,
+        owned = true,
     )
 
     @Test

@@ -52,6 +52,35 @@ class PlexScrobblerTest {
         assertEquals("paused", nextState())
     }
 
+    /** Heartbeats are made on the main thread; only the final stop pays to read credentials there. */
+    @Test
+    fun aPlayingReportUsesTheServerCurrentWhenItIsSent() {
+        MockWebServer().use { other ->
+            server.enqueue(MockResponse().setResponseCode(200).setHeadersDelay(1, TimeUnit.SECONDS))
+            other.enqueue(MockResponse().setResponseCode(200))
+            report("42", TimelineState.PAUSED)
+            assertEquals("paused", nextState())
+            report("42", TimelineState.PLAYING)
+            PlexApi().serverUri = other.url("/").toString()
+
+            assertEquals("playing", nextState(other))
+        }
+    }
+
+    @Test
+    fun aStoppedReportKeepsTheServerCurrentWhenItWasMade() {
+        MockWebServer().use { other ->
+            server.enqueue(MockResponse().setResponseCode(200).setHeadersDelay(1, TimeUnit.SECONDS))
+            server.enqueue(MockResponse().setResponseCode(200))
+            report("42", TimelineState.PAUSED)
+            assertEquals("paused", nextState())
+            report("42", TimelineState.STOPPED)
+            PlexApi().serverUri = other.url("/").toString()
+
+            assertEquals("stopped", nextState())
+        }
+    }
+
     @Test
     fun aServerChangeIsFollowed() {
         server.enqueue(MockResponse().setResponseCode(200))

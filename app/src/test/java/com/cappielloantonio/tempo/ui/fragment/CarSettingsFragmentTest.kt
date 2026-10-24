@@ -4,18 +4,28 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import arrow.core.right
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.plex.api.auth.AuthClient
+import com.cappielloantonio.tempo.plex.auth.PlexSignInState
+import com.cappielloantonio.tempo.plex.models.HomeUser
+import com.cappielloantonio.tempo.plex.models.PlexAccount
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -25,11 +35,14 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.stub
 import org.mockito.kotlin.verify
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 
 /**
@@ -73,6 +86,7 @@ class CarSettingsFragmentTest {
                 serverUri = "https://example.invalid",
                 musicSectionKey = SectionKey("1"),
                 serverToken = null,
+                owned = true,
             )
 
         // A live session is what makes the artists-by-initial row's
@@ -82,6 +96,7 @@ class CarSettingsFragmentTest {
         session = mock()
         MediaBrowserTree.initialize(App.getContext(), mock())
         BrowseTreeInvalidator.attach(session)
+        HomeUsersRepository.fetch = { null }
     }
 
     @After
@@ -89,6 +104,7 @@ class CarSettingsFragmentTest {
         // BrowseTreeInvalidator is a process-wide singleton; leaving a mock
         // attached would leak into whatever test class runs next.
         BrowseTreeInvalidator.detach()
+        HomeUsersRepository.resetForTest()
     }
 
     private fun settingsScreen(): View {
@@ -293,4 +309,119 @@ class CarSettingsFragmentTest {
         shadowOf(Looper.getMainLooper()).idle()
         verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
     }
+
+    private fun home(vararg titles: String) =
+        HomeUsersRepository.Home(
+            users =
+                titles.map { t ->
+                    HomeUser().apply {
+                        uuid = t
+                        title = t
+                    }
+                },
+            current =
+                PlexAccount().apply {
+                    uuid = titles.first()
+                    title = titles.first()
+                },
+        )
+
+    private fun textsIn(view: View): List<TextView> =
+        when (view) {
+            is TextView -> listOf(view)
+            is ViewGroup -> (0 until view.childCount).flatMap { textsIn(view.getChildAt(it)) }
+            else -> emptyList()
+        }
+
+    private fun visibleTexts(view: View) = textsIn(view).filter { it.isShown }.map { it.text.toString() }
+
+    @Test
+    fun `a one-member Home shows no Switch user row`() {
+        HomeUsersRepository.fetch = { home("me") }
+
+        val screen = settingsScreen()
+
+        assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
+    }
+
+    @Test
+    fun `a larger Home shows who is listening and the Switch user row above Sign out`() {
+        HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
+
+        val screen = settingsScreen()
+        val texts = visibleTexts(screen)
+
+        val switchUser = App.getContext().getString(R.string.car_settings_switch_user)
+        val signOut = App.getContext().getString(R.string.car_settings_sign_out)
+        assertTrue(texts.contains(App.getContext().getString(R.string.car_settings_listening_as, "codingismy11to7")))
+        assertEquals(texts.indexOf(signOut) - 1, texts.indexOf(switchUser))
+    }
+
+    @Test
+    fun `a failed Home lookup shows no Switch user row`() {
+        HomeUsersRepository.fetch = { null }
+
+        val screen = settingsScreen()
+
+        assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
+    }
+
+    /**
+     * The push has to land before the picker's first state does. Otherwise
+     * the router sees that state with an empty back stack and swaps in a
+     * routed sign-in screen, and back from the Home picker signs out on
+     * screen instead of returning here.
+     */
+    @Test
+    fun `Switch user pushes the Home picker and back returns to settings`() {
+        val home = home("codingismy11to7", "jill")
+        HomeUsersRepository.fetch = { home }
+        val authClient =
+            mock<AuthClient>().stub {
+                on { homeUsers() } doReturn home.users.right()
+                on { currentUser() } doReturn home.current.right()
+            }
+        CarHostActivity.viewModelFactoryForTest =
+            object : ViewModelProvider.Factory {
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    @Suppress("UNCHECKED_CAST")
+                    return PlexSignInViewModel(
+                        RuntimeEnvironment.getApplication(),
+                        authClient = authClient,
+                        authClientFor = { authClient },
+                    ) as T
+                }
+            }
+        try {
+            val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+            shadowOf(Looper.getMainLooper()).idle()
+            val activity = controller.get()
+            val sessionBefore = PlexApi().session
+            val label = activity.getString(R.string.car_settings_switch_user)
+
+            buttonsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == label }.performClick()
+            shadowOf(Looper.getMainLooper()).idle()
+
+            val picker = activity.supportFragmentManager.findFragmentById(R.id.car_host_container)
+            assertTrue("got $picker", picker is PlexSignInFragment)
+            assertTrue("the sign-in screen was routed, not pushed", picker!!.requireArguments().getBoolean("pushed"))
+            val viewModel = ViewModelProvider(activity)[PlexSignInViewModel::class.java]
+            assertTrue("got ${viewModel.state.value}", viewModel.state.value is PlexSignInState.ChoosingUser)
+
+            activity.onBackPressedDispatcher.onBackPressed()
+            shadowOf(Looper.getMainLooper()).idle()
+
+            assertTrue(activity.supportFragmentManager.findFragmentById(R.id.car_host_container) is CarSettingsFragment)
+            assertEquals(sessionBefore, PlexApi().session)
+        } finally {
+            CarHostActivity.viewModelFactoryForTest = null
+        }
+    }
+
+    private fun buttonsIn(view: View): List<MaterialButton> =
+        when (view) {
+            is MaterialButton -> listOf(view)
+            is ViewGroup -> (0 until view.childCount).flatMap { buttonsIn(view.getChildAt(it)) }
+            else -> emptyList()
+        }
 }

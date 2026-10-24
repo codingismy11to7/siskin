@@ -4,8 +4,11 @@ import android.os.Looper
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
 import arrow.core.nonEmptyListOf
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.auth.PendingAccount
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
+import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
@@ -57,7 +60,7 @@ class PlexSignInFragmentBackTest {
         // than driven through a real sign-in: the press, not the flow that
         // reached it, is what this test is about.
         viewModel.setStateForTest(
-            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer())),
+            PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer()), PendingAccount("t")),
         )
         idle()
 
@@ -71,5 +74,88 @@ class PlexSignInFragmentBackTest {
         // was thrown out of the app mid-sign-in.
         assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
         assertEquals(false, activity.isFinishing)
+    }
+
+    private fun twoMembers(): PlexSignInState.ChoosingUser =
+        PlexSignInState.ChoosingUser(
+            nonEmptyListOf(
+                HomeUser().apply {
+                    uuid = "a"
+                    title = "a"
+                },
+                HomeUser().apply {
+                    uuid = "b"
+                    title = "b"
+                },
+            ),
+            PendingAccount("t"),
+        )
+
+    @Test
+    fun `back out of the Home picker while signing in abandons the attempt`() {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        idle()
+        val activity = controller.get()
+        val viewModel = ViewModelProvider(activity)[PlexSignInViewModel::class.java]
+
+        viewModel.setStateForTest(twoMembers())
+        idle()
+
+        activity.onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+        assertEquals(false, activity.isFinishing)
+    }
+
+    @Test
+    fun `the PIN screen shows a field and its message, and back returns to the picker`() {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        idle()
+        val activity = controller.get()
+        val viewModel = ViewModelProvider(activity)[PlexSignInViewModel::class.java]
+        val users = twoMembers().users
+
+        viewModel.setStateForTest(
+            PlexSignInState.EnteringPin(users.head, users, PendingAccount("t"), messageRes = R.string.plex_sign_in_error_wrong_pin),
+        )
+        idle()
+
+        val root = activity.findViewById<android.view.ViewGroup>(R.id.choice_container)
+        assertEquals(1, root.childCount)
+        assertEquals(true, root.getChildAt(0) is android.widget.EditText)
+        val error = activity.findViewById<android.widget.TextView>(R.id.error_text)
+        assertEquals(android.view.View.VISIBLE, error.visibility)
+
+        activity.onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertEquals(true, viewModel.state.value is PlexSignInState.ChoosingUser)
+    }
+
+    @Test
+    fun `back out of a pushed Home picker pops the back stack`() {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        idle()
+        val activity = controller.get()
+        val viewModel = ViewModelProvider(activity)[PlexSignInViewModel::class.java]
+
+        activity.supportFragmentManager
+            .beginTransaction()
+            .replace(R.id.car_host_container, PlexSignInFragment.pushed())
+            .addToBackStack(null)
+            .commit()
+        idle()
+        val state = twoMembers()
+        viewModel.setStateForTest(state)
+        idle()
+
+        activity.onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        // The flow did not take the press: its state is untouched and the
+        // fragment back stack popped.
+        assertEquals(state, viewModel.state.value)
+        assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
     }
 }

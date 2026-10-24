@@ -58,8 +58,8 @@ class PlexRetrofitFactoryTest {
     @Test
     fun everyClientSharesOneConnectionPoolAndOneDispatcher() {
         val api = PlexApi()
-        val first = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
-        val second = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
+        val first = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken, { api.accountToken }))
+        val second = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken, { api.accountToken }))
         val plexTv = clientOf(PlexRetrofitFactory.plexTv(PlexApi()))
 
         assertSame(first.connectionPool, second.connectionPool)
@@ -80,7 +80,7 @@ class PlexRetrofitFactoryTest {
     fun eachClientKeepsItsOwnIdentityInterceptor() {
         val api = PlexApi()
         val plexTvClient = clientOf(PlexRetrofitFactory.plexTv(api))
-        val serverClient = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
+        val serverClient = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken, { api.accountToken }))
 
         assertNotSame(plexTvClient, serverClient)
 
@@ -107,7 +107,7 @@ class PlexRetrofitFactoryTest {
     fun aNonAsciiVehicleNameSurvivesTheRoundTrip() {
         withVehicle(VehicleIdentity("Škoda", "Octavia", 2024, VehicleInfoSource.VEHICLE)) {
             val api = PlexApi()
-            val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
+            val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken, { api.accountToken }))
 
             server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
             client.newCall(Request.Builder().url(server.url("/identity")).build()).execute().close()
@@ -128,7 +128,7 @@ class PlexRetrofitFactoryTest {
     @Test
     fun theIdentityHeadersMergeRatherThanReplace() {
         val api = PlexApi()
-        val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
+        val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken, { api.accountToken }))
 
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
         client
@@ -173,7 +173,7 @@ class PlexRetrofitFactoryTest {
         // newBuilder() copies them, but nothing else in the codebase would fail
         // if a future edit set them only on the derived builder for one caller.
         val api = PlexApi()
-        val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken))
+        val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken, { api.accountToken }))
 
         assertEquals(TimeUnit.MINUTES.toMillis(1).toInt(), client.callTimeoutMillis)
         assertEquals(TimeUnit.SECONDS.toMillis(20).toInt(), client.connectTimeoutMillis)
@@ -201,7 +201,7 @@ class PlexRetrofitFactoryTest {
         assertEquals(
             "https://10.0.0.5:32400/",
             PlexRetrofitFactory
-                .server(PlexApi(), "https://10.0.0.5:32400", null)
+                .server(PlexApi(), "https://10.0.0.5:32400", null) { null }
                 .baseUrl()
                 .toString(),
         )
@@ -238,7 +238,7 @@ class PlexRetrofitFactoryTest {
             assertEquals(
                 "expected the placeholder for ${uri?.let { "\"$it\"" }}",
                 "https://localhost/",
-                PlexRetrofitFactory.server(PlexApi(), uri, null).baseUrl().toString(),
+                PlexRetrofitFactory.server(PlexApi(), uri, null, { null }).baseUrl().toString(),
             )
         }
     }

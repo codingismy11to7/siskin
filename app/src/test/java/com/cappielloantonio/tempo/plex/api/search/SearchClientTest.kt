@@ -28,7 +28,7 @@ class SearchClientTest {
 
     private fun clientAgainstServer(): SearchClient {
         val api = PlexApi().apply { serverUri = server.url("/").toString() }
-        return SearchClient(api, api.serverUri, api.serverToken)
+        return SearchClient(api, api.serverUri, api.serverToken, { api.accountToken })
     }
 
     /** Literal strings, not `wire`: the point is what Plex accepts, not what the enum says. */

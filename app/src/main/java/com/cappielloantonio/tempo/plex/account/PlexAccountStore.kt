@@ -19,10 +19,10 @@ private const val TAG = "PlexAccountStore"
  * outside the app's data directory, where a backup cannot reach them.
  *
  * The account name is the constant [ACCOUNT_NAME] rather than the user's Plex
- * identity, because Siskin never learns it: its auth surface is POST /pins,
- * GET /pins/{id} and GET /resources, and none of those name the account
- * holder. A constant is also a stable key, so "exactly one account" needs no
- * enforcement beyond addressing it by name.
+ * identity, because the account's holder can change underneath it: a Home
+ * switch replaces the token without the person signing in again. A constant is
+ * a stable key, so "exactly one account" needs no enforcement beyond
+ * addressing it by name.
  */
 class PlexAccountStore(
     private val context: Context = App.getContext(),
@@ -45,6 +45,10 @@ class PlexAccountStore(
      * Deliberately *not* remove-then-add: removal fires the accounts-updated
      * listener that clears the session, so a re-sign-in would trip its own
      * sign-out handler partway through.
+     *
+     * An unchanged token is not written at all: on a device,
+     * [AccountManager.setPassword] deletes every auth token on the account, so
+     * re-writing the same password would drop every server token with it.
      */
     fun setAccountToken(value: String?) {
         val existing = account
@@ -71,6 +75,8 @@ class PlexAccountStore(
                     )
                 }
             }
+
+            manager.getPassword(existing) == value -> {}
 
             else -> {
                 manager.setPassword(existing, value)
@@ -169,7 +175,7 @@ class PlexAccountStore(
          * exactly as an absent server token already does.
          *
          * It does not make PlexApi.session's *getter* atomic, and nothing here
-         * does. That getter reads five values independently, so a write
+         * does. That getter reads six values independently, so a write
          * landing mid-read can still assemble a session from two servers --
          * see its KDoc and the 2026-08-16 plex-system-account design. The race
          * predates this type; storing the token here widened it from an

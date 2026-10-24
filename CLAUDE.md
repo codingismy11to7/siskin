@@ -260,17 +260,18 @@ Relatedly: never `raise` across a coroutine-builder boundary (`launch`,
 
 ### Credentials — `PlexSession`
 
-Five values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`,
-`machineIdentifier`) describe **one** connection. `PlexApi.session` still reads
-and writes all five as a unit, and the two session writes in `app/src/main` —
-`PlexSignInViewModel.chooseLibrary` and `LibraryPickerRepository.selectLibrary`
-— still construct the whole session in one assignment; that outward shape is
-unchanged. Sign-in and the More tab both talk to a *candidate* server without
-persisting anything until a library is chosen. A mixed set — a section key from
-one server beside another's address — would read as signed-in and make the app
-query the wrong server, which is the invariant all of this exists to hold.
+Six values (`accountToken`, `serverUri`, `musicSectionKey`, `serverToken`,
+`machineIdentifier`, `owned`) describe **one** connection. `PlexApi.session`
+still reads and writes all six as a unit, and the two session writes in
+`app/src/main` — `PlexSignInViewModel.commit` and
+`LibraryPickerRepository.selectLibrary` — still construct the whole session in
+one assignment; that outward shape is unchanged. Sign-in and the More tab both
+talk to a *candidate* server without persisting anything until a library is
+chosen. A mixed set — a section key from one server beside another's address —
+would read as signed-in and make the app query the wrong server, which is the
+invariant all of this exists to hold.
 
-The five no longer share one file. `accountToken` is the password on Siskin's
+The six no longer share one file. `accountToken` is the password on Siskin's
 own entry in Android's system account store — the entry that shows up as
 **Siskin** under Accounts in the car's settings — rather than a preferences
 value. `serverToken` is an authtoken on that same account, filed under a type
@@ -280,15 +281,26 @@ the *current* server's type reads back `null` when the stored token belongs to
 a different one, which is what holds the invariant across a preferences write
 and an account write landing at different times: a reader in that window sees
 no server token rather than a mismatched one, a state every reader already
-handles. `serverUri`, `musicSectionKey` and `machineIdentifier` stay in
-preferences, written together in one `edit { }` exactly as before, alongside
-every user setting. See
+handles. `serverUri`, `musicSectionKey`, `machineIdentifier` and `owned` stay
+in preferences, written together in one `edit { }`, alongside every user
+setting — except that an account-token change first marks the stored session
+not owned in an edit of its own. See
 `docs/decisions/2026-08-16-plex-system-account-design.md` for the full
 reasoning, including why the token type carries the machine identifier instead
 of a fifth preferences key.
 
 `serverToken` is legitimately null for a server the account owns (those accept
-the account token), so it is not required for a session to exist.
+the account token), and only then: a session whose `owned` is false and has no
+server token is no session. A Plex Home member's own plex.tv token is refused
+by a server they do not own, so a server call takes `PlexApi.serverAuthToken`,
+the one place that rule lives, rather than reading `serverToken` and falling
+back itself. Changing the account's password deletes every
+server token on it, and Robolectric does not model that, so the write order is
+tested only by the wipe-modelling fakes. The setter writes the account token
+before server tokens and reads as signed out, never mixed, while it changes.
+A commit that stops playback writes the session in `stopPlayback`'s callback,
+so the outgoing track's final report still goes out as the old session.
+See `docs/decisions/2026-10-24-home-user-switching-design.md`.
 
 ### Media service — `service/`
 

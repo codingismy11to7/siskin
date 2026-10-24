@@ -192,11 +192,7 @@ public class AlbumArtContentProvider extends ContentProvider {
         PlexApi api = new PlexApi();
         String artworkUrl =
                 MediaUrlBuilder.INSTANCE.artworkUrl(
-                        api.getServerUri(),
-                        thumbPath,
-                        PlexApi.serverTokenOrAccount(api.getServerToken(), api.getAccountToken()),
-                        size,
-                        size);
+                        api.getServerUri(), thumbPath, api.getServerAuthToken(), size, size);
 
         // Null means no server or no token yet -- there is no image to serve, and
         // reporting that is what makes the car fall back to the placeholder icon
