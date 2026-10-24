@@ -55,9 +55,12 @@
     <string name="plex_sign_in_error_lost_candidate">Le serveur sélectionné a été perdu. Veuillez réessayer.</string>
     <string name="plex_sign_in_error_network">Impossible de joindre plex.tv.</string>
     <string name="plex_sign_in_error_no_libraries">Ce serveur n\'a aucune bibliothèque musicale.</string>
+    <string name="plex_sign_in_error_no_server_access">Cet utilisateur n\'a pas accès à ce serveur.</string>
     <string name="plex_sign_in_error_no_servers">Ce compte Plex n\'a aucun serveur multimédia joignable.</string>
     <string name="plex_sign_in_error_pin">Plex n\'a pas renvoyé de code de connexion.</string>
+    <string name="plex_sign_in_error_rate_limited">Trop de tentatives. Patientez un instant, puis réessayez.</string>
     <string name="plex_sign_in_error_server_unreachable">Impossible de joindre ce serveur Plex.</string>
+    <string name="plex_sign_in_error_wrong_pin">Code PIN incorrect. Réessayez.</string>
     <string name="plex_sign_in_instructions">Scannez le QR code — ou allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_instructions_no_qr">Allez sur plex.tv/link et saisissez :</string>
     <string name="plex_sign_in_not_allowed">Ce profil ne peut pas ajouter de comptes, donc Siskin ne peut pas se connecter à Plex ici. Passez à votre propre profil pour vous connecter.</string>

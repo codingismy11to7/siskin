@@ -44,6 +44,9 @@ object PlexSignInFlow {
             SignInError.NoServers -> R.string.plex_sign_in_error_no_servers
             SignInError.NoLibraries -> R.string.plex_sign_in_error_no_libraries
             SignInError.NoCandidate -> R.string.plex_sign_in_error_lost_candidate
+            SignInError.WrongPin -> R.string.plex_sign_in_error_wrong_pin
+            SignInError.RateLimited -> R.string.plex_sign_in_error_rate_limited
+            SignInError.ServerTokenMissing -> R.string.plex_sign_in_error_no_server_access
         }
 
     /**

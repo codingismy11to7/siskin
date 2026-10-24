@@ -88,9 +88,12 @@
     <string name="plex_sign_in_error_lost_candidate">Lost track of the selected server. Please try again.</string>
     <string name="plex_sign_in_error_network">Could not reach plex.tv.</string>
     <string name="plex_sign_in_error_no_libraries">That server has no music libraries.</string>
+    <string name="plex_sign_in_error_no_server_access">This user can\'t use that server.</string>
     <string name="plex_sign_in_error_no_servers">This Plex account has no reachable media servers.</string>
     <string name="plex_sign_in_error_pin">Plex did not return a sign-in code.</string>
+    <string name="plex_sign_in_error_rate_limited">Too many tries. Wait a moment, then try again.</string>
     <string name="plex_sign_in_error_server_unreachable">Could not reach that Plex server.</string>
+    <string name="plex_sign_in_error_wrong_pin">Wrong PIN. Try again.</string>
     <string name="plex_sign_in_instructions">Scan the QR code — or go to plex.tv/link and enter:</string>
     <!-- Shown when the QR image could not be fetched; the code alone still works. -->
     <string name="plex_sign_in_instructions_no_qr">Go to plex.tv/link and enter:</string>
