@@ -175,7 +175,7 @@ class PlexAccountStore(
          * exactly as an absent server token already does.
          *
          * It does not make PlexApi.session's *getter* atomic, and nothing here
-         * does. That getter reads five values independently, so a write
+         * does. That getter reads six values independently, so a write
          * landing mid-read can still assemble a session from two servers --
          * see its KDoc and the 2026-08-16 plex-system-account design. The race
          * predates this type; storing the token here widened it from an

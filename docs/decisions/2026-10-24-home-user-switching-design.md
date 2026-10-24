@@ -52,38 +52,74 @@ managed user:
 
 `PlexSignInState` gains two states:
 
-- `ChoosingUser(users: NonEmptyList<HomeUser>, currentUuid: String?, messageRes: Int?)`
-- `EnteringPin(user, users, currentUuid, messageRes: Int?)` — `users` is carried so that back
+- `ChoosingUser(users: NonEmptyList<HomeUser>, account: PendingAccount, currentUuid: String?, messageRes: Int?)`
+- `EnteringPin(user, users, account, currentUuid, messageRes: Int?)` — `users` is carried so that back
   returns to the picker, the same way `ChoosingLibrary` carries `servers`.
+
+**The account being signed in is carried in the states, not stored.**
+`ChoosingServer` and `ChoosingLibrary` gain the same `account: PendingAccount`:
+the PIN-approved token, a switch's minted one, or the stored one when a picker
+is reopened from settings. The view model's `commit()` is the flow's only
+credential write — account token, server and library land together, or, when
+the user backs out of any picker, nothing does. A forced re-sign-in therefore
+leaves the saved session whole until the new one is complete, and an abandoned
+switch cannot leak a member's token into a later commit.
 
 **At sign-in**, once the PIN is approved, the Home is listed. A single-member
 Home goes to `ChoosingServer` exactly as before, so most users see nothing new.
 A larger one shows `ChoosingUser`; a protected choice goes through
-`EnteringPin`; the switched token becomes the account token and discovery
-continues from there. Nothing is saved yet at sign-in, so it always runs the
-server and library pickers.
+`EnteringPin`; the switched token becomes the pending account and discovery
+continues as that member. A switch at sign-in is never given the saved session,
+even on a forced re-sign-in that has one, so sign-in always runs the server and
+library pickers.
 
 **From settings**, Switch user enters the view model at `ChoosingUser` with no
 PIN, as the debug screen's Choose server enters at `ChoosingServer` through
-`reopenServerPicker()`. After the switch, Siskin keeps what still works and asks
-only for what does not:
+`reopenServerPicker()`. The picker asks plex.tv who is signed in alongside the
+Home, to mark that member; if that call fails or names nobody, the picker
+fails rather than showing an unmarked list, which would let the user "switch"
+to themselves — spending a rate-limited switch and clearing the queue for
+nothing. After the switch, Siskin keeps what still works and asks only for what
+does not:
 
 - the saved server and library are both visible to the new user → commit
 - the server is visible but the library is not → `ChoosingLibrary` for it
-- the server is not visible → `ChoosingServer`
+- anything else → `ChoosingServer`, which re-probes whatever is chosen
 
-Every branch ends in `chooseLibrary`'s existing commit, so the session is still
-written in one place, whole, and ends as that commit always has: `Done`, the
-browse tree invalidated and the settings activity closed, leaving the car on the
-new user's library. That is what the debug screen's server change already does,
-and returning to settings instead would leave the browse tree describing the
-previous user until something else refreshed it. A commit that follows a switch
-clears the queue and stops playback, as `LibrarySelection.invalidatesQueue`
-already does for a server change; the view model knows a switch happened, so
-the session does not have to record whose it is to tell.
-Keeping the queue was rejected because the player's loaded items carry the
-previous user's token in their stream URLs, so playback would continue as one
-user while timeline reports went out as another.
+"Anything else" includes a saved server the new member cannot see, one they
+have no token for, one that does not answer, and one whose sections call
+fails. Only the switch itself and `/resources` fail the switch: by then the
+minted token has spent one of Plex's few allowed switches, and the saved address
+is often a home LAN one the car cannot reach on the road, so failing would
+leave that member unselectable while other servers are listed for them.
+
+Every branch ends in `commit()`, so the session is still written in one place,
+whole, and ends as that commit always has: `Done`, the browse tree invalidated
+and the settings activity closed, leaving the car on the new user's library.
+That is what the debug screen's server change already does, and returning to
+settings instead would leave the browse tree describing the previous user until
+something else refreshed it.
+
+A commit whose account token differs from the saved session's clears the queue
+and stops playback, as `LibrarySelection.invalidatesQueue` already does for a
+server change. A switch always changes it, so the session does not have to
+record whose it is to tell. A PIN mints a new token too, so even a same-account
+re-sign-in clears the queue; that is accepted, since the loaded items carry the
+token that was just refused. Keeping the queue was rejected because the
+player's loaded items carry the previous user's token in their stream URLs, so
+playback would continue as one user while timeline reports went out as another.
+
+**The session is written only once the player has stopped.**
+`BrowseTreeInvalidator.stopPlayback` posts the stop to the main looper, and
+clearing the items is what reports the outgoing track `stopped`. Written
+straight after the post, the new session would be stored before that report
+was made: the previous member's Now Playing would never close, and the new
+member would receive a stopped timeline for a track they never played — the
+misattribution this feature exists to prevent, and reachable on any
+same-server switch. So the write runs in `stopPlayback`'s completion callback,
+and each scrobble carries the server and token current when it was *made*
+rather than when its queued request is sent. `LibraryPickerRepository`'s
+commit orders its write the same way.
 
 Back from `EnteringPin` goes to `ChoosingUser`; back from `ChoosingUser` goes to
 settings when entered from there, and to `Disconnected` during sign-in, since
@@ -122,8 +158,7 @@ inspect instead of an `HttpException` whose body `plexCall` would discard.
 **A managed user's account token must never be readable without that user's
 server token.** Today `PlexApi.session`'s setter writes the account token, then
 the server token. Between them a reader sees the new account token beside the
-old server token — or none — and `serverTokenOrAccount` falls back to the
-account token. For an owner that fallback is correct. For a managed user it
+old server token — or none — and the reader falls back to the account token. For an owner that fallback is correct. For a managed user it
 sends the raw switched token, the server answers 401, and the car offers "sign
 in again".
 
@@ -147,8 +182,12 @@ Two changes close it. The first is the order of the writes:
   `PlexSession.from` returns null — rather than one that may use the account
   token. A session saved before this has no flag and reads as owned, which
   keeps today's behaviour exactly: a session on a shared server already carries
-  its server token, so the fallback it permits is never taken. That is also why `ServerTokenMissing` fails the switch instead
-  of committing.
+  its server token, so the fallback it permits is never taken. The rule lives
+  in one place, `PlexApi.serverAuthToken` (and `PlexSession`'s, which delegates
+  to it), and every reader of the stored session goes through it. A switch
+  whose saved server the new member has no token for is not committed either:
+  it falls back to `ChoosingServer`, where picking that server is refused with
+  `ServerTokenMissing`.
 
 Who is signed in is not stored. Settings asks plex.tv (`GET /api/v2/user`)
 each time it opens, alongside the Home list, so a rename shows up and there is
@@ -207,13 +246,22 @@ are data and are not translated.
 
 - **`HomeUserSwitch` against MockWebServer:** unprotected and protected
   switches, with the PIN asserted on the request; 1041 → `WrongPin`, 429 →
-  `RateLimited`; each of `Committable` / `NeedsLibrary` / `NeedsServer`; a server
-  resource without `accessToken` → `ServerTokenMissing`.
+  `RateLimited`; each of `Committable` / `NeedsLibrary` / `NeedsServer`; a saved
+  server without an `accessToken` for the new member, unreachable, answering an
+  HTTP error or holding no music → `NeedsServer`; a `/resources` failure still
+  fails the switch.
 - **`PlexSignInViewModelTest`:** a one-member Home skips to `ChoosingServer`; a
   larger one shows `ChoosingUser`; back from `EnteringPin` returns to the
-  picker; a wrong PIN stays on the pad; a settings switch reaches `Done`.
-- **`PlexApi`:** the session setter writes the server token before the account
-  token, observed through a recording account store.
+  picker; a wrong PIN stays on the pad; a settings switch reaches `Done`; a
+  switch at sign-in is given no saved session; the settings picker fails when
+  plex.tv cannot say who is signed in; backing out of every picker writes
+  nothing; the outgoing track's `stopped` report carries the previous session's
+  server token.
+- **`PlexApi`:** the session setter writes the account token *before* the
+  server token, and marks the stored session not owned before changing the
+  account token — observed through the wipe-modelling fakes in
+  `PlexApiWriteOrderTest`, which fail if a server token is written before the
+  account token that would wipe it on a device.
 - **On the emulator, by hand:** switch to the protected managed user, browse,
   and confirm the restricted library is absent and that playback appears under
   that user in the server dashboard; switch back.

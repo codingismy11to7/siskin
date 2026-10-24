@@ -77,7 +77,7 @@ class PlexSignInViewModel
             ServerProbe(
                 headers = PlexIdentity.headers(api.clientIdentifier, api.appVersion, null, api.language, api.vehicle),
             ),
-        /** Records the server's other addresses when chooseLibrary commits a session. */
+        /** Records the server's other addresses when [commit] writes a session. */
         private val addressBook: ServerAddressBook = ServerAddressBook.shared,
         /** The network half of becoming another Home member; see [HomeUserSwitch]. */
         private val homeUserSwitch: HomeUserSwitch = HomeUserSwitch(api),

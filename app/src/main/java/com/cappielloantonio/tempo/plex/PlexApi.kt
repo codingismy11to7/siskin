@@ -108,16 +108,18 @@ class PlexApi(
      * lands last, a lookup for the current server can only return that
      * server's own token or null, never a token belonging to a different one.
      *
-     * It does not close the read window. This getter still makes five
-     * independent reads -- accountToken, serverUri, musicSectionKey,
-     * serverToken (which itself re-reads machineIdentifier), and
-     * machineIdentifier again -- and a write landing between any two of them
-     * can still hand back a session assembled from two servers, e.g. an old
+     * It does not close the read window. This getter makes six independent
+     * reads -- accountToken, serverUri, musicSectionKey, serverToken (which
+     * itself re-reads machineIdentifier), machineIdentifier again, and
+     * [serverOwned] -- and a write landing between any two of them can still
+     * hand back a session assembled from two servers, e.g. an old
      * [serverUri] beside a [serverToken] for the server a concurrent write
-     * just switched *to*. That is not new: the pre-account-store getter read
-     * the same five preference keys independently and had the identical
-     * exposure -- only the span changed, from an in-memory map read to two
-     * Binder round trips. Narrowing it would mean making this getter atomic,
+     * just switched *to*. [serverOwned] is the read the not-owned guard
+     * depends on, so the setter marks it before the token write rather than
+     * relying on it landing beside the other preferences. The exposure is
+     * not new: the pre-account-store getter read its preference keys
+     * independently too -- only the span changed, from an in-memory map read
+     * to two Binder round trips. Narrowing it would mean making this getter atomic,
      * which was considered and rejected; see the design doc's "Alternatives
      * considered".
      */

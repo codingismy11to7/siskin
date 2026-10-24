@@ -28,13 +28,10 @@ package com.cappielloantonio.tempo.plex
  * moved [serverUri] to a *different* machine without moving the section key
  * with it is the hazard this type exists to prevent, and still is.
  *
- * [accountToken] is the one exception: `PlexSignInViewModel.signIn()` writes
- * it on its own, mid-flow, before a session exists at all. Re-signing in while
- * already signed in can therefore leave a window where a reader sees the *new*
- * account token beside the *old* server's URI and section key. Harmless for
- * the same account today, but it means this type does not guarantee
- * [accountToken] is in step with the other three the way they are with each
- * other.
+ * [accountToken] changes in its own write, within [PlexApi.session]'s setter:
+ * the setter first marks the stored session not [owned], so a reader between
+ * the two writes sees either the old session or none -- never a new account
+ * token presented to a server that refuses it.
  */
 data class PlexSession(
     val accountToken: String,
