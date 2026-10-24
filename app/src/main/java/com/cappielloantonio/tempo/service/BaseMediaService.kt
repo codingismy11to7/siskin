@@ -93,6 +93,8 @@ open class BaseMediaService : MediaLibraryService() {
         )
     }
 
+    private var playbackReporter: PlaybackReporter? = null
+
     private val binder = LocalBinder()
 
     override fun onStartCommand(
@@ -110,6 +112,7 @@ open class BaseMediaService : MediaLibraryService() {
         initializeExoPlayer()
         initializeMediaLibrarySession(exoplayer)
         initializePlayerListener(exoplayer)
+        playbackReporter = PlaybackReporter(exoplayer, MediaManager::scrobble).also(exoplayer::addListener)
         setPlayer(null, exoplayer)
     }
 
@@ -470,6 +473,7 @@ open class BaseMediaService : MediaLibraryService() {
         // no cost to cancelling first.
         addressScope.cancel()
         stationScope.cancel()
+        playbackReporter?.release()
         releaseNetworkCallback()
         equalizerManager.release(exoplayer.audioSessionId)
         ReplayGainUtil.release()
