@@ -291,9 +291,11 @@ of a fifth preferences key.
 `serverToken` is legitimately null for a server the account owns (those accept
 the account token), and only then: a session whose `owned` is false and has no
 server token is no session. A Plex Home member's own plex.tv token is refused
-by a server they do not own, so the setter orders the two account writes so
-that a reader between them never sees a member's token without a server token
-the server accepts. See `docs/decisions/2026-10-24-home-user-switching-design.md`.
+by a server they do not own. Changing the account's password deletes every
+server token on it, and Robolectric does not model that, so the write order is
+tested only by the wipe-modelling fakes. The setter writes the account token
+before server tokens and reads as signed out, never mixed, while it changes.
+See `docs/decisions/2026-10-24-home-user-switching-design.md`.
 
 ### Media service — `service/`
 

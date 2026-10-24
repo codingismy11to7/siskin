@@ -127,11 +127,20 @@ account token. For an owner that fallback is correct. For a managed user it
 sends the raw switched token, the server answers 401, and the car offers "sign
 in again".
 
-Two changes close it:
+Two changes close it. The first is the order of the writes:
 
-- **The setter writes the server token first.** The window then pairs the new
-  server token with the old account token, which the server accepts. The
-  reorder applies to every server change and is harmless for owners.
+- **The setter writes the account token before any server token, and skips the
+  write when the token is unchanged.** On a device
+  `AccountManager.setPassword` deletes every auth token on the account, so a
+  server token written first would be wiped by the account token that follows
+  it. `setAccountToken` therefore does nothing for an unchanged token, and a
+  changed one is preceded by marking the stored session not owned. Every
+  in-between read is then the old session intact, or no session (a not-owned
+  session without a server token is incomplete) — a brief signed-out read,
+  never a token the selected server refuses. That signed-out read is the
+  accepted cost. Robolectric's shadow does not model the wipe; it was found on
+  the emulator, and only the wipe-modelling fakes in `PlexApiWriteOrderTest`
+  and `PlexAccountStoreTest` can catch an ordering mistake here.
 - **The fallback is only for owned servers.** `Resource.owned` becomes a sixth
   `PlexSession` value, written in preferences with the other three, and a
   session that does not own its server and has no server token is incomplete —
