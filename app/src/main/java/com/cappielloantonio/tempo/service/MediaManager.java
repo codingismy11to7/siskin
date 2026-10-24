@@ -9,7 +9,6 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaBrowser;
 
 import com.cappielloantonio.tempo.plex.PlexMediaMapper;
-import com.cappielloantonio.tempo.plex.api.search.SearchClient;
 import com.cappielloantonio.tempo.repository.PlexMixRepository;
 import com.cappielloantonio.tempo.repository.QueueRepository;
 import com.cappielloantonio.tempo.util.Preferences;
@@ -53,14 +52,13 @@ public class MediaManager {
      * of how much actually played, so it silently never registers a play. Callers must pass the
      * real position at the moment of the event, not a placeholder.
      */
-    public static void scrobble(MediaItem mediaItem, boolean submission, long positionMs) {
+    public static void scrobble(MediaItem mediaItem, String state, long positionMs) {
         if (mediaItem == null || mediaItem.mediaMetadata.extras == null) return;
 
         String ratingKey = mediaItem.mediaMetadata.extras.getString(PlexMediaMapper.EXTRA_ID);
         String partKey = mediaItem.mediaMetadata.extras.getString(PlexMediaMapper.EXTRA_PART_KEY);
         if (ratingKey == null || partKey == null) return;
 
-        String state = submission ? SearchClient.STATE_STOPPED : SearchClient.STATE_PLAYING;
         // Via PlexScrobbler because SearchClient.reportProgress is a suspend
         // function, which Java has no way to call.
         PlexScrobbler.report(

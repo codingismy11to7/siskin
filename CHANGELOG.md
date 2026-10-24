@@ -11,6 +11,12 @@
 
 ## [Unreleased] — Siskin
 
+- The Plex server now follows playback as it happens: Siskin reports its
+  position every ten seconds while playing and says when it pauses, so the
+  server's Now Playing shows the car live instead of frozen at the start of
+  each track. A track you skip, restart, or leave by choosing something else
+  to play is reported where you left it, so Plex can count it as played.
+
 - Settings has a "Show Artist Radio" switch, off by default. With it on, an
   artist's page offers Artist Radio, which plays that artist's Plex station —
   the artist and music like it — and keeps adding to it as it plays, including

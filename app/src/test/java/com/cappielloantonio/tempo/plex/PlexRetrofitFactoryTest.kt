@@ -49,10 +49,9 @@ class PlexRetrofitFactoryTest {
      *
      * An OkHttpClient owns its connection pool and its dispatcher's thread pool,
      * so a fresh one reuses nothing: every request opens a new socket and pays a
-     * new TLS handshake. The callers are all per-use -- PlexScrobbler builds one
-     * per scrobble and scrobbles fire on every play *and* pause,
-     * BaseSessionCallback builds one per heart tap, PlexMixRepository one per
-     * mix -- so on a head unit that is several handshakes a track. Asserting on
+     * new TLS handshake. The callers are all per-use -- BaseSessionCallback
+     * builds one per heart tap, PlexMixRepository one per mix -- so on a head
+     * unit that is several handshakes a track. Asserting on
      * the pool and dispatcher identity is what makes "shares connections" a fact
      * rather than an intention.
      */
