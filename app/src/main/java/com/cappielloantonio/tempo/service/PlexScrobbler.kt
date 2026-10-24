@@ -61,8 +61,7 @@ object PlexScrobbler {
     /**
      * The same report, finished before it returns. For the station top-up,
      * which must not read the play queue until the server has heard which
-     * item is playing. Sent whatever the scrobbling preference says: without
-     * it the station stops growing.
+     * item is playing.
      */
     suspend fun reportNow(
         item: MediaItem,
