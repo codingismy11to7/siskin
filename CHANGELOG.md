@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.1.0] (2026-10-24)
+
 - Siskin can play as anyone in your Plex Home, managed users included. After
   signing in, a Home with more than one member asks who is listening; Settings
   shows who that is and has a Switch user button. A profile with a PIN asks for
