@@ -55,7 +55,6 @@ public class MediaManager {
      */
     public static void scrobble(MediaItem mediaItem, boolean submission, long positionMs) {
         if (mediaItem == null || mediaItem.mediaMetadata.extras == null) return;
-        if (!Preferences.isScrobblingEnabled()) return;
 
         String ratingKey = mediaItem.mediaMetadata.extras.getString(PlexMediaMapper.EXTRA_ID);
         String partKey = mediaItem.mediaMetadata.extras.getString(PlexMediaMapper.EXTRA_PART_KEY);

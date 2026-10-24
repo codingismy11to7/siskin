@@ -20,7 +20,6 @@ object Preferences {
     private const val REPLAY_GAIN_PREVENT_CLIPPING = "replay_gain_prevent_clipping"
     private const val LOUDNESS_PREAMP = "loudness_preamp"
     private const val STREAMING_CACHE_STORAGE = "streaming_cache_storage"
-    private const val SCROBBLING = "scrobbling"
     private const val SONG_PRELOAD_BUFFER = "song_preload_buffer"
     private const val PRECACHE_TRACKS_COUNT = "precache_tracks_count"
     private const val PRECACHE_WIFI_ONLY = "precache_wifi_only"
@@ -179,9 +178,6 @@ object Preferences {
             putString(STREAMING_CACHE_STORAGE, streamingCachePreference.toString())
         }
     }
-
-    @JvmStatic
-    fun isScrobblingEnabled(): Boolean = App.getInstance().preferences.getBoolean(SCROBBLING, true)
 
     @JvmStatic
     fun getSongPreloadBuffer(): Int =
