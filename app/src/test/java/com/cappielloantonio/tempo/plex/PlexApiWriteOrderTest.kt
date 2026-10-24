@@ -32,6 +32,20 @@ class PlexApiWriteOrderTest {
     }
 
     @Test
+    fun writesTheAccountTokenBeforeClearingTheServerTokenOfAnOwnedServer() {
+        val store = mock<PlexAccountStore>()
+        whenever(store.hasAccount()).thenReturn(true)
+        val api = PlexApi { store }
+
+        api.session = PlexSession("acct", "https://one.example", SectionKey("4"), null, "machine-a")
+
+        inOrder(store) {
+            verify(store).setAccountToken("acct")
+            verify(store).setServerToken("machine-a", null)
+        }
+    }
+
+    @Test
     fun createsTheAccountFirstWhenThereIsNone() {
         // setServerToken is a no-op with no account to file it under, and with
         // no account there is no old token for a reader to pair it with.

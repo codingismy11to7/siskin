@@ -166,13 +166,14 @@ class PlexApi(
                 ) {
                     accounts.setServerToken(previousMachineIdentifier, null)
                 }
-                // Server token first, so a reader between the two writes pairs
-                // the new server token with the old account token -- which the
-                // server accepts -- rather than a Home member's own plex.tv
-                // token with no server token, which it refuses. With no account
-                // yet there is nothing to file the server token under, and no
-                // old token for anyone to pair it with.
-                if (accounts.hasAccount()) {
+                // Order the two writes so a reader between them never pairs a
+                // Home member's plex.tv token with no server token, which the
+                // server refuses. A new server token goes first (new server
+                // token + old account token is accepted); clearing one goes
+                // second (new account token + old server token is accepted).
+                // With no account yet there is nothing to file the server token
+                // under, and no old token for anyone to pair it with.
+                if (accounts.hasAccount() && value.serverToken != null) {
                     accounts.setServerToken(value.machineIdentifier, value.serverToken)
                     accounts.setAccountToken(value.accountToken)
                 } else {
