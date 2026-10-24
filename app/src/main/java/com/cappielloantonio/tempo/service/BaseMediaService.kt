@@ -42,7 +42,9 @@ import com.cappielloantonio.tempo.equalizer.ExternalBackend
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
+import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.repository.PlexRadioRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.Constants
@@ -79,6 +81,16 @@ open class BaseMediaService : MediaLibraryService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val addressBook = ServerAddressBook.shared
     private val addressScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Main: the continuation appends to the player.
+    private val stationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val stationTopUp by lazy {
+        val radio = PlexRadioRepository()
+        StationTopUp(
+            extend = { tag -> ServerAddressBook.shared.withAddressRecovery { radio.extendStation(tag) } },
+            report = { item, position -> PlexScrobbler.reportNow(item, SearchClient.STATE_PLAYING, position) },
+        )
+    }
 
     private val binder = LocalBinder()
 
@@ -224,7 +236,11 @@ open class BaseMediaService : MediaLibraryService() {
                     ReplayGainUtil.setReplayGain(player, tracks)
                     val currentMediaItem = player.currentMediaItem
                     if (currentMediaItem != null) {
-                        if (currentMediaItem.mediaMetadata.extras != null) {
+                        // A station track is reported by the top-up, which has to
+                        // finish reporting before it reads the queue back.
+                        if (PlexMediaMapper.stationTagOf(currentMediaItem) != null) {
+                            topUpStation(player, currentMediaItem)
+                        } else if (currentMediaItem.mediaMetadata.extras != null) {
                             MediaManager.scrobble(currentMediaItem, false, player.currentPosition)
                         }
 
@@ -395,6 +411,34 @@ open class BaseMediaService : MediaLibraryService() {
 
     override fun onGetSession(controllerInfo: ControllerInfo): MediaLibrarySession = mediaLibrarySession
 
+    private fun topUpStation(
+        player: Player,
+        current: MediaItem,
+    ) {
+        val remaining = player.mediaItemCount - 1 - player.currentMediaItemIndex
+        val queued = (0 until player.mediaItemCount).mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
+        val position = player.currentPosition
+        stationScope.launch {
+            try {
+                val more = stationTopUp.onTrackStarted(current, position, remaining, queued)
+                if (more.isEmpty()) return@launch
+                val at = player.mediaItemCount
+                player.addMediaItems(more)
+                QueueRepository().insertAll(more, false, at)
+                val firstToKeep =
+                    StationTopUp.firstToKeep(player.currentMediaItemIndex, Preferences.getNumberOfTracksKeepInQueue())
+                if (firstToKeep > 0) {
+                    player.removeMediaItems(0, firstToKeep)
+                    QueueRepository().deleteRange(0, firstToKeep)
+                }
+            } catch (failure: Throwable) {
+                // Outside any `either { }`. A failed top-up is retried on the
+                // next track change; it must not take playback down.
+                Log.w(TAG, "station top-up failed", failure)
+            }
+        }
+    }
+
     override fun onDestroy() {
         // Detach first: it must precede mediaLibrarySession.release() but must not depend
         // on any of the cleanup below succeeding. If an earlier step throws, the singleton
@@ -407,6 +451,7 @@ open class BaseMediaService : MediaLibraryService() {
         // Launching into an already-cancelled scope is a silent no-op, so there is
         // no cost to cancelling first.
         addressScope.cancel()
+        stationScope.cancel()
         releaseNetworkCallback()
         equalizerManager.release(exoplayer.audioSessionId)
         ReplayGainUtil.release()
