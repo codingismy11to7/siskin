@@ -64,7 +64,8 @@ public class MediaManager {
         String state = submission ? SearchClient.STATE_STOPPED : SearchClient.STATE_PLAYING;
         // Via PlexScrobbler because SearchClient.reportProgress is a suspend
         // function, which Java has no way to call.
-        PlexScrobbler.report(ratingKey, partKey, state, positionMs);
+        PlexScrobbler.report(
+                ratingKey, partKey, state, positionMs, PlexMediaMapper.stationTagOf(mediaItem));
     }
 
     @OptIn(markerClass = UnstableApi.class)

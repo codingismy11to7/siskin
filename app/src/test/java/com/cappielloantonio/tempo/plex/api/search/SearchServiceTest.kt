@@ -116,6 +116,8 @@ class SearchServiceTest {
                 key = "/library/parts/1",
                 state = "playing",
                 timeMs = 1234L,
+                playQueueItemId = null,
+                containerKey = null,
             )
 
             val request = server.takeRequest()
@@ -125,6 +127,27 @@ class SearchServiceTest {
             assertEquals("/library/parts/1", request.requestUrl?.queryParameter("key"))
             assertEquals("playing", request.requestUrl?.queryParameter("state"))
             assertEquals("1234", request.requestUrl?.queryParameter("time"))
+            assertEquals(null, request.requestUrl?.queryParameter("playQueueItemID"))
+            assertEquals(null, request.requestUrl?.queryParameter("containerKey"))
+        }
+
+    @Test
+    fun reportProgressNamesTheStationQueueWhenGivenOne() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200))
+
+            service().reportProgress(
+                ratingKey = "77",
+                key = "/library/parts/1",
+                state = "playing",
+                timeMs = 0L,
+                playQueueItemId = 1381657L,
+                containerKey = "/playQueues/32194",
+            )
+
+            val url = server.takeRequest().requestUrl!!
+            assertEquals("1381657", url.queryParameter("playQueueItemID"))
+            assertEquals("/playQueues/32194", url.queryParameter("containerKey"))
         }
 
     @Test

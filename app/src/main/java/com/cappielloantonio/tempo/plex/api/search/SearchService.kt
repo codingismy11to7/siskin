@@ -71,6 +71,8 @@ interface SearchService {
         @Query("key") key: String,
         @Query("state") state: String,
         @Query("time") timeMs: Long,
+        @Query("playQueueItemID") playQueueItemId: Long?,
+        @Query("containerKey") containerKey: String?,
     )
 
     /**

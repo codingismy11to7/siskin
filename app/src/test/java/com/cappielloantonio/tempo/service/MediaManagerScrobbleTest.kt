@@ -95,4 +95,41 @@ class MediaManagerScrobbleTest {
         assertEquals("0", request.requestUrl!!.queryParameter("time"))
         assertEquals("playing", request.requestUrl!!.queryParameter("state"))
     }
+
+    @Test
+    fun aStationTrackIsReportedAgainstItsPlayQueue() {
+        server.enqueue(MockResponse().setResponseCode(200))
+        val item =
+            trackItem("42", "/library/parts/99")
+                .buildUpon()
+                .setMediaMetadata(
+                    MediaMetadata
+                        .Builder()
+                        .setExtras(
+                            Bundle().apply {
+                                putString(PlexMediaMapper.EXTRA_ID, "42")
+                                putString(PlexMediaMapper.EXTRA_PART_KEY, "/library/parts/99")
+                                putLong(PlexMediaMapper.EXTRA_PLAY_QUEUE_ID, 32194L)
+                                putLong(PlexMediaMapper.EXTRA_PLAY_QUEUE_ITEM_ID, 1381657L)
+                                putString(PlexMediaMapper.EXTRA_STATION_ARTIST_ID, "270597")
+                            },
+                        ).build(),
+                ).build()
+
+        MediaManager.scrobble(item, false, 0L)
+
+        val url = server.takeRequest(5, TimeUnit.SECONDS)!!.requestUrl!!
+        assertEquals("1381657", url.queryParameter("playQueueItemID"))
+        assertEquals("/playQueues/32194", url.queryParameter("containerKey"))
+    }
+
+    @Test
+    fun anOrdinaryTrackNamesNoQueue() {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        MediaManager.scrobble(trackItem("42", "/library/parts/99"), false, 0L)
+
+        val url = server.takeRequest(5, TimeUnit.SECONDS)!!.requestUrl!!
+        assertEquals(null, url.queryParameter("playQueueItemID"))
+    }
 }

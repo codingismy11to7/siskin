@@ -1,7 +1,9 @@
 package com.cappielloantonio.tempo.service
 
 import android.util.Log
+import androidx.media3.common.MediaItem
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
 import kotlinx.coroutines.CoroutineScope
@@ -43,17 +45,45 @@ object PlexScrobbler {
         partKey: String,
         state: String,
         timeMs: Long,
+        station: PlexMediaMapper.StationTag?,
     ) {
         scope.launch {
             try {
-                SearchClient(PlexApi())
-                    .reportProgress(RatingKey(ratingKey), partKey, state, timeMs)
-                    .onLeft { Log.w(TAG, "scrobble failed: $it") }
+                send(ratingKey, partKey, state, timeMs, station)
             } catch (failure: Throwable) {
                 // Covers client construction and anything else still throwing.
                 // Outside any `either { }`, so there is no `raise` to swallow.
                 Log.w(TAG, "scrobble failed", failure)
             }
         }
+    }
+
+    /**
+     * The same report, finished before it returns. For the station top-up,
+     * which must not read the play queue until the server has heard which
+     * item is playing. Sent whatever the scrobbling preference says: without
+     * it the station stops growing.
+     */
+    suspend fun reportNow(
+        item: MediaItem,
+        state: String,
+        timeMs: Long,
+    ) {
+        val extras = item.mediaMetadata.extras ?: return
+        val ratingKey = extras.getString(PlexMediaMapper.EXTRA_ID) ?: return
+        val partKey = extras.getString(PlexMediaMapper.EXTRA_PART_KEY) ?: return
+        send(ratingKey, partKey, state, timeMs, PlexMediaMapper.stationTagOf(item))
+    }
+
+    private suspend fun send(
+        ratingKey: String,
+        partKey: String,
+        state: String,
+        timeMs: Long,
+        station: PlexMediaMapper.StationTag?,
+    ) {
+        SearchClient(PlexApi())
+            .reportProgress(RatingKey(ratingKey), partKey, state, timeMs, station)
+            .onLeft { Log.w(TAG, "scrobble failed: $it") }
     }
 }
