@@ -39,7 +39,7 @@ class HomeUserSwitchTest {
         }
 
     private val saved =
-        PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id")
+        PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id", owned = true)
 
     private fun shared(token: String? = "jill-server-token") =
         aMediaServer(accessToken = token, clientIdentifier = "machine-id").apply { owned = false }
@@ -86,6 +86,22 @@ class HomeUserSwitchTest {
             // The library check runs as the new user's *server* token, never
             // their plex.tv one, which that server refuses.
             assertEquals(listOf<String?>("jill-server-token"), tokens)
+        }
+
+    @Test
+    fun anOwnedServerWithNoTokenIsAskedAsTheNewUser() =
+        runTest {
+            // A null token would reach LibraryClient as "use the stored
+            // account token", which is still the previous member's.
+            val ownedUnknown = aMediaServer(accessToken = null, clientIdentifier = "machine-id")
+            val ownedTrue = aMediaServer(accessToken = null, clientIdentifier = "machine-id").apply { owned = true }
+            for (resource in listOf(ownedUnknown, ownedTrue)) {
+                val tokens = mutableListOf<String?>()
+                val outcome = switcher(resources = listOf(resource), seenTokens = tokens).first.switch(jill, null, saved).getOrNull()
+
+                assertTrue("got $outcome", outcome is SwitchOutcome.Committable)
+                assertEquals(listOf<String?>("jill-token"), tokens)
+            }
         }
 
     @Test

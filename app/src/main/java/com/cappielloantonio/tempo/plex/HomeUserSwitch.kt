@@ -96,8 +96,10 @@ class HomeUserSwitch(
 
             ensure(!(resource.owned == false && resource.accessToken.isNullOrBlank())) { SignInError.ServerTokenMissing }
 
+            // A null server token would fall back to the *stored* account
+            // token, which is still the previous member's.
             val response =
-                sectionsFor(savedSession.serverUri, resource.accessToken).mapLeft(SignInError::Api).bind()
+                sectionsFor(savedSession.serverUri, resource.accessToken ?: token).mapLeft(SignInError::Api).bind()
             val sections =
                 LibraryClient.musicSections(response).toNonEmptyListOrNull()
                     ?: return@either SwitchOutcome.NeedsServer(account, servers)
