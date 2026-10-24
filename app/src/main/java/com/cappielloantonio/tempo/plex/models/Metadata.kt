@@ -77,6 +77,16 @@ class Metadata {
      */
     var userRating: Double? = null
 
+    /** This item's id within a play queue; present only on play-queue responses. */
+    var playQueueItemID: Long? = null
+
+    /**
+     * Present only when asked for with `includeStations=1`. A station's [key]
+     * is minted per request, so it is never worth keeping.
+     */
+    @SerializedName("Stations")
+    var stations: Stations? = null
+
     @SerializedName("Media")
     var media: List<Media>? = null
 }
