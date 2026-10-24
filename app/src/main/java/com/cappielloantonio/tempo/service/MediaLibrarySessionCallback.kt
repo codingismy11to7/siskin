@@ -179,7 +179,8 @@ class MediaLibrarySessionCallback(
         item.mediaId.startsWith(Constants.MIX_ARTIST_ID) ||
             item.mediaId.startsWith(Constants.MIX_PLAYLIST_ID) ||
             item.mediaId.startsWith(Constants.MIX_DECADE_ID) ||
-            item.mediaId.startsWith(Constants.MIX_HUB_ID)
+            item.mediaId.startsWith(Constants.MIX_HUB_ID) ||
+            item.mediaId.startsWith(Constants.MIX_RADIO_ARTIST_ID)
 
     /**
      * Fetches the tracks a tapped Mix row stands for, or null if the item is
@@ -228,6 +229,12 @@ class MediaLibrarySessionCallback(
                         Log.d(TAG, "Following hub $hubKey again to shuffle it")
                         browseRepository.getHubTracksForShuffle(hubKey)
                     }
+            }
+
+            id.startsWith(Constants.MIX_RADIO_ARTIST_ID) -> {
+                val artist = id.removePrefix(Constants.MIX_RADIO_ARTIST_ID)
+                Log.d(TAG, "Starting artist $artist's station")
+                browseRepository.getArtistRadioTracks(artist)
             }
 
             else -> {
@@ -525,14 +532,20 @@ class MediaLibrarySessionCallback(
                 // and is not in any cache, so it would otherwise fall through to the
                 // fallback below and "play" itself -- a row with no stream.
                 //
-                // The one place the artist row and the playlist row meet, which is
-                // why the shuffle lives here rather than in either repository call.
-                // The order handed over is the order heard, and it is the order the
-                // car will show in the queue.
+                // The one place the Mix rows meet, which is why the shuffle lives
+                // here rather than in any repository call. The order handed over
+                // is the order heard, and it is the order the car will show in the
+                // queue. A station is the exception: it keeps the server's order,
+                // because the server advances along it. See the 2026-10-23 artist
+                // radio design.
                 mixTracks != null -> {
+                    val station = firstItem.mediaId.startsWith(Constants.MIX_RADIO_ARTIST_ID)
                     Futures.transform(
                         mixTracks,
-                        { result -> (result?.value ?: emptyList()).shuffled() },
+                        { result ->
+                            val tracks = result?.value ?: emptyList()
+                            if (station) tracks else tracks.shuffled()
+                        },
                         MoreExecutors.directExecutor(),
                     )
                 }

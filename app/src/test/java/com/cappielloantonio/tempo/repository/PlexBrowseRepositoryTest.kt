@@ -10,6 +10,7 @@ import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
+import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
@@ -262,6 +263,49 @@ class PlexBrowseRepositoryTest {
 
     /** Bounded so a bridge that never completes its future fails instead of hanging. */
     private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) = future.get(10, TimeUnit.SECONDS)
+
+    @Test
+    fun aRadioRowResolvesToTheStationsTracks() {
+        fixture.server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse =
+                    when (request.requestUrl!!.encodedPath) {
+                        "/library/metadata/15100" -> {
+                            MockResponse().setResponseCode(200).setBody(
+                                """{"MediaContainer":{"Metadata":[{"ratingKey":"15100","type":"artist","Stations":{"Metadata":[{"key":"/library/metadata/15100/station/u?type=10"}]}}]}}""",
+                            )
+                        }
+
+                        "/identity" -> {
+                            MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"machineIdentifier":"m"}}""")
+                        }
+
+                        "/playQueues" -> {
+                            MockResponse().setResponseCode(200).setBody(
+                                """{"MediaContainer":{"playQueueID":9,"Metadata":[{"ratingKey":"5","type":"track","playQueueItemID":50}]}}""",
+                            )
+                        }
+
+                        else -> {
+                            MockResponse().setResponseCode(500)
+                        }
+                    }
+            }
+
+        val result = await(PlexBrowseRepository().getArtistRadioTracks("15100"))
+
+        assertEquals(listOf("5"), result.value!!.map { it.mediaId })
+        assertEquals(PlexMediaMapper.StationTag(9, 50, "15100"), PlexMediaMapper.stationTagOf(result.value!!.single()))
+    }
+
+    @Test
+    fun aRejectedStationIsAnErrorTheCarCanShow() {
+        server.enqueue(MockResponse().setResponseCode(403))
+
+        val result = await(PlexBrowseRepository().getArtistRadioTracks("15100"))
+
+        assertTrue(result.resultCode != LibraryResult.RESULT_SUCCESS)
+    }
 
     @Test
     fun anArtistsAlbumsComeFromTheSectionFilteredByArtistNotFromItsChildren() {
