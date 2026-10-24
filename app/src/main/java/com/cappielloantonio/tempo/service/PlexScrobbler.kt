@@ -6,7 +6,6 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.api.search.SearchClient
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,11 +57,11 @@ object PlexScrobbler {
             for (report in queue) {
                 try {
                     send(report)
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
                 } catch (failure: Throwable) {
-                    // Covers client construction and anything else still throwing.
-                    // Outside any `either { }`, so there is no `raise` to swallow.
+                    // Cancellation included: this scope is never cancelled, so one
+                    // reaching here came from a single report, and rethrowing it
+                    // would end every report after it. Outside any `either { }`,
+                    // so there is no `raise` to swallow.
                     Log.w(TAG, "scrobble failed", failure)
                 } finally {
                     report.sent?.complete(Unit)
