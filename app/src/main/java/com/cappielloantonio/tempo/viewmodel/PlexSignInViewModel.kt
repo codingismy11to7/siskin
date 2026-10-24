@@ -11,11 +11,13 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import arrow.core.Either
+import arrow.core.NonEmptyList
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
 import arrow.core.toNonEmptyListOrNull
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.plex.HomeUserSwitch
 import com.cappielloantonio.tempo.plex.LibrarySelection
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
@@ -23,6 +25,7 @@ import com.cappielloantonio.tempo.plex.PlexIdentity
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.plex.SwitchOutcome
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatePinError
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
@@ -34,6 +37,8 @@ import com.cappielloantonio.tempo.plex.auth.PlexSignInFlow
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.models.HomeUser
+import com.cappielloantonio.tempo.plex.models.PlexAccount
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
@@ -63,6 +68,8 @@ class PlexSignInViewModel
             ),
         /** Records the server's other addresses when chooseLibrary commits a session. */
         private val addressBook: ServerAddressBook = ServerAddressBook.shared,
+        /** The network half of becoming another Home member; see [HomeUserSwitch]. */
+        private val homeUserSwitch: HomeUserSwitch = HomeUserSwitch(api, authClient),
         /**
          * Seam, not a feature. The poll loop's bounds are measured in wall-clock
          * seconds, which a StandardTestDispatcher cannot advance -- so without this
@@ -105,6 +112,17 @@ class PlexSignInViewModel
 
         /** The server picked but not yet committed; chooseLibrary needs it to build a session. */
         private var candidate: Pair<String, Resource>? = null
+
+        /**
+         * A Home member switched to from settings and not yet committed. Their
+         * token is held here rather than written, so abandoning the pickers
+         * leaves the previous member's session whole. At sign-in there is no
+         * session to protect, so the token is written straight away instead.
+         */
+        private var switched: PlexAccount? = null
+
+        /** Whether the current pass through the pickers began at settings' Switch user. */
+        private var fromSettings = false
 
         /**
          * Chooses the screen for how it was opened.
@@ -188,6 +206,102 @@ class PlexSignInViewModel
         }
 
         /**
+         * Settings' Switch user: the Home picker, without a PIN, marking who is
+         * signed in now. Pushed like [reopenServerPicker], for the same reason.
+         */
+        fun reopenUserPicker() {
+            attempt?.cancel()
+            fromSettings = true
+            switched = null
+            _state.value = PlexSignInState.Working
+
+            attempt =
+                viewModelScope.launch {
+                    either {
+                        val users =
+                            ensureNotNull(
+                                authClient
+                                    .homeUsers()
+                                    .mapLeft(SignInError::Api)
+                                    .bind()
+                                    .toNonEmptyListOrNull(),
+                            ) { SignInError.NoCandidate }
+                        val current = authClient.currentUser().getOrNull()?.uuid
+                        _state.value = PlexSignInState.ChoosingUser(users, current)
+                    }.onLeft { _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(it)) }
+                }
+        }
+
+        fun chooseUser(user: HomeUser) {
+            val picker = _state.value as? PlexSignInState.ChoosingUser ?: return
+            if (fromSettings && user.uuid == picker.currentUuid) return
+            if (user.isProtected == true) {
+                _state.value = PlexSignInState.EnteringPin(user, picker.users, picker.currentUuid)
+                return
+            }
+            switchTo(user, null, picker.users, picker.currentUuid)
+        }
+
+        fun enterPin(pin: String) {
+            val pad = _state.value as? PlexSignInState.EnteringPin ?: return
+            switchTo(pad.user, pin, pad.users, pad.currentUuid)
+        }
+
+        private fun switchTo(
+            user: HomeUser,
+            pin: String?,
+            users: NonEmptyList<HomeUser>,
+            currentUuid: String?,
+        ) {
+            attempt?.cancel()
+            _state.value = PlexSignInState.Working
+
+            attempt =
+                viewModelScope.launch {
+                    homeUserSwitch
+                        .switch(user, pin, if (fromSettings) api.session else null)
+                        .fold(
+                            { error ->
+                                val message = PlexSignInFlow.messageFor(error)
+                                _state.value =
+                                    if (pin != null && (error == SignInError.WrongPin || error == SignInError.RateLimited)) {
+                                        PlexSignInState.EnteringPin(user, users, currentUuid, message)
+                                    } else {
+                                        PlexSignInState.ChoosingUser(users, currentUuid, message)
+                                    }
+                            },
+                            { afterSwitch(it) },
+                        )
+                }
+        }
+
+        @OptIn(UnstableApi::class)
+        private fun afterSwitch(outcome: SwitchOutcome) {
+            if (fromSettings) {
+                switched = outcome.account
+            } else {
+                // No session yet, so nothing can read this beside a server it
+                // does not belong to.
+                api.accountToken = outcome.account.authToken
+            }
+
+            when (outcome) {
+                is SwitchOutcome.NeedsServer -> {
+                    _state.value = PlexSignInState.ChoosingServer(outcome.servers)
+                }
+
+                is SwitchOutcome.NeedsLibrary -> {
+                    candidate = outcome.serverUri to outcome.resource
+                    _state.value = PlexSignInState.ChoosingLibrary(outcome.sections, outcome.servers)
+                }
+
+                is SwitchOutcome.Committable -> {
+                    commit(outcome.serverUri, outcome.resource, outcome.sectionKey)
+                }
+            }
+        }
+
+        /**
          * The Connect button.
          *
          * Two guards, inherited from start(). The fragment's own dispatch is the
@@ -266,6 +380,8 @@ class PlexSignInViewModel
                 is PlexSignInState.AwaitingApproval,
                 is PlexSignInState.ChoosingServer,
                 is PlexSignInState.ChoosingLibrary,
+                is PlexSignInState.ChoosingUser,
+                is PlexSignInState.EnteringPin,
                 is PlexSignInState.Failed,
                 -> true
 
@@ -285,7 +401,8 @@ class PlexSignInViewModel
          * | From | Goes to |
          * |---|---|
          * | [PlexSignInState.ChoosingLibrary] | [PlexSignInState.ChoosingServer], the same server list, no message |
-         * | [PlexSignInState.ChoosingServer], [PlexSignInState.AwaitingApproval], [PlexSignInState.Failed], [PlexSignInState.Working] | [PlexSignInState.Disconnected] |
+         * | [PlexSignInState.EnteringPin] | [PlexSignInState.ChoosingUser], the same member list, no message |
+         * | [PlexSignInState.ChoosingUser], [PlexSignInState.ChoosingServer], [PlexSignInState.AwaitingApproval], [PlexSignInState.Failed], [PlexSignInState.Working] | [PlexSignInState.Disconnected] |
          * | anything [handlesBackPress] reports false for | nothing |
          *
          * These are the *flow's* answers, and they assume the flow is what the
@@ -320,6 +437,13 @@ class PlexSignInViewModel
                     true
                 }
 
+                is PlexSignInState.EnteringPin -> {
+                    attempt?.cancel()
+                    _state.value = PlexSignInState.ChoosingUser(current.users, current.currentUuid)
+                    true
+                }
+
+                is PlexSignInState.ChoosingUser,
                 is PlexSignInState.ChoosingServer,
                 is PlexSignInState.AwaitingApproval,
                 is PlexSignInState.Failed,
@@ -364,6 +488,8 @@ class PlexSignInViewModel
             attempt?.cancel()
             api.session = null
             api.accountToken = null
+            switched = null
+            fromSettings = false
             _state.value = PlexSignInState.Disconnected
         }
 
@@ -400,6 +526,13 @@ class PlexSignInViewModel
                             }
 
                         candidate = uri to resource
+
+                        // A Home member's plex.tv token is refused by a server
+                        // they do not own, so without a server token of their
+                        // own there is nothing to sign in with.
+                        ensure(!(resource.owned == false && resource.accessToken.isNullOrBlank())) {
+                            SignInError.ServerTokenMissing
+                        }
 
                         // Built from the candidate directly: nothing is persisted until
                         // chooseLibrary commits a whole PlexSession, so there is no
@@ -485,12 +618,22 @@ class PlexSignInViewModel
                     return
                 }
 
+            commit(uri, resource, SectionKey(key))
+        }
+
+        @OptIn(UnstableApi::class)
+        private fun commit(
+            uri: String,
+            resource: Resource,
+            key: SectionKey,
+        ) {
             // Normally unreachable: accountToken is written in signIn() before
             // ChoosingServer is ever published, so it is always present by the
-            // time the library picker can be shown. Same reasoning as above.
+            // time the library picker can be shown. A pending switch's token
+            // wins: it is who the user just chose.
             val token =
-                api.accountToken ?: run {
-                    Log.d(TAG, "chooseLibrary called with no account token on record")
+                switched?.authToken ?: api.accountToken ?: run {
+                    Log.d(TAG, "commit called with no account token on record")
                     _state.value = PlexSignInState.Failed(PlexSignInFlow.messageFor(SignInError.NoCandidate))
                     return
                 }
@@ -505,9 +648,10 @@ class PlexSignInViewModel
                 PlexSession(
                     accountToken = token,
                     serverUri = uri,
-                    musicSectionKey = SectionKey(key),
+                    musicSectionKey = key,
                     serverToken = resource.accessToken,
                     machineIdentifier = resource.clientIdentifier,
+                    owned = resource.owned != false,
                 )
 
             // Same guard LibraryPickerRepository.selectLibrary applies to its own
@@ -520,19 +664,26 @@ class PlexSignInViewModel
             // sign-in journey is unaffected: it always calls chooseLibrary with
             // `previous == null`, and invalidatesQueue is false whenever the old
             // session is null.
-            if (LibrarySelection.invalidatesQueue(previous, next)) {
-                Log.d(TAG, "server changed; discarding the saved queue")
+            //
+            // A Home-member switch clears it too, even on the same server: the
+            // player's loaded items carry the previous member's token in their URLs.
+            if (switched != null || LibrarySelection.invalidatesQueue(previous, next)) {
+                Log.d(TAG, "server or Home member changed; discarding the saved queue")
                 QueueRepository().deleteAll()
                 BrowseTreeInvalidator.stopPlayback()
             }
 
             // The one write. All five values land together or not at all.
             api.session = next
+            switched = null
+            fromSettings = false
             _state.value = PlexSignInState.Done
         }
 
         private fun signIn() {
             attempt?.cancel()
+            fromSettings = false
+            switched = null
 
             attempt =
                 viewModelScope.launch {
@@ -553,6 +704,20 @@ class PlexSignInViewModel
                         val authorized = awaitApproval(created, awaiting).bind()
                         api.accountToken = authorized.authToken
                         _state.value = PlexSignInState.Working
+
+                        // A Home that will not list is not a reason to fail a
+                        // sign-in that has already succeeded: carry on as the
+                        // account that approved the PIN.
+                        val home =
+                            authClient
+                                .homeUsers()
+                                .onLeft { Log.d(TAG, "home listing failed, continuing as the signed-in account: $it") }
+                                .getOrNull()
+                                ?.toNonEmptyListOrNull()
+                        if (home != null && home.size > 1) {
+                            _state.value = PlexSignInState.ChoosingUser(home)
+                            return@either
+                        }
 
                         val resources = authClient.getResources().mapLeft(SignInError::Api).bind()
                         val servers =

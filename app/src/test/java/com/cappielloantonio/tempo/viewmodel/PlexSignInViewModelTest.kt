@@ -10,20 +10,25 @@ import arrow.core.nonEmptyListOf
 import arrow.core.right
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.database.AppDatabase
+import com.cappielloantonio.tempo.plex.HomeUserSwitch
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import com.cappielloantonio.tempo.plex.SectionKey
+import com.cappielloantonio.tempo.plex.SwitchOutcome
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.api.server.ServerProbe
 import com.cappielloantonio.tempo.plex.auth.PlexPinState
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
+import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.plex.models.Pin
+import com.cappielloantonio.tempo.plex.models.PlexAccount
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
@@ -51,6 +56,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.doReturnConsecutively
 import org.mockito.kotlin.mock
@@ -135,6 +142,26 @@ class PlexSignInViewModelTest {
 
     private fun approvedPin() = Pin().apply { authToken = "granted" }
 
+    private val me =
+        HomeUser().apply {
+            uuid = "me"
+            title = "me"
+            admin = true
+        }
+    private val jill =
+        HomeUser().apply {
+            uuid = "jill"
+            title = "jill"
+            restricted = true
+        }
+    private val locked =
+        HomeUser().apply {
+            uuid = "locked"
+            title = "locked"
+            restricted = true
+            isProtected = true
+        }
+
     /** A minimal getSections() body with one music (type "artist") section. */
     private fun sectionsBody(key: String) = """{"MediaContainer":{"Directory":[{"key":"$key","type":"artist","title":"Music"}]}}"""
 
@@ -176,6 +203,7 @@ class PlexSignInViewModelTest {
                             PlexTransportFailure.Http(PlexHost.PlexTv, 500).left(),
                             approvedPin().right(),
                         )
+                    on { homeUsers() } doReturn listOf(me).right()
                     on { getResources() } doReturn listOf(aMediaServer()).right()
                 }
 
@@ -212,6 +240,7 @@ class PlexSignInViewModelTest {
         mock<AuthClient>().stub {
             on { createPin() } doReturn created.right()
             on { getPin(42L) } doReturn approvedPin().right()
+            on { homeUsers() } doReturn listOf(me).right()
             on { getResources() } doReturn listOf(resource).right()
         }
 
@@ -691,6 +720,7 @@ class PlexSignInViewModelTest {
                 mock<AuthClient>().stub {
                     on { createPin() } doReturn created.right()
                     on { getPin(42L) } doReturn approvedPin().right()
+                    on { homeUsers() } doReturn listOf(me).right()
                     on { getResources() } doReturn listOf(bad, good).right()
                 }
             val probe =
@@ -1020,6 +1050,7 @@ class PlexSignInViewModelTest {
                 mock<AuthClient>().stub {
                     on { createPin() } doReturn created.right()
                     on { getPin(42L) } doReturn approvedPin().right()
+                    on { homeUsers() } doReturn listOf(me).right()
                     on { getResources() } doReturn listOf(wrong, right).right()
                 }
             val probe =
@@ -1420,6 +1451,7 @@ class PlexSignInViewModelTest {
         runTest(dispatcher) {
             val authClient =
                 mock<AuthClient>().stub {
+                    on { homeUsers() } doReturn listOf(me).right()
                     on { getResources() } doReturn listOf(aMediaServer()).right()
                 }
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
@@ -1436,6 +1468,7 @@ class PlexSignInViewModelTest {
         runTest(dispatcher) {
             val authClient =
                 mock<AuthClient>().stub {
+                    on { homeUsers() } doReturn listOf(me).right()
                     on { getResources() } doReturn
                         PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
                 }
@@ -1455,6 +1488,7 @@ class PlexSignInViewModelTest {
             // case NoServers exists for.
             val authClient =
                 mock<AuthClient>().stub {
+                    on { homeUsers() } doReturn listOf(me).right()
                     on { getResources() } doReturn emptyList<Resource>().right()
                 }
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
@@ -1463,5 +1497,175 @@ class PlexSignInViewModelTest {
             advanceUntilIdle()
 
             assertTrue(viewModel.state.value is PlexSignInState.Failed)
+        }
+
+    private fun signedInAuthClient(home: List<HomeUser>) =
+        mock<AuthClient>().stub {
+            on { createPin() } doReturn created.right()
+            on { getPin(42L) } doReturn approvedPin().right()
+            on { homeUsers() } doReturn home.right()
+            on { getResources() } doReturn listOf(aMediaServer()).right()
+            on { currentUser() } doReturn
+                PlexAccount()
+                    .apply {
+                        uuid = "me"
+                        title = "me"
+                    }.right()
+        }
+
+    private fun account(token: String) =
+        PlexAccount().apply {
+            authToken = token
+            uuid = "jill"
+            title = "jill"
+        }
+
+    @Test
+    fun aOneMemberHomeGoesStraightToTheServerPicker() =
+        runTest(dispatcher) {
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = signedInAuthClient(listOf(me)))
+            viewModel.connect()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+        }
+
+    @Test
+    fun aLargerHomeAsksWhoIsListening() =
+        runTest(dispatcher) {
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = signedInAuthClient(listOf(me, jill)))
+            viewModel.connect()
+            advanceUntilIdle()
+
+            val state = viewModel.state.value
+            assertTrue("got $state", state is PlexSignInState.ChoosingUser)
+            assertEquals(listOf("me", "jill"), (state as PlexSignInState.ChoosingUser).users.map { it.uuid })
+        }
+
+    @Test
+    fun aHomeThatWillNotListStillSignsIn() =
+        runTest(dispatcher) {
+            val authClient =
+                signedInAuthClient(listOf(me)).stub {
+                    on { homeUsers() } doReturn PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+                }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient)
+            viewModel.connect()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+        }
+
+    @Test
+    fun choosingAProtectedMemberAsksForTheirPin() =
+        runTest(dispatcher) {
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = signedInAuthClient(listOf(me, locked)))
+            viewModel.setStateForTest(PlexSignInState.ChoosingUser(nonEmptyListOf(me, locked)))
+
+            viewModel.chooseUser(locked)
+
+            assertEquals(PlexSignInState.EnteringPin(locked, nonEmptyListOf(me, locked)), viewModel.state.value)
+        }
+
+    @Test
+    fun backFromThePinPadReturnsToThePicker() {
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock())
+        viewModel.setStateForTest(PlexSignInState.EnteringPin(locked, nonEmptyListOf(me, locked), "me"))
+
+        assertTrue(viewModel.backPressed())
+
+        assertEquals(PlexSignInState.ChoosingUser(nonEmptyListOf(me, locked), "me"), viewModel.state.value)
+    }
+
+    @Test
+    fun aWrongPinStaysOnThePad() =
+        runTest(dispatcher) {
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), any(), anyOrNull()) } doReturn SignInError.WrongPin.left() }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = switch)
+            viewModel.setStateForTest(PlexSignInState.EnteringPin(locked, nonEmptyListOf(me, locked)))
+
+            viewModel.enterPin("0000")
+            advanceUntilIdle()
+
+            assertEquals(
+                PlexSignInState.EnteringPin(locked, nonEmptyListOf(me, locked), messageRes = R.string.plex_sign_in_error_wrong_pin),
+                viewModel.state.value,
+            )
+        }
+
+    @Test
+    fun aSwitchDuringSignInBecomesTheAccountAndListsTheirServers() =
+        runTest(dispatcher) {
+            val outcome = SwitchOutcome.NeedsServer(account("jill-token"), nonEmptyListOf(aMediaServer(accessToken = "s")))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = switch)
+            viewModel.setStateForTest(PlexSignInState.ChoosingUser(nonEmptyListOf(me, jill)))
+
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+            assertEquals("jill-token", PlexApi().accountToken)
+        }
+
+    @Test
+    fun aSwitchFromSettingsCommitsWholeAndClearsTheQueue() =
+        runTest(dispatcher) {
+            PlexApi().session = PlexSession("admin-token", "https://saved.example", SectionKey("7"), null, "machine-id")
+            val resource = aMediaServer(accessToken = "jill-server", clientIdentifier = "machine-id").apply { owned = false }
+            val outcome = SwitchOutcome.Committable(account("jill-token"), "https://saved.example", resource, SectionKey("7"))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val authClient = signedInAuthClient(listOf(me, jill))
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = authClient, homeUserSwitch = switch)
+
+            viewModel.reopenUserPicker()
+            advanceUntilIdle()
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+
+            assertEquals(PlexSignInState.Done, viewModel.state.value)
+            val session = PlexApi().session!!
+            assertEquals("jill-token", session.accountToken)
+            assertEquals("jill-server", session.serverToken)
+            assertEquals(false, session.owned)
+            // Same server, but the player's loaded items carry the previous
+            // user's token in their stream URLs.
+            shadowOf(Looper.getMainLooper()).idle()
+            verify(player).stop()
+        }
+
+    @Test
+    fun theSettingsPickerMarksTheCurrentUserAndIgnoresTapsOnIt() =
+        runTest(dispatcher) {
+            val switch = mock<HomeUserSwitch>()
+            val viewModel =
+                PlexSignInViewModel(mock<Application>(), authClient = signedInAuthClient(listOf(me, jill)), homeUserSwitch = switch)
+
+            viewModel.reopenUserPicker()
+            advanceUntilIdle()
+            assertEquals("me", (viewModel.state.value as PlexSignInState.ChoosingUser).currentUuid)
+
+            viewModel.chooseUser(me)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.value is PlexSignInState.ChoosingUser)
+            verify(switch, never()).switch(any(), anyOrNull(), anyOrNull())
+        }
+
+    @Test
+    fun anUnownedServerWithNoTokenIsRefusedAtThePicker() =
+        runTest(dispatcher) {
+            val unowned = aMediaServer(accessToken = null).apply { owned = false }
+            val probe = mock<ServerProbe>().stub { on { bestConnectionUri(any()) } doReturn "https://10.0.0.5:32400" }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), probe = probe)
+            viewModel.setStateForTest(PlexSignInState.ChoosingServer(nonEmptyListOf(unowned)))
+
+            viewModel.chooseServer(unowned)
+            advanceUntilIdle()
+
+            assertEquals(
+                PlexSignInState.ChoosingServer(nonEmptyListOf(unowned), R.string.plex_sign_in_error_no_server_access),
+                viewModel.state.value,
+            )
         }
 }

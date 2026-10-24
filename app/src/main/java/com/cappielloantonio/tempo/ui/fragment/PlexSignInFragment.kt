@@ -253,6 +253,11 @@ class PlexSignInFragment : Fragment() {
             // drawing a screen about to be replaced; the cleared views above
             // are the right thing to leave behind.
             is PlexSignInState.Connected -> {}
+
+            // Rendered by the fragment's next change; the state machine is ahead of the UI.
+            is PlexSignInState.ChoosingUser,
+            is PlexSignInState.EnteringPin,
+            -> {}
         }
     }
 

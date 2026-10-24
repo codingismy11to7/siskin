@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.plex.auth
 import androidx.annotation.StringRes
 import arrow.core.NonEmptyList
 import com.cappielloantonio.tempo.plex.models.Directory
+import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.plex.models.Resource
 
 /**
@@ -84,6 +85,31 @@ sealed interface PlexSignInState {
     data class ChoosingLibrary(
         val sections: NonEmptyList<Directory>,
         val servers: NonEmptyList<Resource>,
+    ) : PlexSignInState
+
+    /**
+     * Who is listening, for a Home with more than one member. Non-empty by
+     * construction; a one-member Home never shows this.
+     *
+     * [currentUuid] is set only when opened from settings, where it marks the
+     * active member and tapping it does nothing. At sign-in it is null and
+     * every member, the signed-in one included, is a switch.
+     */
+    data class ChoosingUser(
+        val users: NonEmptyList<HomeUser>,
+        val currentUuid: String? = null,
+        @param:StringRes val messageRes: Int? = null,
+    ) : PlexSignInState
+
+    /**
+     * A protected member's PIN. Carries [users] and [currentUuid] so that back
+     * returns to the picker intact, as [ChoosingLibrary] carries `servers`.
+     */
+    data class EnteringPin(
+        val user: HomeUser,
+        val users: NonEmptyList<HomeUser>,
+        val currentUuid: String? = null,
+        @param:StringRes val messageRes: Int? = null,
     ) : PlexSignInState
 
     data class Failed(
