@@ -11,6 +11,10 @@
 
 ## [Unreleased] — Siskin
 
+- **Debug:** The debug screen opens on an About tab showing the installed
+  version, when it was last updated and what installed it, and a Credits button
+  with a QR code and link to siskinapp.com/credits.
+
 ## [1.1.1] (2026-10-25)
 
 - **Debug:** The debug screen has a Changes tab showing what each Siskin

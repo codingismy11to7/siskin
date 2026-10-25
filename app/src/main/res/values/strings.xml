@@ -83,6 +83,12 @@
     <string name="debug_tier_nothing_reported" translatable="false">(nothing reported)</string>
     <string name="debug_tier_nothing_here" translatable="false">%1$s · nothing here</string>
     <string name="debug_tier_fallback_from" translatable="false">%1$s · fallback from %2$s</string>
+    <string name="debug_tab_about" translatable="false">About</string>
+    <string name="debug_about_install" translatable="false">Updated %1$s\nInstalled by %2$s</string>
+    <string name="debug_about_no_installer" translatable="false">(no installer recorded)</string>
+    <string name="debug_about_credits" translatable="false">Credits</string>
+    <string name="debug_credits_qr" translatable="false">QR code for the credits page</string>
+    <string name="debug_credits_close" translatable="false">Close</string>
 
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
     <string name="exo_controls_repeat_off_description">Current mode: Repeat none. Toggle repeat mode.</string>
