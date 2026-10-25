@@ -168,7 +168,10 @@ Reach it the way the car does:
 
     # Sign-in screen directly (normally reached via a PendingIntent on a browse error)
     adb shell am start -n \
-      us.codingismy11to7.siskin.debug/com.cappielloantonio.tempo.ui.activity.CarSignInActivity
+      us.codingismy11to7.siskin.debug/com.cappielloantonio.tempo.ui.activity.CarHostActivity \
+      --ez us.codingismy11to7.siskin.extra.FORCE_SIGN_IN true
+
+Without the extra, a signed-in app opens settings there instead.
 
 **Reinstalling kills this app but not the car's UI, and the car does not
 recover.** `adb install -r` stops our process while `com.android.car.media`
