@@ -297,6 +297,19 @@ configurations.matching { it.name.toLowerCase().contains('annotationprocessor') 
     resolutionStrategy.force "org.jetbrains.kotlin:kotlin-metadata-jvm:${libs.versions.kotlin.get()}"
 }
 
+// Android lint runs from its own classpath, which the root buildscript's
+// constraints do not reach, and it carries the same AGP-era bouncycastle and
+// commons-lang3. Same constraints, same deletion rule -- see the root
+// build.gradle.
+dependencies {
+    constraints {
+        androidLintTool libs.bouncycastle.bcprov
+        androidLintTool libs.bouncycastle.bcpkix
+        androidLintTool libs.bouncycastle.bcutil
+        androidLintTool libs.commons.lang3
+    }
+}
+
 dependencies {
     // AndroidX
     implementation libs.androidx.activity
