@@ -4,6 +4,7 @@ import android.accounts.Account
 import android.accounts.AccountManager
 import android.content.Context
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.util.PlexAccountFixture.registerAuthenticator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -13,7 +14,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
@@ -27,10 +27,7 @@ class PlexAccountStoreTest {
 
     @Before
     fun setUp() {
-        val manager = AccountManager.get(context)
-        // ShadowAccountManager refuses addAccountExplicitly for a type with no
-        // registered authenticator, the same way the real one does.
-        shadowOf(manager).addAuthenticator(context.getString(R.string.plex_account_type))
+        registerAuthenticator()
         store = PlexAccountStore(context)
     }
 

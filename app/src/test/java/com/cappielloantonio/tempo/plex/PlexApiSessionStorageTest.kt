@@ -1,9 +1,9 @@
 package com.cappielloantonio.tempo.plex
 
-import android.accounts.AccountManager
 import android.content.Context
-import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
+import com.cappielloantonio.tempo.util.PlexAccountFixture.aSession
+import com.cappielloantonio.tempo.util.PlexAccountFixture.registerAuthenticator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -12,7 +12,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class PlexApiSessionStorageTest {
@@ -25,8 +24,7 @@ class PlexApiSessionStorageTest {
 
     @Before
     fun setUp() {
-        shadowOf(AccountManager.get(context))
-            .addAuthenticator(context.getString(R.string.plex_account_type))
+        registerAuthenticator()
         api = PlexApi()
         // Robolectric caches SharedPreferences statically across methods, so
         // every field this test depends on is reset rather than assumed absent.
@@ -36,15 +34,7 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun writingASessionPutsBothTokensInTheAccountAndTheRestInPreferences() {
-        api.session =
-            PlexSession(
-                accountToken = "acct",
-                serverUri = "https://one.example",
-                musicSectionKey = SectionKey("4"),
-                serverToken = "srv",
-                machineIdentifier = "machine-a",
-                owned = true,
-            )
+        api.session = aSession()
 
         val store = PlexAccountStore(context)
         assertEquals("acct", store.accountToken())
@@ -56,15 +46,7 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun aSessionReadsBackWholeThroughTheAccount() {
-        api.session =
-            PlexSession(
-                accountToken = "acct",
-                serverUri = "https://one.example",
-                musicSectionKey = SectionKey("4"),
-                serverToken = "srv",
-                machineIdentifier = "machine-a",
-                owned = true,
-            )
+        api.session = aSession()
 
         val read = api.session
         assertNotNull(read)
@@ -75,24 +57,14 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun switchingServersDoesNotLeaveThePreviousServersTokenReadable() {
-        api.session =
-            PlexSession(
-                accountToken = "acct",
-                serverUri = "https://one.example",
-                musicSectionKey = SectionKey("4"),
-                serverToken = "srv-a",
-                machineIdentifier = "machine-a",
-                owned = true,
-            )
+        api.session = aSession(serverToken = "srv-a")
 
         api.session =
-            PlexSession(
-                accountToken = "acct",
+            aSession(
                 serverUri = "https://two.example",
-                musicSectionKey = SectionKey("9"),
+                musicSectionKey = "9",
                 serverToken = null,
                 machineIdentifier = "machine-b",
-                owned = true,
             )
 
         // Owned server: no server token, and machine-a's must not surface.
@@ -109,15 +81,7 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun clearingTheSessionKeepsTheAccountTokenBecauseThePinGrantIsStillGood() {
-        api.session =
-            PlexSession(
-                accountToken = "acct",
-                serverUri = "https://one.example",
-                musicSectionKey = SectionKey("4"),
-                serverToken = "srv",
-                machineIdentifier = "machine-a",
-                owned = true,
-            )
+        api.session = aSession()
 
         api.session = null
 
@@ -128,23 +92,14 @@ class PlexApiSessionStorageTest {
 
     @Test
     fun ownedRoundTripsThroughPreferences() {
-        api.session =
-            PlexSession(
-                accountToken = "acct",
-                serverUri = "https://one.example",
-                musicSectionKey = SectionKey("4"),
-                serverToken = "srv",
-                machineIdentifier = "machine-a",
-                owned = false,
-            )
+        api.session = aSession(owned = false)
 
         assertEquals(false, api.session!!.owned)
     }
 
     @Test
     fun clearingTheSessionForgetsOwnership() {
-        api.session =
-            PlexSession("acct", "https://one.example", SectionKey("4"), "srv", "machine-a", owned = false)
+        api.session = aSession(owned = false)
 
         api.session = null
 
