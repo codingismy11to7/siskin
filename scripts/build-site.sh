@@ -66,6 +66,12 @@ if [ "$(grep -cxF "$marker" "$root/docs/web/credits.html")" != 1 ]; then
   echo "credits.html must contain the line '$marker' exactly once" >&2
   exit 1
 fi
+for generated in credits-oss.html sbom.cdx.json; do
+  if [ ! -s "$root/docs/web/$generated" ]; then
+    echo "docs/web/$generated is missing or empty; run ./gradlew ossCredits" >&2
+    exit 1
+  fi
+done
 awk -v marker="$marker" -v table="$root/docs/web/credits-oss.html" '
   $0 == marker { while ((getline line < table) > 0) print line; next }
   { print }
