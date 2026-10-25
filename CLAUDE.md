@@ -20,6 +20,7 @@ deleted rather than ported.
     scripts/test-cut-release.sh          # release-cut script tests (CI runs these too)
     ./gradlew assembleDebug              # debug APK
     ./gradlew assembleRelease            # R8 + ABI splits; use to check size deltas
+    ./gradlew ossCredits                 # regenerate the SBOM and /credits table (CI checks)
     ./gradlew lint                       # Android lint + ktlint + google-java-format; also gates CI
     ./gradlew lintFix                    # the same three, applying what each can fix
 
@@ -476,6 +477,13 @@ builds nothing, because the project's **Build watch paths** name the four inputs
 exactly — `docs/web/**`, `docs/privacy-policy.md`, `scripts/build-site.sh`,
 `wrangler.jsonc`. Giving the build a new input means adding it there, in the
 Cloudflare dashboard, or the site quietly stops tracking it.
+
+`/credits` lists every open-source component from a CycloneDX SBOM of the
+release classpath. **`docs/web/sbom.cdx.json` and `docs/web/credits-oss.html`
+are generated** by `./gradlew ossCredits` and committed, because the site build
+cannot run Gradle, and CI fails when they are stale — so **a dependency change
+must commit them regenerated**. Do not hand-edit either. See
+`docs/decisions/2026-10-25-sbom-credits-design.md`.
 
 The Play Console holds `https://siskinapp.com/privacy`. That URL has no
 extension because `html_handling` serves `privacy.html` at its extensionless

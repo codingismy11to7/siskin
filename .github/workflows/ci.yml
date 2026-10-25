@@ -166,6 +166,24 @@ jobs:
       - name: Lint and Kotlin style
         run: ./gradlew lint
 
+      # siskinapp.com/credits is built from the committed SBOM, and Workers
+      # Builds cannot run Gradle to refresh it, so a dependency change that
+      # does not regenerate it would leave the page describing an older app.
+      # --porcelain for the same reason as the app/schemas check: a missing
+      # file shows up as untracked, which a plain diff does not see. See
+      # docs/decisions/2026-10-25-sbom-credits-design.md.
+      - name: Check the open-source credits are current
+        run: |
+          ./gradlew ossCredits
+          changed=$(git status --porcelain -- docs/web/sbom.cdx.json docs/web/credits-oss.html)
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            git diff --stat -- docs/web
+            echo "::error::The SBOM does not match the release classpath. Run ./gradlew ossCredits and commit docs/web/sbom.cdx.json and docs/web/credits-oss.html." >&2
+            exit 1
+          fi
+          echo "The open-source credits match the release classpath."
+
       - name: Upload lint reports
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
