@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.play.publisher)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.spotless)
+    alias(libs.plugins.cyclonedx)
 }
 
 // Release signing is driven entirely by the environment so that one code path
@@ -292,6 +293,82 @@ androidComponents {
     onVariants(selector().all()) { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(trimChangelog) { it.outputDir }
     }
+}
+
+// siskinapp.com/credits lists every component the release APK ships. The
+// plugin's SBOM is committed under docs/web/ without its serial number and
+// timestamp, which change every run, so CI can check that it and the rendered
+// table are current. See docs/decisions/2026-10-25-sbom-credits-design.md.
+tasks.named('cyclonedxDirectBom') {
+    includeConfigs = ['releaseRuntimeClasspath']
+    includeBomSerialNumber = false
+    includeBuildSystem = false
+    componentGroup = 'us.codingismy11to7'
+    componentName = 'siskin'
+    xmlOutput.unsetConvention()
+}
+
+abstract class OssCredits extends DefaultTask {
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getBom()
+
+    @OutputFile
+    abstract RegularFileProperty getSbom()
+
+    @OutputFile
+    abstract RegularFileProperty getTable()
+
+    @TaskAction
+    void render() {
+        def doc = new groovy.json.JsonSlurper().parse(bom.get().asFile, 'UTF-8')
+        doc.remove('serialNumber')
+        doc.metadata?.remove('timestamp')
+        doc.metadata?.component?.remove('externalReferences')
+        sbom.get().asFile.write(
+            groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(doc)) + '\n', 'UTF-8')
+
+        def esc = { String s ->
+            s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+        }
+        def licence = { Map l ->
+            if (l.id) return "<a href=\"https://spdx.org/licenses/${esc(l.id)}.html\">${esc(l.id)}</a>"
+            if (l.url) return "<a href=\"${esc(l.url)}\">${esc(l.name ?: l.url)}</a>"
+            return esc(l.name ?: l.expression ?: 'Unknown')
+        }
+        def rows = (doc.components ?: [])
+            .sort(false) { a, b -> (a.group ?: '') <=> (b.group ?: '') ?: a.name <=> b.name }
+            .collect { c ->
+                def lics = (c.licenses ?: []).collect { it.license ? licence(it.license) : esc(it.expression ?: 'Unknown') }
+                def vcs = (c.externalReferences ?: []).find { it.type == 'vcs' }?.url
+                def name = c.group ? "${c.group}:${c.name}" : c.name
+                [
+                    '<tr>',
+                    "<td>${esc(name).replace('.', '.<wbr>').replace(':', ':<wbr>')}</td>",
+                    "<td>${esc(c.version ?: '')}</td>",
+                    "<td>${lics ? lics.join(', ') : 'Not declared'}</td>",
+                    "<td>${vcs ? "<a href=\"${esc(vcs)}\">Source</a>" : ''}</td>",
+                    '</tr>',
+                ].join('')
+            }
+        def out = [
+            '<table class="oss">',
+            '<thead><tr><th>Component</th><th>Version</th><th>License</th><th>Link</th></tr></thead>',
+            '<tbody>',
+            *rows,
+            '</tbody>',
+            '</table>',
+        ]
+        table.get().asFile.write(out.join('\n') + '\n', 'UTF-8')
+    }
+}
+
+tasks.register('ossCredits', OssCredits) {
+    group = 'documentation'
+    description = 'Regenerates docs/web/sbom.cdx.json and credits-oss.html from the release classpath.'
+    bom = tasks.named('cyclonedxDirectBom').flatMap { it.jsonOutput }
+    sbom = rootProject.layout.projectDirectory.file('docs/web/sbom.cdx.json')
+    table = rootProject.layout.projectDirectory.file('docs/web/credits-oss.html')
 }
 
 // javac's half of the same rule. -Werror alone is inert: without -Xlint, javac
