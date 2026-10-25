@@ -45,7 +45,7 @@ androidxTestCore = "1.7.0"
 zxing = "3.5.4"
 
 # Build classpath only -- raised over what AGP brings, see the root build.gradle
-bouncycastle = "1.85"
+bouncycastle = "1.86"
 jose4j = "0.9.7"
 jdom2 = "2.0.6.1"
 commonsLang3 = "3.21.0"
