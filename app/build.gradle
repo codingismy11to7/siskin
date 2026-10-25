@@ -92,6 +92,12 @@ android {
     testOptions {
         unitTests.returnDefaultValues = true
         unitTests.includeAndroidResources = true
+        // Robolectric sets up every sandbox through jdk.internal.access, which
+        // java.base does not export; without this every Robolectric test fails
+        // with "Failed to interact with raw FileDescriptor internals".
+        unitTests.all {
+            jvmArgs '--add-exports=java.base/jdk.internal.access=ALL-UNNAMED'
+        }
     }
 
     // MigrationTestHelper reads the exported schemas as assets, and Robolectric only sees
