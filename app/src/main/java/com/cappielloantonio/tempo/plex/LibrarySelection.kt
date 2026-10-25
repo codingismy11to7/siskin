@@ -81,12 +81,19 @@ object LibrarySelection {
         new: PlexSession,
     ): Boolean {
         if (old == null) return false
-        val oldId = old.machineIdentifier
-        val newId = new.machineIdentifier
-        return if (!oldId.isNullOrBlank() && !newId.isNullOrBlank()) {
-            oldId != newId
-        } else {
-            old.serverUri != new.serverUri
-        }
+        return changesServer(old.machineIdentifier, old.serverUri, new.machineIdentifier, new.serverUri)
     }
+
+    /** [invalidatesQueue]'s test of the server itself, for a caller holding the parts rather than a session. */
+    fun changesServer(
+        oldMachineIdentifier: String?,
+        oldServerUri: String?,
+        newMachineIdentifier: String?,
+        newServerUri: String?,
+    ): Boolean =
+        if (!oldMachineIdentifier.isNullOrBlank() && !newMachineIdentifier.isNullOrBlank()) {
+            oldMachineIdentifier != newMachineIdentifier
+        } else {
+            oldServerUri != newServerUri
+        }
 }

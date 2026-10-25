@@ -37,9 +37,10 @@ private const val TAG = "PlexScrobbler"
  * track left by a Home switch, queued just before the new member's session is
  * written, which must still go out as the member who played it.
  *
- * Any other report queued before a session write is dropped rather than sent:
- * resolved afterwards, it would go out as the new member and open a Now Playing
- * entry that nothing closes. The "stopped" behind it ends the old one.
+ * Any other report queued before a switch to another member or server is
+ * dropped rather than sent: resolved afterwards, it would go out as the new
+ * member and open a Now Playing entry that nothing closes. Such a switch always
+ * stops playback, so the "stopped" queued behind it ends the old one.
  */
 object PlexScrobbler {
     private data class Server(
@@ -47,15 +48,27 @@ object PlexScrobbler {
         val token: String?,
     )
 
+    /** Whose credentials a report goes out with. */
+    private sealed interface Sender {
+        /** Resolved on the calling thread, when the report was made. */
+        data class Snapshot(
+            val server: Server,
+        ) : Sender
+
+        /** Resolved when sent, unless the listener or server has changed since [generation]. */
+        data class AsOf(
+            val generation: Long,
+        ) : Sender
+    }
+
     private class Report(
         val ratingKey: String,
         val partKey: String,
         val state: TimelineState,
         val timeMs: Long,
         val station: PlexMediaMapper.StationTag?,
-        val server: Server?,
+        val sender: Sender,
         val sent: CompletableDeferred<Unit>? = null,
-        val generation: Long = PlexApi.sessionGeneration,
     )
 
     private val queue = Channel<Report>(Channel.UNLIMITED)
@@ -96,7 +109,7 @@ object PlexScrobbler {
         timeMs: Long,
         station: PlexMediaMapper.StationTag?,
     ) {
-        queue.trySend(Report(ratingKey, partKey, state, timeMs, station, snapshotFor(state)))
+        queue.trySend(Report(ratingKey, partKey, state, timeMs, station, senderFor(state)))
     }
 
     /**
@@ -113,19 +126,32 @@ object PlexScrobbler {
         val ratingKey = extras.getString(PlexMediaMapper.EXTRA_ID) ?: return
         val partKey = extras.getString(PlexMediaMapper.EXTRA_PART_KEY) ?: return
         val sent = CompletableDeferred<Unit>()
-        queue.trySend(Report(ratingKey, partKey, state, timeMs, PlexMediaMapper.stationTagOf(item), snapshotFor(state), sent))
+        queue.trySend(Report(ratingKey, partKey, state, timeMs, PlexMediaMapper.stationTagOf(item), senderFor(state), sent))
         sent.await()
     }
 
     private fun currentServer() = Server(api.serverUri, api.serverAuthToken)
 
-    private fun snapshotFor(state: TimelineState) = if (state == TimelineState.STOPPED) currentServer() else null
+    private fun senderFor(state: TimelineState) =
+        if (state == TimelineState.STOPPED) Sender.Snapshot(currentServer()) else Sender.AsOf(PlexApi.sessionGeneration)
+
+    /**
+     * Null once the listener or server has changed since [generation]. Checked
+     * before the read, to spare a stale report its Binder calls, and after it,
+     * because the setter bumps before it writes: a read that saw any of the
+     * new session fails the second check.
+     */
+    private fun serverAsOf(generation: Long): Server? {
+        if (generation != PlexApi.sessionGeneration) return null
+        return currentServer().takeIf { generation == PlexApi.sessionGeneration }
+    }
 
     private suspend fun send(report: Report) {
-        // Checked after the read: the setter bumps the generation before it
-        // writes, so a read that saw any of the new session fails the check.
         val server =
-            report.server ?: currentServer().takeIf { report.generation == PlexApi.sessionGeneration }
+            when (val sender = report.sender) {
+                is Sender.Snapshot -> sender.server
+                is Sender.AsOf -> serverAsOf(sender.generation)
+            }
         if (server == null) {
             Log.i(TAG, "dropped a ${report.state} report queued before the session changed")
             return

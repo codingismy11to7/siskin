@@ -135,10 +135,6 @@ class PlexApi(
                 owned = serverOwned,
             )
         set(value) {
-            // First, so a reader that sees any part of the new session has
-            // already seen the bump.
-            generation.incrementAndGet()
-
             // Read before the preferences write below overwrites it. Switching
             // servers has to clear the previous one's access token: the tag
             // already makes it unreadable, but unreadable is not gone, and a
@@ -147,6 +143,7 @@ class PlexApi(
             val previousMachineIdentifier = machineIdentifier
 
             if (value == null) {
+                generation.incrementAndGet()
                 writeServerPreferences(null)
                 // Clearing the session deliberately leaves accountToken alone --
                 // the PIN grant is still valid and plex.tv calls still need it.
@@ -156,6 +153,18 @@ class PlexApi(
                 return
             }
 
+            val stored = accounts.accountToken()
+            // Before any write, so a reader that sees part of the new session
+            // has already seen the bump. Only a new member or server bumps it:
+            // a report queued before any other write still reaches the right
+            // listener, and dropping it could lose a pause nothing re-sends.
+            val previousServerUri = serverUri
+            if (stored != value.accountToken ||
+                LibrarySelection.changesServer(previousMachineIdentifier, previousServerUri, value.machineIdentifier, value.serverUri)
+            ) {
+                generation.incrementAndGet()
+            }
+
             // On a device, changing the account token deletes every server
             // token, so a reader between two writes must see either credentials
             // the selected server accepts or no session -- never a plex.tv
@@ -163,7 +172,6 @@ class PlexApi(
             // own, which the server answers with 401. A changed token is
             // therefore written only once the stored session is marked not
             // owned, which reads as none without a server token.
-            val stored = accounts.accountToken()
             if (stored != null && stored != value.accountToken) {
                 markServerNotOwned()
                 accounts.setAccountToken(value.accountToken)
@@ -238,8 +246,9 @@ class PlexApi(
         private val generation = AtomicLong()
 
         /**
-         * Changes on every [session] write. In memory and process-wide, so
-         * comparing it costs no AccountManager read.
+         * Changes when a [session] write changes who is listening or which
+         * server they are on -- the writes after which playback stops. In
+         * memory and process-wide, so comparing it costs no AccountManager read.
          */
         val sessionGeneration: Long get() = generation.get()
 
