@@ -60,6 +60,8 @@ unreleased_section() {
 
 # One line per changelog bullet: its first sentence, with bold and code-span
 # markers stripped. A draft for the cut PR to rewrite, not a finished note.
+# A **Debug:** bullet is about the debug screen, which drivers never see, so it
+# stays in the changelog and out of the store's "what's new".
 first_sentences() {
   awk '
     function emit() {
@@ -69,6 +71,7 @@ first_sentences() {
       print (i ? substr(b, 1, i) : b)
       b = ""
     }
+    /^- \*\*Debug:\*\*/ { emit(); next }
     /^- / { emit(); b = substr($0, 3); next }
     /^ +[^ ]/ && b != "" { sub(/^ +/, ""); b = b " " $0; next }
     { emit() }
@@ -108,7 +111,7 @@ pr_body() { # version tag
   cat <<EOF
 Cuts $1 (versionCode $(version_code "$1")). Merging this publishes it to \`automotive:internal\` and then tags \`$2\`.
 
-**Rewrite the release note before merging.** \`$NOTE\` was drafted from the first sentence of each changelog bullet. It is the store's "what's new": 500 characters at most, which CI checks.
+**Rewrite the release note before merging.** \`$NOTE\` was drafted from the first sentence of each changelog bullet except the **Debug:** ones, so it is empty when those are all this release holds. It is the store's "what's new": 500 characters at most, which CI checks.
 
 Once it is working in the car, run **Promote to production** from the Actions tab against \`$2\`.
 EOF
