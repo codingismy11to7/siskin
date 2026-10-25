@@ -67,3 +67,17 @@ jobs:
           --from-track automotive:internal
           --promote-track automotive:production
           --release-status completed
+
+      # The listing is app-wide rather than per track, so it publishes here, when
+      # the build it describes reaches everyone -- never from release.yml, which
+      # would advertise a build only internal testers have. After the promotion,
+      # so a failure here leaves the listing behind the build rather than ahead
+      # of it.
+      #
+      # Only the text is in app/src/main/play/. Graphics stay manual uploads,
+      # and GPP leaves alone any image type it has no directory for. See
+      # docs/decisions/2026-10-25-play-listing-in-repo-design.md.
+      - name: Publish the store listing
+        env:
+          ANDROID_PUBLISHER_CREDENTIALS: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: ./gradlew publishListing

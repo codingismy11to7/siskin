@@ -420,6 +420,10 @@ use **Re-run failed jobs** on that run — it rebuilds the cut's own commit, whe
 a fresh dispatch would publish whatever `main` holds now.
 **Production is a separate, manual step:** run `promote.yml` from the Actions
 tab against the newest tag, and it promotes what internal holds, unrebuilt.
+It then publishes the store listing's text from `app/src/main/play/listings/`,
+so **a listing edit made in the Console is overwritten at the next promotion**.
+Graphics stay manual uploads. See
+`docs/decisions/2026-10-25-play-listing-in-repo-design.md`.
 
 **The tracks are `automotive:internal` and `automotive:production`, never the
 bare names.** Play gives each alternative form factor its own track family, and
