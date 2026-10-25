@@ -28,7 +28,9 @@ nix run nixpkgs#qrencode -- -t ASCII -m 0 -l M "$url" |
           x++
         }
       }
-      size = n
+      # The code is square, so its widest row is its side. A trimmed or blank
+      # last row would shrink the viewport and crop it.
+      if (n > size) size = n
     }
     END {
       side = size + 8

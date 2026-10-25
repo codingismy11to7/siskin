@@ -413,10 +413,33 @@ class CarDebugFragmentTest {
         val controller = launch()
         openDebugScreen(controller)
 
-        rowLabelled(controller, "Credits").performClick()
-        idle()
+        openCredits(controller)
 
         val dialog = ShadowDialog.getLatestDialog()
+        assertTrue(dialog.isShowing)
+        assertEquals(CREDITS_URL, dialog.findViewById<TextView>(R.id.credits_url).text.toString())
+    }
+
+    private fun openCredits(controller: ActivityController<CarHostActivity>) {
+        rowLabelled(controller, controller.get().getString(R.string.debug_about_credits)).performClick()
+        idle()
+    }
+
+    /** A day/night switch recreates the activity, and a bare dialog would leak and vanish. */
+    @Test
+    fun `the Credits dialog survives the activity being recreated`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        openCredits(controller)
+
+        controller.recreate()
+        idle()
+
+        val credits =
+            tabFragment(controller, DebugTab.ABOUT)!!
+                .childFragmentManager
+                .findFragmentByTag(CreditsDialogFragment.TAG) as CreditsDialogFragment
+        val dialog = credits.requireDialog()
         assertTrue(dialog.isShowing)
         assertEquals(CREDITS_URL, dialog.findViewById<TextView>(R.id.credits_url).text.toString())
     }

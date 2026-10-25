@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.app.Dialog
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
@@ -9,8 +10,8 @@ import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
-import com.cappielloantonio.tempo.BuildConfig
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.DebugCreditsBinding
 import com.cappielloantonio.tempo.databinding.FragmentDebugAboutBinding
@@ -22,27 +23,51 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
  * siskinapp.com/credits. See docs/decisions/2026-10-25-debug-about-tab-design.md.
  */
 class DebugAboutFragment : Fragment() {
+    private var bind: FragmentDebugAboutBinding? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
         val bind = FragmentDebugAboutBinding.inflate(inflater, container, false)
+        this.bind = bind
+        bind.aboutVersion.text = versionLabel
+        addChoice(bind.choiceContainer, getString(R.string.debug_about_credits)) {
+            CreditsDialogFragment().show(childFragmentManager, CreditsDialogFragment.TAG)
+        }
+        return bind.root
+    }
 
-        // Not prose, as in Settings' version line.
-        //noinspection SetTextI18n
-        bind.aboutVersion.text = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+    /**
+     * Rendered on every showing, not once: the shell hides and shows this tab
+     * rather than recreating it, and "3 minutes ago" goes stale while hidden.
+     */
+    override fun onResume() {
+        super.onResume()
+        renderInstall()
+    }
 
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) renderInstall()
+    }
+
+    override fun onDestroyView() {
+        bind = null
+        super.onDestroyView()
+    }
+
+    private fun renderInstall() {
+        val bind = bind ?: return
         val updated = packageInfo().lastUpdateTime
-        val ago = DateUtils.getRelativeTimeSpanString(updated, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
+        // A head unit's clock can lag until GNSS or the network sets it, which
+        // would otherwise read as "In 5 minutes".
+        val now = maxOf(System.currentTimeMillis(), updated)
+        val ago = DateUtils.getRelativeTimeSpanString(updated, now, DateUtils.MINUTE_IN_MILLIS)
         val date = DateFormat.getDateFormat(requireContext()).format(updated)
         val time = DateFormat.getTimeFormat(requireContext()).format(updated)
-        val at = "$date $time"
-        bind.aboutInstall.text = getString(R.string.debug_about_install, "$ago ($at)", installer())
-
-        addChoice(bind.choiceContainer, getString(R.string.debug_about_credits)) { showCredits() }
-
-        return bind.root
+        bind.aboutInstall.text = getString(R.string.debug_about_install, "$ago ($date $time)", installer())
     }
 
     private fun packageInfo(): PackageInfo {
@@ -57,25 +82,43 @@ class DebugAboutFragment : Fragment() {
         }
     }
 
-    /**
-     * The raw package name: com.android.vending is Play, and an `adb install`
-     * records none. Only API 30 and up have a non-deprecated way to ask.
-     */
+    /** The raw package name: com.android.vending is Play, and an `adb install` records none. */
     private fun installer(): String {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return getString(R.string.debug_about_installer_unknown)
-        val context = requireContext()
-        return context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
-            ?: getString(R.string.debug_about_no_installer)
+        val packages = requireContext().packageManager
+        val name = requireContext().packageName
+        val installer =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                packages.getInstallSourceInfo(name).installingPackageName
+            } else {
+                // getInstallSourceInfo is API 30; this is the only form older head units have.
+                @Suppress("DEPRECATION")
+                packages.getInstallerPackageName(name)
+            }
+        return installer ?: getString(R.string.debug_about_no_installer)
     }
+}
 
-    private fun showCredits() {
-        val body = DebugCreditsBinding.inflate(layoutInflater)
+/**
+ * A DialogFragment rather than a bare dialog so that it survives the activity
+ * being recreated, which a day/night switch does.
+ */
+class CreditsDialogFragment : DialogFragment() {
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val builder = MaterialAlertDialogBuilder(requireContext())
+        // The builder's context carries the dialog's theme overlay; the
+        // fragment's own inflater would style the body for the activity.
+        //noinspection UseGetLayoutInflater
+        val body = DebugCreditsBinding.inflate(LayoutInflater.from(builder.context))
         body.creditsUrl.text = CREDITS_URL
-        MaterialAlertDialogBuilder(requireContext())
+        return builder
             .setTitle(R.string.debug_about_credits)
             .setView(body.root)
             .setPositiveButton(R.string.debug_credits_close, null)
-            .show()
+            .create()
+    }
+
+    companion object {
+        const val TAG = "credits"
     }
 }
 

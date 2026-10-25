@@ -42,14 +42,16 @@ on Car. `DEFAULT` applies only when no tab has been shown yet.
 - The app icon, "Siskin", and `versionName (versionCode)`, the same pair
   Settings shows. Play goes by the code.
 - **Updated**: `PackageInfo.lastUpdateTime`, as both relative and absolute
-  time. This is the line that answers "did it land?"
+  time. This is the line that answers "did it land?" It is redrawn each time
+  the tab is shown, since tabs are hidden rather than rebuilt, and a clock
+  behind the update time reads as "0 minutes ago" rather than in the future,
+  because a head unit's clock can lag until GNSS or the network sets it.
 - **Installed by**: the installer's raw package name from
-  `getInstallSourceInfo`. This is `com.android.vending` for Play, and nothing
+  `getInstallSourceInfo`, or the deprecated `getInstallerPackageName` below
+  API 30, which is the only form Android 9 and 10 have. This is `com.android.vending` for Play, and nothing
   for an `adb install`, which reads "(no installer recorded)". It is not
   translated into "Play Store" or "adb": the package name is the fact, and
-  reading an absent installer as adb is a guess. Below API 30 there is no
-  non-deprecated way to read it, and the line says "(unknown before
-  Android 11)".
+  reading an absent installer as adb is a guess.
 
 There is no commit SHA. It needs `git` at build time, which makes every build
 depend on repository state and breaks a build from a source tarball, and the
@@ -72,9 +74,13 @@ Material's small Close button. That is under the app's arm's-length target
 size, which is accepted for a debug screen, and tapping outside the dialog also
 closes it.
 
+It is a `DialogFragment`, so it survives the activity being recreated, which a
+day/night switch does.
+
 The QR is 200dp, about as large as it can be while the URL beneath it stays
 visible in the dialog on the 1024×768 head unit; a larger one clipped the URL off
-the bottom.
+the bottom. On a shorter head unit the dialog body scrolls, so the URL can
+still be reached.
 
 The credits get their own page rather than a section of the privacy policy:
 third-party credits are not privacy content. #244 serves a minimal version (the

@@ -130,11 +130,7 @@ class CarSettingsFragment : Fragment() {
             (requireActivity() as LoginHost).onSignedOut()
         }
 
-        // A version number is not prose: "0.99.5 (12)" reads the same in every
-        // locale, so a format resource would move the string without giving
-        // anything to translate.
-        //noinspection SetTextI18n
-        bind.versionText.text = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+        bind.versionText.text = versionLabel
         // The version line is the debug screen's entry point. Settings itself
         // holds only rows that change something, and debug information
         // accumulates -- see the 2026-08-14 design. It is a screen rather than
@@ -193,3 +189,12 @@ class CarSettingsFragment : Fragment() {
         bind = null
     }
 }
+
+/**
+ * The version as Settings and the debug screen's About tab both show it.
+ *
+ * A version number is not prose: "0.99.5 (12)" reads the same in every
+ * locale, so a format resource would move the string without giving anything
+ * to translate.
+ */
+internal val versionLabel = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
