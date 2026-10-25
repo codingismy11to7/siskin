@@ -25,6 +25,7 @@ import com.google.android.material.color.MaterialColors
  */
 class DebugCarFragment : Fragment() {
     private var bind: FragmentDebugCarBinding? = null
+    private var tooltip: PopupWindow? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -34,11 +35,28 @@ class DebugCarFragment : Fragment() {
         val bind = FragmentDebugCarBinding.inflate(inflater, container, false)
         this.bind = bind
         bind.deviceInfo.setOnClickListener { showTooltip(it) }
-        render()
         return bind.root
     }
 
+    /**
+     * Rendered on every showing, not once: the shell hides and shows this tab
+     * rather than recreating it, and the vehicle read that fills the cards
+     * lands asynchronously.
+     */
+    override fun onResume() {
+        super.onResume()
+        render()
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) render()
+    }
+
     override fun onDestroyView() {
+        // A day/night switch recreates the activity; an open popup would leak its window.
+        tooltip?.dismiss()
+        tooltip = null
         bind = null
         super.onDestroyView()
     }
@@ -66,6 +84,8 @@ class DebugCarFragment : Fragment() {
                     render()
                 }
             }
+            // The outline is colour alone; selection is what TalkBack announces.
+            item.root.isSelected = card.reported
             if (card.reported) {
                 item.root.strokeColor = MaterialColors.getColor(item.root, androidx.appcompat.R.attr.colorPrimary)
                 item.root.strokeWidth = resources.getDimensionPixelSize(R.dimen.debug_tier_reported_stroke)
@@ -78,11 +98,12 @@ class DebugCarFragment : Fragment() {
         //noinspection InflateParams -- a PopupWindow's content has no parent to inflate into
         val text = layoutInflater.inflate(R.layout.debug_tooltip, null) as TextView
         text.setText(R.string.debug_device_info_message)
-        PopupWindow(text, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true).apply {
-            elevation = resources.getDimension(R.dimen.debug_tooltip_elevation)
-            isOutsideTouchable = true
-            showAsDropDown(anchor)
-        }
+        tooltip =
+            PopupWindow(text, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true).apply {
+                elevation = resources.getDimension(R.dimen.debug_tooltip_elevation)
+                isOutsideTouchable = true
+                showAsDropDown(anchor)
+            }
     }
 
     private fun labels() =
