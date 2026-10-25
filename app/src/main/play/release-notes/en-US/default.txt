@@ -1,4 +1,1 @@
-• Play as anyone in your Plex Home, managed users and PIN profiles included. Switch listener from Settings.
-• Plex's Now Playing follows the car live, and skipped tracks are reported where you left them.
-• New Artist Radio: an endless Plex station built from an artist and music like it. Turn it on in Settings.
-• Artist Mix can now be hidden in Settings.
+• Switching listener in your Plex Home no longer leaves a stray Now Playing entry on the new listener's account.
