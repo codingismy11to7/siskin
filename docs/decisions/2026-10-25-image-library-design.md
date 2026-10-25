@@ -77,13 +77,15 @@ opt-in is accepted: the alternative is reimplementing it beside the composite
 lock, and an experimental API changing shape costs a compile error, not a
 silent regression.
 
-### The provider fetches a file without decoding
+### The provider copies cached bytes without decoding
 
 `openAlbumArt` pipes bytes, so decoding a bitmap it never draws would be waste.
 It runs Coil's network fetcher directly (`components.map`, then `newFetcher`,
-then `fetch()`), whose result is backed by the disk cache file. Data-saving
-mode, which was `onlyRetrieveFromCache(true)`, becomes
-`networkCachePolicy(DISABLED)`.
+then `fetch()`), whose result is backed by the disk cache file. The bytes are
+copied into the car's pipe while that disk-cache snapshot is still open,
+rather than handing back the file: the open snapshot is what stops the entry
+from being evicted or replaced before it is read. Data-saving mode, which was
+`onlyRetrieveFromCache(true)`, becomes `networkCachePolicy(DISABLED)`.
 
 ### `IPv6StringLoader` is deleted, not ported
 
@@ -94,13 +96,22 @@ went through Glide's own fetcher. Its 2.5 s connect and read timeouts are the
 one thing it set that matters, and the port chooses timeouts on purpose rather
 than inheriting them.
 
-### Covers share the API's connections, with short timeouts
+### Covers share the API's connections, not its dispatcher
 
 Cover fetches derive from `PlexRetrofitFactory`'s shared `OkHttpClient`, so
-they reuse the TLS connections the API calls already
-hold, with connect and read timeouts cut to 2.5 s. A cover is optional, and a
-provider thread waiting on a dead server is one every other cover queues
-behind; failing quickly gives the car its placeholder.
+they reuse the TLS connections the API calls already hold. They get a
+`Dispatcher` of their own, though. Coil's OkHttp fetcher enqueues its calls,
+and the dispatcher allows five per host: on the shared one, a grid of covers
+from the provider pool, `SyncBitmapLoader` and a composite build could fill
+every slot for the one Plex server and queue browse, timeline and scrobble
+calls behind them. Glide's `HttpURLConnection` fetcher was outside that limit,
+and this keeps covers outside it.
+
+Timeouts are short: 2.5 s to connect and per read, and 10 s for the whole
+call, which bounds a server that trickles a cover with every read inside
+2.5 s. A cover is optional, and a provider thread waiting on a dead server is
+one every other cover queues behind; failing quickly gives the car its
+placeholder.
 
 ### Details of the port
 
@@ -126,8 +137,12 @@ These came out of the spike and are not optional:
 - **`coil-core`, not `coil`.** The latter adds a process-wide default
   `ImageLoader` with its own disk cache, which nothing here should reach by
   accident.
-- **Glide's disk cache directory is deleted once.** It lives at
-  `cacheDir/cache` and would otherwise sit there at its full size.
+- **Glide's disk cache directory is deleted, off the calling thread.** It
+  lives at `cacheDir/cache`, can hold the 500 MB default, and would otherwise
+  sit there at its full size. The loader's first caller can be the main
+  thread (the sign-in QR code), and every cover thread waits on the loader's
+  lock, so the delete runs on a thread of its own once the directory is found
+  to exist.
 
 The disk cache key still includes `X-Plex-Token`, as it did under Glide. Coil
 can key on the URL without it, which would stop a Home user switch from

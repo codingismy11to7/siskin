@@ -199,9 +199,13 @@ public class AlbumArtContentProvider extends ContentProvider {
             throw new FileNotFoundException("No Plex artwork URL for " + thumbPath);
         }
 
-        return pipeFrom(
+        return pipe(
                 thumbPath,
-                () -> ArtworkImages.get(context).file(artworkUrl, Preferences.isDataSavingMode()));
+                out -> {
+                    ArtworkImages.get(context)
+                            .writeTo(artworkUrl, Preferences.isDataSavingMode(), out);
+                    return true;
+                });
     }
 
     /**
@@ -356,18 +360,43 @@ public class AlbumArtContentProvider extends ContentProvider {
                 HubCompositeArt.idFor(pool), () -> HubCompositeArt.build(context, pool, bucket));
     }
 
+    /** Writes one image into a pipe, or returns false when there is none to write. */
+    private interface ImageWriter {
+        boolean writeTo(OutputStream out) throws Exception;
+    }
+
+    /** {@link #pipe} for a composite, which is built to a file. */
+    private ParcelFileDescriptor pipeFrom(String label, Callable<File> source)
+            throws FileNotFoundException {
+        return pipe(
+                label,
+                out -> {
+                    File file = source.call();
+                    if (file == null) {
+                        return false;
+                    }
+                    try (InputStream in = new FileInputStream(file)) {
+                        byte[] buffer = new byte[8192];
+                        int bytesRead;
+                        while ((bytesRead = in.read(buffer)) != -1) {
+                            out.write(buffer, 0, bytesRead);
+                        }
+                    }
+                    return true;
+                });
+    }
+
     /**
-     * The read end of a pipe that {@code source} fills on the background executor.
+     * The read end of a pipe that {@code writer} fills on the background executor.
      *
-     * <p>Shared by both artwork paths: one resolves a disk-cached cover, the other builds a
-     * composite, and everything after "which file" is identical. The caller gets its descriptor
-     * immediately -- openFile runs on a binder thread, and neither a Plex round trip nor a cover
-     * fetch may happen there.
+     * <p>Shared by both artwork paths: one copies a disk-cached cover, the other a composite it
+     * builds. The caller gets its descriptor immediately -- openFile runs on a binder thread, and
+     * neither a Plex round trip nor a cover fetch may happen there.
      *
-     * <p>A source returning null, or throwing, closes the write side with an error, which the car
+     * <p>A writer returning false, or throwing, closes the write side with an error, which the car
      * renders as the placeholder icon.
      */
-    private ParcelFileDescriptor pipeFrom(String label, Callable<File> source)
+    private ParcelFileDescriptor pipe(String label, ImageWriter writer)
             throws FileNotFoundException {
         try {
             ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createPipe();
@@ -378,17 +407,8 @@ public class AlbumArtContentProvider extends ContentProvider {
                     () -> {
                         try (OutputStream out =
                                 new ParcelFileDescriptor.AutoCloseOutputStream(writeSide)) {
-                            File file = source.call();
-                            if (file == null) {
+                            if (!writer.writeTo(out)) {
                                 writeSide.closeWithError("No artwork for " + label);
-                                return;
-                            }
-                            try (InputStream in = new FileInputStream(file)) {
-                                byte[] buffer = new byte[8192];
-                                int bytesRead;
-                                while ((bytesRead = in.read(buffer)) != -1) {
-                                    out.write(buffer, 0, bytesRead);
-                                }
                             }
                         } catch (Exception e) {
                             try {

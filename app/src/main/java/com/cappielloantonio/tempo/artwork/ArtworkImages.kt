@@ -29,9 +29,11 @@ import com.cappielloantonio.tempo.plex.PlexRetrofitFactory
 import com.cappielloantonio.tempo.util.Preferences
 import kotlinx.coroutines.runBlocking
 import okhttp3.Call
+import okhttp3.Dispatcher
 import okio.Path.Companion.toOkioPath
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 
 /**
@@ -81,14 +83,19 @@ class ArtworkImages
                 .build()
 
         /**
-         * [url]'s bytes as a file in the disk cache, fetched first if they are
-         * not there and [cacheOnly] allows it. Never decodes.
+         * Copies [url]'s bytes to [out], fetching them into the disk cache first
+         * if they are not there and [cacheOnly] allows it. Never decodes.
+         *
+         * Copies rather than returning the cache file: the snapshot is what
+         * keeps the entry from being evicted or replaced, so the bytes are read
+         * while it is still open.
          */
         @Throws(IOException::class)
-        fun file(
+        fun writeTo(
             url: String,
             cacheOnly: Boolean,
-        ): File =
+            out: OutputStream,
+        ) {
             runBlocking {
                 val options = Options(context, networkCachePolicy = networkPolicy(cacheOnly))
                 val data = imageLoader.components.map(url, options)
@@ -100,11 +107,10 @@ class ArtworkImages
                         fetcher.fetch()
                     } catch (e: HttpException) {
                         throw IOException("Could not fetch $url", e)
-                    } as? SourceFetchResult ?: throw IOException("Not a file-backed result for $url")
-                result.source.use { source ->
-                    source.fileOrNull()?.toFile() ?: throw IOException("Not in the disk cache: $url")
-                }
+                    } as? SourceFetchResult ?: throw IOException("Not a byte source for $url")
+                result.source.use { source -> source.source().inputStream().copyTo(out) }
             }
+        }
 
         /**
          * [data] decoded to fit within [edge] square, or, with [fill], scaled so
@@ -121,37 +127,45 @@ class ArtworkImages
             edge: Int,
             cacheOnly: Boolean = false,
             fill: Boolean = false,
-        ): Bitmap {
-            val request =
-                ImageRequest
-                    .Builder(context)
-                    .data(data)
-                    .size(Size(edge, edge))
-                    .scale(if (fill) Scale.FILL else Scale.FIT)
-                    .precision(if (fill) Precision.EXACT else Precision.INEXACT)
-                    .networkCachePolicy(networkPolicy(cacheOnly))
-                    .memoryCachePolicy(CachePolicy.DISABLED)
-                    .allowHardware(false)
-                    .build()
-            return when (val result = runBlocking { imageLoader.execute(request) }) {
+        ): Bitmap =
+            when (val result = runBlocking { imageLoader.execute(bitmapRequest(data, edge, cacheOnly, fill)) }) {
                 is SuccessResult -> result.image.toBitmap()
                 is ErrorResult -> throw IOException("Could not load $data", result.throwable)
             }
-        }
+
+        @VisibleForTesting
+        internal fun bitmapRequest(
+            data: Any,
+            edge: Int,
+            cacheOnly: Boolean,
+            fill: Boolean,
+        ): ImageRequest =
+            ImageRequest
+                .Builder(context)
+                .data(data)
+                .size(Size(edge, edge))
+                .scale(if (fill) Scale.FILL else Scale.FIT)
+                .precision(if (fill) Precision.EXACT else Precision.INEXACT)
+                .networkCachePolicy(networkPolicy(cacheOnly))
+                .memoryCachePolicy(CachePolicy.DISABLED)
+                .allowHardware(false)
+                .build()
 
         private fun networkPolicy(cacheOnly: Boolean) = if (cacheOnly) CachePolicy.DISABLED else CachePolicy.ENABLED
 
         companion object {
             private const val CACHE_DIRECTORY = "artwork"
 
-            // Where Glide kept its disk cache, removed once rather than left at
-            // its full size.
+            // Where Glide kept its disk cache, up to the 500 MB default, removed
+            // rather than left at its full size.
             private const val GLIDE_CACHE_DIRECTORY = "cache"
 
             // Short, because a cover is optional and a provider thread waiting on
             // one is a thread every other cover queues behind. Failing gives the
-            // car its placeholder.
+            // car its placeholder. The call timeout bounds a server that trickles
+            // a cover with every read inside the read timeout.
             private const val TIMEOUT_MS = 2500L
+            private const val CALL_TIMEOUT_MS = 10_000L
 
             // Holds only the application context, which lives as long as this does.
             //noinspection StaticFieldLeak
@@ -164,12 +178,23 @@ class ArtworkImages
                 }
 
             private fun create(context: Context): ArtworkImages {
-                File(context.cacheDir, GLIDE_CACHE_DIRECTORY).deleteRecursively()
+                // Off this thread, which can be the main one (the sign-in QR
+                // code), and outside get()'s lock, which every cover thread waits on.
+                val glideCache = File(context.cacheDir, GLIDE_CACHE_DIRECTORY)
+                if (glideCache.exists()) {
+                    Thread({ glideCache.deleteRecursively() }, "glide-cache-cleanup").start()
+                }
                 val client =
                     PlexRetrofitFactory.sharedClient
                         .newBuilder()
+                        // Shares the connection pool but not the dispatcher, whose
+                        // five-per-host limit would otherwise put a grid of covers
+                        // ahead of browse, timeline and scrobble calls to the same
+                        // server.
+                        .dispatcher(Dispatcher())
                         .connectTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
                         .readTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                        .callTimeout(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                         .build()
                 return ArtworkImages(
                     context,
