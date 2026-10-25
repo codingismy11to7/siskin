@@ -16,4 +16,6 @@
         one list.
     -->
     <dimen name="plex_sign_in_row_padding">16dp</dimen>
+    <dimen name="debug_tier_reported_stroke">4dp</dimen>
+    <dimen name="debug_tooltip_elevation">3dp</dimen>
 </resources>
