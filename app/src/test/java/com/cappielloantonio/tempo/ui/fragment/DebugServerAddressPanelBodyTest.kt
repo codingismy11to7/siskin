@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * `CarDebugFragment.buildAddressPanelBody` is the pure half of the debug
+ * `DebugServerFragment.buildAddressPanelBody` is the pure half of the debug
  * panel behind the version line -- see the 2026-08-14 design. It touches no
  * Android framework class, which is what lets this suite run as a plain JUnit
  * test with neither Robolectric nor a fragment: `unitTests.returnDefaultValues
@@ -15,7 +15,7 @@ import org.junit.Test
  * could pass while asserting nothing, and keeping the function framework-free
  * is what keeps that failure mode out of reach here.
  */
-class CarDebugAddressPanelBodyTest {
+class DebugServerAddressPanelBodyTest {
     // Arbitrary, distinct from the real string resources on purpose -- these
     // tests are about which label lands where, not about the app's copy.
     private val none = "NONE"
@@ -26,7 +26,7 @@ class CarDebugAddressPanelBodyTest {
     private fun body(
         known: KnownAddresses,
         outcome: String? = null,
-    ) = CarDebugFragment.buildAddressPanelBody(
+    ) = DebugServerFragment.buildAddressPanelBody(
         known = known,
         outcome = outcome,
         noneLabel = none,

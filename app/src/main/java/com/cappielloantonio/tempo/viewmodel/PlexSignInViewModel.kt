@@ -177,7 +177,7 @@ class PlexSignInViewModel
          * as having come from elsewhere. Getting back out of it is the fragment
          * back stack's job: the debug screen pushes the picker rather than letting
          * the router swap to it, so back pops to the debug screen the ordinary way
-         * -- see [com.cappielloantonio.tempo.ui.fragment.CarDebugFragment]. An
+         * -- see [com.cappielloantonio.tempo.ui.fragment.DebugServerFragment]. An
          * earlier draft carried a `returnsToSettings` flag on the state instead and
          * hardcoded where back landed, which reimplemented the back stack badly and
          * could only name a destination the state machine happened to have.

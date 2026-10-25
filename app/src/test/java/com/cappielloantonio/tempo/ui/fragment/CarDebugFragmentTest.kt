@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.ui.fragment
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
@@ -17,7 +18,11 @@ import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.navigationrail.NavigationRailView
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -174,5 +179,150 @@ class CarDebugFragmentTest {
         idle()
 
         assertTrue(screenOf(controller) is CarDebugFragment)
+        assertEquals(DebugTab.SERVER.id, rail(controller).selectedItemId)
+        assertTrue(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    private fun debugScreen(controller: ActivityController<CarHostActivity>) = screenOf(controller) as CarDebugFragment
+
+    private fun rail(controller: ActivityController<CarHostActivity>) = controller.get().findViewById<NavigationRailView>(R.id.debug_rail)
+
+    private fun select(
+        controller: ActivityController<CarHostActivity>,
+        tab: DebugTab,
+    ) {
+        rail(controller).selectedItemId = tab.id
+        idle()
+    }
+
+    private fun tabFragment(
+        controller: ActivityController<CarHostActivity>,
+        tab: DebugTab,
+    ) = debugScreen(controller).childFragmentManager.findFragmentByTag(tab.name)
+
+    @Test
+    fun `the rail lists every tab in enum order`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        val menu = rail(controller).menu
+        val activity = controller.get()
+        assertEquals(DebugTab.entries.size, menu.size())
+        DebugTab.entries.forEachIndexed { i, tab ->
+            assertEquals(activity.getString(tab.label), menu.getItem(i).title.toString())
+        }
+    }
+
+    @Test
+    fun `the debug screen opens on the first tab`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        assertEquals(DebugTab.entries.first().id, rail(controller).selectedItemId)
+        assertTrue(tabFragment(controller, DebugTab.entries.first())!!.isVisible)
+    }
+
+    @Test
+    fun `selecting Car shows the Car tab and hides Server`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        select(controller, DebugTab.CAR)
+
+        assertTrue(tabFragment(controller, DebugTab.CAR) is DebugCarFragment)
+        assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    /**
+     * Tabs are shown and hidden, not replaced: a re-probe runs in the Server
+     * tab's view lifecycle for up to tens of seconds, and replacing the tab
+     * would cancel it. This fails if selection is changed to replace().
+     */
+    @Test
+    fun `returning to a tab brings back the same fragment`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        val server = tabFragment(controller, DebugTab.SERVER)
+
+        select(controller, DebugTab.CAR)
+        select(controller, DebugTab.SERVER)
+
+        assertSame(server, tabFragment(controller, DebugTab.SERVER))
+        assertTrue(server!!.isVisible)
+    }
+
+    @Test
+    fun `the selected tab survives the activity being recreated`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.CAR)
+
+        controller.recreate()
+        idle()
+
+        assertEquals(DebugTab.CAR.id, rail(controller).selectedItemId)
+        assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    /**
+     * A selection that only queued its transaction would let a second one
+     * look for a fragment the first had not yet added, leaving both tabs
+     * visible. Asserted without idling the looper so a queued commit fails it.
+     */
+    @Test
+    fun `a selection takes effect before the next one arrives`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        rail(controller).selectedItemId = DebugTab.CAR.id
+
+        assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    /**
+     * The shell can be recreated, and saved again, while something else is
+     * pushed over it and it has no view. Two recreations are what make a copy
+     * of the selection that is only restored with a view lose it: the first
+     * leaves it unrestored, and the second saves that.
+     */
+    @Test
+    fun `the selected tab survives being saved while the screen is covered`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.CAR)
+        controller
+            .get()
+            .supportFragmentManager
+            .beginTransaction()
+            .replace(R.id.car_host_container, Fragment())
+            .addToBackStack(null)
+            .commit()
+        idle()
+
+        controller.recreate()
+        idle()
+        controller.recreate()
+        idle()
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertEquals(DebugTab.CAR.id, rail(controller).selectedItemId)
+        assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    @Test
+    fun `one back press from any tab leaves the debug screen`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.CAR)
+
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertTrue(screenOf(controller) is CarSettingsFragment)
     }
 }
