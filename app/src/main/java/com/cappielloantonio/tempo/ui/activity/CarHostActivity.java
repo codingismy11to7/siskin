@@ -134,7 +134,7 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
         FragmentManager fragments = getSupportFragmentManager();
 
         // A pushed screen owns the container, and there are two pushers:
-        // BrowseTabOrderFragment, and CarDebugFragment -- which pushes the
+        // BrowseTabOrderFragment, and the debug screen's DebugServerFragment -- which pushes the
         // sign-in screen itself for its "Choose server" row, precisely so that
         // back returns there rather than wherever a routed screen would land.
         //

@@ -63,7 +63,7 @@ sealed interface PlexSignInState {
      * screen reaches this picker too, and back from it has to return there
      * rather than abandon a sign-in nobody started -- but that is the fragment
      * back stack's job, not this type's. See
-     * [com.cappielloantonio.tempo.ui.fragment.CarDebugFragment]'s `chooseServer`.
+     * [com.cappielloantonio.tempo.ui.fragment.DebugServerFragment]'s `chooseServer`.
      *
      * [account] is who a commit from here signs in as. Nothing has been
      * written for it yet; see [PendingAccount].
