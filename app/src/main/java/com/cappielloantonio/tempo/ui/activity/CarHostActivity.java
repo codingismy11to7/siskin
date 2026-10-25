@@ -133,10 +133,11 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
     private void route(PlexSignInState state) {
         FragmentManager fragments = getSupportFragmentManager();
 
-        // A pushed screen owns the container, and there are two pushers:
-        // BrowseTabOrderFragment, and the debug screen's DebugServerFragment -- which pushes the
-        // sign-in screen itself for its "Choose server" row, precisely so that
-        // back returns there rather than wherever a routed screen would land.
+        // A pushed screen owns the container. Settings pushes Customize tabs,
+        // the debug screen and, for Switch user, the sign-in screen; the debug
+        // screen's DebugServerFragment pushes the sign-in screen for Choose
+        // server. Both sign-in pushes exist precisely so that back returns to
+        // where they came from rather than wherever a routed screen would land.
         //
         // So a routed swap is exactly what must not happen while anything is
         // pushed, and state does change while something is: reopenServerPicker

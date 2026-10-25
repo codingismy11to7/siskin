@@ -15,7 +15,7 @@ import org.junit.Test
  * could pass while asserting nothing, and keeping the function framework-free
  * is what keeps that failure mode out of reach here.
  */
-class CarDebugAddressPanelBodyTest {
+class DebugServerAddressPanelBodyTest {
     // Arbitrary, distinct from the real string resources on purpose -- these
     // tests are about which label lands where, not about the app's copy.
     private val none = "NONE"

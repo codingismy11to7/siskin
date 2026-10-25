@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        The debug rail's menu item ids. Material reads 0 as "no item", and sets
+        each id on its item view, where a small integer can collide with
+        View.generateViewId(). Hence these rather than DebugTab ordinals.
+    -->
+    <item name="debug_tab_server" type="id" />
+    <item name="debug_tab_car" type="id" />
+</resources>

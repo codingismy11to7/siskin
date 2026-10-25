@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.ui.fragment
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
@@ -178,7 +179,7 @@ class CarDebugFragmentTest {
         idle()
 
         assertTrue(screenOf(controller) is CarDebugFragment)
-        assertEquals(DebugTab.SERVER.ordinal, rail(controller).selectedItemId)
+        assertEquals(DebugTab.SERVER.id, rail(controller).selectedItemId)
         assertTrue(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
     }
 
@@ -190,7 +191,7 @@ class CarDebugFragmentTest {
         controller: ActivityController<CarHostActivity>,
         tab: DebugTab,
     ) {
-        rail(controller).selectedItemId = tab.ordinal
+        rail(controller).selectedItemId = tab.id
         idle()
     }
 
@@ -217,7 +218,7 @@ class CarDebugFragmentTest {
         val controller = launch()
         openDebugScreen(controller)
 
-        assertEquals(DebugTab.entries.first().ordinal, rail(controller).selectedItemId)
+        assertEquals(DebugTab.entries.first().id, rail(controller).selectedItemId)
         assertTrue(tabFragment(controller, DebugTab.entries.first())!!.isVisible)
     }
 
@@ -260,7 +261,55 @@ class CarDebugFragmentTest {
         controller.recreate()
         idle()
 
-        assertEquals(DebugTab.CAR.ordinal, rail(controller).selectedItemId)
+        assertEquals(DebugTab.CAR.id, rail(controller).selectedItemId)
+        assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    /**
+     * A selection that only queued its transaction would let a second one
+     * look for a fragment the first had not yet added, leaving both tabs
+     * visible. Asserted without idling the looper so a queued commit fails it.
+     */
+    @Test
+    fun `a selection takes effect before the next one arrives`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        rail(controller).selectedItemId = DebugTab.CAR.id
+
+        assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    /**
+     * The shell can be recreated, and saved again, while something else is
+     * pushed over it and it has no view. Two recreations are what make a copy
+     * of the selection that is only restored with a view lose it: the first
+     * leaves it unrestored, and the second saves that.
+     */
+    @Test
+    fun `the selected tab survives being saved while the screen is covered`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.CAR)
+        controller
+            .get()
+            .supportFragmentManager
+            .beginTransaction()
+            .replace(R.id.car_host_container, Fragment())
+            .addToBackStack(null)
+            .commit()
+        idle()
+
+        controller.recreate()
+        idle()
+        controller.recreate()
+        idle()
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertEquals(DebugTab.CAR.id, rail(controller).selectedItemId)
         assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
         assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
     }

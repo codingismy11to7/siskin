@@ -9,11 +9,11 @@ import org.junit.Test
 
 /**
  * The pure half of the Debug screen's Device section, kept framework-free for
- * the same reason [CarDebugAddressPanelBodyTest] is: `returnDefaultValues =
+ * the same reason [DebugServerAddressPanelBodyTest] is: `returnDefaultValues =
  * true` stubs android.jar, so a test that only touched framework classes could
  * pass while asserting nothing.
  */
-class CarDebugDevicePanelBodyTest {
+class DebugCarDevicePanelBodyTest {
     // Arbitrary and distinct from the real string resources on purpose -- these
     // tests are about which label lands where, not about the app's copy.
     private val noName = "NO_NAME"

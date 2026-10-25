@@ -19,49 +19,60 @@ import com.cappielloantonio.tempo.databinding.FragmentCarDebugBinding
  * moving. That is what lets this screen be as dense as it needs to be.
  */
 class CarDebugFragment : Fragment() {
-    /**
-     * Kept on the fragment rather than read back from the rail: the rail is a
-     * new view each time this screen returns from Choose server, and the
-     * fragment instance is what survives that trip.
-     */
-    private var selected = DebugTab.entries.first()
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View {
-        savedInstanceState?.getString(SELECTED)?.let { selected = DebugTab.valueOf(it) }
+    ): View = FragmentCarDebugBinding.inflate(inflater, container, false).root
 
-        val bind = FragmentCarDebugBinding.inflate(inflater, container, false)
-        val rail = bind.debugRail
+    /**
+     * In onViewCreated rather than onCreateView because [show] commits
+     * immediately, and a child fragment cannot be added to a container until
+     * this fragment's view exists.
+     */
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        val rail = FragmentCarDebugBinding.bind(view).debugRail
         DebugTab.entries.forEach { tab ->
-            rail.menu.add(Menu.NONE, tab.ordinal, tab.ordinal, tab.label).setIcon(tab.icon)
+            rail.menu.add(Menu.NONE, tab.id, tab.ordinal, tab.label).setIcon(tab.icon)
         }
-        rail.selectedItemId = selected.ordinal
+
+        val current = showing() ?: DebugTab.entries.first()
+        show(current)
+        rail.selectedItemId = current.id
         rail.setOnItemSelectedListener { item ->
-            show(DebugTab.entries[item.itemId])
+            show(DebugTab.entries.first { it.id == item.itemId })
             true
         }
-        show(selected)
-        return bind.root
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putString(SELECTED, selected.name)
-    }
+    /**
+     * The selected tab is whichever tab fragment is not hidden, and nothing
+     * else records it. The child fragment manager persists that through a
+     * uiMode flip, through Choose server covering this screen, and through
+     * this fragment being recreated while covered -- the cases a second copy
+     * could fall out of step in.
+     */
+    private fun showing(): DebugTab? =
+        DebugTab.entries.firstOrNull {
+            childFragmentManager.findFragmentByTag(it.name)?.isHidden == false
+        }
 
     /**
      * Shows [tab], adding its fragment the first time. Hidden rather than
      * replaced, because a re-probe runs in the Server tab's view lifecycle
      * for up to tens of seconds and replacing the tab would cancel it.
      *
+     * Committed now rather than queued: the next selection decides what to
+     * hide by looking fragments up, and a queued add is not there to find, so
+     * a quick second selection would leave two tabs showing.
+     *
      * Never on the back stack: tabs are not history, so one back press leaves
      * the screen from any of them.
      */
     private fun show(tab: DebugTab) {
-        selected = tab
         val children = childFragmentManager
         val transaction = children.beginTransaction().setReorderingAllowed(true)
         DebugTab.entries.forEach { other ->
@@ -76,10 +87,6 @@ class CarDebugFragment : Fragment() {
                 transaction.hide(fragment)
             }
         }
-        transaction.commit()
-    }
-
-    private companion object {
-        const val SELECTED = "selected"
+        transaction.commitNow()
     }
 }

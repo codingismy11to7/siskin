@@ -60,10 +60,14 @@ untouched; they are framework-free precisely so they can be asserted directly
 under `unitTests.returnDefaultValues`, and that does not depend on their
 address.
 
-`DebugTab` carries each tab's label, icon and fragment factory, and the rail is
-built from `DebugTab.entries`, so the enum's order is the rail's order. **Adding
-a tab is one fragment, one icon, one enum entry and one non-translatable
-`debug_` label string.**
+`DebugTab` carries each tab's menu id, label, icon and fragment factory, and the
+rail is built from `DebugTab.entries`, so the enum's order is the rail's order.
+**Adding a tab is one fragment, one icon, one id in `ids.xml`, one enum entry
+and one non-translatable `debug_` label string.**
+
+The menu ids are resource ids rather than ordinals. Material reads an item id
+of 0 as "no item", and it sets each id on the item's view, where a small integer
+can collide with an id from `View.generateViewId()`.
 
 Two alternatives were rejected. Tabs as view-building functions inside one
 fragment is what the spike did and has fewer classes, but every tab's state,
@@ -82,10 +86,16 @@ that `2026-08-14-server-address-debug-design.md` insists on reporting.
 Tab switches never touch the back stack. Tabs are not history; one back press
 leaves the debug screen from any tab, as it does today.
 
-The shell saves the selected tab itself, on the fragment and in its saved
-instance state, so it survives a uiMode flip and a round trip through Choose
-server. The child fragments keep their own state. A fresh visit opens on the
-first tab. Nothing is persisted.
+The selected tab is whichever tab fragment is not hidden, and the shell keeps
+no copy of its own. The child fragment manager already persists which one that
+is, through a uiMode flip, through Choose server covering the screen, and
+through the shell being recreated while covered. A separate copy is a second
+thing to keep in step across all three, and the first draft's fell out of step
+in the last. A fresh visit opens on the first tab. Nothing is persisted.
+
+Selection commits immediately rather than queueing. The next selection decides
+what to hide by looking the tab fragments up, and a queued add is not there yet
+to be found, so two quick selections could leave two tabs showing.
 
 ### Choose server still covers the whole screen
 
@@ -115,11 +125,18 @@ already does:
 - One back press from the Car tab leaves the debug screen for Settings.
 - The existing round trip — version line, Choose server, back — also asserts
   that it lands on the Server tab.
-- `CarDebugAddressPanelBodyTest` and `CarDebugDevicePanelBodyTest` keep their
-  assertions and change only the class they call.
+- The selected tab survives the activity being recreated, and survives two
+  recreations while something else is pushed over the shell.
+- A selection is in effect before the next one arrives, asserted without
+  letting the main looper run.
+- The two builder suites keep their assertions, renamed to
+  `DebugServerAddressPanelBodyTest` and `DebugCarDevicePanelBodyTest` after the
+  classes they now test.
 
 Then by hand on the landscape AVD: both tabs, a Re-probe, and the Choose server
-round trip.
+round trip. Choose server is disabled while a re-probe runs, because covering
+the screen would cancel the race; that is checked by hand only, since under
+Robolectric the race has no candidates and finishes before the click returns.
 
 ## What this does not buy
 

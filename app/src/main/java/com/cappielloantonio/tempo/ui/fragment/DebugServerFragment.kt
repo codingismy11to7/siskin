@@ -34,6 +34,13 @@ class DebugServerFragment : Fragment() {
      */
     private var reprobeRow: MaterialButton? = null
 
+    /**
+     * Held for the same reason as [reprobeRow]. Choose server covers the whole
+     * screen, which destroys this view and cancels a race running in its
+     * lifecycle, so it waits for the race as well.
+     */
+    private var chooseServerRow: MaterialButton? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -48,9 +55,10 @@ class DebugServerFragment : Fragment() {
             addChoice(bind.choiceContainer, getString(R.string.debug_addresses_reprobe)) {
                 reprobe()
             }
-        addChoice(bind.choiceContainer, getString(R.string.debug_choose_server)) {
-            chooseServer()
-        }
+        chooseServerRow =
+            addChoice(bind.choiceContainer, getString(R.string.debug_choose_server)) {
+                chooseServer()
+            }
 
         return bind.root
     }
@@ -59,6 +67,7 @@ class DebugServerFragment : Fragment() {
         super.onDestroyView()
         bind = null
         reprobeRow = null
+        chooseServerRow = null
     }
 
     /**
@@ -104,7 +113,7 @@ class DebugServerFragment : Fragment() {
             return
         }
 
-        reprobeRow?.isEnabled = false
+        setRaceRunning(true)
         bind?.addressText?.text = getString(R.string.debug_reprobe_running)
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -116,8 +125,13 @@ class DebugServerFragment : Fragment() {
                     else -> getString(R.string.debug_reprobe_moved, after)
                 }
             renderAddresses(outcome)
-            reprobeRow?.isEnabled = true
+            setRaceRunning(false)
         }
+    }
+
+    private fun setRaceRunning(running: Boolean) {
+        reprobeRow?.isEnabled = !running
+        chooseServerRow?.isEnabled = !running
     }
 
     /**
@@ -160,7 +174,7 @@ class DebugServerFragment : Fragment() {
         /**
          * Builds the address report out of already-resolved data -- no
          * [android.content.Context], no resource lookup, no Android framework
-         * class at all. That is what lets [CarDebugAddressPanelBodyTest] assert
+         * class at all. That is what lets [DebugServerAddressPanelBodyTest] assert
          * on it directly: `unitTests.returnDefaultValues = true` stubs
          * `android.jar`, so a test that only touches framework classes can pass
          * while asserting nothing, and keeping this function framework-free is
