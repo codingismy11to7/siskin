@@ -20,7 +20,7 @@ spotless = "8.10.1"
 # AndroidX / Material
 activity = "1.13.0"
 constraintlayout = "2.2.2"
-coreKtx = "1.19.0"
+coreKtx = "1.19.1"
 room = "2.8.4"
 appcompat = "1.8.0"
 material = "1.14.0"
