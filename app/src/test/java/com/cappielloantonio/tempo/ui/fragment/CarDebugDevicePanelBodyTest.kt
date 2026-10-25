@@ -22,7 +22,7 @@ class CarDebugDevicePanelBodyTest {
     private fun body(
         vehicle: VehicleIdentity,
         sourceLabel: String,
-    ) = CarDebugFragment.buildDevicePanelBody(
+    ) = DebugCarFragment.buildDevicePanelBody(
         headers = PlexIdentity.deviceHeaders(vehicle),
         noNameLabel = noName,
         fromLabel = from,

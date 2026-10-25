@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Server tab of the debug screen. See
+    docs/decisions/2026-10-25-debug-tabs-design.md.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fadingEdgeLength="48dp"
+    android:paddingBottom="32dp"
+    android:requiresFadingEdge="vertical"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/debug_addresses_title"
+            android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+        <!--
+            Monospace so that a column of hosts and ports lines up, which is
+            the whole reason this screen is read.
+
+            Full width, unlike the buttons below it: a plex.direct hostname is
+            around 70 characters, and at the buttons' 480dp it wrapped
+            mid-hostname. The buttons stay 480dp because they are tap targets
+            and that width is the head-unit convention; only the text needs
+            the room.
+        -->
+        <TextView
+            android:id="@+id/address_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:fontFamily="monospace"
+            android:textAppearance="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <LinearLayout
+            android:id="@+id/choice_container"
+            android:layout_width="@dimen/plex_sign_in_choice_width"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+</ScrollView>
