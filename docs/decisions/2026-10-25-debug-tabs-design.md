@@ -62,8 +62,8 @@ address.
 
 `DebugTab` carries each tab's label, icon and fragment factory, and the rail is
 built from `DebugTab.entries`, so the enum's order is the rail's order. **Adding
-a tab is one fragment, one enum entry and one non-translatable `debug_` label
-string.**
+a tab is one fragment, one icon, one enum entry and one non-translatable
+`debug_` label string.**
 
 Two alternatives were rejected. Tabs as view-building functions inside one
 fragment is what the spike did and has fewer classes, but every tab's state,
@@ -82,9 +82,10 @@ that `2026-08-14-server-address-debug-design.md` insists on reporting.
 Tab switches never touch the back stack. Tabs are not history; one back press
 leaves the debug screen from any tab, as it does today.
 
-The selected tab survives a uiMode flip and a round trip through Choose server
-through the child fragments' and the rail's own saved state. A fresh visit
-opens on the first tab. Nothing is persisted.
+The shell saves the selected tab itself, on the fragment and in its saved
+instance state, so it survives a uiMode flip and a round trip through Choose
+server. The child fragments keep their own state. A fresh visit opens on the
+first tab. Nothing is persisted.
 
 ### Choose server still covers the whole screen
 

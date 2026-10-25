@@ -13,8 +13,7 @@
 
 - **Debug:** The debug screen has a rail of tabs down its side: Server holds
   the address list, Re-probe and Choose server, and Car shows what the car
-  tells Plex it is. Each has its own page instead of sharing one long scroll,
-  and new debug information arrives as new tabs.
+  tells Plex it is. Each has its own page instead of sharing one long scroll.
 
 ## [1.1.0] (2026-10-24)
 

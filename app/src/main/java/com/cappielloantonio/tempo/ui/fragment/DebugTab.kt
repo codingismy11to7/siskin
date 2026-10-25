@@ -6,8 +6,8 @@ import androidx.fragment.app.Fragment
 import com.cappielloantonio.tempo.R
 
 /**
- * The debug screen's tabs, in rail order. Adding one is a fragment, an entry
- * here and a non-translatable `debug_` label string; [CarDebugFragment] builds
+ * The debug screen's tabs, in rail order. Adding one is a fragment, an icon, an
+ * entry here and a non-translatable `debug_` label string; [CarDebugFragment] builds
  * the rail from [entries] and needs nothing else.
  */
 internal enum class DebugTab(

@@ -262,7 +262,7 @@ class CarDebugFragmentTest {
 
         assertEquals(DebugTab.CAR.ordinal, rail(controller).selectedItemId)
         assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
-        assertFalse(tabFragment(controller, DebugTab.SERVER)?.isVisible ?: false)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
     }
 
     @Test
