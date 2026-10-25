@@ -252,6 +252,20 @@ class CarDebugFragmentTest {
     }
 
     @Test
+    fun `the selected tab survives the activity being recreated`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.CAR)
+
+        controller.recreate()
+        idle()
+
+        assertEquals(DebugTab.CAR.ordinal, rail(controller).selectedItemId)
+        assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)?.isVisible ?: false)
+    }
+
+    @Test
     fun `one back press from any tab leaves the debug screen`() {
         val controller = launch()
         openDebugScreen(controller)

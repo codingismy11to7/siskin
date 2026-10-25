@@ -2,7 +2,10 @@
 <!--
     activity_car_host overlays its back button at top|start, exactly where the
     rail's first item would otherwise sit. This spacer is that button's height.
+    minHeight, not layout_height: the rail re-adds its header with its own
+    wrap_content params, so a layout_height here measures zero.
 -->
 <Space xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/plex_sign_in_choice_min_height" />
+    android:layout_height="wrap_content"
+    android:minHeight="@dimen/plex_sign_in_choice_min_height" />
