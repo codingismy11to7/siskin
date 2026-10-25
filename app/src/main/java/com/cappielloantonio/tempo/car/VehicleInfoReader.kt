@@ -6,16 +6,16 @@ import android.car.hardware.property.CarPropertyManager
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Asks the vehicle what it is, once, and remembers the answer for the process.
  *
- * There is no unit test for this class and there cannot be: android.car.jar is
- * not on the unit-test classpath and Robolectric has no shadow for it. Every
- * android.car type is therefore confined to a private method body -- never a
- * field type, never a public signature -- so the class still loads in
- * Robolectric tests that construct PlexApi without calling [start]. The tested
- * half is [VehicleInputs].
+ * There is no unit test for the read and there cannot be: Robolectric loads
+ * android.car but has no car service, so `Car.createCar` retries for about five
+ * seconds and gives up. Every android.car type is confined to a private method
+ * body -- never a field type, never a public signature. The tested half is
+ * [VehicleInputs].
  *
  * See docs/decisions/2026-08-27-vehicle-device-name-design.md.
  */
@@ -25,11 +25,15 @@ object VehicleInfoReader {
     /** Global properties carry no area; INFO_* are all global. */
     private const val GLOBAL_AREA_ID = 0
 
-    @Volatile
-    private var cached: VehicleInputs? = null
+    /**
+     * Written by [start]'s read only while empty. Under Robolectric that read
+     * lands seconds after App.onCreate, inside whichever test is running then,
+     * and must not replace inputs that test put here.
+     */
+    private val cached = AtomicReference<VehicleInputs?>(null)
 
     /** What [start]'s read found, or null until it lands. */
-    fun inputs(): VehicleInputs? = cached
+    fun inputs(): VehicleInputs? = cached.get()
 
     /**
      * [VehicleIdentity.UNKNOWN] until [start]'s read lands; thereafter the
@@ -38,7 +42,7 @@ object VehicleInfoReader {
      * when `Build.MANUFACTURER` and `Build.MODEL` are blank too.
      */
     fun identity(startAt: VehicleInfoSource = VehicleInfoSource.VEHICLE): VehicleIdentity =
-        cached?.resolve(startAt) ?: VehicleIdentity.UNKNOWN
+        cached.get()?.resolve(startAt) ?: VehicleIdentity.UNKNOWN
 
     /**
      * Off the main thread because this connects to a system service. Called
@@ -48,8 +52,8 @@ object VehicleInfoReader {
      */
     @JvmStatic
     fun start(context: Context) {
-        if (cached != null) return
-        Thread({ cached = read(context) }, "vehicle-info").start()
+        if (cached.get() != null) return
+        Thread({ cached.compareAndSet(null, read(context)) }, "vehicle-info").start()
     }
 
     /**
