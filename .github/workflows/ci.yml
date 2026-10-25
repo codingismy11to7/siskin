@@ -111,6 +111,26 @@ jobs:
           fi
           echo "Release note: $chars of 500 characters."
 
+      # The listing publishes from promote.yml, which is the last place to find
+      # out a field is too long. GPP trims each file before uploading it, so the
+      # trailing newline is not counted here.
+      - name: Check the Play listing fits
+        run: |
+          dir=app/src/main/play/listings/en-US
+          status=0
+          for field in title:30 short-description:80 full-description:4000; do
+            file="$dir/${field%%:*}.txt" limit="${field##*:}"
+            text="$(cat "$file")"
+            chars=$(printf %s "$text" | LC_ALL=C.UTF-8 wc -m)
+            if [ "$chars" -gt "$limit" ]; then
+              echo "::error file=$file::${field%%:*} is $chars characters; Play allows $limit." >&2
+              status=1
+            else
+              echo "${field%%:*}: $chars of $limit characters."
+            fi
+          done
+          exit $status
+
       - name: Setup JDK 21
         uses: actions/setup-java@v6
         with:

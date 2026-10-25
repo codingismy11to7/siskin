@@ -1,9 +1,11 @@
 # Play listing assets
 
-Everything Google Play shows on the store listing, other than the text. These
-are **source**, not build output — there is no script that regenerates them, and
-recreating one means booting an emulator, signing in to Plex and driving the app
-back into the state it captures.
+Everything Google Play shows on the store listing, other than the text, which
+lives in `app/src/main/play/listings/en-US/` and publishes itself when
+`promote.yml` runs. These graphics are uploaded by hand. They are **source**,
+not build output — there is no script that regenerates them, and recreating one
+means booting an emulator, signing in to Plex and driving the app back into the
+state it captures.
 
 They lived in `build/play/` until 2026-08-02, which was a mistake: that whole
 tree is gitignored and `./gradlew clean` would have deleted the lot.
@@ -162,8 +164,9 @@ failures above were caught by exactly this command.
 
 If a set does need redoing, redo all four of it — see the note about the clock.
 
-If this ever becomes frequent enough to be annoying, the triplet play-publisher
-plugin already in `app/build.gradle` can manage listing graphics from
-`src/main/play/listings/<locale>/graphics/`, which would make the upload part
-automatic. That is not set up today, and at the current rate of listing changes
-it would not pay for itself.
+**Do not add a `graphics/` directory under `app/src/main/play/listings/`.**
+The publishing API has no automotive image type, so the eight screenshots that
+matter cannot be uploaded that way at all, and an API upload of the icon or
+feature graphic skips the AI-generated declaration. GPP would also replace
+whatever the Console holds for each image type it finds a directory for. See
+`docs/decisions/2026-10-25-play-listing-in-repo-design.md`.
