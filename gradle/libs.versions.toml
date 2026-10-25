@@ -1,6 +1,6 @@
 [versions]
 agp = "9.4.1"
-kotlin = "2.4.10"
+kotlin = "2.4.21"
 play-publisher = "4.1.1"
 
 # Keep equal to flake.nix's pkgs.ktlint -- the editor lints from the dev shell
