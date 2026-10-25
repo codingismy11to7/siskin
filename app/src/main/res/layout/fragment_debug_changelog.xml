@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Changelog tab of the debug screen. See
+    docs/decisions/2026-10-25-changelog-tab-design.md.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fadingEdgeLength="48dp"
+    android:paddingBottom="32dp"
+    android:requiresFadingEdge="vertical"
+    android:scrollbars="none">
+
+    <TextView
+        android:id="@+id/changelog_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?attr/textAppearanceBodyLarge" />
+</ScrollView>
