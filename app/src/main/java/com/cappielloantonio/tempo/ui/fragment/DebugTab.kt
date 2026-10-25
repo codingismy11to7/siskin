@@ -25,7 +25,6 @@ internal enum class DebugTab(
     ;
 
     companion object {
-        /** The tab a fresh visit opens on, which is not the first in the rail. */
         val DEFAULT = ABOUT
     }
 }

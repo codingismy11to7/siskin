@@ -72,15 +72,14 @@ Material's small Close button. That is under the app's arm's-length target
 size, which is accepted for a debug screen, and tapping outside the dialog also
 closes it.
 
-The QR is 200dp. At its natural 296dp the dialog's content area clipped the URL
-off the bottom on the 1024×768 head unit.
+The QR is 200dp, about as large as it can be while the URL beneath it stays
+visible in the dialog on the 1024×768 head unit; a larger one clipped the URL off
+the bottom.
 
 The credits get their own page rather than a section of the privacy policy:
-third-party credits are not privacy content. The page does not exist when this
-ships. #244 creates a minimal version (the lineage, GPLv3 and the source
-repository, and a link to the privacy policy), and #243 later fills it from a
-processed SBOM. Until #244 deploys, a scan lands on the site's 404, so #244
-should land before the next release cut that includes this.
+third-party credits are not privacy content. #244 serves a minimal version (the
+lineage, GPLv3 and the source repository, and a link to the privacy policy), and
+#243 later fills it from a processed SBOM.
 
 ### A checked-in QR, not a QR library
 
@@ -122,6 +121,5 @@ One `**Debug:**` bullet, which the cut leaves out of the Play note.
 ## What this does not buy
 
 - **No dependency list.** That is #243.
-- **No working link until #244 deploys.**
 - **Nothing for a moving car.** The screen is still readable only at a
   standstill.

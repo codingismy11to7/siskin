@@ -35,9 +35,9 @@ class DebugAboutFragment : Fragment() {
 
         val updated = packageInfo().lastUpdateTime
         val ago = DateUtils.getRelativeTimeSpanString(updated, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
-        val at = "${DateFormat.getDateFormat(
-            requireContext(),
-        ).format(updated)} ${DateFormat.getTimeFormat(requireContext()).format(updated)}"
+        val date = DateFormat.getDateFormat(requireContext()).format(updated)
+        val time = DateFormat.getTimeFormat(requireContext()).format(updated)
+        val at = "$date $time"
         bind.aboutInstall.text = getString(R.string.debug_about_install, "$ago ($at)", installer())
 
         addChoice(bind.choiceContainer, getString(R.string.debug_about_credits)) { showCredits() }
@@ -59,7 +59,7 @@ class DebugAboutFragment : Fragment() {
 
     /**
      * The raw package name: com.android.vending is Play, and an `adb install`
-     * records none. Only API 30 has a non-deprecated way to ask.
+     * records none. Only API 30 and up have a non-deprecated way to ask.
      */
     private fun installer(): String {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return getString(R.string.debug_about_installer_unknown)

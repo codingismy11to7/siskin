@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     The Credits dialog's body. The URL is printed under the QR, selectable, so
-    the code is a shortcut rather than the only way there. 200dp because at its
-    natural 296dp the dialog clipped the URL on a 1024x768 head unit.
+    the code is a shortcut rather than the only way there. 200dp is about as
+    large as the QR can be while the URL stays visible in the dialog on a
+    1024x768 head unit.
     UseCompoundDrawables: the image is sized independently of the text, which a
     compound drawable cannot do.
 -->
