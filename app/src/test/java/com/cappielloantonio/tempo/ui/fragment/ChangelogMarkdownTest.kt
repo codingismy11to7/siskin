@@ -28,6 +28,14 @@ class ChangelogMarkdownTest {
     }
 
     @Test
+    fun `a heading ends at its own line`() {
+        assertEquals(
+            listOf(Heading(plain("0.99.0 (2026-07-31)")), Paragraph(plain("The first build."))),
+            parse("## [0.99.0] (2026-07-31)", "The first build."),
+        )
+    }
+
+    @Test
     fun `a bullet's continuation lines join into one`() {
         assertEquals(
             listOf(Bullet(plain("Settings has a switch, off by default."))),
@@ -76,6 +84,35 @@ class ChangelogMarkdownTest {
             listOf(Paragraph(plain("a fork of Tempus, itself"))),
             parse("a fork of [Tempus](https://github.com/eddyizm/tempus), itself"),
         )
+    }
+
+    @Test
+    fun `emphasis does not run into a code span`() {
+        assertEquals(
+            listOf(
+                Paragraph(
+                    listOf(
+                        ChangelogRun("use *one of ", PLAIN),
+                        ChangelogRun("*.plex.direct", CODE),
+                        ChangelogRun(" hosts", PLAIN),
+                    ),
+                ),
+            ),
+            parse("use *one of `*.plex.direct` hosts"),
+        )
+    }
+
+    @Test
+    fun `emphasis can hold a code span`() {
+        assertEquals(
+            listOf(Paragraph(listOf(ChangelogRun("see ", BOLD), ChangelogRun("x", CODE)))),
+            parse("**see `x`**"),
+        )
+    }
+
+    @Test
+    fun `a marker beside whitespace is not emphasis`() {
+        assertEquals(listOf(Paragraph(plain("a * b * c"))), parse("a * b * c"))
     }
 
     @Test

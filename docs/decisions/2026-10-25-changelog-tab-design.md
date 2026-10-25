@@ -120,7 +120,9 @@ Then by hand on the landscape AVD.
 ## What this does not buy
 
 - **General markdown.** A new construct in `CHANGELOG.md` shows as plain text
-  until the parser learns it.
+  until the parser learns it. That includes a second paragraph inside a
+  bullet: a blank line ends the bullet, so the indented paragraph after it
+  shows flush left as section text.
 - **Live links.** Issue references like `(#53)` read as text.
 - **History before Siskin.** The Tempus sections stay in the repository and out
   of the app.

@@ -1,22 +1,23 @@
 package com.cappielloantonio.tempo.ui.fragment
 
-import android.graphics.Typeface
 import android.os.Bundle
 import android.text.SpannableStringBuilder
-import android.text.Spanned
 import android.text.style.BulletSpan
-import android.text.style.RelativeSizeSpan
-import android.text.style.StyleSpan
 import android.text.style.TypefaceSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.text.bold
+import androidx.core.text.buildSpannedString
+import androidx.core.text.inSpans
+import androidx.core.text.italic
+import androidx.core.text.scale
 import androidx.fragment.app.Fragment
 import com.cappielloantonio.tempo.databinding.FragmentDebugChangelogBinding
 import com.google.android.material.color.MaterialColors
 
 /**
- * The debug screen's Changelog tab: Siskin's own sections of CHANGELOG.md,
+ * The debug screen's Changes tab: Siskin's own sections of CHANGELOG.md,
  * bundled by the trimChangelog task in app/build.gradle. See
  * docs/decisions/2026-10-25-changelog-tab-design.md.
  */
@@ -43,46 +44,41 @@ class DebugChangelogFragment : Fragment() {
         bulletColor: Int,
     ): CharSequence {
         val density = resources.displayMetrics.density
-        val out = SpannableStringBuilder()
-        blocks.forEachIndexed { i, block ->
-            // Half-height blank lines: one between blocks, so a tight list stays
-            // tight and a loose one does not sprawl, and two above a heading.
-            val gaps =
-                when {
-                    i == 0 -> 0
-                    block is ChangelogBlock.Heading -> 2
-                    else -> 1
+        return buildSpannedString {
+            blocks.forEachIndexed { i, block ->
+                if (i > 0) {
+                    append("\n")
+                    // Half-height blank lines: one between blocks, so a tight
+                    // list stays tight and a loose one does not sprawl, and two
+                    // above a heading.
+                    repeat(if (block is ChangelogBlock.Heading) 2 else 1) { scale(0.5f) { append("\n") } }
                 }
-            repeat(gaps) { out.span("\n", RelativeSizeSpan(0.5f)) }
-            val start = out.length
-            block.runs.forEach { run ->
-                when (run.style) {
-                    ChangelogRun.Style.PLAIN -> out.append(run.text)
-                    ChangelogRun.Style.BOLD -> out.span(run.text, StyleSpan(Typeface.BOLD))
-                    ChangelogRun.Style.ITALIC -> out.span(run.text, StyleSpan(Typeface.ITALIC))
-                    ChangelogRun.Style.CODE -> out.span(run.text, TypefaceSpan("monospace"))
+                when (block) {
+                    is ChangelogBlock.Heading -> {
+                        bold { scale(1.35f) { runs(block.runs) } }
+                    }
+
+                    is ChangelogBlock.Bullet -> {
+                        inSpans(BulletSpan((12 * density).toInt(), bulletColor, (3 * density).toInt())) { runs(block.runs) }
+                    }
+
+                    is ChangelogBlock.Paragraph -> {
+                        runs(block.runs)
+                    }
                 }
             }
-            val blockSpans =
-                when (block) {
-                    is ChangelogBlock.Heading -> listOf(StyleSpan(Typeface.BOLD), RelativeSizeSpan(1.35f))
-                    is ChangelogBlock.Bullet -> listOf(BulletSpan((12 * density).toInt(), bulletColor, (3 * density).toInt()))
-                    is ChangelogBlock.Paragraph -> emptyList()
-                }
-            blockSpans.forEach { out.setSpan(it, start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
-            out.append("\n")
         }
-        return out
     }
 
-    private fun SpannableStringBuilder.span(
-        text: String,
-        what: Any,
-    ) {
-        val start = length
-        append(text)
-        setSpan(what, start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    }
+    private fun SpannableStringBuilder.runs(runs: List<ChangelogRun>) =
+        runs.forEach { run ->
+            when (run.style) {
+                ChangelogRun.Style.PLAIN -> append(run.text)
+                ChangelogRun.Style.BOLD -> bold { append(run.text) }
+                ChangelogRun.Style.ITALIC -> italic { append(run.text) }
+                ChangelogRun.Style.CODE -> inSpans(TypefaceSpan("monospace")) { append(run.text) }
+            }
+        }
 
     companion object {
         const val ASSET = "changelog.md"

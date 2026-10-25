@@ -294,8 +294,10 @@ class CarDebugFragmentTest {
                 .findViewById<TextView>(R.id.changelog_text)
                 .text
                 .toString()
-        assertTrue(text.contains("Rebranded from Tempus to Siskin"))
-        assertFalse("rendered, not raw markdown", text.contains("## "))
+        assertTrue(text.contains("0.99.0 (2026-07-31)"))
+        listOf("## ", "**", "`", "](").forEach { marker ->
+            assertFalse("rendered, not raw markdown: $marker", text.contains(marker))
+        }
     }
 
     /**

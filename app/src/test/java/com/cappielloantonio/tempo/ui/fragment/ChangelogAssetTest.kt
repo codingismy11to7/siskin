@@ -25,8 +25,7 @@ class ChangelogAssetTest {
 
     @Test
     fun `it runs through the first Siskin release`() {
-        assertTrue(bundled.contains("\n## [0.99.0] "))
-        assertTrue(bundled.contains("Rebranded from Tempus to Siskin"))
+        assertTrue(bundled.contains("\n## [0.99.0] (2026-07-31)\n"))
     }
 
     @Test

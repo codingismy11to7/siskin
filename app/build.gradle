@@ -268,7 +268,9 @@ abstract class TrimChangelog extends DefaultTask {
     @TaskAction
     void trim() {
         def lines = changelog.get().asFile.readLines('UTF-8')
-        int start = lines.findIndexOf { it.startsWith('## [Unreleased]') }
+        // Exactly the heading cut-release.sh looks for, so the two cannot
+        // anchor on different lines.
+        int start = lines.indexOf('## [Unreleased] — Siskin')
         int last = lines.findIndexOf { it.startsWith('## [0.99.0]') }
         if (start < 0 || last < start) {
             throw new GradleException('CHANGELOG.md needs a [Unreleased] heading above a [0.99.0] one')

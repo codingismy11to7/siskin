@@ -30,7 +30,16 @@ internal sealed interface ChangelogBlock {
  * docs/decisions/2026-10-25-changelog-tab-design.md.
  */
 internal object ChangelogMarkdown {
-    private val inline = Regex("""\*\*(.+?)\*\*|\*([^*\s][^*]*?)\*|`([^`]+)`|\[([^\]]+)]\([^)]*\)""")
+    // Emphasis may hold a whole code span but never a lone backtick, so it
+    // cannot run into one; and, as in CommonMark, it neither opens before nor
+    // closes after whitespace.
+    private val inline =
+        Regex(
+            """\*\*(?![\s*])((?:`[^`]*`|[^`])+?)(?<!\s)\*\*""" +
+                """|\*(?![\s*])((?:`[^`]*`|[^`*])+?)(?<!\s)\*""" +
+                """|`([^`]+)`""" +
+                """|\[([^\]]+)]\([^)]*\)""",
+        )
     private val bareBrackets = Regex("""\[([^\]]+)](?!\()""")
 
     fun parse(markdown: String): List<ChangelogBlock> {
@@ -52,8 +61,7 @@ internal object ChangelogMarkdown {
 
                 line.startsWith("## ") -> {
                     flush()
-                    make = ChangelogBlock::Heading
-                    text.append(line.removePrefix("## ").replace(bareBrackets, "$1"))
+                    blocks += ChangelogBlock.Heading(runs(line.removePrefix("## ").replace(bareBrackets, "$1")))
                 }
 
                 line.startsWith("- ") -> {
