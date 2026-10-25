@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.1.1] (2026-10-25)
+
 - **Debug:** The debug screen has a Changes tab showing what each Siskin
   release changed, so the head unit itself can say what the installed build
   contains. A debug build also shows the changes made since the last release.
