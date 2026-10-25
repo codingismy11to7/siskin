@@ -11,7 +11,7 @@
 
 ## [Unreleased] — Siskin
 
-- **Debug:** The debug screen has a Changelog tab showing what each Siskin
+- **Debug:** The debug screen has a Changes tab showing what each Siskin
   release changed, so the head unit itself can say what the installed build
   contains. A debug build also shows the changes made since the last release.
 

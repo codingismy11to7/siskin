@@ -99,6 +99,11 @@ reached for when diagnosing something. It follows the recipe in `DebugTab`
 exactly: one fragment, one icon (Material Symbols "history"), one id, one enum
 entry and one non-translatable label.
 
+The label reads **Changes**, not Changelog. The rail is 80dp wide, and
+"Changelog" in its `TitleMedium` labels is clipped. Smaller labels would make
+every tab harder to read at arm's length, and a wider rail would give up the
+width that keeps each `plex.direct` address on one line.
+
 ## Testing
 
 - Parser tests on the subset: heading brackets stripped, bullet continuation

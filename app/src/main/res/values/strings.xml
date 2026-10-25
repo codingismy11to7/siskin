@@ -70,7 +70,7 @@
     <string name="debug_addresses_title" translatable="false">Server addresses</string>
     <string name="debug_tab_server" translatable="false">Server</string>
     <string name="debug_tab_car" translatable="false">Car</string>
-    <string name="debug_tab_changelog" translatable="false">Changelog</string>
+    <string name="debug_tab_changelog" translatable="false">Changes</string>
     <string name="debug_choose_server" translatable="false">Choose server</string>
     <string name="debug_device_title" translatable="false">Device</string>
     <string name="debug_device_no_name" translatable="false">(no device name sent)</string>
