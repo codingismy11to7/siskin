@@ -5,10 +5,11 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * The tier ladder from the 2026-08-27 vehicle device name design, and where a picked tier starts it (2026-10-25). Pure, so
- * this runs as a plain JUnit test -- no Robolectric, no framework class, and
- * therefore nothing that `unitTests.returnDefaultValues = true` can stub into
- * a test that passes while asserting nothing.
+ * The tier ladder from the 2026-08-27 vehicle device name design, and where a
+ * picked tier starts it (2026-10-25). Pure, so this runs as a plain JUnit
+ * test -- no Robolectric, no framework class, and therefore nothing that
+ * `unitTests.returnDefaultValues = true` can stub into a test that passes
+ * while asserting nothing.
  */
 class VehicleIdentityTest {
     @Test

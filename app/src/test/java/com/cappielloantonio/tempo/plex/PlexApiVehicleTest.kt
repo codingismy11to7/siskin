@@ -21,7 +21,7 @@ class PlexApiVehicleTest {
     }
 
     @Test
-    fun sendsTheVehicleByDefault() {
+    fun sendsTheVehicleWhenPicked() {
         Preferences.setVehicleIdentityTier(VehicleInfoSource.VEHICLE)
         withVehicleInputs(inputs) {
             assertEquals("L233", PlexApi().vehicle.model)

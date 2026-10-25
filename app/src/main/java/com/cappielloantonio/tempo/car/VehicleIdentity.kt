@@ -1,6 +1,9 @@
 package com.cappielloantonio.tempo.car
 
-/** Which tier of [VehicleInputs.resolve] produced a value. */
+/**
+ * Which tier of [VehicleInputs.resolve] produced a value. Declaration order is
+ * the ladder -- vehicle, then Build, then constants -- and must stay so.
+ */
 enum class VehicleInfoSource {
     VEHICLE,
     BUILD,
@@ -79,7 +82,7 @@ data class VehicleInputs(
     }
 
     companion object {
-        val LADDER = listOf(VehicleInfoSource.VEHICLE, VehicleInfoSource.BUILD, VehicleInfoSource.UNKNOWN)
+        val LADDER: List<VehicleInfoSource> = VehicleInfoSource.entries
 
         /** Nothing read yet: only the constants answer. */
         val NONE = VehicleInputs(null, null, null, null, null)
