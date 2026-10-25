@@ -9,6 +9,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
 import arrow.core.right
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.car.VehicleInfoSource
+import com.cappielloantonio.tempo.car.VehicleInputs
+import com.cappielloantonio.tempo.car.withVehicleInputs
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
@@ -16,8 +19,10 @@ import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
+import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.navigationrail.NavigationRailView
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -59,6 +64,7 @@ class CarDebugFragmentTest {
                 serverToken = null,
                 owned = true,
             )
+        Preferences.setVehicleIdentityTier(VehicleInfoSource.VEHICLE)
     }
 
     @Before
@@ -232,6 +238,46 @@ class CarDebugFragmentTest {
         assertTrue(tabFragment(controller, DebugTab.CAR) is DebugCarFragment)
         assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
         assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    private fun tierCards(controller: ActivityController<CarHostActivity>) =
+        viewsIn(tabFragment(controller, DebugTab.CAR)!!.requireView()).filterIsInstance<MaterialCardView>()
+
+    private val everyTier = VehicleInputs("Cadillac", "L233", 2026, "GM", "Lyriq-HU")
+
+    /** The outline is colour alone; selection is what an accessibility service reads. */
+    @Test
+    fun `the reported tier is the selected card`() {
+        Preferences.setVehicleIdentityTier(VehicleInfoSource.BUILD)
+        withVehicleInputs(everyTier) {
+            val controller = launch()
+            openDebugScreen(controller)
+            select(controller, DebugTab.CAR)
+
+            assertEquals(listOf(false, true, false), tierCards(controller).map { it.isSelected })
+        }
+    }
+
+    /**
+     * The tab is hidden and shown rather than recreated, and the vehicle read
+     * lands asynchronously, so a tab first drawn before it must redraw when
+     * shown again rather than keep claiming the car said nothing.
+     */
+    @Test
+    fun `showing the Car tab again picks up a vehicle read that landed meanwhile`() {
+        withVehicleInputs(null) {
+            val controller = launch()
+            openDebugScreen(controller)
+            select(controller, DebugTab.CAR)
+            assertFalse(tierCards(controller).first().isEnabled)
+
+            withVehicleInputs(everyTier) {
+                select(controller, DebugTab.SERVER)
+                select(controller, DebugTab.CAR)
+
+                assertTrue(tierCards(controller).first().isEnabled)
+            }
+        }
     }
 
     /**

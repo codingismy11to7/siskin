@@ -15,7 +15,7 @@ import android.util.Log
  * android.car type is therefore confined to a private method body -- never a
  * field type, never a public signature -- so the class still loads in
  * Robolectric tests that construct PlexApi without calling [start]. The tested
- * half is [VehicleIdentity.resolve].
+ * half is [VehicleInputs].
  *
  * See docs/decisions/2026-08-27-vehicle-device-name-design.md.
  */
@@ -26,14 +26,19 @@ object VehicleInfoReader {
     private const val GLOBAL_AREA_ID = 0
 
     @Volatile
-    private var resolved: VehicleIdentity? = null
+    private var cached: VehicleInputs? = null
+
+    /** What [start]'s read found, or null until it lands. */
+    fun inputs(): VehicleInputs? = cached
 
     /**
-     * [VehicleIdentity.UNKNOWN] until [start]'s read lands; thereafter whichever
-     * tier answered. A failed vehicle read falls to BUILD, and UNKNOWN survives
-     * only when `Build.MANUFACTURER` and `Build.MODEL` are blank too.
+     * [VehicleIdentity.UNKNOWN] until [start]'s read lands; thereafter the
+     * first tier from [startAt] down that answers. A failed vehicle read
+     * leaves the vehicle tier empty, and UNKNOWN survives from VEHICLE only
+     * when `Build.MANUFACTURER` and `Build.MODEL` are blank too.
      */
-    fun identity(): VehicleIdentity = resolved ?: VehicleIdentity.UNKNOWN
+    fun identity(startAt: VehicleInfoSource = VehicleInfoSource.VEHICLE): VehicleIdentity =
+        cached?.resolve(startAt) ?: VehicleIdentity.UNKNOWN
 
     /**
      * Off the main thread because this connects to a system service. Called
@@ -43,8 +48,8 @@ object VehicleInfoReader {
      */
     @JvmStatic
     fun start(context: Context) {
-        if (resolved != null) return
-        Thread({ resolved = read(context) }, "vehicle-info").start()
+        if (cached != null) return
+        Thread({ cached = read(context) }, "vehicle-info").start()
     }
 
     /**
@@ -62,7 +67,7 @@ object VehicleInfoReader {
      * Note this is nowhere near an `either { }` block, so Arrow's raise hazard
      * does not apply.
      */
-    private fun read(context: Context): VehicleIdentity {
+    private fun read(context: Context): VehicleInputs {
         var carMake: String? = null
         var carModel: String? = null
         var carYear: Int? = null
@@ -91,9 +96,8 @@ object VehicleInfoReader {
             }
         }
 
-        return VehicleIdentity
-            .resolve(carMake, carModel, carYear, Build.MANUFACTURER, Build.MODEL)
-            .also { Log.d(TAG, "vehicle identity: $it") }
+        return VehicleInputs(carMake, carModel, carYear, Build.MANUFACTURER, Build.MODEL)
+            .also { Log.d(TAG, "vehicle inputs: $it") }
     }
 
     /**

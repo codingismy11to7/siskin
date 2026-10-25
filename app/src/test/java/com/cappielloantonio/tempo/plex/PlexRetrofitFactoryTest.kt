@@ -1,8 +1,9 @@
 package com.cappielloantonio.tempo.plex
 
-import com.cappielloantonio.tempo.car.VehicleIdentity
-import com.cappielloantonio.tempo.car.VehicleInfoReader
 import com.cappielloantonio.tempo.car.VehicleInfoSource
+import com.cappielloantonio.tempo.car.VehicleInputs
+import com.cappielloantonio.tempo.car.withVehicleInputs
+import com.cappielloantonio.tempo.util.Preferences
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
@@ -29,6 +30,8 @@ class PlexRetrofitFactoryTest {
     fun startServer() {
         server = MockWebServer()
         server.start()
+        // Robolectric keeps preferences across classes; the vehicle test needs the default tier.
+        Preferences.setVehicleIdentityTier(VehicleInfoSource.VEHICLE)
         PlexApi().apply {
             serverUri = server.url("/").toString()
             accountToken = "account-token"
@@ -105,7 +108,7 @@ class PlexRetrofitFactoryTest {
      */
     @Test
     fun aNonAsciiVehicleNameSurvivesTheRoundTrip() {
-        withVehicle(VehicleIdentity("Škoda", "Octavia", 2024, VehicleInfoSource.VEHICLE)) {
+        withVehicleInputs(VehicleInputs("Škoda", "Octavia", 2024, null, null)) {
             val api = PlexApi()
             val client = clientOf(PlexRetrofitFactory.server(api, api.serverUri, api.serverToken, { api.accountToken }))
 
@@ -147,25 +150,6 @@ class PlexRetrofitFactoryTest {
         val product = recorded.headers.values("X-Plex-Product")
         assertEquals(1, product.size)
         assertEquals("Siskin", product.single())
-    }
-
-    /**
-     * The reader caches process-wide and takes no injected identity, because
-     * android.car cannot be on the unit-test classpath -- so reflection is the
-     * only seam. Restores what it found, since the cache outlives the method.
-     */
-    private fun withVehicle(
-        identity: VehicleIdentity,
-        body: () -> Unit,
-    ) {
-        val field = VehicleInfoReader::class.java.getDeclaredField("resolved").apply { isAccessible = true }
-        val previous = field.get(VehicleInfoReader)
-        field.set(VehicleInfoReader, identity)
-        try {
-            body()
-        } finally {
-            field.set(VehicleInfoReader, previous)
-        }
     }
 
     @Test

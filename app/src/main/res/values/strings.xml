@@ -73,10 +73,15 @@
     <string name="debug_choose_server" translatable="false">Choose server</string>
     <string name="debug_device_title" translatable="false">Device</string>
     <string name="debug_device_no_name" translatable="false">(no device name sent)</string>
-    <string name="debug_device_from" translatable="false">from: %1$s</string>
-    <string name="debug_device_source_vehicle" translatable="false">vehicle</string>
-    <string name="debug_device_source_build" translatable="false">build properties</string>
-    <string name="debug_device_source_unknown" translatable="false">unknown</string>
+    <string name="debug_device_info" translatable="false">What the outlined card means</string>
+    <string name="debug_device_info_message" translatable="false">The outlined card is what this car reports to Plex.</string>
+    <string name="debug_tier_vehicle" translatable="false">Vehicle</string>
+    <string name="debug_tier_build" translatable="false">Build</string>
+    <string name="debug_tier_constants" translatable="false">Constants</string>
+    <string name="debug_tier_constants_detail" translatable="false">the fallback when nothing names the car</string>
+    <string name="debug_tier_nothing_reported" translatable="false">(nothing reported)</string>
+    <string name="debug_tier_nothing_here" translatable="false">%1$s · nothing here</string>
+    <string name="debug_tier_fallback_from" translatable="false">%1$s · fallback from %2$s</string>
 
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
     <string name="exo_controls_repeat_off_description">Current mode: Repeat none. Toggle repeat mode.</string>
