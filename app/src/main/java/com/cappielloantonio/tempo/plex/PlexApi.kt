@@ -6,6 +6,7 @@ import com.cappielloantonio.tempo.BuildConfig
 import com.cappielloantonio.tempo.car.VehicleIdentity
 import com.cappielloantonio.tempo.car.VehicleInfoReader
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
+import com.cappielloantonio.tempo.util.Preferences
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
@@ -219,8 +220,8 @@ class PlexApi(
             .getDefault()
             .language
 
-    /** What the car says it is; UNKNOWN until the startup read lands. */
-    val vehicle: VehicleIdentity get() = VehicleInfoReader.identity()
+    /** What the car says it is, from the picked tier down; UNKNOWN until the startup read lands. */
+    val vehicle: VehicleIdentity get() = VehicleInfoReader.identity(Preferences.getVehicleIdentityTier())
 
     fun plexTvHeaders(): Map<String, String> = plexTvHeaders(accountToken)
 

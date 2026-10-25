@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.util
 import androidx.core.content.edit
 import androidx.media3.common.Player
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.car.VehicleInfoSource
 
 object Preferences {
     const val THEME = "theme"
@@ -28,6 +29,7 @@ object Preferences {
     private const val ARTIST_MIX = "artist_mix"
     private const val ARTIST_RADIO = "artist_radio"
     private const val BROWSE_TAB_ORDER = "browse_tab_order"
+    private const val VEHICLE_IDENTITY_TIER = "vehicle_identity_tier"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
     private const val MIX_TRACK_LIMIT = "mix_track_limit"
     private const val FALLBACK_TO_RANDOM_TRACKS = "fallback_to_random_tracks"
@@ -293,6 +295,31 @@ object Preferences {
         App.getInstance().preferences.edit {
             putString(BROWSE_TAB_ORDER, order.joinToString(","))
         }
+    }
+
+    /**
+     * Which identity tier the ladder starts from. The stored words are
+     * persisted data, so renaming an enum value cannot rename them; an
+     * unrecognised one reads as the vehicle, today's behaviour. See the
+     * 2026-10-25 vehicle identity tier pick design.
+     */
+    @JvmStatic
+    fun getVehicleIdentityTier(): VehicleInfoSource =
+        when (App.getInstance().preferences.getString(VEHICLE_IDENTITY_TIER, null)) {
+            "build" -> VehicleInfoSource.BUILD
+            "constants" -> VehicleInfoSource.UNKNOWN
+            else -> VehicleInfoSource.VEHICLE
+        }
+
+    @JvmStatic
+    fun setVehicleIdentityTier(tier: VehicleInfoSource) {
+        val stored =
+            when (tier) {
+                VehicleInfoSource.VEHICLE -> "vehicle"
+                VehicleInfoSource.BUILD -> "build"
+                VehicleInfoSource.UNKNOWN -> "constants"
+            }
+        App.getInstance().preferences.edit { putString(VEHICLE_IDENTITY_TIER, stored) }
     }
 
     @JvmStatic
