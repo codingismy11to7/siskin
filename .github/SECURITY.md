@@ -2,8 +2,10 @@
 
 ## Reporting a vulnerability
 
-Report it privately through GitHub: the **Security** tab of this repository,
-then **Report a vulnerability**. Please don't open a public issue.
+Report it privately through GitHub at
+<https://github.com/codingismy11to7/siskin/security/advisories/new>, which is
+**Report a vulnerability** on this repository's **Security** tab. Please don't
+open a public issue.
 
 Reports are handled by one maintainer in their spare time, so expect a reply
 within a couple of weeks rather than days.
