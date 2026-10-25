@@ -482,7 +482,8 @@ Cloudflare dashboard, or the site quietly stops tracking it.
 release classpath. **`docs/web/sbom.cdx.json` and `docs/web/credits-oss.html`
 are generated** by `./gradlew ossCredits` and committed, because the site build
 cannot run Gradle, and CI fails when they are stale — so **a dependency change
-must commit them regenerated**. Do not hand-edit either. See
+must commit them regenerated** (a Dependabot bump of a shipped library fails CI
+until someone regenerates and pushes). Do not hand-edit either. See
 `docs/decisions/2026-10-25-sbom-credits-design.md`.
 
 The Play Console holds `https://siskinapp.com/privacy`. That URL has no

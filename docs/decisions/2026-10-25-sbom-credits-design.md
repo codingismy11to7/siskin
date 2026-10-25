@@ -41,8 +41,19 @@ without its regenerated SBOM, and the page tracks `main`.
 
 The plugin's output is not committed as-is. Its serial number is random per run
 (it can be switched off) and `metadata.timestamp` is always the current time
-(it cannot), and either would make the check fail on every build. The task that
-renders the table also writes the committed copy, with both removed.
+(it cannot), and either would make the check fail on every build. The plugin
+also derives two references from the environment: a link to the CI run, which
+exists only on Actions (switched off with `includeBuildSystem`), and the
+repository URL, which reads as an `ssh://` remote locally and `https://` on
+Actions (the plugin offers no way to pin it). The task that renders the table
+also writes the committed copy, with the serial number, timestamp and the
+project component's external references removed, so the file is the same
+locally and in CI.
+
+A Dependabot bump of a shipped library therefore fails the check until someone
+checks out its branch, runs `./gradlew ossCredits` and pushes. That manual step
+is accepted for now: a push made with `GITHUB_TOKEN` would not trigger CI again,
+so automating it needs more than a workflow step.
 
 Both files live under `docs/web/`, which the Cloudflare project's build watch
 paths already cover, so a regenerated SBOM redeploys the site with no dashboard
