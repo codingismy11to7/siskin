@@ -1,3 +1,22 @@
+// AGP carries these at versions with published advisories, which Dependabot
+// reports and its security updates cannot fix: they are transitive. They run
+// only inside the build, never in the app. Constraints only raise a version,
+// so this goes stale rather than wrong once AGP catches up -- delete each line
+// when `./gradlew buildEnvironment` shows AGP asking for at least as much.
+// bcutil is not alerted on; it is here so the three bouncycastle jars agree.
+buildscript {
+    dependencies {
+        constraints {
+            classpath libs.bouncycastle.bcprov
+            classpath libs.bouncycastle.bcpkix
+            classpath libs.bouncycastle.bcutil
+            classpath libs.jose4j
+            classpath libs.jdom2
+            classpath libs.commons.lang3
+        }
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
