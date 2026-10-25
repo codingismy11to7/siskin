@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    activity_car_host overlays its back button at top|start, exactly where the
+    rail's first item would otherwise sit. This spacer is that button's height.
+-->
+<Space xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/plex_sign_in_choice_min_height" />

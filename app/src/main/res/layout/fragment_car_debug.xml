@@ -3,10 +3,29 @@
     The debug screen's shell. See docs/decisions/2026-10-25-debug-tabs-design.md.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:baselineAligned="false"
     android:orientation="horizontal">
+
+    <!--
+        Material's rail rather than a hand-built one, for rotary focus,
+        accessibility and selection state. Sized for arm's length, not
+        Material's phone defaults. Items are added from DebugTab in code.
+    -->
+    <com.google.android.material.navigationrail.NavigationRailView
+        android:id="@+id/debug_rail"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:background="?attr/colorSurfaceContainer"
+        app:headerLayout="@layout/debug_rail_header"
+        app:itemIconSize="32dp"
+        app:itemMinHeight="@dimen/plex_sign_in_choice_min_height"
+        app:itemTextAppearanceActive="@style/TextAppearance.Material3.TitleMedium"
+        app:itemTextAppearanceInactive="@style/TextAppearance.Material3.TitleMedium"
+        app:labelVisibilityMode="labeled"
+        app:menuGravity="top" />
 
     <FrameLayout
         android:id="@+id/debug_tab_container"
