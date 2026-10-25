@@ -79,19 +79,19 @@ object PlexRetrofitFactory {
      * One connection pool and one dispatcher thread pool for the whole app.
      *
      * Every client below is derived from this with [OkHttpClient.newBuilder],
-     * which shares both. Building a whole OkHttpClient per call instead is not
-     * merely wasteful allocation: each one owns a private connection pool, so
-     * nothing it opens is ever reused and every request pays a fresh TCP and
-     * TLS handshake. The callers that matter here are constructed per use --
-     * BaseSessionCallback builds one per heart tap, PlexMixRepository one per
-     * mix -- so on a head
-     * unit that is several full handshakes per track.
+     * which shares both; ArtworkImages' shares only the pool. Building a whole
+     * OkHttpClient per call instead is not merely wasteful allocation: each one
+     * owns a private connection pool, so nothing it opens is ever reused and
+     * every request pays a fresh TCP and TLS handshake. The callers that matter
+     * here are constructed per use -- BaseSessionCallback builds one per heart
+     * tap, PlexMixRepository one per mix -- so on a head unit that is several
+     * full handshakes per track.
      *
      * Deliberately carries no interceptors: the identity interceptor closes
      * over one PlexApi's header supplier, so it must stay per-client or a
      * server call would start sending plex.tv's token and vice versa.
      */
-    private val sharedClient: OkHttpClient =
+    internal val sharedClient: OkHttpClient =
         OkHttpClient
             .Builder()
             .callTimeout(1, TimeUnit.MINUTES)

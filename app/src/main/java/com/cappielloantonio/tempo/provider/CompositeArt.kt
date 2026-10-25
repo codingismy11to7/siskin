@@ -7,9 +7,7 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.util.Log
 import androidx.core.graphics.createBitmap
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.FutureTarget
+import com.cappielloantonio.tempo.artwork.ArtworkImages
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
@@ -230,7 +228,7 @@ object CompositeArt {
 
     /** A composite already on disk for this id and bucket, or null.
      *
-     * Deliberately does no network work and touches neither Glide nor Retrofit:
+     * Deliberately does no network work and touches neither the image loader nor Retrofit:
      * the provider calls this on a binder thread and serves the file directly
      * when it hits, so the common case never occupies a worker at all. */
     @JvmStatic
@@ -307,13 +305,9 @@ object CompositeArt {
     /**
      * [build]'s body, run holding that tile's lock.
      *
-     * Split out only so `build` can express the lock and the re-check in a
-     * couple of lines; every failure contract described on [build] is this
-     * function's.
-     *
-     * All it does itself is bound the lifetime of the Glide targets
-     * [drawComposite] submits, which is a job of its own: those targets have to
-     * outlive the draw and must not outlive the build.
+     * Loads the covers, draws them into one square and caches it. Every failure
+     * contract described on [build] is this function's. Recycles the composite
+     * bitmap on every exit that drew one.
      */
     private fun buildLocked(
         context: Context,
@@ -322,51 +316,6 @@ object CompositeArt {
         file: File,
         covers: (PlexApi, PlexSession) -> List<String>,
     ): File? {
-        // Every target this build submits, cleared together once the draw is
-        // done with them. A submitted target stays registered with the
-        // application-scoped RequestManager until it is cleared, and it holds
-        // its bitmap for as long as it is registered -- so leaving them alone
-        // retains every cover the process has ever decoded, at 512x512 RGB_565
-        // apiece. See #116.
-        //
-        // The list is the reason a `finally` inside loadCover would be wrong
-        // rather than merely narrower. Clearing a Bitmap target hands its
-        // bitmap straight back to Glide's pool, where the next request is free
-        // to reuse it -- and a cover is drawn from long after it is loaded,
-        // in drawComposite's canvas loop, having survived a pool degrade and a
-        // possible re-request in between. That is exactly the composite
-        // bitmap's own lifetime, which is why the two releases read the same
-        // way in this file: one scope each, ending at the same place.
-        val targets = mutableListOf<FutureTarget<Bitmap>>()
-        return try {
-            drawComposite(context, api, session, file, covers, targets)
-        } finally {
-            // The composite's bytes are on disk by now, or the build has
-            // failed; either way nothing reads these bitmaps again.
-            targets.forEach { Glide.with(context).clear(it) }
-        }
-    }
-
-    /**
-     * [buildLocked]'s body, run inside the scope that owns its Glide targets:
-     * loads the covers, draws them into one square and caches it.
-     *
-     * Recycles the composite bitmap on every exit that drew one, and records
-     * into [targets] rather than clearing anything itself. Every exit --
-     * **the no-cells one included** -- leaves the caller a target per submitted
-     * load. That case is the one an eagerly-placed clear would miss: no cells
-     * means every load failed, and a load that throws still leaves a registered
-     * target behind, so the path that draws nothing is the one with the most to
-     * release.
-     */
-    private fun drawComposite(
-        context: Context,
-        api: PlexApi,
-        session: PlexSession,
-        file: File,
-        covers: (PlexApi, PlexSession) -> List<String>,
-        targets: MutableList<FutureTarget<Bitmap>>,
-    ): File? {
         val thumbs = covers(api, session)
         val token = session.serverAuthToken
 
@@ -374,8 +323,8 @@ object CompositeArt {
         // into quarter cells, so a pool of two or more is requested at the edge
         // those cells imply. A pool of exactly one fills the whole square. A
         // pool that then fails its way down to one cell re-requests its
-        // survivor at the full edge below -- one extra Glide call, from its own
-        // disk cache, on a path that only runs after a load has already failed.
+        // survivor at the full edge below -- one extra cover request, on a path
+        // that only runs after a load has already failed.
         val candidateEdge =
             if (thumbs.size == 1) CompositeGrid.SIZE else CompositeGrid.SIZE / 2
 
@@ -396,7 +345,7 @@ object CompositeArt {
         // Asking for COVERS costs no extra *iteration* when the pool is smaller
         // -- `pick` walks what it is given and returns what it finds. It does
         // cost extra fetches compared with the old single-cover ask: a pool of
-        // two or three now issues two or three Glide requests rather than one.
+        // two or three now issues two or three cover requests rather than one.
         // That is the point rather than a regression -- those are the covers
         // that get drawn -- and it is fewer pixels in total, three 256px covers
         // against one at 512.
@@ -405,7 +354,7 @@ object CompositeArt {
         // knows what to re-request.
         val loaded =
             pick(thumbs, CompositeGrid.COVERS) { thumb ->
-                coverFor(context, session, token, thumb, candidateEdge, targets)
+                coverFor(context, session, token, thumb, candidateEdge)
                     ?.let { thumb to it }
             }
 
@@ -418,15 +367,7 @@ object CompositeArt {
         val bitmaps =
             if (cells.size == 1 && candidateEdge != CompositeGrid.SIZE) {
                 val (thumb, small) = loaded.first()
-                // Not recycled if the re-request succeeds: these bitmaps come from
-                // Glide's pool and recycling one out from under it is what the draw
-                // loop's own catch exists to survive. The quarter-size cover this
-                // discards is still released, since its target is in `targets`
-                // either way -- the re-request adds a second one beside it rather
-                // than replacing it.
-                listOf(
-                    coverFor(context, session, token, thumb, CompositeGrid.SIZE, targets) ?: small,
-                )
+                listOf(coverFor(context, session, token, thumb, CompositeGrid.SIZE) ?: small)
             } else {
                 loaded.take(cells.size).map { it.second }
             }
@@ -446,9 +387,8 @@ object CompositeArt {
         var partial: File? = null
         return try {
             // Drawing sits inside the same try as the write so that a draw that
-            // throws -- a cover Glide has since recycled is the way that happens
-            // -- still returns null and still recycles, rather than throwing out
-            // of a function whose contract is that failure is a null.
+            // throws still returns null and still recycles, rather than throwing
+            // out of a function whose contract is that failure is a null.
             val canvas = Canvas(composite)
             // Explicit rather than relying on Bitmap.createBitmap handing back
             // zeroed memory, which is true in practice but not a documented
@@ -459,10 +399,11 @@ object CompositeArt {
             // rather than as a grid with holes in it.
             canvas.drawColor(Color.BLACK)
             cells.forEachIndexed { index, cell ->
+                val cover = bitmaps[index]
                 canvas.drawBitmap(
-                    bitmaps[index],
-                    null,
-                    Rect(cell.left, cell.top, cell.right, cell.bottom),
+                    cover,
+                    CompositeGrid.centerSquare(cover.width, cover.height).toRect(),
+                    cell.toRect(),
                     null,
                 )
             }
@@ -522,55 +463,35 @@ object CompositeArt {
      * is gone -- so the branch is unreachable today and is kept only so the two
      * artwork paths cannot drift apart.
      *
-     * centerCrop because canvas.drawBitmap passes a null source rect, which maps
-     * whatever arrives onto the whole cell: submit(edge, edge) only downsamples
-     * and preserves aspect ratio, so an oblong cover would be squashed square
-     * rather than cropped. Plex covers are square in practice, so this removes
-     * a case rather than fixing a visible defect.
-     *
-     * Appends to [targets] and never clears: the caller owns when these are
-     * released, because it owns when the bitmap is last drawn from. The append
-     * happens *before* `get()` rather than after, so that a load which throws
-     * still surrenders its target -- submit() registers it, and the failure
-     * arrives afterwards, so a target recorded only on success would leak
-     * exactly the failures. */
+     * Filled rather than fitted, so the shorter side reaches [edge]: the draw
+     * crops an oblong cover to its centre square, and fitting would leave that
+     * square short of the cell. */
     private fun loadCover(
         context: Context,
         url: String,
         edge: Int,
-        targets: MutableList<FutureTarget<Bitmap>>,
     ): Bitmap? =
         try {
-            var request =
-                Glide
-                    .with(context)
-                    .asBitmap()
-                    .load(url)
-                    .centerCrop()
-                    .diskCacheStrategy(DiskCacheStrategy.DATA)
-            if (Preferences.isDataSavingMode()) {
-                request = request.onlyRetrieveFromCache(true)
-            }
-            val target = request.submit(edge, edge)
-            targets += target
-            target.get()
+            ArtworkImages
+                .get(context)
+                .bitmap(url, edge, cacheOnly = Preferences.isDataSavingMode(), fill = true)
         } catch (e: Exception) {
             Log.w(TAG, "could not load a cover for the composite", e)
             null
         }
 
     /** One cover at [edge] square, or null if there is no URL for it or it
-     * would not load. Records its target in [targets] for the caller to
-     * clear, on the failing path as well as the succeeding one. */
+     * would not load. */
     private fun coverFor(
         context: Context,
         session: PlexSession,
         token: String?,
         thumb: String,
         edge: Int,
-        targets: MutableList<FutureTarget<Bitmap>>,
     ): Bitmap? =
         MediaUrlBuilder
             .artworkUrl(session.serverUri, thumb, token, edge, edge)
-            ?.let { loadCover(context, it, edge, targets) }
+            ?.let { loadCover(context, it, edge) }
+
+    private fun CompositeGrid.Cell.toRect() = Rect(left, top, right, bottom)
 }
