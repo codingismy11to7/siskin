@@ -36,6 +36,10 @@ private const val TAG = "PlexScrobbler"
  * AccountManager Binder calls. The snapshot exists for the final "stopped" of a
  * track left by a Home switch, queued just before the new member's session is
  * written, which must still go out as the member who played it.
+ *
+ * Any other report queued before a session write is dropped rather than sent:
+ * resolved afterwards, it would go out as the new member and open a Now Playing
+ * entry that nothing closes. The "stopped" behind it ends the old one.
  */
 object PlexScrobbler {
     private data class Server(
@@ -51,6 +55,7 @@ object PlexScrobbler {
         val station: PlexMediaMapper.StationTag?,
         val server: Server?,
         val sent: CompletableDeferred<Unit>? = null,
+        val generation: Long = PlexApi.sessionGeneration,
     )
 
     private val queue = Channel<Report>(Channel.UNLIMITED)
@@ -117,7 +122,15 @@ object PlexScrobbler {
     private fun snapshotFor(state: TimelineState) = if (state == TimelineState.STOPPED) currentServer() else null
 
     private suspend fun send(report: Report) {
-        searchClient(report.server ?: currentServer())
+        // Checked after the read: the setter bumps the generation before it
+        // writes, so a read that saw any of the new session fails the check.
+        val server =
+            report.server ?: currentServer().takeIf { report.generation == PlexApi.sessionGeneration }
+        if (server == null) {
+            Log.i(TAG, "dropped a ${report.state} report queued before the session changed")
+            return
+        }
+        searchClient(server)
             .reportProgress(RatingKey(report.ratingKey), report.partKey, report.state, report.timeMs, report.station)
             .onLeft { Log.w(TAG, "scrobble failed: $it") }
     }

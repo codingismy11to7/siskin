@@ -7,6 +7,7 @@ import com.cappielloantonio.tempo.car.VehicleIdentity
 import com.cappielloantonio.tempo.car.VehicleInfoReader
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Holds what every Plex call needs: who we are, who we are signed in as, and
@@ -134,6 +135,10 @@ class PlexApi(
                 owned = serverOwned,
             )
         set(value) {
+            // First, so a reader that sees any part of the new session has
+            // already seen the bump.
+            generation.incrementAndGet()
+
             // Read before the preferences write below overwrites it. Switching
             // servers has to clear the previous one's access token: the tag
             // already makes it unreadable, but unreadable is not gone, and a
@@ -229,6 +234,14 @@ class PlexApi(
          * so the grant would be unclaimable.
          */
         private val IDENTITY_LOCK = Any()
+
+        private val generation = AtomicLong()
+
+        /**
+         * Changes on every [session] write. In memory and process-wide, so
+         * comparing it costs no AccountManager read.
+         */
+        val sessionGeneration: Long get() = generation.get()
 
         /**
          * Which token authenticates a call to the selected server: its own

@@ -1,6 +1,11 @@
 package com.cappielloantonio.tempo.service
 
+import android.accounts.AccountManager
+import android.content.Context
+import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexSession
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -11,23 +16,43 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import java.util.concurrent.TimeUnit
 
-/** Robolectric because PlexApi reads the app's preferences. */
+/** Robolectric because PlexApi reads the app's preferences and the system account. */
 @RunWith(RobolectricTestRunner::class)
 class PlexScrobblerTest {
     private lateinit var server: MockWebServer
 
     @Before
     fun setUp() {
+        val context: Context = RuntimeEnvironment.getApplication()
+        shadowOf(AccountManager.get(context))
+            .addAuthenticator(context.getString(R.string.plex_account_type))
         server = MockWebServer()
         server.start()
-        PlexApi().serverUri = server.url("/").toString()
+        signInTo(server, "acct")
     }
 
     @After
     fun tearDown() {
         server.shutdown()
+    }
+
+    private fun signInTo(
+        server: MockWebServer,
+        accountToken: String,
+    ) {
+        PlexApi().session =
+            PlexSession(
+                accountToken = accountToken,
+                serverUri = server.url("/").toString(),
+                musicSectionKey = SectionKey("4"),
+                serverToken = null,
+                machineIdentifier = "machine-${server.port}",
+                owned = true,
+            )
     }
 
     private fun report(
@@ -52,18 +77,21 @@ class PlexScrobblerTest {
         assertEquals("paused", nextState())
     }
 
-    /** Heartbeats are made on the main thread; only the final stop pays to read credentials there. */
+    /** Sent as the new member, it would open a Now Playing entry that nothing closes. */
     @Test
-    fun aPlayingReportUsesTheServerCurrentWhenItIsSent() {
+    fun aHeartbeatQueuedBeforeASessionChangeIsDropped() {
         MockWebServer().use { other ->
             server.enqueue(MockResponse().setResponseCode(200).setHeadersDelay(1, TimeUnit.SECONDS))
+            server.enqueue(MockResponse().setResponseCode(200))
             other.enqueue(MockResponse().setResponseCode(200))
             report("42", TimelineState.PAUSED)
             assertEquals("paused", nextState())
             report("42", TimelineState.PLAYING)
-            PlexApi().serverUri = other.url("/").toString()
+            report("42", TimelineState.STOPPED)
+            signInTo(other, "other-acct")
 
-            assertEquals("playing", nextState(other))
+            assertEquals("stopped", nextState())
+            assertNull(other.takeRequest(500, TimeUnit.MILLISECONDS))
         }
     }
 
@@ -75,7 +103,7 @@ class PlexScrobblerTest {
             report("42", TimelineState.PAUSED)
             assertEquals("paused", nextState())
             report("42", TimelineState.STOPPED)
-            PlexApi().serverUri = other.url("/").toString()
+            signInTo(other, "other-acct")
 
             assertEquals("stopped", nextState())
         }
@@ -89,7 +117,7 @@ class PlexScrobblerTest {
 
         MockWebServer().use { other ->
             other.enqueue(MockResponse().setResponseCode(200))
-            PlexApi().serverUri = other.url("/").toString()
+            signInTo(other, "other-acct")
 
             report("42", TimelineState.PAUSED)
 
