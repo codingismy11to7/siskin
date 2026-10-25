@@ -1,0 +1,25 @@
+Siskin plays the music from your own Plex server on your car's built-in screen.
+
+It runs on the head unit itself. This is not a phone app being projected into the car — there is no phone involved once you are signed in, and nothing to plug in or pair. Siskin appears alongside the car's other media sources, and behaves like one.
+
+WHAT IT DOES
+
+• Browse your library by playlist, artist or album
+• Search across your library
+• Plays your files as they are, with no transcoding — including lossless FLAC
+• Sign in by scanning a QR code or entering a short code, so there is no typing while you are in the car
+• Reports playback back to Plex, so your listening history and resume positions stay correct
+
+WHAT YOU NEED
+
+A Plex account and a Plex Media Server with a music library. Siskin does not host or provide any music — it plays what is already yours.
+
+WHAT IT DOES NOT DO
+
+No ads. No tracking. No analytics. No account with anyone but Plex. Siskin sends nothing to its developer, and the only servers it talks to are Plex's and your own.
+
+Siskin is deliberately small. It plays your music in your car, and that is all it tries to be.
+
+---
+
+Siskin is an unofficial client. It is not affiliated with, endorsed by, or sponsored by Plex Inc. "Plex" is used only to describe the service that Siskin connects to.
