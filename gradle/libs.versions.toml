@@ -46,7 +46,7 @@ zxing = "3.5.3"
 
 # Build classpath only -- raised over what AGP brings, see the root build.gradle
 bouncycastle = "1.85"
-jose4j = "0.9.6"
+jose4j = "0.9.7"
 jdom2 = "2.0.6.1"
 commonsLang3 = "3.18.0"
 
