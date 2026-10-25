@@ -12,10 +12,8 @@ import android.os.ParcelFileDescriptor;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.request.FutureTarget;
 import com.cappielloantonio.tempo.BuildConfig;
+import com.cappielloantonio.tempo.artwork.ArtworkImages;
 import com.cappielloantonio.tempo.plex.PlexApi;
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder;
 import com.cappielloantonio.tempo.util.HubCoverPool;
@@ -201,38 +199,9 @@ public class AlbumArtContentProvider extends ContentProvider {
             throw new FileNotFoundException("No Plex artwork URL for " + thumbPath);
         }
 
-        final Uri artworkUriFinal = Uri.parse(artworkUrl);
-
         return pipeFrom(
                 thumbPath,
-                () -> {
-                    var fileRequest =
-                            Glide.with(context)
-                                    .asFile()
-                                    .load(artworkUriFinal)
-                                    .diskCacheStrategy(DiskCacheStrategy.DATA);
-                    if (Preferences.isDataSavingMode()) {
-                        fileRequest = fileRequest.onlyRetrieveFromCache(true);
-                    }
-                    FutureTarget<File> target = fileRequest.submit();
-                    try {
-                        return target.get();
-                    } finally {
-                        // The same leak CompositeArt fixes, and the reason both are
-                        // fixed together: an uncleared target stays registered with the
-                        // application-scoped RequestManager and keeps its resource with
-                        // it. This one has been here since long before the Plex work.
-                        //
-                        // It can clear before the bytes are read, where the composite
-                        // path cannot. A File target's resource is a SimpleResource,
-                        // whose recycle() is empty, so clearing drops the registration
-                        // and leaves the disk-cache file where it is for pipeFrom to
-                        // copy. A Bitmap resource recycles into Glide's pool instead,
-                        // which is why the same mistake has two differently-shaped
-                        // repairs rather than one.
-                        Glide.with(context).clear(target);
-                    }
-                });
+                () -> ArtworkImages.get(context).file(artworkUrl, Preferences.isDataSavingMode()));
     }
 
     /**
@@ -292,7 +261,7 @@ public class AlbumArtContentProvider extends ContentProvider {
             throw new FileNotFoundException("Not this library's composite");
         }
 
-        // The hit path does no background work at all: no Glide, no Retrofit, no
+        // The hit path does no background work at all: no cover fetch, no Retrofit, no
         // executor thread. Eight decades scroll into view at once against a pool
         // sized max(2, cores / 2), and only the first browse in an hour should
         // pay for a build.
@@ -308,7 +277,7 @@ public class AlbumArtContentProvider extends ContentProvider {
      * The hub composite. Its validation differs from both paths above.
      *
      * <p>Cheaper to serve than a decade tile and cheaper to abuse: there is no Plex request on this
-     * route at all, so a hostile open costs Glide fetches and no metadata query -- the opposite of
+     * route at all, so a hostile open costs cover fetches and no metadata query -- the opposite of
      * the residual openDecadeArt concedes, where a well-formed but absent decade costs one query
      * per open forever.
      *
@@ -390,9 +359,9 @@ public class AlbumArtContentProvider extends ContentProvider {
     /**
      * The read end of a pipe that {@code source} fills on the background executor.
      *
-     * <p>Shared by both artwork paths: one resolves a Glide-cached cover, the other builds a
+     * <p>Shared by both artwork paths: one resolves a disk-cached cover, the other builds a
      * composite, and everything after "which file" is identical. The caller gets its descriptor
-     * immediately -- openFile runs on a binder thread, and neither a Plex round trip nor a Glide
+     * immediately -- openFile runs on a binder thread, and neither a Plex round trip nor a cover
      * fetch may happen there.
      *
      * <p>A source returning null, or throwing, closes the write side with an error, which the car

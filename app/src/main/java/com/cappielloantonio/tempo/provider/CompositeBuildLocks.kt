@@ -15,8 +15,8 @@ import java.util.concurrent.ConcurrentHashMap
  * `DecadeCompositeArt` fetches its own covers inside the lock; a hub tile makes
  * no metadata query at all -- its covers already rode the URI -- and a repeat
  * only re-runs the transcodes. Either way, the album artwork path never needed
- * this because Glide's engine dedups identical in-flight requests underneath
- * it; a metadata query, where one exists, is the part Glide knows nothing
+ * this because ArtworkImages de-duplicates identical in-flight fetches beneath
+ * it; a metadata query, where one exists, is the part it knows nothing
  * about, and it is what this lock exists to collapse.
  *
  * **Per key, not global.** On the first browse of an hour every decade tile and

@@ -1,6 +1,5 @@
 package com.cappielloantonio.tempo.ui.fragment
 
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
@@ -16,12 +15,12 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.lifecycle
+import coil3.request.target
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.artwork.ArtworkImages
 import com.cappielloantonio.tempo.databinding.FragmentPlexSignInBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
@@ -199,38 +198,26 @@ class PlexSignInFragment : Fragment() {
                 showApproval(withQr = false)
 
                 if (state.qrUrl != null) {
-                    Glide
-                        .with(this)
-                        .load(state.qrUrl)
-                        .listener(
-                            object : RequestListener<Drawable> {
-                                override fun onLoadFailed(
-                                    e: GlideException?,
-                                    model: Any?,
-                                    target: Target<Drawable>,
-                                    isFirstResource: Boolean,
-                                ): Boolean {
+                    val request =
+                        ImageRequest
+                            .Builder(requireContext())
+                            .data(state.qrUrl)
+                            .target(bind.qrImage)
+                            .lifecycle(viewLifecycleOwner)
+                            // One code, valid for minutes: nothing to keep.
+                            .diskCachePolicy(CachePolicy.DISABLED)
+                            .listener(
+                                onError = { _, result ->
                                     // Nothing to do: the code-only form is already up
                                     // and it signs the user in on its own. Logged
                                     // because a persistent failure here is worth
                                     // knowing about -- it means Plex changed the qr
                                     // field, which this design assumes.
-                                    Log.d(TAG, "QR image failed to load", e)
-                                    return false
-                                }
-
-                                override fun onResourceReady(
-                                    resource: Drawable,
-                                    model: Any,
-                                    target: Target<Drawable>?,
-                                    dataSource: DataSource,
-                                    isFirstResource: Boolean,
-                                ): Boolean {
-                                    showApproval(withQr = true)
-                                    return false
-                                }
-                            },
-                        ).into(bind.qrImage)
+                                    Log.d(TAG, "QR image failed to load", result.throwable)
+                                },
+                                onSuccess = { _, _ -> showApproval(withQr = true) },
+                            ).build()
+                    ArtworkImages.get(requireContext()).imageLoader.enqueue(request)
                 }
             }
 

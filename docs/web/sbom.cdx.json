@@ -1699,43 +1699,44 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/androidx.exifinterface/exifinterface@1.3.6?type=aar",
+            "bom-ref": "pkg:maven/androidx.exifinterface/exifinterface@1.4.2?type=aar",
+            "publisher": "The Android Open Source Project",
             "group": "androidx.exifinterface",
             "name": "exifinterface",
-            "version": "1.3.6",
+            "version": "1.4.2",
             "description": "Android Support ExifInterface",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "3379eefb116e6a1bd537ff0b85c1e694"
+                    "content": "8b42aee459c783ea1b5e8121ecfbe928"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "66c4f85fbe44c6556b05ecd28ea1af00cff3655e"
+                    "content": "21394465747d1a9f68297058907db6984e610772"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "1804105e9e05fdd8f760413bad5de498c381aa329f4f9d94c851bc891ac654c6"
+                    "content": "6bb2b68682a2023c55f35f941444ffea0157947b061e4fd7606ba935e2e77425"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "3b43772ee7d69f5d4b2c24c84b32ddf100eb53207fcbeb47ba9b72769dbae842b6603728f7bae3ed66c07a8e759e8a4409e9391c8093ec9a34e1b2ce8dbae9f7"
+                    "content": "5bc8e4c325e5571b9a8d40d2901081734f8ca8210f3b16e52f3b8a5e352f2170edf859e03b6929a417da4664c3b325039b02ed1269eccac4edf3985774872431"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "3f7199d2809793fd610216cfc2e8b1eb6dbbed0cbace87a9949486fc3fcd8972"
+                    "content": "d7ae2c315444ff4c4794c69edc081092e63df04111f2379439a1931b3f14f905"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "e519a8b73055d6471be75762d455b9bf6e6eef1b832fc662ca7b9f201a47886987460ce529fbb6eb1a007e365bc1a56123e965dc7669b3bab9dee5787ac95434"
+                    "content": "8899bf034438ae4b8831adaf4a946349e0593d2e0013f11d66bef97feca29bf6e4d67269870fdf12ef7c8d5f897caa8c91b740d51b900cbd8de62994eabbd22e"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "79c1b18ff2d67868cdd75d88918c7f65cbe061c62c1fb20280862f5710c802792d2652c349f517afa999db58f5986f88"
+                    "content": "5668a7210ba78ffcb424f519bf2e5ba5f55848ab027c342bdf74d5884d30ce4e044575a5510e500a3e73a47df676dc0b"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "d658f9af4b68642dcce4b98820bddb330b84bdcfefe1602a9dcadb98b822d7ea8273f8137ad87c8d2fcf7f84766d8fed"
+                    "content": "7dadd34f7339ca50b90cc13d4c081d8703702ec11a2d46fb1669fe823391c6ea19074b9d52cf96919149814c48ee4ed1"
                 }
             ],
             "licenses": [
@@ -1745,7 +1746,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/androidx.exifinterface/exifinterface@1.3.6?type=aar",
+            "purl": "pkg:maven/androidx.exifinterface/exifinterface@1.4.2?type=aar",
             "modified": false,
             "externalReferences": [
                 {
@@ -3617,44 +3618,44 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
+            "bom-ref": "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
             "publisher": "The Android Open Source Project",
             "group": "androidx.profileinstaller",
             "name": "profileinstaller",
-            "version": "1.4.0",
+            "version": "1.4.1",
             "description": "Allows libraries to prepopulate ahead of time compilation traces to be read by ART",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "aa5fc2586d48606b754f98f5cedf9f55"
+                    "content": "372c7bc75044e27c759f3fb8f820e255"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "6b6262e9ca50d1f75a496f3b64ebeb092a9d42eb"
+                    "content": "be24aadea661ee537836169df5026fb8f370af9f"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "d502141fcce902430f62b674c32aecd0f75262e7ee2cd15c74adb617cd13130a"
+                    "content": "b519f9317ded1e2c1c2993038c0692e30da326ca99097d9331ff2d3a5861a428"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "601213c32b7f02626667571353d1d94fa16e3227d7b4f2026d02b87af6732a7b5dd274c9b7a4f160faa0a324f64fb753de5a46bed66cb0c92094ba89e896d1f6"
+                    "content": "a92508d83a9f2aaa4d3b265350757b461c99702ea3ffd0e0b3c9a5bf0d3cc30ca3d8c7e05cf8d5b1f3b6f01782c76a6cf36f6275212d2e8b28b1cb34cc317556"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "2ddf2ef55380446f4946d088bbf20777b8314605d953e70c9e2914d7515ebd45"
+                    "content": "60120ae2623e21adf0564a51068640e57664a388cf632bf94893ee4b49158aca"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "4aa97705e3970dd3c0611d18674ae9b8bcf1c5cdf5d9f5ee9b4922fa0cd1609093827cccaa9096e1795cf301a4fb186b543115410e1841fc84dae230de00a320"
+                    "content": "4fd5b6480214c07ea9feccf247bc1e2bf456969d1e7ae01f75c790ee70c200ffc075e3274434deb9a465e65ecbd9b83e40eca12cac7125003df0fc0acc0b8da0"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "4e336940160de5429aeca7ac38f3fb4f32d430a9701a7b0c370e3c1ef402ccfb4896f7f3603db5f7fa3f6acc0cfec6ac"
+                    "content": "35a6acdbb6ab48d59f1dc030af0b502febe15c7b1a72f90c41647dc6a9ec972d4ae0b9219755ab57d37a227dcefaad3f"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "e5146d19c46a7a1851fabec7ea048436a922a34500257462cdb9e25a6b9b45b927ed92405cc524e82707d76fab440fee"
+                    "content": "bda323d65c01649158674a1f437ab2be9d491024bc655621656cd24b66c8ce871e3c57e25b7654f370722091e824dad2"
                 }
             ],
             "licenses": [
@@ -3664,7 +3665,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
+            "purl": "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
             "modified": false,
             "externalReferences": [
                 {
@@ -4784,282 +4785,6 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/com.github.bumptech.glide/annotations@4.16.0?type=jar",
-            "group": "com.github.bumptech.glide",
-            "name": "annotations",
-            "version": "4.16.0",
-            "description": "A set of annotations for configuring Glide.",
-            "hashes": [
-                {
-                    "alg": "MD5",
-                    "content": "10ee49b0d5c18657702255e39a57ab31"
-                },
-                {
-                    "alg": "SHA-1",
-                    "content": "90730f6498299d207aa0878124ab7585969808f0"
-                },
-                {
-                    "alg": "SHA-256",
-                    "content": "c59e39b1b31b4d5592277cd90012149d740b569d4338f56443cac82c3fbda3d1"
-                },
-                {
-                    "alg": "SHA-512",
-                    "content": "4f0a89fa84ef35c7d636a142e849b78e7ac80cd9a6f47fa6d73b5f7110db369fcc4e18c1c6af650a343fa70e347af6f9a73084c12c59112c195aeb828ea557c0"
-                },
-                {
-                    "alg": "SHA3-256",
-                    "content": "7124fe1edda6ed7ee4aa81e7027d77e493a926ef1dca1ba90f646ac0036f9a53"
-                },
-                {
-                    "alg": "SHA3-512",
-                    "content": "ccc96ccff532067587bf9e9db891345b1545a97e57dbc00fd44532d7fff7e1efa8e9ff3e3a873ed5098ce3f1aa291ad1de32176237eca72c693997add7164cdd"
-                },
-                {
-                    "alg": "SHA-384",
-                    "content": "d42106256a19857d9f42ab8b0fa6e901a92f845f65054ee078d2c938d338e597e359cb9dd83958d03b74fec778b9f2a9"
-                },
-                {
-                    "alg": "SHA3-384",
-                    "content": "d52a9459645c171d24e2c04dd1f6d3486101b63eb0569bec0cea9207b9e1f88a7dd35f8723fed303ac9f23b59f8938ba"
-                }
-            ],
-            "licenses": [
-                {
-                    "license": {
-                        "name": "Simplified BSD License",
-                        "url": "http://www.opensource.org/licenses/bsd-license"
-                    }
-                },
-                {
-                    "license": {
-                        "id": "Apache-2.0"
-                    }
-                }
-            ],
-            "purl": "pkg:maven/com.github.bumptech.glide/annotations@4.16.0?type=jar",
-            "modified": false,
-            "externalReferences": [
-                {
-                    "type": "vcs",
-                    "url": "https://github.com/bumptech/glide"
-                }
-            ],
-            "properties": [
-                {
-                    "name": "cdx:maven:package:test",
-                    "value": "false"
-                }
-            ]
-        },
-        {
-            "type": "library",
-            "bom-ref": "pkg:maven/com.github.bumptech.glide/disklrucache@4.16.0?type=jar",
-            "group": "com.github.bumptech.glide",
-            "name": "disklrucache",
-            "version": "4.16.0",
-            "description": "A cache that uses a bounded amount of space on a filesystem. Based on Jake Wharton's tailored for Glide.",
-            "hashes": [
-                {
-                    "alg": "MD5",
-                    "content": "9aeda74d3b85e3ceb4e5b106561d14a0"
-                },
-                {
-                    "alg": "SHA-1",
-                    "content": "411aa175d50d10b37c7a1a04d21a4e7145249557"
-                },
-                {
-                    "alg": "SHA-256",
-                    "content": "a227f6559c104aa5a5c88b0a70e9c7e3db6859e30b4774f3829121df9e627374"
-                },
-                {
-                    "alg": "SHA-512",
-                    "content": "a167124e4c59325ae01c5cb0a90d418dd16e428af5c96533ec4871394cf1d793149e2b027e328ed30af855d98e60192f1acff74e70f5b68c0c1af98ad993f9c4"
-                },
-                {
-                    "alg": "SHA3-256",
-                    "content": "4936e16c78220c7ee507afaf4eb3b86a74119b851b95456c330c584a2bd1bdbc"
-                },
-                {
-                    "alg": "SHA3-512",
-                    "content": "a49fc316425307c86b730afb63c765dd8838250a861943041e1732b0fba8fc31902be225a7968e07000ed75a305d3eb453f2c32324121de73664a4247c2b7ffd"
-                },
-                {
-                    "alg": "SHA-384",
-                    "content": "276815d30b4ca209da167bee06cc3f6878da98d706cd16d21640247fe2db7b08334d29bd94c16b558ec959a6513c5c24"
-                },
-                {
-                    "alg": "SHA3-384",
-                    "content": "3a05516d0b6c2605619fb2f6b472aea12e0147a73493b7f6377836cae6ecfb7ec8f68aa484086d822548bcd00c919dc1"
-                }
-            ],
-            "licenses": [
-                {
-                    "license": {
-                        "name": "Simplified BSD License",
-                        "url": "http://www.opensource.org/licenses/bsd-license"
-                    }
-                },
-                {
-                    "license": {
-                        "id": "Apache-2.0"
-                    }
-                }
-            ],
-            "purl": "pkg:maven/com.github.bumptech.glide/disklrucache@4.16.0?type=jar",
-            "modified": false,
-            "externalReferences": [
-                {
-                    "type": "vcs",
-                    "url": "https://github.com/bumptech/glide"
-                }
-            ],
-            "properties": [
-                {
-                    "name": "cdx:maven:package:test",
-                    "value": "false"
-                }
-            ]
-        },
-        {
-            "type": "library",
-            "bom-ref": "pkg:maven/com.github.bumptech.glide/gifdecoder@4.16.0?type=aar",
-            "group": "com.github.bumptech.glide",
-            "name": "gifdecoder",
-            "version": "4.16.0",
-            "description": "Implementation of GifDecoder that is more memory efficient to animate for Android devices.",
-            "hashes": [
-                {
-                    "alg": "MD5",
-                    "content": "32142ac044ad0f3ca120ba35791e6a3c"
-                },
-                {
-                    "alg": "SHA-1",
-                    "content": "2e432e2933ee72a217ba3721e58ef414d2b2d3e8"
-                },
-                {
-                    "alg": "SHA-256",
-                    "content": "955f872af4d2a321fea2a346fc472225a2b99524acc46781491712e39b6a214f"
-                },
-                {
-                    "alg": "SHA-512",
-                    "content": "bfdd119584205f2ecee6599395af9a74a78407256f2b895141485150d2024fcf3cb22e4c6dba054fa1d04d483b624cd1fb3ea7ebb7cf7f1343dc77fd9cccb3f8"
-                },
-                {
-                    "alg": "SHA3-256",
-                    "content": "fd0b9b3f411cc460bc83e59c01b887a42661836677d30ef9367e758e8232e4b7"
-                },
-                {
-                    "alg": "SHA3-512",
-                    "content": "fa35a041dc2891c0eea36ba77ce3a92189e58cf822c92102c088d827b9997e7db0b62cdad8c6df20d6a27fa8212af81c10fefb918c170fafe38180750662aace"
-                },
-                {
-                    "alg": "SHA-384",
-                    "content": "6c8acdd66393386b7217293dc8ca5e305d7804586f183056beea54397f66a169e95a9e9fef73ef0427abdcb7b1955722"
-                },
-                {
-                    "alg": "SHA3-384",
-                    "content": "2e08a5887086321d3655ff2dbc1406dd2f967e78ea26c5142b118c7b60a7a2be50ef6146b82e2a306050cd947085f331"
-                }
-            ],
-            "licenses": [
-                {
-                    "license": {
-                        "name": "Simplified BSD License",
-                        "url": "http://www.opensource.org/licenses/bsd-license"
-                    }
-                },
-                {
-                    "license": {
-                        "id": "Apache-2.0"
-                    }
-                }
-            ],
-            "purl": "pkg:maven/com.github.bumptech.glide/gifdecoder@4.16.0?type=aar",
-            "modified": false,
-            "externalReferences": [
-                {
-                    "type": "vcs",
-                    "url": "https://github.com/bumptech/glide"
-                }
-            ],
-            "properties": [
-                {
-                    "name": "cdx:maven:package:test",
-                    "value": "false"
-                }
-            ]
-        },
-        {
-            "type": "library",
-            "bom-ref": "pkg:maven/com.github.bumptech.glide/glide@4.16.0?type=aar",
-            "group": "com.github.bumptech.glide",
-            "name": "glide",
-            "version": "4.16.0",
-            "description": "A fast and efficient image loading library for Android focused on smooth scrolling.",
-            "hashes": [
-                {
-                    "alg": "MD5",
-                    "content": "16140a2143b53796c61bc4c09c870d2d"
-                },
-                {
-                    "alg": "SHA-1",
-                    "content": "b9613dcb811d4b2844d7344f2aa580544140b68e"
-                },
-                {
-                    "alg": "SHA-256",
-                    "content": "89811c63dd266a4851fd1b79c6fc0c982996ece435f5ff483fb830ca6cb53cd4"
-                },
-                {
-                    "alg": "SHA-512",
-                    "content": "619168f28cd14593e82e9124f94a7db8da890868d65b409f15bb264716fc02c423e1c82217d5559b9b16dad7fbfd36f2332cbfed37e04e2be42d4bf07a0dca6b"
-                },
-                {
-                    "alg": "SHA3-256",
-                    "content": "66aad01ab0a920b419e82c07920383acbcfcf7f18eb2d073d67ee5ffad369276"
-                },
-                {
-                    "alg": "SHA3-512",
-                    "content": "695fc53fb2656f9bc5d24458c81bf8df817ad4e9208a2cd6e5cf4aaef190227c2c28c52f1bca846cad78e91f5fe566632d9cc84ebc90c91fcc6c7d4c8150760a"
-                },
-                {
-                    "alg": "SHA-384",
-                    "content": "a7742e64af2ea8d55d8e89ca5f498897e3732b3582cdb648aa599f33881560157a2107b0fda1c6c355d499a2d9625434"
-                },
-                {
-                    "alg": "SHA3-384",
-                    "content": "4d89359e80de20dc38d7bc2c515b4222fabf61d28ff4cd3a1c60c1a98d5e196f9aaf4aab2fdcf066de9993157f7d475c"
-                }
-            ],
-            "licenses": [
-                {
-                    "license": {
-                        "name": "Simplified BSD License",
-                        "url": "http://www.opensource.org/licenses/bsd-license"
-                    }
-                },
-                {
-                    "license": {
-                        "id": "Apache-2.0"
-                    }
-                }
-            ],
-            "purl": "pkg:maven/com.github.bumptech.glide/glide@4.16.0?type=aar",
-            "modified": false,
-            "externalReferences": [
-                {
-                    "type": "vcs",
-                    "url": "https://github.com/bumptech/glide"
-                }
-            ],
-            "properties": [
-                {
-                    "name": "cdx:maven:package:test",
-                    "value": "false"
-                }
-            ]
-        },
-        {
-            "type": "library",
             "bom-ref": "pkg:maven/com.google.android.material/material@1.14.0?type=aar",
             "group": "com.google.android.material",
             "name": "material",
@@ -6148,6 +5873,282 @@
         },
         {
             "type": "library",
+            "bom-ref": "pkg:maven/io.coil-kt.coil3/coil-core-android@3.6.3?type=aar",
+            "group": "io.coil-kt.coil3",
+            "name": "coil-core-android",
+            "version": "3.6.3",
+            "description": "An image loading library for Android and Compose Multiplatform.",
+            "hashes": [
+                {
+                    "alg": "MD5",
+                    "content": "f7d186cd0ca3b3439376750f53f00918"
+                },
+                {
+                    "alg": "SHA-1",
+                    "content": "3fd1693124e1a5130ca01fe04f1ebb305783db63"
+                },
+                {
+                    "alg": "SHA-256",
+                    "content": "5218a816859f7f6d0f5681adff25b0259c5e699e6cb1396adbd6b32c94b12714"
+                },
+                {
+                    "alg": "SHA-512",
+                    "content": "2052b47d2a7a2e18ee88589f982b46dfabe8fa6f7f5fae7fc4ad975f1f78c3bce96593c3def55e6417b0c34e68c3f39c1ebd1cc09d49e7c9bad24d484133cf3e"
+                },
+                {
+                    "alg": "SHA3-256",
+                    "content": "e2090d74b9a90594c8b8d5f8ec585455e0f379b46677d33bf7d55e666d95c69e"
+                },
+                {
+                    "alg": "SHA3-512",
+                    "content": "b8ee1472bff09c0f54466a8eeb4d0381c3aae7e01f71be91e52b97b0c995f273d4408a76e9f1e8cb1a952b6646b25df801495a48c01f850e80007ae2872143e9"
+                },
+                {
+                    "alg": "SHA-384",
+                    "content": "ea5f47b5d8528bb5e29a8feb7d69433e0f1d7cc21866123d4c4217af03b31ff94ec86b6d6c18ed28ad3a92d10433542f"
+                },
+                {
+                    "alg": "SHA3-384",
+                    "content": "1419bfd967febfc3d558d068952e7903760ffdeca458564d0797090f636d089b8d952273b5dba7039951651cf62a1226"
+                }
+            ],
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Apache-2.0"
+                    }
+                }
+            ],
+            "purl": "pkg:maven/io.coil-kt.coil3/coil-core-android@3.6.3?type=aar",
+            "modified": false,
+            "externalReferences": [
+                {
+                    "type": "vcs",
+                    "url": "https://github.com/coil-kt/coil"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "cdx:maven:package:test",
+                    "value": "false"
+                }
+            ]
+        },
+        {
+            "type": "library",
+            "bom-ref": "pkg:maven/io.coil-kt.coil3/coil-core@3.6.3?type=pom",
+            "group": "io.coil-kt.coil3",
+            "name": "coil-core",
+            "version": "3.6.3",
+            "description": "An image loading library for Android and Compose Multiplatform.",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Apache-2.0"
+                    }
+                }
+            ],
+            "purl": "pkg:maven/io.coil-kt.coil3/coil-core@3.6.3?type=pom",
+            "modified": false,
+            "externalReferences": [
+                {
+                    "type": "vcs",
+                    "url": "https://github.com/coil-kt/coil"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "cdx:maven:package:test",
+                    "value": "false"
+                }
+            ]
+        },
+        {
+            "type": "library",
+            "bom-ref": "pkg:maven/io.coil-kt.coil3/coil-network-core-android@3.6.3?type=aar",
+            "group": "io.coil-kt.coil3",
+            "name": "coil-network-core-android",
+            "version": "3.6.3",
+            "description": "An image loading library for Android and Compose Multiplatform.",
+            "hashes": [
+                {
+                    "alg": "MD5",
+                    "content": "e538e54ea72029e22ca8c24207e92ac9"
+                },
+                {
+                    "alg": "SHA-1",
+                    "content": "37526437a1bf11f81a5e689d999fcf55cad66825"
+                },
+                {
+                    "alg": "SHA-256",
+                    "content": "180813c55825ba4085986752bb33494bb9b71e4abad23edb6e38112542afed3e"
+                },
+                {
+                    "alg": "SHA-512",
+                    "content": "f09d5d1bebee223df950ececb252923dd8817c0dd9bd9e587612dbee58d782b3ac704ca7cd01cb84c8c835c8d0215debb99f492b9402ccab886547396b521d53"
+                },
+                {
+                    "alg": "SHA3-256",
+                    "content": "9d64ca0ae5b6c5aef863b94638686dcb32ad4902a646bd4eabd7d6573dea18fa"
+                },
+                {
+                    "alg": "SHA3-512",
+                    "content": "15d482428d11ecf5a85b8149d586e8e55448a424b006fb18280b85680a8884b7f5b8359db040e5b47e0bdb20a5fa906c3c8a84836147cd6eee274801e8bb7f4e"
+                },
+                {
+                    "alg": "SHA-384",
+                    "content": "24cc8ab747d893a479bf6fc1520f66c3bfb92472a8715cde683e1f12899a2d9ba3a05a1c744c9485168617e136bd6462"
+                },
+                {
+                    "alg": "SHA3-384",
+                    "content": "513076971a66924ee9d69b5bd3cb3e11407539ab0f874c4361c2cf9052e09e6a409cbebc277128102a945bed65236467"
+                }
+            ],
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Apache-2.0"
+                    }
+                }
+            ],
+            "purl": "pkg:maven/io.coil-kt.coil3/coil-network-core-android@3.6.3?type=aar",
+            "modified": false,
+            "externalReferences": [
+                {
+                    "type": "vcs",
+                    "url": "https://github.com/coil-kt/coil"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "cdx:maven:package:test",
+                    "value": "false"
+                }
+            ]
+        },
+        {
+            "type": "library",
+            "bom-ref": "pkg:maven/io.coil-kt.coil3/coil-network-core@3.6.3?type=pom",
+            "group": "io.coil-kt.coil3",
+            "name": "coil-network-core",
+            "version": "3.6.3",
+            "description": "An image loading library for Android and Compose Multiplatform.",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Apache-2.0"
+                    }
+                }
+            ],
+            "purl": "pkg:maven/io.coil-kt.coil3/coil-network-core@3.6.3?type=pom",
+            "modified": false,
+            "externalReferences": [
+                {
+                    "type": "vcs",
+                    "url": "https://github.com/coil-kt/coil"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "cdx:maven:package:test",
+                    "value": "false"
+                }
+            ]
+        },
+        {
+            "type": "library",
+            "bom-ref": "pkg:maven/io.coil-kt.coil3/coil-network-okhttp-android@3.6.3?type=aar",
+            "group": "io.coil-kt.coil3",
+            "name": "coil-network-okhttp-android",
+            "version": "3.6.3",
+            "description": "An image loading library for Android and Compose Multiplatform.",
+            "hashes": [
+                {
+                    "alg": "MD5",
+                    "content": "1675a010e07cc8c261c16e2c75404081"
+                },
+                {
+                    "alg": "SHA-1",
+                    "content": "ceb6eae48c3a75a89b157f9ead60b2d3af372509"
+                },
+                {
+                    "alg": "SHA-256",
+                    "content": "fbb99dc9b213a20ef153243790346d719ab1c5238ebee0480675a02f00c299ea"
+                },
+                {
+                    "alg": "SHA-512",
+                    "content": "444a79aa33dee661720d9a721694efe88e0195efe5aaf4b110f27f34a79c67ad82010959cbf9cf405823c0486a7c0d5701a6aa161c30d925d66e807316f47ada"
+                },
+                {
+                    "alg": "SHA3-256",
+                    "content": "b0c8726553bd3931b8b4b4500bdfbc6b5ea62f63bc6cb93aeca7da1aa2b8b5a7"
+                },
+                {
+                    "alg": "SHA3-512",
+                    "content": "819dee7d9178153a00ef529ffc9bcfb9971555ac912cb756f21ac439b707ca5914144b3e3b1f3e9263f8ffe6fea8e3182aa324cc68b392ae37f6f27c77ff564a"
+                },
+                {
+                    "alg": "SHA-384",
+                    "content": "4ab25727145183750d8d5036ea327b03640ca0f3777b3834afc6ffb687cebe0010a2562ab762247fce0acc3b8cebfe40"
+                },
+                {
+                    "alg": "SHA3-384",
+                    "content": "3cfc8cac5af04dca94f3bffd9ff1650922bbc52945f9fb3c80d6b0983b02e60f9b169fbaa08e5a8033aea7c701a7841b"
+                }
+            ],
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Apache-2.0"
+                    }
+                }
+            ],
+            "purl": "pkg:maven/io.coil-kt.coil3/coil-network-okhttp-android@3.6.3?type=aar",
+            "modified": false,
+            "externalReferences": [
+                {
+                    "type": "vcs",
+                    "url": "https://github.com/coil-kt/coil"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "cdx:maven:package:test",
+                    "value": "false"
+                }
+            ]
+        },
+        {
+            "type": "library",
+            "bom-ref": "pkg:maven/io.coil-kt.coil3/coil-network-okhttp@3.6.3?type=pom",
+            "group": "io.coil-kt.coil3",
+            "name": "coil-network-okhttp",
+            "version": "3.6.3",
+            "description": "An image loading library for Android and Compose Multiplatform.",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Apache-2.0"
+                    }
+                }
+            ],
+            "purl": "pkg:maven/io.coil-kt.coil3/coil-network-okhttp@3.6.3?type=pom",
+            "modified": false,
+            "externalReferences": [
+                {
+                    "type": "vcs",
+                    "url": "https://github.com/coil-kt/coil"
+                }
+            ],
+            "properties": [
+                {
+                    "name": "cdx:maven:package:test",
+                    "value": "false"
+                }
+            ]
+        },
+        {
+            "type": "library",
             "bom-ref": "pkg:maven/org.jellyfin.media3/media3-ffmpeg-decoder@1.9.0%2B1?type=aar",
             "group": "org.jellyfin.media3",
             "name": "media3-ffmpeg-decoder",
@@ -6871,7 +6872,7 @@
         {
             "ref": "pkg:maven/androidx.activity/activity@1.13.0?type=aar",
             "dependsOn": [
-                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
+                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
                 "pkg:maven/androidx.savedstate/savedstate@1.4.0?type=pom",
                 "pkg:maven/androidx.navigationevent/navigationevent@1.0.0?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
@@ -6920,7 +6921,7 @@
             "ref": "pkg:maven/androidx.appcompat/appcompat@1.8.0?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.drawerlayout/drawerlayout@1.1.1?type=aar",
-                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
+                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
                 "pkg:maven/androidx.emoji2/emoji2@1.3.0?type=aar",
                 "pkg:maven/androidx.savedstate/savedstate@1.4.0?type=pom",
                 "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
@@ -6999,8 +7000,8 @@
         {
             "ref": "pkg:maven/androidx.constraintlayout/constraintlayout@2.2.2?type=aar",
             "dependsOn": [
-                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
                 "pkg:maven/androidx.appcompat/appcompat@1.8.0?type=aar",
+                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
                 "pkg:maven/androidx.constraintlayout/constraintlayout-core@1.1.2?type=jar",
                 "pkg:maven/androidx.core/core@1.19.1?type=aar"
             ]
@@ -7110,9 +7111,10 @@
             ]
         },
         {
-            "ref": "pkg:maven/androidx.exifinterface/exifinterface@1.3.6?type=aar",
+            "ref": "pkg:maven/androidx.exifinterface/exifinterface@1.4.2?type=aar",
             "dependsOn": [
-                "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom"
+                "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
+                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar"
             ]
         },
         {
@@ -7211,7 +7213,7 @@
             "ref": "pkg:maven/androidx.lifecycle/lifecycle-runtime-android@2.10.0?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
-                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
+                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
                 "pkg:maven/androidx.arch.core/core-runtime@2.2.0?type=aar",
                 "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
                 "pkg:maven/androidx.lifecycle/lifecycle-common@2.10.0?type=pom",
@@ -7323,8 +7325,8 @@
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
                 "pkg:maven/androidx.media3/media3-common@1.11.0?type=aar",
-                "pkg:maven/androidx.media3/media3-database@1.11.0?type=aar",
-                "pkg:maven/androidx.exifinterface/exifinterface@1.3.6?type=aar"
+                "pkg:maven/androidx.exifinterface/exifinterface@1.4.2?type=aar",
+                "pkg:maven/androidx.media3/media3-database@1.11.0?type=aar"
             ]
         },
         {
@@ -7347,8 +7349,8 @@
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
                 "pkg:maven/androidx.media3/media3-common@1.11.0?type=aar",
+                "pkg:maven/androidx.exifinterface/exifinterface@1.4.2?type=aar",
                 "pkg:maven/androidx.media3/media3-database@1.11.0?type=aar",
-                "pkg:maven/androidx.exifinterface/exifinterface@1.3.6?type=aar",
                 "pkg:maven/androidx.media3/media3-decoder@1.11.0?type=aar",
                 "pkg:maven/androidx.media3/media3-extractor@1.11.0?type=aar",
                 "pkg:maven/androidx.media3/media3-datasource@1.11.0?type=aar",
@@ -7402,7 +7404,7 @@
             ]
         },
         {
-            "ref": "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
+            "ref": "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
                 "pkg:maven/com.google.guava/listenablefuture@9999.0-empty-to-avoid-conflict-with-guava?type=jar",
@@ -7415,7 +7417,7 @@
             "dependsOn": [
                 "pkg:maven/androidx.customview/customview@1.2.0?type=aar",
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
-                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
+                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
                 "pkg:maven/androidx.collection/collection@1.5.0?type=pom",
                 "pkg:maven/androidx.customview/customview-poolingcontainer@1.0.0?type=aar",
                 "pkg:maven/androidx.core/core@1.19.1?type=aar"
@@ -7569,36 +7571,6 @@
                 "pkg:maven/androidx.recyclerview/recyclerview@1.4.0?type=aar",
                 "pkg:maven/androidx.core/core@1.19.1?type=aar",
                 "pkg:maven/androidx.annotation/annotation-experimental@1.5.0?type=aar"
-            ]
-        },
-        {
-            "ref": "pkg:maven/com.github.bumptech.glide/annotations@4.16.0?type=jar",
-            "dependsOn": [
-                
-            ]
-        },
-        {
-            "ref": "pkg:maven/com.github.bumptech.glide/disklrucache@4.16.0?type=jar",
-            "dependsOn": [
-                
-            ]
-        },
-        {
-            "ref": "pkg:maven/com.github.bumptech.glide/gifdecoder@4.16.0?type=aar",
-            "dependsOn": [
-                "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom"
-            ]
-        },
-        {
-            "ref": "pkg:maven/com.github.bumptech.glide/glide@4.16.0?type=aar",
-            "dependsOn": [
-                "pkg:maven/androidx.fragment/fragment@1.5.4?type=aar",
-                "pkg:maven/androidx.vectordrawable/vectordrawable-animated@1.1.0?type=aar",
-                "pkg:maven/com.github.bumptech.glide/annotations@4.16.0?type=jar",
-                "pkg:maven/androidx.exifinterface/exifinterface@1.3.6?type=aar",
-                "pkg:maven/androidx.tracing/tracing@1.2.0?type=aar",
-                "pkg:maven/com.github.bumptech.glide/disklrucache@4.16.0?type=jar",
-                "pkg:maven/com.github.bumptech.glide/gifdecoder@4.16.0?type=aar"
             ]
         },
         {
@@ -7758,6 +7730,56 @@
             ]
         },
         {
+            "ref": "pkg:maven/io.coil-kt.coil3/coil-core-android@3.6.3?type=aar",
+            "dependsOn": [
+                "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-core@1.11.0?type=pom",
+                "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
+                "pkg:maven/androidx.exifinterface/exifinterface@1.4.2?type=aar",
+                "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
+                "pkg:maven/androidx.appcompat/appcompat-resources@1.8.0?type=aar",
+                "pkg:maven/androidx.core/core-ktx@1.19.1?type=aar",
+                "pkg:maven/com.squareup.okio/okio@3.18.1?type=pom",
+                "pkg:maven/androidx.lifecycle/lifecycle-runtime@2.10.0?type=pom",
+                "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
+                "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-android@1.11.0?type=jar"
+            ]
+        },
+        {
+            "ref": "pkg:maven/io.coil-kt.coil3/coil-core@3.6.3?type=pom",
+            "dependsOn": [
+                "pkg:maven/io.coil-kt.coil3/coil-core-android@3.6.3?type=aar"
+            ]
+        },
+        {
+            "ref": "pkg:maven/io.coil-kt.coil3/coil-network-core-android@3.6.3?type=aar",
+            "dependsOn": [
+                "pkg:maven/androidx.core/core-ktx@1.19.1?type=aar",
+                "pkg:maven/io.coil-kt.coil3/coil-core@3.6.3?type=pom",
+                "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar"
+            ]
+        },
+        {
+            "ref": "pkg:maven/io.coil-kt.coil3/coil-network-core@3.6.3?type=pom",
+            "dependsOn": [
+                "pkg:maven/io.coil-kt.coil3/coil-network-core-android@3.6.3?type=aar"
+            ]
+        },
+        {
+            "ref": "pkg:maven/io.coil-kt.coil3/coil-network-okhttp-android@3.6.3?type=aar",
+            "dependsOn": [
+                "pkg:maven/io.coil-kt.coil3/coil-core@3.6.3?type=pom",
+                "pkg:maven/io.coil-kt.coil3/coil-network-core@3.6.3?type=pom",
+                "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
+                "pkg:maven/com.squareup.okhttp3/okhttp@5.5.1?type=pom"
+            ]
+        },
+        {
+            "ref": "pkg:maven/io.coil-kt.coil3/coil-network-okhttp@3.6.3?type=pom",
+            "dependsOn": [
+                "pkg:maven/io.coil-kt.coil3/coil-network-okhttp-android@3.6.3?type=aar"
+            ]
+        },
+        {
             "ref": "pkg:maven/org.jellyfin.media3/media3-ffmpeg-decoder@1.9.0%2B1?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.media3/media3-decoder@1.11.0?type=aar",
@@ -7852,12 +7874,12 @@
             "dependsOn": [
                 "pkg:maven/io.arrow-kt/arrow-core@2.2.3?type=pom",
                 "pkg:maven/com.squareup.retrofit2/converter-gson@3.0.0?type=jar",
-                "pkg:maven/com.github.bumptech.glide/glide@4.16.0?type=aar",
                 "pkg:maven/com.squareup.okhttp3/logging-interceptor@5.5.1?type=jar",
                 "pkg:maven/androidx.lifecycle/lifecycle-viewmodel-ktx@2.10.0?type=aar",
                 "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-android@1.11.0?type=jar",
                 "pkg:maven/androidx.media3/media3-common@1.11.0?type=aar",
                 "pkg:maven/com.google.android.material/material@1.14.0?type=aar",
+                "pkg:maven/io.coil-kt.coil3/coil-core@3.6.3?type=pom",
                 "pkg:maven/androidx.media3/media3-exoplayer@1.11.0?type=aar",
                 "pkg:maven/androidx.media3/media3-exoplayer-hls@1.11.0?type=aar",
                 "pkg:maven/androidx.constraintlayout/constraintlayout@2.2.2?type=aar",
@@ -7866,11 +7888,11 @@
                 "pkg:maven/org.jellyfin.media3/media3-ffmpeg-decoder@1.9.0%2B1?type=aar",
                 "pkg:maven/androidx.room/room-runtime@2.8.5?type=pom",
                 "pkg:maven/androidx.databinding/viewbinding@9.4.1?type=aar",
+                "pkg:maven/io.coil-kt.coil3/coil-network-okhttp@3.6.3?type=pom",
                 "pkg:maven/androidx.appcompat/appcompat@1.8.0?type=aar",
                 "pkg:maven/androidx.core/core-ktx@1.19.1?type=aar",
                 "pkg:maven/androidx.activity/activity@1.13.0?type=aar",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-parcelize-runtime@2.4.21?type=jar",
-                "pkg:maven/com.github.bumptech.glide/annotations@4.16.0?type=jar",
                 "pkg:maven/androidx.recyclerview/recyclerview@1.4.0?type=aar",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-metadata-jvm@2.4.21?type=jar",
                 "pkg:maven/androidx.media3/media3-session@1.11.0?type=aar",

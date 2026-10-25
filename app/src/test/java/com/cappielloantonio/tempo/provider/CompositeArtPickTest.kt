@@ -4,14 +4,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * The candidate walk, driven by a stub loader rather than Glide.
+ * The candidate walk, driven by a stub loader rather than the image loader.
  *
  * This is the behaviour the hub path exists to get: the decade path picks its
  * four covers and fails the whole tile if one of them fails to load, and its
  * OVER_FETCH spares never help because they are discarded before the fetch.
  * Walking the pool instead means the spares are what a failure costs.
  *
- * Plain JUnit: no Android, no Glide, no bitmaps -- which is the reason `pick`
+ * Plain JUnit: no Android, no image loader, no bitmaps -- which is the reason `pick`
  * is a generic function over a loader rather than four lines inside a build
  * body that only Robolectric could reach and that `returnDefaultValues` would
  * let pass while measuring nothing.
@@ -46,7 +46,7 @@ class CompositeArtPickTest {
     @Test
     fun itStopsLoadingOnceItHasEnough() {
         // Laziness is not a detail here: a cover fetch is a network round trip
-        // through Glide, and loading the fifth and sixth candidates after four
+        // to the server, and loading the fifth and sixth candidates after four
         // have landed would spend two of them per tile for nothing.
         val attempted = mutableListOf<String>()
         CompositeArt.pick(pool, 4) { thumb ->

@@ -117,4 +117,19 @@ class CompositeGridTest {
         assertEquals(cells[0].right, cells[1].left)
         assertEquals(cells[0].bottom, cells[2].top)
     }
+
+    @Test
+    fun aSquareCoverIsDrawnWhole() {
+        assertEquals(Cell(0, 0, 256, 256), CompositeGrid.centerSquare(256, 256))
+    }
+
+    @Test
+    fun aWideCoverLosesEqualStripsFromLeftAndRight() {
+        assertEquals(Cell(64, 0, 320, 256), CompositeGrid.centerSquare(384, 256))
+    }
+
+    @Test
+    fun aTallCoverLosesEqualStripsFromTopAndBottom() {
+        assertEquals(Cell(0, 64, 256, 320), CompositeGrid.centerSquare(256, 384))
+    }
 }

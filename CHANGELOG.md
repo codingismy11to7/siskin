@@ -11,6 +11,10 @@
 
 ## [Unreleased] — Siskin
 
+- Queuing a long playlist no longer keeps every track's cover in memory for as
+  long as the app runs. Covers prepared for the car's Bluetooth metadata stay
+  only in a small cache of the most recent twenty.
+
 - **Debug:** The debug screen opens on an About tab showing the installed
   version, when it was last updated and what installed it, and a Credits button
   with a QR code and link to siskinapp.com/credits.

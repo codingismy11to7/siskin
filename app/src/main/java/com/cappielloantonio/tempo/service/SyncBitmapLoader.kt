@@ -8,7 +8,7 @@ import android.util.Log
 import android.util.LruCache
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
-import com.bumptech.glide.Glide
+import com.cappielloantonio.tempo.artwork.ArtworkImages
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
@@ -52,13 +52,7 @@ class SyncBitmapLoader(
         val future = SettableFuture.create<Bitmap>()
         executor.execute {
             try {
-                val bitmap =
-                    Glide
-                        .with(context)
-                        .asBitmap()
-                        .load(uri)
-                        .submit(MAX_ART_SIZE, MAX_ART_SIZE)
-                        .get()
+                val bitmap = ArtworkImages.get(context).bitmap(uri, MAX_ART_SIZE)
                 cache.put(uri, bitmap)
                 future.set(bitmap)
             } catch (e: Exception) {
@@ -73,13 +67,7 @@ class SyncBitmapLoader(
         executor.execute {
             if (cache.get(uri) != null) return@execute
             try {
-                val bitmap =
-                    Glide
-                        .with(context)
-                        .asBitmap()
-                        .load(uri)
-                        .submit(MAX_ART_SIZE, MAX_ART_SIZE)
-                        .get()
+                val bitmap = ArtworkImages.get(context).bitmap(uri, MAX_ART_SIZE)
                 cache.put(uri, bitmap)
             } catch (_: Exception) {
             }

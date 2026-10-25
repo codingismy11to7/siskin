@@ -72,7 +72,7 @@ A string that should not be translated — a proper noun, a URL — takes
 The locale set lives in two places that must agree: `localeFilters` in
 `app/build.gradle` and `res/xml/locale_config.xml`. The filter is load-bearing
 for more than tidiness — without it the bundle inherits every locale AndroidX,
-Material, Glide and media3 ship, which is ~85 and is what made the Play listing
+Material and media3 ship, which is ~85 and is what made the Play listing
 claim 88 languages.
 
 ## Toolchain

@@ -27,7 +27,7 @@ material = "1.14.0"
 recyclerview = "1.4.0"
 
 # Third-party
-glide = "4.16.0"
+coil = "3.6.3"
 media3 = "1.11.0"
 # The "+1" is a build suffix, not a Gradle wildcard -- only a version *ending*
 # in "+" is dynamic. Google publishes no ffmpeg artifact of its own; see
@@ -62,9 +62,8 @@ androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview"
 
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 
-glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
-glide-annotations = { group = "com.github.bumptech.glide", name = "annotations", version.ref = "glide" }
-glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
+coil-core = { group = "io.coil-kt.coil3", name = "coil-core", version.ref = "coil" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 
 media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "media3" }

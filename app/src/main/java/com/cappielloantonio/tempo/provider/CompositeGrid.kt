@@ -100,4 +100,20 @@ object CompositeGrid {
             else -> listOf(topLeft, topRight, bottomLeft, bottomRight)
         }
     }
+
+    /**
+     * The centred square of a [width] by [height] cover, as the source
+     * rectangle to draw into a square cell: an oblong cover is cropped to fit
+     * rather than squashed.
+     */
+    @JvmStatic
+    fun centerSquare(
+        width: Int,
+        height: Int,
+    ): Cell {
+        val edge = minOf(width, height)
+        val left = (width - edge) / 2
+        val top = (height - edge) / 2
+        return Cell(left, top, left + edge, top + edge)
+    }
 }

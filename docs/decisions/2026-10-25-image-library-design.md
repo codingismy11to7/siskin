@@ -94,21 +94,38 @@ went through Glide's own fetcher. Its 2.5 s connect and read timeouts are the
 one thing it set that matters, and the port chooses timeouts on purpose rather
 than inheriting them.
 
-### What the port has to get right
+### Covers share the API's connections, with short timeouts
+
+Cover fetches derive from `PlexRetrofitFactory`'s shared `OkHttpClient`, so
+they reuse the TLS connections the API calls already
+hold, with connect and read timeouts cut to 2.5 s. A cover is optional, and a
+provider thread waiting on a dead server is one every other cover queues
+behind; failing quickly gives the car its placeholder.
+
+### Details of the port
 
 These came out of the spike and are not optional:
 
-- **Failure responses must not be cached.** Coil's default cache strategy
-  stores 404 and a few other error codes. A cover added on the server after a
-  404 would stay missing until evicted, where Glide simply retried. The port
-  supplies a `CacheStrategy` that stores 2xx only.
-- **Covers drawn into a composite must stay out of the memory cache.**
-  `CompositeArt` recycles bitmaps it is done with; a memory-cached one would
-  be handed out recycled to the next request.
-- **Software bitmaps for the composite.** `CompositeArt` draws covers into a
-  software canvas, which a hardware bitmap cannot be read into, so those
-  requests set `allowHardware(false)`. `RGB_565` carries over from the Glide
-  module's default.
+- **Failure responses are not cached.** Coil's default cache strategy stores
+  404 and a few other error codes. A cover added on the server after a 404
+  would stay missing until evicted, where Glide simply retried.
+  `SuccessOnlyCacheStrategy` stores 2xx only.
+- **Cache-only does not mean offline.** Coil's `networkCachePolicy(DISABLED)`
+  still issues the request, marked `Cache-Control: only-if-cached`, and relies
+  on OkHttp answering it with a 504 when nothing is cached. A test pins that no
+  request reaches the server.
+- **Decoded covers stay out of Coil's memory cache.** Every caller keeps its
+  own — `SyncBitmapLoader`'s `LruCache`, the composite files — so a memory
+  cache would only hold a second copy.
+- **Software bitmaps.** `CompositeArt` draws covers into a software canvas,
+  which a hardware bitmap cannot be drawn into. `RGB_565` carries over from the
+  Glide module's default.
+- **The composite crops at draw time.** Coil has no `centerCrop`; filling to
+  the cell's edge leaves an oblong cover oblong, so `CompositeGrid.centerSquare`
+  supplies the source rectangle rather than letting the draw squash it.
+- **`coil-core`, not `coil`.** The latter adds a process-wide default
+  `ImageLoader` with its own disk cache, which nothing here should reach by
+  accident.
 - **Glide's disk cache directory is deleted once.** It lives at
   `cacheDir/cache` and would otherwise sit there at its full size.
 
