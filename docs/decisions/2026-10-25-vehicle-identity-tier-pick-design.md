@@ -86,11 +86,15 @@ setting describes the car, not the account.
 
 ### Where it is applied
 
-- `VehicleIdentity.resolve` takes the starting tier as a parameter and skips the
-  tiers above it. It stays pure and is where the tests live.
-- `VehicleInfoReader` keeps the raw vehicle answers alongside the resolved
-  identity, so the Car tab can show every tier and a new pick resolves without
-  asking the car again.
+- A new `VehicleInputs` holds what was read, uncleaned — the vehicle's three
+  answers and `Build.MANUFACTURER` / `Build.MODEL` — and owns the rule:
+  `tier(source)` answers what one tier alone would send, or nothing, and
+  `resolve(startAt)` walks the ladder from the picked tier down. It replaces
+  `VehicleIdentity.resolve`, stays pure, and is where the tests live. The
+  ladder is `VehicleInfoSource`'s declaration order.
+- `VehicleInfoReader` caches the inputs rather than a resolved identity, so the
+  Car tab can show every tier and a new pick resolves without asking the car
+  again.
 - `PlexApi.vehicle` reads the preference and passes it through. The `car/`
   package still knows nothing of Plex or preferences.
 
