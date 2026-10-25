@@ -42,7 +42,7 @@ robolectric = "4.17"
 androidxTestJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
 androidxTestCore = "1.7.0"
-zxing = "3.5.3"
+zxing = "3.5.4"
 
 # Build classpath only -- raised over what AGP brings, see the root build.gradle
 bouncycastle = "1.85"
