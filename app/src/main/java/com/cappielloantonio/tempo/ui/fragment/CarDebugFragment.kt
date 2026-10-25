@@ -39,7 +39,7 @@ class CarDebugFragment : Fragment() {
             rail.menu.add(Menu.NONE, tab.id, tab.ordinal, tab.label).setIcon(tab.icon)
         }
 
-        val current = showing() ?: DebugTab.entries.first()
+        val current = showing() ?: DebugTab.DEFAULT
         show(current)
         rail.selectedItemId = current.id
         rail.setOnItemSelectedListener { item ->

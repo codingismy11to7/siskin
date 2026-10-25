@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Credits dialog's body. The URL is printed under the QR, selectable, so
+    the code is a shortcut rather than the only way there. 200dp because at its
+    natural 296dp the dialog clipped the URL on a 1024x768 head unit.
+    UseCompoundDrawables: the image is sized independently of the text, which a
+    compound drawable cannot do.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingTop="16dp"
+    tools:ignore="UseCompoundDrawables">
+
+    <ImageView
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:contentDescription="@string/debug_credits_qr"
+        android:src="@drawable/qr_credits" />
+
+    <TextView
+        android:id="@+id/credits_url"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textAppearance="?attr/textAppearanceTitleLarge"
+        android:textIsSelectable="true" />
+</LinearLayout>

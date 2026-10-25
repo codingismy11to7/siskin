@@ -412,6 +412,8 @@ dependencies {
     testImplementation libs.okhttp.mockwebserver
     testImplementation libs.robolectric
     testImplementation libs.androidx.room.testing
+    // Decodes the checked-in QR drawables; the app itself draws none at runtime.
+    testImplementation libs.zxing.core
 
     // The instrumented tier. media3-session, Guava and Constants come from the
     // app's own `implementation` deps -- androidTest compiles against the

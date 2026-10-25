@@ -7,10 +7,10 @@ import androidx.fragment.app.Fragment
 import com.cappielloantonio.tempo.R
 
 /**
- * The debug screen's tabs, in rail order. Adding one is a fragment, an icon,
- * an id in `ids.xml`, an entry here and a non-translatable `debug_` label
- * string; [CarDebugFragment] builds the rail from [entries] and needs nothing
- * else.
+ * The debug screen's tabs, in rail order; [DEFAULT] is the one a fresh visit
+ * opens on. Adding one is a fragment, an icon, an id in `ids.xml`, an entry here
+ * and a non-translatable `debug_` label string; [CarDebugFragment] builds the
+ * rail from [entries] and needs nothing else.
  */
 internal enum class DebugTab(
     @IdRes val id: Int,
@@ -21,4 +21,11 @@ internal enum class DebugTab(
     SERVER(R.id.debug_tab_server, R.string.debug_tab_server, R.drawable.ic_browse_server, ::DebugServerFragment),
     CAR(R.id.debug_tab_car, R.string.debug_tab_car, R.drawable.ic_debug_car, ::DebugCarFragment),
     CHANGELOG(R.id.debug_tab_changelog, R.string.debug_tab_changelog, R.drawable.ic_debug_changelog, ::DebugChangelogFragment),
+    ABOUT(R.id.debug_tab_about, R.string.debug_tab_about, R.drawable.ic_browse_info, ::DebugAboutFragment),
+    ;
+
+    companion object {
+        /** The tab a fresh visit opens on, which is not the first in the rail. */
+        val DEFAULT = ABOUT
+    }
 }

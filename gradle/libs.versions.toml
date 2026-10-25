@@ -42,6 +42,7 @@ robolectric = "4.17"
 androidxTestJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
 androidxTestCore = "1.7.0"
+zxing = "3.5.3"
 
 # Build classpath only -- raised over what AGP brings, see the root build.gradle
 bouncycastle = "1.85"
@@ -90,6 +91,7 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 androidx-test-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestJunit" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 # Build classpath only
 bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
