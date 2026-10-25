@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.ui.fragment
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -278,6 +279,23 @@ class CarDebugFragmentTest {
                 assertTrue(tierCards(controller).first().isEnabled)
             }
         }
+    }
+
+    @Test
+    fun `selecting Changelog shows the bundled changelog`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        select(controller, DebugTab.CHANGELOG)
+
+        val text =
+            controller
+                .get()
+                .findViewById<TextView>(R.id.changelog_text)
+                .text
+                .toString()
+        assertTrue(text.contains("Rebranded from Tempus to Siskin"))
+        assertFalse("rendered, not raw markdown", text.contains("## "))
     }
 
     /**

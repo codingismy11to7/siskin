@@ -252,6 +252,46 @@ tasks.register('javafmtFix') {
     dependsOn 'spotlessApply'
 }
 
+// The debug screen's Changelog tab shows Siskin's own sections of CHANGELOG.md,
+// from [Unreleased] through [0.99.0], so the Tempus history below them never
+// ships. Anchored on those two headings, which a release cut leaves in place;
+// failing when either is missing beats shipping an empty or whole file. See
+// docs/decisions/2026-10-25-changelog-tab-design.md.
+abstract class TrimChangelog extends DefaultTask {
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getChangelog()
+
+    @OutputDirectory
+    abstract DirectoryProperty getOutputDir()
+
+    @TaskAction
+    void trim() {
+        def lines = changelog.get().asFile.readLines('UTF-8')
+        int start = lines.findIndexOf { it.startsWith('## [Unreleased]') }
+        int last = lines.findIndexOf { it.startsWith('## [0.99.0]') }
+        if (start < 0 || last < start) {
+            throw new GradleException('CHANGELOG.md needs a [Unreleased] heading above a [0.99.0] one')
+        }
+        int next = lines.findIndexOf(last + 1) { it.startsWith('## ') }
+        def kept = lines.subList(start, next < 0 ? lines.size() : next)
+        def out = outputDir.get().asFile
+        out.deleteDir()
+        out.mkdirs()
+        new File(out, 'changelog.md').write(kept.join('\n'), 'UTF-8')
+    }
+}
+
+def trimChangelog = tasks.register('trimChangelog', TrimChangelog) {
+    changelog = rootProject.layout.projectDirectory.file('CHANGELOG.md')
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(trimChangelog) { it.outputDir }
+    }
+}
+
 // javac's half of the same rule. -Werror alone is inert: without -Xlint, javac
 // reports deprecated and unchecked use as a "Note:" rather than a warning, so
 // there is nothing for it to catch. See the 2026-08-19 warnings-as-errors design.

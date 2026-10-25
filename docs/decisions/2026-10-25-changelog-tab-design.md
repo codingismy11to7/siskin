@@ -1,7 +1,7 @@
 # The debug screen gets a Changelog tab
 
 **Date:** 2026-10-25
-**Status:** Proposed
+**Status:** Approved
 
 ## Context
 
@@ -77,9 +77,9 @@ subset, because one script and a handful of conventions write the file.
 The renderer has two halves:
 
 - **A framework-free parser**, from markdown to blocks — heading, bullet,
-  paragraph — each holding inline runs of plain, bold or code text. A link
-  keeps its text and drops its URL, and a heading drops the brackets around
-  its version. Syntax outside the subset, such as a nested list, a table or
+  paragraph — each holding inline runs of plain, bold, italic or code text.
+  A link keeps its text and drops its URL, and a heading drops the brackets
+  around its version. Syntax outside the subset, such as a nested list, a table or
   an unclosed `**`, comes through as plain text rather than failing. Being
   framework-free, it can be asserted directly, as the debug screen's other
   panel bodies are.
@@ -102,7 +102,7 @@ entry and one non-translatable label.
 ## Testing
 
 - Parser tests on the subset: heading brackets stripped, bullet continuation
-  lines joined, tight and loose lists, bold, code and link runs,
+  lines joined, tight and loose lists, bold, italic, code and link runs,
   out-of-subset syntax left as plain text, and an empty section dropped.
 - Under Robolectric, which sees the debug variant's merged assets: the bundled
   changelog starts at `## [Unreleased]`, contains `[0.99.0]`, and contains no

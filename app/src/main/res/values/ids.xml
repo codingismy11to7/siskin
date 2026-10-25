@@ -7,4 +7,5 @@
     -->
     <item name="debug_tab_server" type="id" />
     <item name="debug_tab_car" type="id" />
+    <item name="debug_tab_changelog" type="id" />
 </resources>
