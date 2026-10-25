@@ -143,6 +143,26 @@ test_drafts_note_from_first_sentences() {
     'Mix now draws from the whole of what you tapped.')" "note"
 }
 
+test_note_skips_debug_bullets() {
+  fixture 0.99.8
+  set_unreleased "$(printf '%s\n' \
+    '- **Debug:** The debug screen has side tabs. One per area.' \
+    '- Mix now draws from the whole of what you tapped. It used to stop.' \
+    '- **Debug:** A second debug entry,' \
+    '  wrapped onto two lines. Still skipped.')"
+  cut patch
+  assert_eq "$(cat "$NOTE")" 'Mix now draws from the whole of what you tapped.' "note"
+  assert_grep '^- \*\*Debug:\*\* The debug screen has side tabs' CHANGELOG.md
+}
+
+test_debug_only_release_drafts_empty_note() {
+  fixture 0.99.8
+  set_unreleased '- **Debug:** The debug screen has side tabs.'
+  cut patch
+  assert_eq "$(version)" 0.99.9 versionName
+  assert_eq "$(cat "$NOTE")" "" "note"
+}
+
 test_note_keeps_whole_sentences_within_limit() {
   fixture 0.99.8
   local body="" i

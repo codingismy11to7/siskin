@@ -437,7 +437,9 @@ Google's own naming table disagrees with what this app actually has. See
 **The changelog entry itself belongs to the PR that changes the behaviour**, not
 to the cut — a bullet under `[Unreleased]`, written where the change is
 understood. Only user-visible behaviour in the car earns one; documentation,
-comments, tests and refactors earn nothing. Entries state what the app does now,
+comments, tests and refactors earn nothing. The one exception is a change to
+the debug screen, which earns a bullet beginning `**Debug:**`: the cut leaves
+those out of the Play note, since drivers never see that screen. Entries state what the app does now,
 with the reason attached where the behaviour alone does not explain it, and the
 file uses flat bullets rather than Keep a Changelog's category headings.
 
