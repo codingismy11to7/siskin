@@ -53,12 +53,13 @@ echo "rendering:"
   --include-in-header "$root/docs/web/style.html" \
   --output "$out/privacy.html"
 
-# The landing page and the 404 are hand-written HTML and are copied rather than
-# rendered. style.html is a header include, not a page, and deliberately does
-# not travel with them.
+# The landing page, the credits and the 404 are hand-written HTML and are
+# copied rather than rendered. style.html is a header include, not a page, and
+# deliberately does not travel with them.
 cp "$root/docs/web/index.html" "$out/index.html"
+cp "$root/docs/web/credits.html" "$out/credits.html"
 cp "$root/docs/web/404.html" "$out/404.html"
 
-for f in "$out/index.html" "$out/privacy.html" "$out/404.html"; do
+for f in "$out/index.html" "$out/privacy.html" "$out/credits.html" "$out/404.html"; do
   echo "  $f  ($(stat -c %s "$f") bytes)"
 done
