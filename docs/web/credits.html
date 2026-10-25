@@ -43,10 +43,10 @@ details.oss{margin:1rem 0;border:1px solid var(--rule);border-radius:8px;padding
 details.oss summary{cursor:pointer;font-weight:600}
 details.oss[open] summary{margin-bottom:.6rem}
 .oss-scroll{overflow-x:auto}
-table.oss{width:100%;min-width:34rem;border-collapse:collapse;font-size:.85rem;line-height:1.4}
+table.oss{width:100%;border-collapse:collapse;font-size:.85rem;line-height:1.4}
 table.oss th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--rule);padding:.4rem .5rem}
 table.oss td{border-bottom:1px solid var(--rule);padding:.4rem .5rem;vertical-align:top}
-table.oss td:first-child{white-space:nowrap}
+@media (max-width:30rem){table.oss{font-size:.74rem}table.oss th,table.oss td{padding:.35rem .25rem}details.oss{padding:.5rem .6rem}}
 .sbom{font-size:.9rem;margin:.8rem 0 0}
 </style>
 </head>

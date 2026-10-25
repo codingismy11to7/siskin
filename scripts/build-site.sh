@@ -54,8 +54,9 @@ echo "rendering:"
   --output "$out/privacy.html"
 
 # The landing page, the credits and the 404 are hand-written HTML and are
-# copied (the credits with the generated table spliced in) rather than rendered. style.html is a header include, not a page, and
-# deliberately does not travel with them.
+# copied (the credits with the generated table spliced in) rather than
+# rendered. style.html is a header include, not a page, and deliberately does
+# not travel with them.
 cp "$root/docs/web/index.html" "$out/index.html"
 
 # credits.html carries one marker line where the generated table goes. The

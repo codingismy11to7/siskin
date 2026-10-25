@@ -15,18 +15,12 @@
         },
         "component": {
             "type": "library",
-            "bom-ref": "pkg:maven/Tempo/app@unspecified?project_path=%3Aapp",
-            "group": "Tempo",
-            "name": "app",
+            "bom-ref": "pkg:maven/us.codingismy11to7/siskin@unspecified?project_path=%3Aapp",
+            "group": "us.codingismy11to7",
+            "name": "siskin",
             "version": "unspecified",
-            "purl": "pkg:maven/Tempo/app@unspecified?project_path=%3Aapp",
-            "modified": false,
-            "externalReferences": [
-                {
-                    "type": "vcs",
-                    "url": "ssh://git@github.com:codingismy11to7/siskin.git"
-                }
-            ]
+            "purl": "pkg:maven/us.codingismy11to7/siskin@unspecified?project_path=%3Aapp",
+            "modified": false
         }
     },
     "components": [
@@ -6875,36 +6869,6 @@
     ],
     "dependencies": [
         {
-            "ref": "pkg:maven/Tempo/app@unspecified?project_path=%3Aapp",
-            "dependsOn": [
-                "pkg:maven/io.arrow-kt/arrow-core@2.2.3?type=pom",
-                "pkg:maven/com.squareup.retrofit2/converter-gson@3.0.0?type=jar",
-                "pkg:maven/com.github.bumptech.glide/glide@4.16.0?type=aar",
-                "pkg:maven/com.squareup.okhttp3/logging-interceptor@5.5.1?type=jar",
-                "pkg:maven/androidx.lifecycle/lifecycle-viewmodel-ktx@2.10.0?type=aar",
-                "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-android@1.11.0?type=jar",
-                "pkg:maven/androidx.media3/media3-common@1.11.0?type=aar",
-                "pkg:maven/com.google.android.material/material@1.14.0?type=aar",
-                "pkg:maven/androidx.media3/media3-exoplayer@1.11.0?type=aar",
-                "pkg:maven/androidx.media3/media3-exoplayer-hls@1.11.0?type=aar",
-                "pkg:maven/androidx.constraintlayout/constraintlayout@2.2.2?type=aar",
-                "pkg:maven/com.squareup.retrofit2/retrofit@3.0.0?type=jar",
-                "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
-                "pkg:maven/org.jellyfin.media3/media3-ffmpeg-decoder@1.9.0%2B1?type=aar",
-                "pkg:maven/androidx.room/room-runtime@2.8.5?type=pom",
-                "pkg:maven/androidx.databinding/viewbinding@9.4.1?type=aar",
-                "pkg:maven/androidx.appcompat/appcompat@1.8.0?type=aar",
-                "pkg:maven/androidx.core/core-ktx@1.19.1?type=aar",
-                "pkg:maven/androidx.activity/activity@1.13.0?type=aar",
-                "pkg:maven/org.jetbrains.kotlin/kotlin-parcelize-runtime@2.4.21?type=jar",
-                "pkg:maven/com.github.bumptech.glide/annotations@4.16.0?type=jar",
-                "pkg:maven/androidx.recyclerview/recyclerview@1.4.0?type=aar",
-                "pkg:maven/org.jetbrains.kotlin/kotlin-metadata-jvm@2.4.21?type=jar",
-                "pkg:maven/androidx.media3/media3-session@1.11.0?type=aar",
-                "pkg:maven/androidx.media3/media3-inspector@1.11.0?type=aar"
-            ]
-        },
-        {
             "ref": "pkg:maven/androidx.activity/activity@1.13.0?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.0?type=aar",
@@ -7881,6 +7845,36 @@
             "ref": "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
             "dependsOn": [
                 
+            ]
+        },
+        {
+            "ref": "pkg:maven/us.codingismy11to7/siskin@unspecified?project_path=%3Aapp",
+            "dependsOn": [
+                "pkg:maven/io.arrow-kt/arrow-core@2.2.3?type=pom",
+                "pkg:maven/com.squareup.retrofit2/converter-gson@3.0.0?type=jar",
+                "pkg:maven/com.github.bumptech.glide/glide@4.16.0?type=aar",
+                "pkg:maven/com.squareup.okhttp3/logging-interceptor@5.5.1?type=jar",
+                "pkg:maven/androidx.lifecycle/lifecycle-viewmodel-ktx@2.10.0?type=aar",
+                "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-android@1.11.0?type=jar",
+                "pkg:maven/androidx.media3/media3-common@1.11.0?type=aar",
+                "pkg:maven/com.google.android.material/material@1.14.0?type=aar",
+                "pkg:maven/androidx.media3/media3-exoplayer@1.11.0?type=aar",
+                "pkg:maven/androidx.media3/media3-exoplayer-hls@1.11.0?type=aar",
+                "pkg:maven/androidx.constraintlayout/constraintlayout@2.2.2?type=aar",
+                "pkg:maven/com.squareup.retrofit2/retrofit@3.0.0?type=jar",
+                "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
+                "pkg:maven/org.jellyfin.media3/media3-ffmpeg-decoder@1.9.0%2B1?type=aar",
+                "pkg:maven/androidx.room/room-runtime@2.8.5?type=pom",
+                "pkg:maven/androidx.databinding/viewbinding@9.4.1?type=aar",
+                "pkg:maven/androidx.appcompat/appcompat@1.8.0?type=aar",
+                "pkg:maven/androidx.core/core-ktx@1.19.1?type=aar",
+                "pkg:maven/androidx.activity/activity@1.13.0?type=aar",
+                "pkg:maven/org.jetbrains.kotlin/kotlin-parcelize-runtime@2.4.21?type=jar",
+                "pkg:maven/com.github.bumptech.glide/annotations@4.16.0?type=jar",
+                "pkg:maven/androidx.recyclerview/recyclerview@1.4.0?type=aar",
+                "pkg:maven/org.jetbrains.kotlin/kotlin-metadata-jvm@2.4.21?type=jar",
+                "pkg:maven/androidx.media3/media3-session@1.11.0?type=aar",
+                "pkg:maven/androidx.media3/media3-inspector@1.11.0?type=aar"
             ]
         }
     ]
