@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.util
 
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.car.VehicleInfoSource
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -14,7 +15,8 @@ class PreferencesVehicleIdentityTierTest {
     private val prefs get() = App.getInstance().preferences
 
     @Before
-    fun setUp() {
+    @After
+    fun clearTier() {
         prefs.edit().remove("vehicle_identity_tier").commit()
     }
 

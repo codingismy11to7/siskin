@@ -1,7 +1,9 @@
 package com.cappielloantonio.tempo.plex
 
+import com.cappielloantonio.tempo.car.VehicleInfoSource
 import com.cappielloantonio.tempo.car.VehicleInputs
 import com.cappielloantonio.tempo.car.withVehicleInputs
+import com.cappielloantonio.tempo.util.Preferences
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
@@ -28,6 +30,8 @@ class PlexRetrofitFactoryTest {
     fun startServer() {
         server = MockWebServer()
         server.start()
+        // Robolectric keeps preferences across classes; the vehicle test needs the default tier.
+        Preferences.setVehicleIdentityTier(VehicleInfoSource.VEHICLE)
         PlexApi().apply {
             serverUri = server.url("/").toString()
             accountToken = "account-token"
