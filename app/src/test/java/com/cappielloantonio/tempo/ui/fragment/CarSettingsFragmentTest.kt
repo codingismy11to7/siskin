@@ -24,6 +24,7 @@ import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.util.StreamingCacheTestHooks
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -79,6 +80,8 @@ class CarSettingsFragmentTest {
             .remove("artists_by_initial")
             .remove("artist_mix")
             .remove("artist_radio")
+            .remove("streaming_cache_size")
+            .remove("precache_tracks_count")
             .commit()
         session = CarHostTestFixture.arrange()
     }
@@ -86,6 +89,7 @@ class CarSettingsFragmentTest {
     @After
     fun tearDown() {
         CarHostTestFixture.tearDown()
+        StreamingCacheTestHooks.release()
     }
 
     private fun settingsScreen(): View {
@@ -315,6 +319,37 @@ class CarSettingsFragmentTest {
         }
 
     private fun visibleTexts(view: View) = textsIn(view).filter { it.isShown }.map { it.text.toString() }
+
+    @Test
+    fun `the cache rows show their values`() {
+        Preferences.setStreamingCacheSizeOverrideMegabytes(2048L)
+        Preferences.setPrecacheTracksCount(3)
+        val screen = settingsScreen()
+
+        assertTrue(visibleTexts(screen).any { it.startsWith("2 GB") })
+        assertTrue(visibleTexts(screen).contains("3 tracks"))
+    }
+
+    @Test
+    fun `precache says it is paused while the cache is off`() {
+        Preferences.setStreamingCacheSizeOverrideMegabytes(0L)
+        val screen = settingsScreen()
+
+        assertTrue(visibleTexts(screen).contains("Off"))
+        assertTrue(visibleTexts(screen).contains("2 tracks · paused while the cache is off"))
+    }
+
+    @Test
+    fun `tapping cache size opens its picker`() {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        shadowOf(Looper.getMainLooper()).idle()
+        val activity = controller.get()
+        val label = textsIn(activity.findViewById(R.id.car_host_container)).first { it.text.toString() == "Cache size" }
+        (label.parent as View).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(activity.supportFragmentManager.findFragmentById(R.id.car_host_container) is ValuePickerFragment)
+    }
 
     @Test
     fun `a one-member Home shows no Switch user row`() {

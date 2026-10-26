@@ -15,15 +15,20 @@ import com.cappielloantonio.tempo.databinding.FragmentCarSettingsBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
+import com.cappielloantonio.tempo.util.CacheSizeChoice
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.DownloadUtil
 import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.util.StreamingCacheChoices
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * What the car shows once there is a session: the toggles, the route to the
- * tab-order screen, Switch user, Sign out, and the version line that opens the
- * debug screen.
+ * What the car shows once there is a session: the toggles, the value rows, the
+ * route to the tab-order screen, Switch user, Sign out, and the version line
+ * that opens the debug screen.
  *
  * Reached by state, not by a caller. [CarHostActivity] routes
  * [com.cappielloantonio.tempo.plex.auth.PlexSignInState.Connected] here and
@@ -32,8 +37,8 @@ import kotlinx.coroutines.launch
  * screen. See the activity's KDoc for why the routing lives there.
  *
  * Builds its rows once, in [onCreateView], rather than observing state (except
- * that Switch user's visibility waits on a plex.tv answer): the
- * only state this screen is ever shown for is Connected, and the one transition
+ * that Switch user's visibility waits on a plex.tv answer, and the cache usage
+ * line on a read of the cache's index): the only state this screen is ever shown for is Connected, and the one transition
  * out of it is the one that replaces this fragment. Preferences are therefore
  * read at build time -- which is also true on the way back from
  * [BrowseTabOrderFragment], since popping that back-stack entry recreates this
@@ -106,16 +111,42 @@ class CarSettingsFragment : Fragment() {
             BrowseTreeInvalidator.invalidateArtistPages()
         }
 
+        // Values chosen from a list, so each opens a picker. Settings rebuilds
+        // its view when the picker pops, which is what refreshes them.
+        val context = requireContext()
+        val automatic = DownloadUtil.getAutomaticStreamingCacheSizeMegabytes(context)
+        val cacheChoice = StreamingCacheChoices.current(Preferences.getStreamingCacheSizeOverrideMegabytes(), automatic)
+        val cacheValue =
+            addValueRow(
+                rows,
+                getString(R.string.car_settings_cache_size),
+                StreamingCacheChoices.cacheSizeSummary(resources, cacheChoice, usedBytes = null),
+            ) { push(ValuePickerFragment.newInstance(ValuePicker.CACHE_SIZE)) }
+
+        addValueRow(
+            rows,
+            getString(R.string.car_settings_precache),
+            StreamingCacheChoices.precacheSummary(
+                resources,
+                Preferences.getPrecacheTracksCount(),
+                cacheOff = cacheChoice == CacheSizeChoice.Off,
+            ),
+        ) { push(ValuePickerFragment.newInstance(ValuePicker.PRECACHE)) }
+
+        // Reading usage may build the cache, which reads its index from disk.
+        // It lands in a line already laid out, so it changes text, not layout.
+        // Never when the cache is off: building it with a 0 cap would wipe it.
+        if (cacheChoice != CacheSizeChoice.Off) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val used = withContext(Dispatchers.IO) { DownloadUtil.getStreamingCacheUsedBytes(context) }
+                cacheValue.text = StreamingCacheChoices.cacheSizeSummary(resources, cacheChoice, used)
+            }
+        }
+
         // A destination rather than a toggle, so it takes addChoice. Below the
         // toggles and above Sign out: it is a setting, and a destructive
         // terminal action still belongs last.
-        addChoice(rows, getString(R.string.car_settings_customize_tabs)) {
-            parentFragmentManager
-                .beginTransaction()
-                .replace(R.id.car_host_container, BrowseTabOrderFragment())
-                .addToBackStack(null)
-                .commit()
-        }
+        addChoice(rows, getString(R.string.car_settings_customize_tabs)) { push(BrowseTabOrderFragment()) }
 
         // Hidden until the Home answers. Built here with the others so it holds
         // its place above Sign out; shown only for a Home with more than one
@@ -164,6 +195,14 @@ class CarSettingsFragment : Fragment() {
         }
 
         return bind.root
+    }
+
+    private fun push(fragment: Fragment) {
+        parentFragmentManager
+            .beginTransaction()
+            .replace(R.id.car_host_container, fragment)
+            .addToBackStack(null)
+            .commit()
     }
 
     /**

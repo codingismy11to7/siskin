@@ -100,10 +100,8 @@ internal fun addChoice(
  *
  * `fragment_car_settings` pins its headings and gives the list all the
  * remaining height, which it did back when the screen held nothing but a Sign
- * out button -- precisely so that a row's arrival would cost nothing. Four have
- * since arrived: continuous play, replay gain, artists-by-initial and Customize
- * tabs, and adding each was only adding a call. Transcoding is still to come
- * and is meant to be the same.
+ * out button -- precisely so that a row's arrival would cost nothing. Every
+ * row since has been only adding a call, and the next is meant to be the same.
  */
 internal fun addToggle(
     container: ViewGroup,
