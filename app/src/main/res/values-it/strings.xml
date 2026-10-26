@@ -35,6 +35,24 @@
     <string name="car_settings_listening_as">In ascolto come %1$s</string>
     <string name="car_settings_title">Impostazioni</string>
     <string name="car_settings_customize_tabs">Personalizza schede</string>
+    <string name="car_settings_cache_size">Dimensione della cache</string>
+    <string name="car_settings_cache_size_explainer">La musica ascoltata resta su questo dispositivo e parte senza attese.</string>
+    <string name="car_settings_precache">Precaricamento</string>
+    <string name="car_settings_precache_explainer">Brani successivi scaricati prima di quello in riproduzione.</string>
+    <string name="cache_size_automatic">Automatica (%1$s)</string>
+    <string name="cache_size_off">Disattivata</string>
+    <string name="cache_size_off_option">Disattivata (interrompe anche il precaricamento)</string>
+    <string name="cache_size_used">%1$s · %2$s in uso</string>
+    <string name="cache_size_megabytes">%1$s MB</string>
+    <string name="cache_size_gigabytes">%1$s GB</string>
+    <string name="precache_off">Disattivato</string>
+    <string name="precache_default">%1$s (predefinito)</string>
+    <string name="precache_paused">%1$s · in pausa finché la cache è disattivata</string>
+    <plurals name="precache_tracks">
+        <item quantity="one">%d brano</item>
+        <item quantity="many">%d brani</item>
+        <item quantity="other">%d brani</item>
+    </plurals>
     <string name="car_tab_order_title">Ordine delle schede</string>
     <string name="car_tab_order_hint">Trascina una riga dalla maniglia: le prime tre diventano schede</string>
     <string name="car_tab_order_drag_handle">Riordina</string>

@@ -35,6 +35,24 @@
     <string name="car_settings_listening_as">Escuchando como %1$s</string>
     <string name="car_settings_title">Ajustes</string>
     <string name="car_settings_customize_tabs">Personalizar pestañas</string>
+    <string name="car_settings_cache_size">Tamaño de la caché</string>
+    <string name="car_settings_cache_size_explainer">La música que has escuchado se guarda en este equipo y empieza sin esperas.</string>
+    <string name="car_settings_precache">Precarga</string>
+    <string name="car_settings_precache_explainer">Pistas siguientes que se descargan antes de la que suena.</string>
+    <string name="cache_size_automatic">Automático (%1$s)</string>
+    <string name="cache_size_off">Desactivado</string>
+    <string name="cache_size_off_option">Desactivado (también detiene la precarga)</string>
+    <string name="cache_size_used">%1$s · %2$s en uso</string>
+    <string name="cache_size_megabytes">%1$s MB</string>
+    <string name="cache_size_gigabytes">%1$s GB</string>
+    <string name="precache_off">Desactivada</string>
+    <string name="precache_default">%1$s (predeterminado)</string>
+    <string name="precache_paused">%1$s · en pausa mientras la caché está desactivada</string>
+    <plurals name="precache_tracks">
+        <item quantity="one">%d pista</item>
+        <item quantity="many">%d pistas</item>
+        <item quantity="other">%d pistas</item>
+    </plurals>
     <string name="car_tab_order_title">Orden de pestañas</string>
     <string name="car_tab_order_hint">Arrastra una fila por su tirador: las tres primeras serán pestañas</string>
     <string name="car_tab_order_drag_handle">Reordenar</string>
