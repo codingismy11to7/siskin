@@ -63,7 +63,7 @@ enum class ValuePicker(
                     Preferences.setPrecacheTracksCount(count)
                     // A batch already running was sized by the old count; the
                     // next player event starts one at the new count.
-                    QueuePreloader.cancel()
+                    if (count != current) QueuePreloader.cancel()
                 }
             }
         }
