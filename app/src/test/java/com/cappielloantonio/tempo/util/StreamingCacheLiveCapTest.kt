@@ -14,6 +14,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.CompletableFuture
 
 /** The wiring: a changed preference reaches the evictor of the cache already built. */
 @UnstableApi
@@ -68,10 +69,33 @@ class StreamingCacheLiveCapTest {
         write("b", 1024 * 1024)
         write("c", 1024 * 1024)
 
+        assertEquals(3L * 1024 * 1024, DownloadUtil.getStreamingCacheUsedBytes(context))
+
         Preferences.setStreamingCacheSizeOverrideMegabytes(1L)
         DownloadUtil.applyStreamingCacheSizeInBackground(context)
 
-        assertTrue(DownloadUtil.getStreamingCacheUsedBytesAfterPendingResizes(context) <= 1024L * 1024L)
+        val used =
+            CompletableFuture
+                .supplyAsync({ DownloadUtil.getStreamingCacheUsedBytes(context) }, DownloadUtil.getCacheWorkExecutor())
+                .get()
+        assertTrue(used <= 1024L * 1024L)
+    }
+
+    @Test
+    fun aKeyStillBeingReadSurvivesOffUntilItCloses() {
+        write("a", 1024 * 1024)
+        write("b", 1024 * 1024)
+        OpenCacheKeys.open("a")
+
+        Preferences.setStreamingCacheSizeOverrideMegabytes(0L)
+        DownloadUtil.applyStreamingCacheSize(context)
+        assertEquals(setOf("a"), DownloadUtil.getStreamingCacheForPreload(context).keys)
+
+        assertTrue(OpenCacheKeys.close("a"))
+        DownloadUtil.trimStreamingCacheInBackground()
+        CompletableFuture.runAsync({}, DownloadUtil.getCacheWorkExecutor()).get()
+
+        assertEquals(emptySet<String>(), DownloadUtil.getStreamingCacheForPreload(context).keys)
     }
 
     @Test

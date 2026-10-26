@@ -79,12 +79,8 @@ object StreamingCacheChoices {
         choice: CacheSizeChoice,
         usedBytes: Long?,
     ): String {
-        val size =
-            when (choice) {
-                CacheSizeChoice.Off -> return resources.getString(R.string.cache_size_off)
-                is CacheSizeChoice.Automatic -> resources.getString(R.string.cache_size_automatic, formatSize(resources, choice.megabytes))
-                is CacheSizeChoice.Fixed -> formatSize(resources, choice.megabytes)
-            }
+        if (choice == CacheSizeChoice.Off) return resources.getString(R.string.cache_size_off)
+        val size = cacheSizeLabel(resources, choice)
         if (usedBytes == null) return size
         return resources.getString(R.string.cache_size_used, size, formatSize(resources, usedBytes / (1024 * 1024)))
     }

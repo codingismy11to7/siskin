@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.content.Context
 import android.text.InputFilter
 import android.text.InputType
 import android.util.TypedValue
@@ -109,25 +110,35 @@ internal fun addToggle(
     initial: Boolean,
     onChange: (Boolean) -> Unit,
 ) {
-    val context = container.context
-    val resources = container.resources
-
     val toggle =
-        MaterialSwitch(context).apply {
+        MaterialSwitch(container.context).apply {
             isChecked = initial
             isClickable = false
             isFocusable = false
         }
+    addControlRow(container, label, toggle) {
+        toggle.isChecked = !toggle.isChecked
+        onChange(toggle.isChecked)
+    }
+}
 
-    val text =
-        TextView(context).apply {
-            this.text = label
-            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
-        }
-
+/**
+ * What every settings row shares: the whole row is the tap target, it
+ * acknowledges the press, a rotary controller can stop on it, and it lines up
+ * with the button rows around it. [addToggle], [addValueRow] and
+ * [addRadioRow] differ only in what [content] puts inside.
+ */
+private fun addRow(
+    container: ViewGroup,
+    orientation: Int,
+    verticalPadding: Int,
+    onClick: () -> Unit,
+    content: LinearLayout.() -> Unit,
+) {
+    val resources = container.resources
     val row =
-        LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
+        LinearLayout(container.context).apply {
+            this.orientation = orientation
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
 
@@ -139,44 +150,45 @@ internal fun addToggle(
 
             // setOnClickListener makes a view clickable but not focusable, and a
             // rotary controller stops only on focusable views -- without this it
-            // skips the toggle entirely on its way to the Sign out button below.
+            // skips the row entirely on its way to the Sign out button below.
             isFocusable = true
 
             // choice_container is a bare 480dp column with no padding of its
             // own, so unpadded the label would start flush at x=0 while Sign
             // out's text is centred inside its button -- two rows that do not
-            // read as one list. Symmetric, so the switch is inset from the far
-            // edge by the same amount.
+            // read as one list. Symmetric, so a trailing control is inset from
+            // the far edge by the same amount.
             val pad = resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
-            setPaddingRelative(pad, 0, pad, 0)
+            setPaddingRelative(pad, verticalPadding, pad, verticalPadding)
 
-            addView(
-                text,
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
-            addView(
-                toggle,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ),
-            )
-            setOnClickListener {
-                toggle.isChecked = !toggle.isChecked
-                onChange(toggle.isChecked)
-            }
+            content()
+            setOnClickListener { onClick() }
         }
-
     container.addView(
         row,
         LinearLayout
-            .LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
-            },
+            .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            .apply { bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap) },
     )
+}
+
+/** A label at the start and an unclickable [control] at the end. */
+private fun addControlRow(
+    container: ViewGroup,
+    label: String,
+    control: View,
+    onClick: () -> Unit,
+) = addRow(container, LinearLayout.HORIZONTAL, verticalPadding = 0, onClick) {
+    addView(rowLabel(context, label), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+    addView(control, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+}
+
+private fun rowLabel(
+    context: Context,
+    label: String,
+) = TextView(context).apply {
+    text = label
+    setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
 }
 
 /**
@@ -191,40 +203,17 @@ internal fun addValueRow(
     value: String,
     onClick: () -> Unit,
 ): TextView {
-    val context = container.context
-    val resources = container.resources
     val valueText =
-        TextView(context).apply {
+        TextView(container.context).apply {
             text = value
             setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium)
             setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
         }
-    val row =
-        LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
-            applyPressFeedback(this)
-            // Focusable for the same reason as addToggle's row: a rotary
-            // controller stops only on focusable views.
-            isFocusable = true
-            val pad = resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
-            setPaddingRelative(pad, pad / 2, pad, pad / 2)
-            addView(
-                TextView(context).apply {
-                    text = label
-                    setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
-                },
-            )
-            addView(valueText)
-            setOnClickListener { onClick() }
-        }
-    container.addView(
-        row,
-        LinearLayout
-            .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            .apply { bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap) },
-    )
+    val pad = container.resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
+    addRow(container, LinearLayout.VERTICAL, verticalPadding = pad / 2, onClick) {
+        addView(rowLabel(context, label))
+        addView(valueText)
+    }
     return valueText
 }
 
@@ -238,39 +227,13 @@ internal fun addRadioRow(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val context = container.context
-    val resources = container.resources
-    val row =
-        LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
-            applyPressFeedback(this)
-            isFocusable = true
-            val pad = resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
-            setPaddingRelative(pad, 0, pad, 0)
-            addView(
-                TextView(context).apply {
-                    text = label
-                    setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
-                },
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
-            addView(
-                MaterialRadioButton(context).apply {
-                    isChecked = selected
-                    isClickable = false
-                    isFocusable = false
-                },
-            )
-            setOnClickListener { onClick() }
+    val radio =
+        MaterialRadioButton(container.context).apply {
+            isChecked = selected
+            isClickable = false
+            isFocusable = false
         }
-    container.addView(
-        row,
-        LinearLayout
-            .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            .apply { bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap) },
-    )
+    addControlRow(container, label, radio, onClick)
 }
 
 /**

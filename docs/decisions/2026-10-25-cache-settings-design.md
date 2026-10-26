@@ -92,11 +92,22 @@ of internals.
 
 - **Raising** the cap takes effect on the next write.
 - **Lowering** it trims to the new cap immediately, on a background thread,
-  oldest first. A span being read when it is removed behaves as it would under
-  the stock evictor, which removes spans the same way.
+  oldest first, in batches that release the cache's lock in between — so the
+  playing stream's own cache reads and writes get through during a trim of
+  thousands of files.
 - **Off** trims to zero. Readers already skip the cache when the size is zero,
   since both `DynamicMediaSourceFactory` and `QueuePreloader` read the size on
-  every call, so nothing else changes.
+  every call, and choosing Off cancels a precache already in flight.
+
+**A key being read is never evicted.** The stock evictor gets away with
+removing spans under a reader because LRU order almost never reaches the
+playing track; a trim to zero always would. For a transcoded track that is a
+real failure: the reader hits the hole and resumes with a range request against
+a fresh transcode, the mismatch `QueuePreloader` and `StreamingCacheDataSource`
+already exist to prevent — and it can land a minute after the car pulls away.
+`StreamingCacheDataSource` marks its key open for as long as it is open, the
+evictor skips open keys, and the last reader's close re-runs the trim so Off
+still ends at zero once the track finishes.
 
 ## Precache
 
@@ -106,7 +117,9 @@ beyond it the writer competes with the stream actually playing for a whole
 album's worth of bandwidth.
 
 `QueuePreloader` reads the count on every `preload()`, so a change applies at
-the next transition.
+the next transition. Any change also cancels the batch already running, which
+was sized by the old count: lowering ten to one should not leave nine tracks
+downloading over a tether after the car drives off.
 
 While the cache is Off, the row keeps its stored count and reads "2 tracks ·
 paused while the cache is off". Turning the cache back on restores precaching

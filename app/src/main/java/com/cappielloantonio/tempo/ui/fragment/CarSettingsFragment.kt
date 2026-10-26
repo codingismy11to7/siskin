@@ -23,7 +23,7 @@ import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheChoices
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -145,7 +145,11 @@ class CarSettingsFragment : Fragment() {
             viewLifecycleOwner.lifecycleScope.launch {
                 val used =
                     try {
-                        withContext(Dispatchers.IO) { DownloadUtil.getStreamingCacheUsedBytesAfterPendingResizes(context) }
+                        // On the resize thread, so it reads after any trim already
+                        // queued -- and a cancelled read never parks a thread there.
+                        withContext(DownloadUtil.getCacheWorkExecutor().asCoroutineDispatcher()) {
+                            DownloadUtil.getStreamingCacheUsedBytes(context)
+                        }
                     } catch (exception: CancellationException) {
                         throw exception
                     } catch (exception: Exception) {

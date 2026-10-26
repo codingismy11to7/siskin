@@ -61,7 +61,9 @@ enum class ValuePicker(
             return StreamingCacheChoices.PRECACHE_COUNTS.map { count ->
                 PickerOption(StreamingCacheChoices.precacheLabel(context.resources, count), count == current) {
                     Preferences.setPrecacheTracksCount(count)
-                    if (count <= 0) QueuePreloader.cancel()
+                    // A batch already running was sized by the old count; the
+                    // next player event starts one at the new count.
+                    QueuePreloader.cancel()
                 }
             }
         }

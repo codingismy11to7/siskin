@@ -19,7 +19,7 @@ import java.io.File;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -27,6 +27,8 @@ import java.util.concurrent.Executors;
 public final class DownloadUtil {
 
     private static final String STREAMING_CACHE_CONTENT_DIRECTORY = "streaming_cache";
+    private static final int RESIZE_BATCH_SPANS = 64;
+    private static final Object DIRECTORY_LOCK = new Object();
 
     private static DataSource.Factory dataSourceFactory;
     private static DataSource.Factory httpDataSourceFactory;
@@ -102,7 +104,7 @@ public final class DownloadUtil {
      *
      * <p>A change reaches a cache already built through {@link #applyStreamingCacheSize(Context)}.
      */
-    public static synchronized long getStreamingCacheSizeMegabytes(Context context) {
+    public static long getStreamingCacheSizeMegabytes(Context context) {
         Long override = Preferences.getStreamingCacheSizeOverrideMegabytes();
         if (override != null) {
             return override;
@@ -111,12 +113,12 @@ public final class DownloadUtil {
         return StreamingCacheSize.forDirectory(getStreamingCacheDirectory(context));
     }
 
-    public static synchronized long getAutomaticStreamingCacheSizeMegabytes(Context context) {
+    public static long getAutomaticStreamingCacheSizeMegabytes(Context context) {
         return StreamingCacheSize.forDirectory(getStreamingCacheDirectory(context));
     }
 
     /** Zero when the partition cannot be measured. */
-    public static synchronized long getStreamingCachePartitionMegabytes(Context context) {
+    public static long getStreamingCachePartitionMegabytes(Context context) {
         return StreamingCacheSize.totalMegabytes(getStreamingCacheDirectory(context));
     }
 
@@ -131,24 +133,11 @@ public final class DownloadUtil {
     }
 
     /**
-     * {@link #getStreamingCacheUsedBytes(Context)}, read after every resize already queued, so a
-     * figure shown right after a size change is the trimmed one. Blocks: not on the main thread.
-     * Waits on the executor, never on the class lock.
+     * The single thread every resize and trim runs on. Work submitted here runs after any resize
+     * already queued, so a usage figure read on it right after a size change is the trimmed one.
      */
-    public static long getStreamingCacheUsedBytesAfterPendingResizes(Context context) {
-        Context appContext = context.getApplicationContext();
-        try {
-            return cacheResizeExecutor.submit(() -> getStreamingCacheUsedBytes(appContext)).get();
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException(exception);
-        } catch (ExecutionException exception) {
-            Throwable cause = exception.getCause();
-            if (cause instanceof RuntimeException) {
-                throw (RuntimeException) cause;
-            }
-            throw new IllegalStateException(cause);
-        }
+    public static Executor getCacheWorkExecutor() {
+        return cacheResizeExecutor;
     }
 
     /**
@@ -158,7 +147,6 @@ public final class DownloadUtil {
     public static void applyStreamingCacheSize(Context context) {
         SimpleCache cache;
         ResizableLruCacheEvictor evictor;
-        long bytes;
         // The resize runs outside the class lock: it deletes files under the cache's own monitor,
         // and holding this one too would stall every playback path asking for a factory.
         synchronized (DownloadUtil.class) {
@@ -167,14 +155,34 @@ public final class DownloadUtil {
             }
             cache = streamingCache;
             evictor = streamingCacheEvictor;
-            bytes = getStreamingCacheSizeMegabytes(context) * 1024 * 1024;
         }
-        evictor.resize(cache, bytes);
+        evictor.resize(cache, getStreamingCacheSizeMegabytes(context) * 1024 * 1024);
     }
 
     public static void applyStreamingCacheSizeInBackground(Context context) {
         Context appContext = context.getApplicationContext();
         cacheResizeExecutor.execute(() -> applyStreamingCacheSize(appContext));
+    }
+
+    /**
+     * Re-runs eviction at the current cap, for spans a trim skipped because their key was open.
+     * Without it, a track playing when the cache was turned off would keep its spans until the next
+     * size change.
+     */
+    public static void trimStreamingCacheInBackground() {
+        cacheResizeExecutor.execute(
+                () -> {
+                    SimpleCache cache;
+                    ResizableLruCacheEvictor evictor;
+                    synchronized (DownloadUtil.class) {
+                        if (streamingCache == null) {
+                            return;
+                        }
+                        cache = streamingCache;
+                        evictor = streamingCacheEvictor;
+                    }
+                    evictor.trim(cache);
+                });
     }
 
     @VisibleForTesting
@@ -185,7 +193,9 @@ public final class DownloadUtil {
         streamingCache = null;
         streamingCacheEvictor = null;
         dataSourceFactory = null;
-        streamingCacheDirectory = null;
+        synchronized (DIRECTORY_LOCK) {
+            streamingCacheDirectory = null;
+        }
         if (databaseProvider instanceof StandaloneDatabaseProvider) {
             ((StandaloneDatabaseProvider) databaseProvider).close();
         }
@@ -200,7 +210,9 @@ public final class DownloadUtil {
 
             streamingCacheEvictor =
                     new ResizableLruCacheEvictor(
-                            getStreamingCacheSizeMegabytes(context) * 1024 * 1024);
+                            getStreamingCacheSizeMegabytes(context) * 1024 * 1024,
+                            OpenCacheKeys::isOpen,
+                            RESIZE_BATCH_SPANS);
             streamingCache =
                     new SimpleCache(
                             streamingCacheDirectory,
@@ -219,23 +231,29 @@ public final class DownloadUtil {
         return databaseProvider;
     }
 
-    private static synchronized File getStreamingCacheDirectory(Context context) {
-        if (streamingCacheDirectory == null) {
-            if (Preferences.getStreamingCacheStoragePreference() == 0) {
-                streamingCacheDirectory = context.getExternalFilesDirs(null)[0];
-                if (streamingCacheDirectory == null) {
-                    streamingCacheDirectory = context.getFilesDir();
-                }
-            } else {
-                try {
-                    streamingCacheDirectory = context.getExternalFilesDirs(null)[1];
-                } catch (Exception exception) {
+    /**
+     * Its own lock rather than the class's: Settings reads the partition on the main thread, and
+     * the class lock is held while the cache is built and loads its index.
+     */
+    private static File getStreamingCacheDirectory(Context context) {
+        synchronized (DIRECTORY_LOCK) {
+            if (streamingCacheDirectory == null) {
+                if (Preferences.getStreamingCacheStoragePreference() == 0) {
                     streamingCacheDirectory = context.getExternalFilesDirs(null)[0];
-                    Preferences.setStreamingCacheStoragePreference(0);
+                    if (streamingCacheDirectory == null) {
+                        streamingCacheDirectory = context.getFilesDir();
+                    }
+                } else {
+                    try {
+                        streamingCacheDirectory = context.getExternalFilesDirs(null)[1];
+                    } catch (Exception exception) {
+                        streamingCacheDirectory = context.getExternalFilesDirs(null)[0];
+                        Preferences.setStreamingCacheStoragePreference(0);
+                    }
                 }
             }
-        }
 
-        return streamingCacheDirectory;
+            return streamingCacheDirectory;
+        }
     }
 }

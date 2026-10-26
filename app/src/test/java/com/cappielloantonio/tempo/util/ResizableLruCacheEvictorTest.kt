@@ -30,10 +30,12 @@ class ResizableLruCacheEvictorTest {
 
     private lateinit var evictor: ResizableLruCacheEvictor
     private lateinit var cache: SimpleCache
+    private val openKeys = mutableSetOf<String>()
 
     @Before
     fun setUp() {
-        evictor = ResizableLruCacheEvictor(maxBytes = 300)
+        // A batch of one, so every resize here crosses batch boundaries.
+        evictor = ResizableLruCacheEvictor(maxBytes = 300, isOpen = { it in openKeys }, resizeBatch = 1)
         cache =
             SimpleCache(
                 folder.newFolder("cache"),
@@ -106,6 +108,42 @@ class ResizableLruCacheEvictorTest {
         evictor.resize(cache, 0)
 
         assertEquals(0L, cache.cacheSpace)
+        assertEquals(emptySet<String>(), cache.keys)
+    }
+
+    @Test
+    fun aKeyBeingReadSurvivesATrimToZero() {
+        write("a", 100)
+        write("b", 100)
+        write("c", 100)
+        openKeys += "a"
+
+        evictor.resize(cache, 0)
+
+        assertEquals(setOf("a"), cache.keys)
+    }
+
+    @Test
+    fun aKeyBeingReadIsSkippedForTheNextOldest() {
+        write("a", 100)
+        write("b", 100)
+        write("c", 100)
+        openKeys += "a"
+
+        write("d", 100)
+
+        assertEquals(setOf("a", "c", "d"), cache.keys)
+    }
+
+    @Test
+    fun aClosedKeyGoesAtTheNextTrim() {
+        write("a", 100)
+        openKeys += "a"
+        evictor.resize(cache, 0)
+        openKeys -= "a"
+
+        evictor.trim(cache)
+
         assertEquals(emptySet<String>(), cache.keys)
     }
 }
