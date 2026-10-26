@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import android.os.Bundle
+import android.text.TextUtils
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -124,7 +125,7 @@ class CarSettingsFragment : Fragment() {
                 rows,
                 getString(R.string.car_settings_cache_size),
                 StreamingCacheChoices.cacheSizeSummary(resources, cacheChoice, usedBytes = null),
-            ) { push(ValuePickerFragment.newInstance(ValuePicker.CACHE_SIZE)) }
+            ) { push(ValuePickerFragment.newInstance(ValuePicker.CACHE_SIZE)) }.value
 
         addValueRow(
             rows,
@@ -165,17 +166,19 @@ class CarSettingsFragment : Fragment() {
         // terminal action still belongs last.
         addChoice(rows, getString(R.string.car_settings_customize_tabs)) { push(BrowseTabOrderFragment()) }
 
-        // Shown only for a Home with more than one member, and never after a
-        // failed lookup -- a plex.tv outage should not put a dead row in
-        // settings. Drawn from the remembered answer first, so a revisit has
-        // the row in place before plex.tv replies and Sign out stays put.
-        val listeningAs = addValueRow(rows, getString(R.string.car_settings_switch_user), "") { switchUser() }
-        val switchUser = listeningAs.parent as View
+        // Shown only for a Home with more than one member. Drawn from the
+        // remembered answer, so the row is usually in place before plex.tv
+        // replies; a failed reply then changes nothing, since hiding a drawn
+        // row would slide Sign out up under the finger aimed at it. One line,
+        // ellipsized, so a long name or a rename cannot change the row's height.
+        val switchUser = addValueRow(rows, getString(R.string.car_settings_switch_user), "") { switchUser() }
+        switchUser.value.maxLines = 1
+        switchUser.value.ellipsize = TextUtils.TruncateAt.END
 
         fun showHome(home: HomeUsersRepository.Home?) {
             val shown = home != null && home.users.size >= 2
-            if (shown) listeningAs.text = getString(R.string.car_settings_listening_as, home.current.title.orEmpty())
-            switchUser.visibility = if (shown) View.VISIBLE else View.GONE
+            if (shown) switchUser.value.text = getString(R.string.car_settings_listening_as, home.current.title.orEmpty())
+            switchUser.row.visibility = if (shown) View.VISIBLE else View.GONE
         }
         showHome(HomeUsersRepository.remembered())
 
@@ -205,7 +208,7 @@ class CarSettingsFragment : Fragment() {
         bind.versionText.isFocusable = true
         applyPressFeedback(bind.versionText)
 
-        viewLifecycleOwner.lifecycleScope.launch { showHome(HomeUsersRepository.refresh()) }
+        viewLifecycleOwner.lifecycleScope.launch { HomeUsersRepository.refresh()?.let(::showHome) }
 
         return bind.root
     }

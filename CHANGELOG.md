@@ -12,9 +12,11 @@
 ## [Unreleased] — Siskin
 
 - Settings no longer jumps a beat after opening. Who is listening now shows
-  as the value line of the Switch user row, rather than above the list, and
-  on a return to Settings the row is drawn at once from the last answer
-  instead of arriving under a finger already reaching for Sign out.
+  as the value line of the Switch user row rather than above the list, and
+  Siskin asks plex.tv who is in the Home when it starts, so the row is
+  usually already drawn when Settings opens instead of arriving under a
+  finger already reaching for Sign out. It can still appear late on the
+  first visit after switching user, or if plex.tv has not answered yet.
 - Settings has rows for the music cache's size and for how many upcoming
   tracks to download ahead of the one playing. The cache size can be left on
   Automatic, set from 512 MB up to half the head unit's storage, or turned

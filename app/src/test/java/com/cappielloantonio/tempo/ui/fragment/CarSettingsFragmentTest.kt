@@ -413,11 +413,36 @@ class CarSettingsFragmentTest {
         assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
     }
 
+    /** Hiding a drawn row would slide Sign out up under the finger aimed at Switch user. */
     @Test
-    fun `a failed lookup hides a remembered Switch user row`() {
+    fun `a failed lookup keeps a remembered Switch user row`() {
         HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
         settingsScreen()
         HomeUsersRepository.fetch = { null }
+
+        val screen = settingsScreen()
+
+        assertTrue(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
+    }
+
+    @Test
+    fun `a failed lookup is not remembered over a good one`() {
+        HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
+        settingsScreen()
+        HomeUsersRepository.fetch = { null }
+        settingsScreen()
+        HomeUsersRepository.fetch = { awaitCancellation() }
+
+        val screen = settingsScreen()
+
+        assertTrue(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
+    }
+
+    @Test
+    fun `a Home down to one member hides a remembered Switch user row`() {
+        HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
+        settingsScreen()
+        HomeUsersRepository.fetch = { home("codingismy11to7") }
 
         val screen = settingsScreen()
 
