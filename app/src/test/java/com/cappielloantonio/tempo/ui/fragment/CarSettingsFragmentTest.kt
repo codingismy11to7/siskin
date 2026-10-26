@@ -80,31 +80,12 @@ class CarSettingsFragmentTest {
             .remove("artist_mix")
             .remove("artist_radio")
             .commit()
-        PlexApi().session =
-            PlexSession(
-                accountToken = "t",
-                serverUri = "https://example.invalid",
-                musicSectionKey = SectionKey("1"),
-                serverToken = null,
-                owned = true,
-            )
-
-        // A live session is what makes the artists-by-initial row's
-        // BrowseTreeInvalidator.invalidateNode() call do anything at all --
-        // it returns early without one, so an assertion about it would pass
-        // vacuously. Same pattern as BrowseTreeInvalidatorTest / LibraryPickerCommitTest.
-        session = mock()
-        MediaBrowserTree.initialize(App.getContext(), mock())
-        BrowseTreeInvalidator.attach(session)
-        HomeUsersRepository.fetch = { null }
+        session = CarHostTestFixture.arrange()
     }
 
     @After
     fun tearDown() {
-        // BrowseTreeInvalidator is a process-wide singleton; leaving a mock
-        // attached would leak into whatever test class runs next.
-        BrowseTreeInvalidator.detach()
-        HomeUsersRepository.resetForTest()
+        CarHostTestFixture.tearDown()
     }
 
     private fun settingsScreen(): View {
