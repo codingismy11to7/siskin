@@ -121,8 +121,11 @@ public final class DownloadUtil {
 
     /**
      * Builds the cache if nothing has yet, which reads its index from disk: not on the main thread.
+     *
+     * <p>Deliberately not synchronized: a running resize holds the cache's monitor, and waiting on
+     * it with the class lock held would stall every playback-path call.
      */
-    public static synchronized long getStreamingCacheUsedBytes(Context context) {
+    public static long getStreamingCacheUsedBytes(Context context) {
         return getStreamingCache(context).getCacheSpace();
     }
 
