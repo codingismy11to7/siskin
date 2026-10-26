@@ -9,6 +9,7 @@ import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.util.StreamingCacheTestHooks
 import com.google.android.material.radiobutton.MaterialRadioButton
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -40,6 +41,7 @@ class ValuePickerFragmentTest {
 
     @After
     fun tearDown() {
+        StreamingCacheTestHooks.release()
         CarHostTestFixture.tearDown()
     }
 
@@ -96,20 +98,22 @@ class ValuePickerFragmentTest {
     @Test
     fun choosingAutomaticClearsTheKey() {
         Preferences.setStreamingCacheSizeOverrideMegabytes(512L)
-        val (_, root) = openPicker(ValuePicker.CACHE_SIZE)
+        val (activity, root) = openPicker(ValuePicker.CACHE_SIZE)
         val automatic = findTextStartingWith(root, "Automatic (") ?: error("no Automatic row")
         (automatic.parent as View).performClick()
         shadowOf(Looper.getMainLooper()).idle()
 
         assertNull(Preferences.getStreamingCacheSizeOverrideMegabytes())
+        assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
     }
 
     @Test
     fun choosingOffWritesZero() {
-        val (_, root) = openPicker(ValuePicker.CACHE_SIZE)
+        val (activity, root) = openPicker(ValuePicker.CACHE_SIZE)
         tapRow(root, "Off (also stops precaching)")
 
         assertEquals(0L, Preferences.getStreamingCacheSizeOverrideMegabytes())
+        assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
     }
 
     @Test
@@ -123,9 +127,10 @@ class ValuePickerFragmentTest {
 
     @Test
     fun choosingACountWritesIt() {
-        val (_, root) = openPicker(ValuePicker.PRECACHE)
+        val (activity, root) = openPicker(ValuePicker.PRECACHE)
         tapRow(root, "10 tracks")
 
         assertEquals(10, Preferences.getPrecacheTracksCount())
+        assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
     }
 }

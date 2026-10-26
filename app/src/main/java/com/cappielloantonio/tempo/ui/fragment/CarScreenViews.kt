@@ -26,9 +26,9 @@ import com.google.android.material.radiobutton.MaterialRadioButton
  * [addChoice] is genuinely used by both screens: the server and library pickers
  * build their lists with it, and settings builds Customize tabs and Sign out
  * with it. [addToggle], [addValueRow], [addRadioRow] and [applyPressFeedback]
- * are settings' alone today, and
- * [addPinField] is sign-in's; they live here anyway so that a reader comparing a switch row against a button row
- * finds the two decisions side by side rather than in different files.
+ * are settings' alone today, and [addPinField] is sign-in's; they live here
+ * anyway so that a reader comparing a switch row against a button row finds the
+ * two decisions side by side rather than in different files.
  *
  * Free functions taking the container, rather than members of a base fragment:
  * there is nothing to inherit here beyond these calls, and a shared

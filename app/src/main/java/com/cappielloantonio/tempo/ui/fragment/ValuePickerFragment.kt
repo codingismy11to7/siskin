@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.media3.common.util.UnstableApi
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentValuePickerBinding
+import com.cappielloantonio.tempo.service.QueuePreloader
 import com.cappielloantonio.tempo.util.CacheSizeChoice
 import com.cappielloantonio.tempo.util.DownloadUtil
 import com.cappielloantonio.tempo.util.Preferences
@@ -49,6 +50,7 @@ enum class ValuePicker(
                         },
                     )
                     DownloadUtil.applyStreamingCacheSizeInBackground(it)
+                    if (choice == CacheSizeChoice.Off) QueuePreloader.cancel()
                 }
             }
         }
@@ -59,6 +61,7 @@ enum class ValuePicker(
             return StreamingCacheChoices.PRECACHE_COUNTS.map { count ->
                 PickerOption(StreamingCacheChoices.precacheLabel(context.resources, count), count == current) {
                     Preferences.setPrecacheTracksCount(count)
+                    if (count <= 0) QueuePreloader.cancel()
                 }
             }
         }

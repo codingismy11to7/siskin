@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -21,6 +22,7 @@ import com.cappielloantonio.tempo.util.DownloadUtil
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheChoices
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,8 +40,9 @@ import kotlinx.coroutines.withContext
  *
  * Builds its rows once, in [onCreateView], rather than observing state (except
  * that Switch user's visibility waits on a plex.tv answer, and the cache usage
- * line on a read of the cache's index): the only state this screen is ever shown for is Connected, and the one transition
- * out of it is the one that replaces this fragment. Preferences are therefore
+ * line on a read of the cache's index): the only state this screen is ever
+ * shown for is Connected, and the one transition out of it is the one that
+ * replaces this fragment. Preferences are therefore
  * read at build time -- which is also true on the way back from
  * [BrowseTabOrderFragment], since popping that back-stack entry recreates this
  * fragment's view.
@@ -135,10 +138,20 @@ class CarSettingsFragment : Fragment() {
 
         // Reading usage may build the cache, which reads its index from disk.
         // It lands in a line already laid out, so it changes text, not layout.
-        // Never when the cache is off: building it with a 0 cap would wipe it.
+        // Skipped when the cache is off: that line shows no usage, so building
+        // the cache would load its index for nothing. A failed read leaves the
+        // line without a figure rather than taking the process down.
         if (cacheChoice != CacheSizeChoice.Off) {
             viewLifecycleOwner.lifecycleScope.launch {
-                val used = withContext(Dispatchers.IO) { DownloadUtil.getStreamingCacheUsedBytes(context) }
+                val used =
+                    try {
+                        withContext(Dispatchers.IO) { DownloadUtil.getStreamingCacheUsedBytesAfterPendingResizes(context) }
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: Exception) {
+                        Log.w("CarSettingsFragment", "Could not read cache usage: $exception")
+                        return@launch
+                    }
                 cacheValue.text = StreamingCacheChoices.cacheSizeSummary(resources, cacheChoice, used)
             }
         }

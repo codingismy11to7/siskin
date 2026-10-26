@@ -49,10 +49,16 @@ object QueuePreloader {
         player: Player,
     ) {
         val count = Preferences.getPrecacheTracksCount()
-        if (count <= 0) return
+        if (count <= 0) {
+            cancel()
+            return
+        }
 
         val appContext = context.applicationContext
-        if (DownloadUtil.getStreamingCacheSizeMegabytes(appContext) <= 0L) return
+        if (DownloadUtil.getStreamingCacheSizeMegabytes(appContext) <= 0L) {
+            cancel()
+            return
+        }
 
         val uris = collectUpcomingStreamUris(appContext, player, count)
 

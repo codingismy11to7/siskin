@@ -54,6 +54,7 @@ class StreamingCacheLiveCapTest {
         write("a", 1024 * 1024)
         write("b", 1024 * 1024)
         write("c", 1024 * 1024)
+        assertEquals(3L * 1024 * 1024, DownloadUtil.getStreamingCacheUsedBytes(context))
 
         Preferences.setStreamingCacheSizeOverrideMegabytes(1L)
         DownloadUtil.applyStreamingCacheSize(context)
@@ -62,8 +63,21 @@ class StreamingCacheLiveCapTest {
     }
 
     @Test
+    fun theUsageReadWaitsForAResizeStillQueued() {
+        write("a", 1024 * 1024)
+        write("b", 1024 * 1024)
+        write("c", 1024 * 1024)
+
+        Preferences.setStreamingCacheSizeOverrideMegabytes(1L)
+        DownloadUtil.applyStreamingCacheSizeInBackground(context)
+
+        assertTrue(DownloadUtil.getStreamingCacheUsedBytesAfterPendingResizes(context) <= 1024L * 1024L)
+    }
+
+    @Test
     fun offTrimsTheLiveCacheToNothing() {
         write("a", 1024 * 1024)
+        assertEquals(1024L * 1024, DownloadUtil.getStreamingCacheUsedBytes(context))
 
         Preferences.setStreamingCacheSizeOverrideMegabytes(0L)
         DownloadUtil.applyStreamingCacheSize(context)

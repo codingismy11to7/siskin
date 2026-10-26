@@ -19,7 +19,8 @@ import java.io.File;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @UnstableApi
@@ -33,7 +34,7 @@ public final class DownloadUtil {
     private static File streamingCacheDirectory;
     private static SimpleCache streamingCache;
     private static ResizableLruCacheEvictor streamingCacheEvictor;
-    private static final Executor cacheResizeExecutor = Executors.newSingleThreadExecutor();
+    private static final ExecutorService cacheResizeExecutor = Executors.newSingleThreadExecutor();
 
     public static boolean useExtensionRenderers() {
         return true;
@@ -130,6 +131,27 @@ public final class DownloadUtil {
     }
 
     /**
+     * {@link #getStreamingCacheUsedBytes(Context)}, read after every resize already queued, so a
+     * figure shown right after a size change is the trimmed one. Blocks: not on the main thread.
+     * Waits on the executor, never on the class lock.
+     */
+    public static long getStreamingCacheUsedBytesAfterPendingResizes(Context context) {
+        Context appContext = context.getApplicationContext();
+        try {
+            return cacheResizeExecutor.submit(() -> getStreamingCacheUsedBytes(appContext)).get();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(exception);
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new IllegalStateException(cause);
+        }
+    }
+
+    /**
      * Brings a cache already built to the size the preference now asks for. Lowering the size
      * deletes files, so this blocks; the UI uses {@link #applyStreamingCacheSizeInBackground}.
      */
@@ -163,6 +185,11 @@ public final class DownloadUtil {
         streamingCache = null;
         streamingCacheEvictor = null;
         dataSourceFactory = null;
+        streamingCacheDirectory = null;
+        if (databaseProvider instanceof StandaloneDatabaseProvider) {
+            ((StandaloneDatabaseProvider) databaseProvider).close();
+        }
+        databaseProvider = null;
     }
 
     private static synchronized SimpleCache getStreamingCache(Context context) {
