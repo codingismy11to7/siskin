@@ -11,6 +11,13 @@
 
 ## [Unreleased] — Siskin
 
+- Settings has rows for the music cache's size and for how many upcoming
+  tracks to download ahead of the one playing. The cache size can be left on
+  Automatic, set from 512 MB up to half the head unit's storage, or turned
+  off, which also frees the space; a new size applies at once. The row shows
+  how much of the cache is in use. Precaching no longer has a wifi-only mode,
+  which a moving car could not use.
+
 - Queuing a long playlist no longer keeps every track's cover in memory for as
   long as the app runs. Covers prepared for the car's Bluetooth metadata stay
   only in a small cache of the most recent twenty.

@@ -1,7 +1,7 @@
 # The streaming cache and precache get Settings rows
 
 **Date:** 2026-10-25
-**Status:** Proposed
+**Status:** Approved
 **Issue:** #176
 
 ## Context
