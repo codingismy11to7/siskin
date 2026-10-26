@@ -54,11 +54,6 @@ object QueuePreloader {
         val appContext = context.applicationContext
         if (DownloadUtil.getStreamingCacheSizeMegabytes(appContext) <= 0L) return
 
-        if (Preferences.isPrecacheWifiOnly() && isMetered(appContext)) {
-            cancel()
-            return
-        }
-
         val uris = collectUpcomingStreamUris(appContext, player, count)
 
         val myGeneration: Int
@@ -208,11 +203,6 @@ object QueuePreloader {
         } catch (exception: Exception) {
             Log.w(TAG, "Failed to clean up partial cache entry $cacheKey: $exception")
         }
-    }
-
-    private fun isMetered(context: Context): Boolean {
-        val connectivityManager = context.getSystemService(ConnectivityManager::class.java) ?: return true
-        return connectivityManager.isActiveNetworkMetered
     }
 
     private fun hasActiveNetwork(context: Context): Boolean {

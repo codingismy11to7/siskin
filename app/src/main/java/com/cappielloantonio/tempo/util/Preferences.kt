@@ -23,7 +23,6 @@ object Preferences {
     private const val STREAMING_CACHE_STORAGE = "streaming_cache_storage"
     private const val SONG_PRELOAD_BUFFER = "song_preload_buffer"
     private const val PRECACHE_TRACKS_COUNT = "precache_tracks_count"
-    private const val PRECACHE_WIFI_ONLY = "precache_wifi_only"
     private const val CONTINUOUS_PLAY = "continuous_play"
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val ARTIST_MIX = "artist_mix"
@@ -202,14 +201,6 @@ object Preferences {
             .preferences
             .getString(PRECACHE_TRACKS_COUNT, "2")!!
             .toIntOrNull() ?: 0
-
-    /**
-     * False because Siskin runs in a moving car, where an unmetered network is
-     * the exception and waiting for one means never precaching at all. The
-     * upstream default assumed a phone that spends its evenings on wifi.
-     */
-    @JvmStatic
-    fun isPrecacheWifiOnly(): Boolean = App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, false)
 
     /**
      * Off unless asked for, and #72 is why. There was no writer and no settings

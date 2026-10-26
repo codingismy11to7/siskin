@@ -644,9 +644,8 @@ open class BaseMediaService : MediaLibraryService() {
             if (isWifi != wasWifi) {
                 wasWifi = isWifi
                 mainHandler.post {
-                    // preload() re-evaluates the network itself: it cancels any
-                    // in-flight precache when the new network is not allowed and
-                    // restarts it when it is.
+                    // A transport flip is when a precache that failed mid-way
+                    // is most likely to succeed if retried.
                     QueuePreloader.preload(this@BaseMediaService, mediaLibrarySession.player)
                 }
             }
