@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.util;
 
 import android.content.Context;
 
+import androidx.annotation.VisibleForTesting;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.database.DatabaseProvider;
 import androidx.media3.database.StandaloneDatabaseProvider;
@@ -12,13 +13,14 @@ import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.ResolvingDataSource;
 import androidx.media3.datasource.cache.Cache;
 import androidx.media3.datasource.cache.CacheDataSource;
-import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor;
 import androidx.media3.datasource.cache.SimpleCache;
 
 import java.io.File;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 @UnstableApi
 public final class DownloadUtil {
@@ -30,6 +32,8 @@ public final class DownloadUtil {
     private static DatabaseProvider databaseProvider;
     private static File streamingCacheDirectory;
     private static SimpleCache streamingCache;
+    private static ResizableLruCacheEvictor streamingCacheEvictor;
+    private static final Executor cacheResizeExecutor = Executors.newSingleThreadExecutor();
 
     public static boolean useExtensionRenderers() {
         return true;
@@ -95,8 +99,7 @@ public final class DownloadUtil {
      * they have chosen nothing. Zero means cache nothing, and every caller able to skip the cache
      * entirely tests for it.
      *
-     * <p>The evictor below fixes this at construction, so a changed preference takes effect when
-     * the service next starts rather than on the next track.
+     * <p>A change reaches a cache already built through {@link #applyStreamingCacheSize(Context)}.
      */
     public static synchronized long getStreamingCacheSizeMegabytes(Context context) {
         Long override = Preferences.getStreamingCacheSizeOverrideMegabytes();
@@ -107,17 +110,71 @@ public final class DownloadUtil {
         return StreamingCacheSize.forDirectory(getStreamingCacheDirectory(context));
     }
 
+    public static synchronized long getAutomaticStreamingCacheSizeMegabytes(Context context) {
+        return StreamingCacheSize.forDirectory(getStreamingCacheDirectory(context));
+    }
+
+    /** Zero when the partition cannot be measured. */
+    public static synchronized long getStreamingCachePartitionMegabytes(Context context) {
+        return StreamingCacheSize.totalMegabytes(getStreamingCacheDirectory(context));
+    }
+
+    /**
+     * Builds the cache if nothing has yet, which reads its index from disk: not on the main thread.
+     */
+    public static synchronized long getStreamingCacheUsedBytes(Context context) {
+        return getStreamingCache(context).getCacheSpace();
+    }
+
+    /**
+     * Brings a cache already built to the size the preference now asks for. Lowering the size
+     * deletes files, so this blocks; the UI uses {@link #applyStreamingCacheSizeInBackground}.
+     */
+    public static void applyStreamingCacheSize(Context context) {
+        SimpleCache cache;
+        ResizableLruCacheEvictor evictor;
+        long bytes;
+        // The resize runs outside the class lock: it deletes files under the cache's own monitor,
+        // and holding this one too would stall every playback path asking for a factory.
+        synchronized (DownloadUtil.class) {
+            if (streamingCache == null) {
+                return;
+            }
+            cache = streamingCache;
+            evictor = streamingCacheEvictor;
+            bytes = getStreamingCacheSizeMegabytes(context) * 1024 * 1024;
+        }
+        evictor.resize(cache, bytes);
+    }
+
+    public static void applyStreamingCacheSizeInBackground(Context context) {
+        Context appContext = context.getApplicationContext();
+        cacheResizeExecutor.execute(() -> applyStreamingCacheSize(appContext));
+    }
+
+    @VisibleForTesting
+    static synchronized void releaseStreamingCacheForTest() {
+        if (streamingCache != null) {
+            streamingCache.release();
+        }
+        streamingCache = null;
+        streamingCacheEvictor = null;
+        dataSourceFactory = null;
+    }
+
     private static synchronized SimpleCache getStreamingCache(Context context) {
         if (streamingCache == null) {
             File streamingCacheDirectory =
                     new File(
                             getStreamingCacheDirectory(context), STREAMING_CACHE_CONTENT_DIRECTORY);
 
+            streamingCacheEvictor =
+                    new ResizableLruCacheEvictor(
+                            getStreamingCacheSizeMegabytes(context) * 1024 * 1024);
             streamingCache =
                     new SimpleCache(
                             streamingCacheDirectory,
-                            new LeastRecentlyUsedCacheEvictor(
-                                    getStreamingCacheSizeMegabytes(context) * 1024 * 1024),
+                            streamingCacheEvictor,
                             getDatabaseProvider(context));
         }
 

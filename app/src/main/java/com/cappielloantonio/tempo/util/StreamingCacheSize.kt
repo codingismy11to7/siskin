@@ -54,7 +54,8 @@ object StreamingCacheSize {
      * created lazily by `SimpleCache` -- so measure the nearest ancestor that is
      * already there. It is the same partition either way.
      */
-    private fun totalMegabytes(directory: File): Long {
+    @JvmStatic
+    fun totalMegabytes(directory: File): Long {
         var candidate: File? = directory
         while (candidate != null && !candidate.exists()) {
             candidate = candidate.parentFile
