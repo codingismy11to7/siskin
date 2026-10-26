@@ -38,6 +38,23 @@
     <string name="car_settings_listening_as">Listening as %1$s</string>
     <string name="car_settings_title">Settings</string>
     <string name="car_settings_customize_tabs">Customize tabs</string>
+    <string name="car_settings_cache_size">Cache size</string>
+    <string name="car_settings_cache_size_explainer">Music you have played stays on this head unit, so it starts without waiting.</string>
+    <string name="car_settings_precache">Precache</string>
+    <string name="car_settings_precache_explainer">Upcoming tracks to download ahead of the one playing.</string>
+    <string name="cache_size_automatic">Automatic (%1$s)</string>
+    <string name="cache_size_off">Off</string>
+    <string name="cache_size_off_option">Off (also stops precaching)</string>
+    <string name="cache_size_used">%1$s · %2$s used</string>
+    <string name="cache_size_megabytes">%1$s MB</string>
+    <string name="cache_size_gigabytes">%1$s GB</string>
+    <string name="precache_off">Off</string>
+    <string name="precache_default">%1$s (default)</string>
+    <string name="precache_paused">%1$s · paused while the cache is off</string>
+    <plurals name="precache_tracks">
+        <item quantity="one">%d track</item>
+        <item quantity="other">%d tracks</item>
+    </plurals>
     <string name="car_tab_order_title">Tab order</string>
     <string name="car_tab_order_hint">Drag a row by its handle — the top three become tabs</string>
     <string name="car_tab_order_drag_handle">Reorder</string>

@@ -34,6 +34,23 @@
     <string name="car_settings_listening_as">Wiedergabe als %1$s</string>
     <string name="car_settings_title">Einstellungen</string>
     <string name="car_settings_customize_tabs">Tabs anpassen</string>
+    <string name="car_settings_cache_size">Cache-Größe</string>
+    <string name="car_settings_cache_size_explainer">Gespielte Musik bleibt auf diesem Gerät gespeichert und startet ohne Wartezeit.</string>
+    <string name="car_settings_precache">Vorab laden</string>
+    <string name="car_settings_precache_explainer">Kommende Titel, die vor dem aktuellen heruntergeladen werden.</string>
+    <string name="cache_size_automatic">Automatisch (%1$s)</string>
+    <string name="cache_size_off">Aus</string>
+    <string name="cache_size_off_option">Aus (beendet auch das Vorabladen)</string>
+    <string name="cache_size_used">%1$s · %2$s belegt</string>
+    <string name="cache_size_megabytes">%1$s MB</string>
+    <string name="cache_size_gigabytes">%1$s GB</string>
+    <string name="precache_off">Aus</string>
+    <string name="precache_default">%1$s (Standard)</string>
+    <string name="precache_paused">%1$s · pausiert, solange der Cache aus ist</string>
+    <plurals name="precache_tracks">
+        <item quantity="one">%d Titel</item>
+        <item quantity="other">%d Titel</item>
+    </plurals>
     <string name="car_tab_order_title">Tab-Reihenfolge</string>
     <string name="car_tab_order_hint">Zeile am Griff ziehen — die obersten drei werden Tabs</string>
     <string name="car_tab_order_drag_handle">Umsortieren</string>

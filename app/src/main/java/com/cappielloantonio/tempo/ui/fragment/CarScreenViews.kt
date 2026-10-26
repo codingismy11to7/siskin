@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.content.Context
 import android.text.InputFilter
 import android.text.InputType
 import android.util.TypedValue
@@ -15,18 +16,20 @@ import com.cappielloantonio.tempo.R
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.radiobutton.MaterialRadioButton
 
 /*
  * The rows both car screens build into their `choice_container`.
  *
- * One file rather than two because all four functions here answer the same
+ * One file rather than two because all the functions here answer the same
  * question -- what a control has to look like to be operated at arm's length,
  * in a car -- and the answer is shared even where the callers are not.
  * [addChoice] is genuinely used by both screens: the server and library pickers
  * build their lists with it, and settings builds Customize tabs and Sign out
- * with it. [addToggle] and [applyPressFeedback] are settings' alone today, and
- * [addPinField] is sign-in's; they live here anyway so that a reader comparing a switch row against a button row
- * finds the two decisions side by side rather than in different files.
+ * with it. [addToggle], [addValueRow], [addRadioRow] and [applyPressFeedback]
+ * are settings' alone today, and [addPinField] is sign-in's; they live here
+ * anyway so that a reader comparing a switch row against a button row finds the
+ * two decisions side by side rather than in different files.
  *
  * Free functions taking the container, rather than members of a base fragment:
  * there is nothing to inherit here beyond these calls, and a shared
@@ -98,10 +101,8 @@ internal fun addChoice(
  *
  * `fragment_car_settings` pins its headings and gives the list all the
  * remaining height, which it did back when the screen held nothing but a Sign
- * out button -- precisely so that a row's arrival would cost nothing. Four have
- * since arrived: continuous play, replay gain, artists-by-initial and Customize
- * tabs, and adding each was only adding a call. Transcoding is still to come
- * and is meant to be the same.
+ * out button -- precisely so that a row's arrival would cost nothing. Every
+ * row since has been only adding a call, and the next is meant to be the same.
  */
 internal fun addToggle(
     container: ViewGroup,
@@ -109,25 +110,35 @@ internal fun addToggle(
     initial: Boolean,
     onChange: (Boolean) -> Unit,
 ) {
-    val context = container.context
-    val resources = container.resources
-
     val toggle =
-        MaterialSwitch(context).apply {
+        MaterialSwitch(container.context).apply {
             isChecked = initial
             isClickable = false
             isFocusable = false
         }
+    addControlRow(container, label, toggle) {
+        toggle.isChecked = !toggle.isChecked
+        onChange(toggle.isChecked)
+    }
+}
 
-    val text =
-        TextView(context).apply {
-            this.text = label
-            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
-        }
-
+/**
+ * What every settings row shares: the whole row is the tap target, it
+ * acknowledges the press, a rotary controller can stop on it, and it lines up
+ * with the button rows around it. [addToggle], [addValueRow] and
+ * [addRadioRow] differ only in what [content] puts inside.
+ */
+private fun addRow(
+    container: ViewGroup,
+    orientation: Int,
+    verticalPadding: Int,
+    onClick: () -> Unit,
+    content: LinearLayout.() -> Unit,
+) {
+    val resources = container.resources
     val row =
-        LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
+        LinearLayout(container.context).apply {
+            this.orientation = orientation
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
 
@@ -139,44 +150,90 @@ internal fun addToggle(
 
             // setOnClickListener makes a view clickable but not focusable, and a
             // rotary controller stops only on focusable views -- without this it
-            // skips the toggle entirely on its way to the Sign out button below.
+            // skips the row entirely on its way to the Sign out button below.
             isFocusable = true
 
             // choice_container is a bare 480dp column with no padding of its
             // own, so unpadded the label would start flush at x=0 while Sign
             // out's text is centred inside its button -- two rows that do not
-            // read as one list. Symmetric, so the switch is inset from the far
-            // edge by the same amount.
+            // read as one list. Symmetric, so a trailing control is inset from
+            // the far edge by the same amount.
             val pad = resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
-            setPaddingRelative(pad, 0, pad, 0)
+            setPaddingRelative(pad, verticalPadding, pad, verticalPadding)
 
-            addView(
-                text,
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
-            addView(
-                toggle,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                ),
-            )
-            setOnClickListener {
-                toggle.isChecked = !toggle.isChecked
-                onChange(toggle.isChecked)
-            }
+            content()
+            setOnClickListener { onClick() }
         }
-
     container.addView(
         row,
         LinearLayout
-            .LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
-            },
+            .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            .apply { bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap) },
     )
+}
+
+/** A label at the start and an unclickable [control] at the end. */
+private fun addControlRow(
+    container: ViewGroup,
+    label: String,
+    control: View,
+    onClick: () -> Unit,
+) = addRow(container, LinearLayout.HORIZONTAL, verticalPadding = 0, onClick) {
+    addView(rowLabel(context, label), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+    addView(control, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+}
+
+private fun rowLabel(
+    context: Context,
+    label: String,
+) = TextView(context).apply {
+    text = label
+    setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+}
+
+/**
+ * A settings row for a value chosen from a list: label, the current value on a
+ * line beneath it, and the whole row as the target, as in [addToggle]. The
+ * value sits below rather than at the row's end so a long one wraps instead of
+ * crowding the label in a 480dp column.
+ */
+internal fun addValueRow(
+    container: ViewGroup,
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+): TextView {
+    val valueText =
+        TextView(container.context).apply {
+            text = value
+            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium)
+            setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
+        }
+    val pad = container.resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
+    addRow(container, LinearLayout.VERTICAL, verticalPadding = pad / 2, onClick) {
+        addView(rowLabel(context, label))
+        addView(valueText)
+    }
+    return valueText
+}
+
+/**
+ * One option in a picker. Built like [addToggle]'s row, with a radio button
+ * in place of the switch and the same reason for it not being clickable.
+ */
+internal fun addRadioRow(
+    container: ViewGroup,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val radio =
+        MaterialRadioButton(container.context).apply {
+            isChecked = selected
+            isClickable = false
+            isFocusable = false
+        }
+    addControlRow(container, label, radio, onClick)
 }
 
 /**

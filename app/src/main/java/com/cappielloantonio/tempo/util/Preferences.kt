@@ -23,7 +23,7 @@ object Preferences {
     private const val STREAMING_CACHE_STORAGE = "streaming_cache_storage"
     private const val SONG_PRELOAD_BUFFER = "song_preload_buffer"
     private const val PRECACHE_TRACKS_COUNT = "precache_tracks_count"
-    private const val PRECACHE_WIFI_ONLY = "precache_wifi_only"
+    const val DEFAULT_PRECACHE_TRACKS_COUNT = 2
     private const val CONTINUOUS_PLAY = "continuous_play"
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val ARTIST_MIX = "artist_mix"
@@ -93,8 +93,7 @@ object Preferences {
      * a representation. A malformed value reads as absent for the same reason
      * it cannot throw: it is reached on the playback path, on every track.
      *
-     * Nothing writes it yet; #176 is the settings surface for this and the two
-     * precache keys below. See
+     * The Cache size row in Settings writes it. See
      * `docs/decisions/2026-08-29-streaming-cache-sizing-design.md`.
      */
     @JvmStatic
@@ -104,6 +103,18 @@ object Preferences {
             .preferences
             .getString(STREAMING_CACHE_SIZE, null)
             ?.toLongOrNull()
+
+    /** Null removes the override, so the size is derived from the partition again. */
+    @JvmStatic
+    fun setStreamingCacheSizeOverrideMegabytes(megabytes: Long?) {
+        App.getInstance().preferences.edit {
+            if (megabytes == null) {
+                remove(STREAMING_CACHE_SIZE)
+            } else {
+                putString(STREAMING_CACHE_SIZE, megabytes.toString())
+            }
+        }
+    }
 
     @JvmStatic
     fun isDataSavingMode(): Boolean = App.getInstance().preferences.getBoolean(DATA_SAVING_MODE, false)
@@ -200,16 +211,13 @@ object Preferences {
         App
             .getInstance()
             .preferences
-            .getString(PRECACHE_TRACKS_COUNT, "2")!!
+            .getString(PRECACHE_TRACKS_COUNT, DEFAULT_PRECACHE_TRACKS_COUNT.toString())!!
             .toIntOrNull() ?: 0
 
-    /**
-     * False because Siskin runs in a moving car, where an unmetered network is
-     * the exception and waiting for one means never precaching at all. The
-     * upstream default assumed a phone that spends its evenings on wifi.
-     */
     @JvmStatic
-    fun isPrecacheWifiOnly(): Boolean = App.getInstance().preferences.getBoolean(PRECACHE_WIFI_ONLY, false)
+    fun setPrecacheTracksCount(count: Int) {
+        App.getInstance().preferences.edit { putString(PRECACHE_TRACKS_COUNT, count.toString()) }
+    }
 
     /**
      * Off unless asked for, and #72 is why. There was no writer and no settings

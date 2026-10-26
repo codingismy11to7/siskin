@@ -35,6 +35,24 @@
     <string name="car_settings_listening_as">Écoute en tant que %1$s</string>
     <string name="car_settings_title">Paramètres</string>
     <string name="car_settings_customize_tabs">Personnaliser les onglets</string>
+    <string name="car_settings_cache_size">Taille du cache</string>
+    <string name="car_settings_cache_size_explainer">La musique écoutée reste sur cet appareil et démarre sans attendre.</string>
+    <string name="car_settings_precache">Préchargement</string>
+    <string name="car_settings_precache_explainer">Titres à venir téléchargés avant celui en cours.</string>
+    <string name="cache_size_automatic">Automatique (%1$s)</string>
+    <string name="cache_size_off">Désactivé</string>
+    <string name="cache_size_off_option">Désactivé (arrête aussi le préchargement)</string>
+    <string name="cache_size_used">%1$s · %2$s utilisés</string>
+    <string name="cache_size_megabytes">%1$s Mo</string>
+    <string name="cache_size_gigabytes">%1$s Go</string>
+    <string name="precache_off">Désactivé</string>
+    <string name="precache_default">%1$s (par défaut)</string>
+    <string name="precache_paused">%1$s · en pause tant que le cache est désactivé</string>
+    <plurals name="precache_tracks">
+        <item quantity="one">%d titre</item>
+        <item quantity="many">%d titres</item>
+        <item quantity="other">%d titres</item>
+    </plurals>
     <string name="car_tab_order_title">Ordre des onglets</string>
     <string name="car_tab_order_hint">Faites glisser une ligne par sa poignée — les trois premiers deviennent des onglets</string>
     <string name="car_tab_order_drag_handle">Réorganiser</string>

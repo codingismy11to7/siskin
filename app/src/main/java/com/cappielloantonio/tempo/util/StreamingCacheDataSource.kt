@@ -15,6 +15,7 @@ class StreamingCacheDataSource private constructor(
     private val cacheDataSource: CacheDataSource,
 ) : DataSource {
     private var currentDataSpec: DataSpec? = null
+    private var openKey: String? = null
 
     class Factory(
         private val cacheDatasourceFactory: CacheDataSource.Factory,
@@ -30,7 +31,14 @@ class StreamingCacheDataSource private constructor(
 
     override fun addTransferListener(transferListener: TransferListener) = cacheDataSource.addTransferListener(transferListener)
 
+    /**
+     * Marked open before the read starts, so the evictor leaves this key's
+     * spans alone until [close]. See [ResizableLruCacheEvictor].
+     */
     override fun open(dataSpec: DataSpec): Long {
+        val key = cacheDataSource.cacheKeyFactory.buildCacheKey(dataSpec)
+        OpenCacheKeys.open(key)
+        openKey = key
         val ret = cacheDataSource.open(dataSpec)
         currentDataSpec = dataSpec
         return ret
@@ -40,6 +48,13 @@ class StreamingCacheDataSource private constructor(
 
     override fun close() {
         cacheDataSource.close()
+
+        // A trim skipped this key while it was open; with its last reader gone
+        // it can go now if the cap no longer has room for it.
+        openKey?.let { key ->
+            openKey = null
+            if (OpenCacheKeys.close(key)) DownloadUtil.trimStreamingCacheInBackground()
+        }
 
         val dataSpec = currentDataSpec
 
