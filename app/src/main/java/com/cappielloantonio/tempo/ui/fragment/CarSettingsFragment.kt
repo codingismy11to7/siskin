@@ -165,13 +165,19 @@ class CarSettingsFragment : Fragment() {
         // terminal action still belongs last.
         addChoice(rows, getString(R.string.car_settings_customize_tabs)) { push(BrowseTabOrderFragment()) }
 
-        // Hidden until the Home answers. Built here with the others so it holds
-        // its place above Sign out; shown only for a Home with more than one
-        // member, and never after a failed lookup -- a plex.tv outage should
-        // not put a dead row in settings.
-        val switchUser =
-            addChoice(rows, getString(R.string.car_settings_switch_user)) { switchUser() }
-                .apply { visibility = View.GONE }
+        // Shown only for a Home with more than one member, and never after a
+        // failed lookup -- a plex.tv outage should not put a dead row in
+        // settings. Drawn from the remembered answer first, so a revisit has
+        // the row in place before plex.tv replies and Sign out stays put.
+        val listeningAs = addValueRow(rows, getString(R.string.car_settings_switch_user), "") { switchUser() }
+        val switchUser = listeningAs.parent as View
+
+        fun showHome(home: HomeUsersRepository.Home?) {
+            val shown = home != null && home.users.size >= 2
+            if (shown) listeningAs.text = getString(R.string.car_settings_listening_as, home.current.title.orEmpty())
+            switchUser.visibility = if (shown) View.VISIBLE else View.GONE
+        }
+        showHome(HomeUsersRepository.remembered())
 
         addChoice(rows, getString(R.string.car_settings_sign_out)) {
             viewModel.signOut()
@@ -199,17 +205,7 @@ class CarSettingsFragment : Fragment() {
         bind.versionText.isFocusable = true
         applyPressFeedback(bind.versionText)
 
-        viewLifecycleOwner.lifecycleScope.launch {
-            val home = HomeUsersRepository.fetch() ?: return@launch
-            if (home.users.size < 2) return@launch
-            val bind = this@CarSettingsFragment.bind ?: return@launch
-            bind.listeningAs.text = getString(R.string.car_settings_listening_as, home.current.title.orEmpty())
-            bind.listeningAs.visibility = View.VISIBLE
-            (bind.tagline.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin =
-                (8 * resources.displayMetrics.density).toInt()
-            bind.tagline.requestLayout()
-            switchUser.visibility = View.VISIBLE
-        }
+        viewLifecycleOwner.lifecycleScope.launch { showHome(HomeUsersRepository.refresh()) }
 
         return bind.root
     }

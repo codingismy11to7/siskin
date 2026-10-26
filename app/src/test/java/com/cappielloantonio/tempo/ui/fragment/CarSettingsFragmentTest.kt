@@ -26,8 +26,8 @@ import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheTestHooks
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
+import kotlinx.coroutines.awaitCancellation
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -368,13 +368,55 @@ class CarSettingsFragmentTest {
         val texts = visibleTexts(screen)
 
         val switchUser = App.getContext().getString(R.string.car_settings_switch_user)
+        val listeningAs = App.getContext().getString(R.string.car_settings_listening_as, "codingismy11to7")
         val signOut = App.getContext().getString(R.string.car_settings_sign_out)
-        assertTrue(texts.contains(App.getContext().getString(R.string.car_settings_listening_as, "codingismy11to7")))
-        assertEquals(texts.indexOf(signOut) - 1, texts.indexOf(switchUser))
+        assertEquals(listOf(switchUser, listeningAs, signOut), texts.subList(texts.indexOf(switchUser), texts.indexOf(signOut) + 1))
     }
 
     @Test
     fun `a failed Home lookup shows no Switch user row`() {
+        HomeUsersRepository.fetch = { null }
+
+        val screen = settingsScreen()
+
+        assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
+    }
+
+    @Test
+    fun `a revisit shows the remembered Home before plex tv answers`() {
+        HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
+        settingsScreen()
+        HomeUsersRepository.fetch = { awaitCancellation() }
+
+        val texts = visibleTexts(settingsScreen())
+
+        assertTrue(texts.contains(App.getContext().getString(R.string.car_settings_switch_user)))
+        assertTrue(texts.contains(App.getContext().getString(R.string.car_settings_listening_as, "codingismy11to7")))
+    }
+
+    @Test
+    fun `a remembered Home is not shown once someone else is listening`() {
+        HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
+        settingsScreen()
+        PlexApi().session =
+            PlexSession(
+                accountToken = "jill's token",
+                serverUri = "https://example.invalid",
+                musicSectionKey = SectionKey("1"),
+                serverToken = null,
+                owned = true,
+            )
+        HomeUsersRepository.fetch = { awaitCancellation() }
+
+        val screen = settingsScreen()
+
+        assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
+    }
+
+    @Test
+    fun `a failed lookup hides a remembered Switch user row`() {
+        HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
+        settingsScreen()
         HomeUsersRepository.fetch = { null }
 
         val screen = settingsScreen()
@@ -415,7 +457,8 @@ class CarSettingsFragmentTest {
             val sessionBefore = PlexApi().session
             val label = activity.getString(R.string.car_settings_switch_user)
 
-            buttonsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == label }.performClick()
+            (textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == label }.parent as View)
+                .performClick()
             shadowOf(Looper.getMainLooper()).idle()
 
             val picker = activity.supportFragmentManager.findFragmentById(R.id.car_host_container)
@@ -433,11 +476,4 @@ class CarSettingsFragmentTest {
             CarHostActivity.viewModelFactoryForTest = null
         }
     }
-
-    private fun buttonsIn(view: View): List<MaterialButton> =
-        when (view) {
-            is MaterialButton -> listOf(view)
-            is ViewGroup -> (0 until view.childCount).flatMap { buttonsIn(view.getChildAt(it)) }
-            else -> emptyList()
-        }
 }
