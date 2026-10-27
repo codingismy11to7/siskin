@@ -11,6 +11,10 @@
 
 ## [Unreleased] — Siskin
 
+- The car's tabs follow a new order however Customize tabs is left. They
+  used to update only when the screen was closed with back, so pressing Home,
+  or the car blocking the screen once it started moving, left the old tabs
+  showing until Siskin next reconnected.
 - Customize tabs in Settings is a row like the cache rows above it, with the
   three tabs the car currently shows listed beneath its label, so the current
   order can be read without opening the screen.
