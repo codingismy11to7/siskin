@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.2.0] (2026-10-26)
+
 - The car's tabs follow a new order however Customize tabs is left. They
   used to update only when the screen was closed with back, so pressing Home,
   or the car blocking the screen once it started moving, left the old tabs
