@@ -207,6 +207,21 @@ object BrowseTreeInvalidator {
     }
 
     /**
+     * Tells the car the saved tab order changed: the root and More.
+     *
+     * Both, because [invalidateRoot] alone redraws the tab bar while More goes
+     * on serving a cached list without the demoted destination (measured on
+     * the emulator). Not [invalidateTree]: a reorder only moves destinations
+     * between the root and More, and it would re-fetch the big tabs for
+     * nothing. Must be called on the main thread, as [invalidateRoot] is. See
+     * docs/decisions/2026-10-26-tab-order-invalidation-design.md.
+     */
+    fun invalidateTabOrder() {
+        invalidateRoot()
+        invalidateNode(Constants.MORE_ID, 0)
+    }
+
+    /**
      * Stops playback and empties the player's timeline.
      *
      * Called when the saved queue has just been discarded because the user
