@@ -17,6 +17,7 @@ import com.cappielloantonio.tempo.databinding.FragmentCarSettingsBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
+import com.cappielloantonio.tempo.util.BrowseTabOrder
 import com.cappielloantonio.tempo.util.CacheSizeChoice
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DownloadUtil
@@ -161,10 +162,14 @@ class CarSettingsFragment : Fragment() {
             }
         }
 
-        // A destination rather than a toggle, so it takes addChoice. Below the
-        // toggles and above Sign out: it is a setting, and a destructive
-        // terminal action still belongs last.
-        addChoice(rows, getString(R.string.car_settings_customize_tabs)) { push(BrowseTabOrderFragment()) }
+        // The saved order as MediaBrowserTree resolves it. Not necessarily what
+        // the car shows: its root is rebuilt only on the reorder screen's back.
+        val tabs = BrowseTabOrder.rootTabs(BrowseTabOrder.resolve(Preferences.getBrowseTabOrder()))
+        addValueRow(
+            rows,
+            getString(R.string.car_settings_customize_tabs),
+            tabs.joinToString(" · ") { getString(BrowseTabOrderFragment.labelFor(it)) },
+        ) { push(BrowseTabOrderFragment()) }
 
         // Shown only for a Home with more than one member. Drawn from the
         // remembered answer, so the row is usually in place before plex.tv

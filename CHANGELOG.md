@@ -11,6 +11,9 @@
 
 ## [Unreleased] — Siskin
 
+- Customize tabs in Settings is a row like the cache rows above it, with the
+  three tabs the car currently shows listed beneath its label, so the current
+  order can be read without opening the screen.
 - Settings no longer jumps a beat after opening. Who is listening now shows
   as the value line of the Switch user row rather than above the list, and
   Siskin asks plex.tv who is in the Home when it starts, so the row is

@@ -22,6 +22,7 @@ import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
+import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheTestHooks
@@ -83,6 +84,7 @@ class CarSettingsFragmentTest {
             .remove("streaming_cache_size")
             .remove("precache_tracks_count")
             .commit()
+        BrowseTabOrderFixture.clearSavedOrder()
         session = CarHostTestFixture.arrange()
     }
 
@@ -349,6 +351,39 @@ class CarSettingsFragmentTest {
         shadowOf(Looper.getMainLooper()).idle()
 
         assertTrue(activity.supportFragmentManager.findFragmentById(R.id.car_host_container) is ValuePickerFragment)
+    }
+
+    private fun customizeTabsValue(screen: View): String {
+        val texts = visibleTexts(screen)
+        val label = texts.indexOf(App.getContext().getString(R.string.car_settings_customize_tabs))
+        assertTrue("Customize tabs row is missing from $texts", label >= 0)
+        return texts[label + 1]
+    }
+
+    @Test
+    fun `customize tabs shows the default tabs`() {
+        assertEquals("Playlists · Artists · Albums", customizeTabsValue(settingsScreen()))
+    }
+
+    /** Resolved, not read raw: the save names two, and the car fills the third. */
+    @Test
+    fun `customize tabs shows a saved order as the car resolves it`() {
+        Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID, Constants.ALBUMS_ID))
+
+        assertEquals("Decades · Albums · Playlists", customizeTabsValue(settingsScreen()))
+    }
+
+    @Test
+    fun `tapping customize tabs opens the tab-order screen`() {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        shadowOf(Looper.getMainLooper()).idle()
+        val activity = controller.get()
+        val label = activity.getString(R.string.car_settings_customize_tabs)
+        (textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == label }.parent as View)
+            .performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(activity.supportFragmentManager.findFragmentById(R.id.car_host_container) is BrowseTabOrderFragment)
     }
 
     @Test
