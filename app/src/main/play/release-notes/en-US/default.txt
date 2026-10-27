@@ -1,1 +1,4 @@
-• Switching listener in your Plex Home no longer leaves a stray Now Playing entry on the new listener's account.
+• New Settings rows for the music cache size and how many upcoming tracks to download ahead.
+• Customize tabs shows the car's current tabs, and a new order takes effect however you leave the screen.
+• Settings no longer jumps after opening; who is listening now shows on the Switch user row.
+• Queuing a long playlist uses far less memory for cover art.
