@@ -134,7 +134,7 @@ private fun addRow(
     verticalPadding: Int,
     onClick: () -> Unit,
     content: LinearLayout.() -> Unit,
-) {
+): LinearLayout {
     val resources = container.resources
     val row =
         LinearLayout(container.context).apply {
@@ -170,6 +170,7 @@ private fun addRow(
             .LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             .apply { bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap) },
     )
+    return row
 }
 
 /** A label at the start and an unclickable [control] at the end. */
@@ -191,6 +192,11 @@ private fun rowLabel(
     setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
 }
 
+internal class ValueRow(
+    val row: View,
+    val value: TextView,
+)
+
 /**
  * A settings row for a value chosen from a list: label, the current value on a
  * line beneath it, and the whole row as the target, as in [addToggle]. The
@@ -202,7 +208,7 @@ internal fun addValueRow(
     label: String,
     value: String,
     onClick: () -> Unit,
-): TextView {
+): ValueRow {
     val valueText =
         TextView(container.context).apply {
             text = value
@@ -210,11 +216,12 @@ internal fun addValueRow(
             setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
         }
     val pad = container.resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
-    addRow(container, LinearLayout.VERTICAL, verticalPadding = pad / 2, onClick) {
-        addView(rowLabel(context, label))
-        addView(valueText)
-    }
-    return valueText
+    val row =
+        addRow(container, LinearLayout.VERTICAL, verticalPadding = pad / 2, onClick) {
+            addView(rowLabel(context, label))
+            addView(valueText)
+        }
+    return ValueRow(row, valueText)
 }
 
 /**

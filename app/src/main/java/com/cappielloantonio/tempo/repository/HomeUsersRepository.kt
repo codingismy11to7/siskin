@@ -7,9 +7,16 @@ import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.plex.models.PlexAccount
 
 /**
- * Settings' live view of the Plex Home: who is in it and who is signed in.
- * Asked on every visit rather than stored, so a member added or renamed since
- * sign-in shows up, and Siskin keeps no record of who it is signed in as.
+ * Settings' view of the Plex Home: who is in it and who is signed in. Asked
+ * again on every Settings visit, so a member added or renamed since sign-in
+ * shows up; nothing is written to disk.
+ *
+ * The last successful answer is held in memory, and the media service asks
+ * once at startup, so Settings can draw the Switch user row before plex.tv
+ * replies instead of moving Sign out under a driver's finger when it does. It
+ * is tagged with [PlexApi.sessionGeneration] and is not handed out once that
+ * moves, which a change of listener always does -- so the row never names the
+ * member who was listening before a switch.
  */
 object HomeUsersRepository {
     data class Home(
@@ -24,9 +31,26 @@ object HomeUsersRepository {
     @VisibleForTesting
     var fetch: suspend () -> Home? = ::fromPlexTv
 
+    @Volatile
+    private var last: Pair<Long, Home>? = null
+
+    /** The last answer, if it was fetched for the session that is current now. */
+    fun remembered(): Home? = last?.takeIf { it.first == PlexApi.sessionGeneration }?.second
+
+    /**
+     * Asks plex.tv, remembering a successful answer. A failure leaves the
+     * remembered one in place: hiding a row already drawn would slide Sign out
+     * up into it.
+     */
+    suspend fun refresh(): Home? {
+        val generation = PlexApi.sessionGeneration
+        return fetch()?.also { last = generation to it }
+    }
+
     @VisibleForTesting
     fun resetForTest() {
         fetch = ::fromPlexTv
+        last = null
     }
 
     private suspend fun fromPlexTv(): Home? {

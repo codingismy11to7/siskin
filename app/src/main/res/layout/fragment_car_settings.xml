@@ -41,28 +41,6 @@
         android:textAppearance="?attr/textAppearanceDisplaySmall" />
 
     <!--
-        Who is listening, for a Home with more than one member. Here rather than
-        in the Switch user row because that row is a HeadlineSmall button in a
-        480dp column, and "Switch user · <a long Plex username>" wraps, in
-        German always. One line, ellipsized: a long name loses its tail, not
-        the screen its layout.
-
-        The tagline's 24dp bottom margin is what the heading block keeps while
-        this is gone; the fragment tightens it to 8dp when this appears.
-    -->
-    <TextView
-        android:id="@+id/listening_as"
-        android:layout_width="@dimen/plex_sign_in_choice_width"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:ellipsize="end"
-        android:gravity="center_horizontal"
-        android:maxLines="1"
-        android:textAppearance="?attr/textAppearanceTitleLarge"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:visibility="gone" />
-
-    <!--
         requiresFadingEdge is the affordance for a list that runs past the
         bottom: the platform fades the clipped edge, which is the only cue that
         scrolling is possible on a screen with no scrollbar (the app theme sets

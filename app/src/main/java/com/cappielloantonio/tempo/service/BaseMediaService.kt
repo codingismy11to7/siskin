@@ -44,6 +44,7 @@ import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
 import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.repository.PlexRadioRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
@@ -385,6 +386,26 @@ open class BaseMediaService : MediaLibraryService() {
         initializeEqualizer()
         initializeNetworkListener()
         restorePlayerFromQueue(mediaLibrarySession.player)
+        prefetchHome()
+    }
+
+    /**
+     * So Settings usually opens with the Switch user row already drawn rather
+     * than inserting it above Sign out once plex.tv answers. The car starts
+     * this service long before anyone opens Settings.
+     */
+    private fun prefetchHome() {
+        if (PlexApi().session == null) return
+        addressScope.launch {
+            try {
+                HomeUsersRepository.refresh()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                // Outside any `either { }`. Settings asks again on its own.
+                Log.w(TAG, "Home prefetch failed", failure)
+            }
+        }
     }
 
     override fun onGetSession(controllerInfo: ControllerInfo): MediaLibrarySession = mediaLibrarySession
