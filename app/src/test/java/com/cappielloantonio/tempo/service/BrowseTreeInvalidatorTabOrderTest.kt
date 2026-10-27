@@ -20,12 +20,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 
 /**
- * A reorder must invalidate More as well as the root.
- *
- * Measured on the AAOS emulator: with invalidateRoot() alone the tab bar
- * redrew correctly on a demotion while More went on serving a cached list
- * with the demoted destination missing from it, until the user navigated away
- * and back. See the design doc's "Applying the change".
+ * A reorder must invalidate More as well as the root; see
+ * [BrowseTreeInvalidator.invalidateTabOrder] for why.
  */
 @UnstableApi
 @RunWith(RobolectricTestRunner::class)
@@ -48,8 +44,7 @@ class BrowseTreeInvalidatorTabOrderTest {
     fun `applying an order notifies the root and More`() {
         Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID, Constants.ALBUMS_ID))
 
-        BrowseTreeInvalidator.invalidateRoot()
-        BrowseTreeInvalidator.invalidateNode(Constants.MORE_ID, 0)
+        BrowseTreeInvalidator.invalidateTabOrder()
         // invalidateNode posts to the main looper rather than requiring it.
         shadowOf(Looper.getMainLooper()).idle()
 

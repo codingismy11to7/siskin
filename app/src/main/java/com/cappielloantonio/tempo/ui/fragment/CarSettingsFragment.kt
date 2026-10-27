@@ -162,8 +162,6 @@ class CarSettingsFragment : Fragment() {
             }
         }
 
-        // The saved order as MediaBrowserTree resolves it. Not necessarily what
-        // the car shows: its root is rebuilt only on the reorder screen's back.
         val tabs = BrowseTabOrder.rootTabs(BrowseTabOrder.resolve(Preferences.getBrowseTabOrder()))
         addValueRow(
             rows,

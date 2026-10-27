@@ -8,16 +8,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.annotation.OptIn
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
-import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SimpleItemAnimator
 import com.cappielloantonio.tempo.R
-import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.BrowseTabOrder
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
@@ -34,12 +31,6 @@ import com.cappielloantonio.tempo.util.Preferences
  */
 class BrowseTabOrderFragment : Fragment() {
     private var order: MutableList<String> = mutableListOf()
-
-    // The order the car is taken to be showing: assumed to match the saved one
-    // when the screen opens, then whatever onStop last told it. onStop compares
-    // against it because a configuration change stops the fragment too, and
-    // would otherwise invalidate for nothing.
-    private var orderTheCarHas: List<String> = emptyList()
 
     // Retained rather than left anonymous at the attachToRecyclerView call
     // site: the adapter needs it too, to hand a touched handle's ViewHolder
@@ -115,7 +106,6 @@ class BrowseTabOrderFragment : Fragment() {
         // The resolved order, not the raw saved one: a first-run user has
         // nothing saved and would otherwise be handed an empty list.
         order = BrowseTabOrder.resolve(Preferences.getBrowseTabOrder()).toMutableList()
-        orderTheCarHas = order.toList()
 
         val list = root.findViewById<RecyclerView>(R.id.tab_order_list)
         list.layoutManager = LinearLayoutManager(requireContext())
@@ -186,29 +176,6 @@ class BrowseTabOrderFragment : Fragment() {
         itemTouchHelper.attachToRecyclerView(list)
 
         return root
-    }
-
-    // On the way out rather than per drop: one invalidation instead of one
-    // per drag, and the browse UI is not foreground during the drag anyway.
-    // onStop because back is not the only way out -- Home, and the car blocking
-    // CarHostActivity once it moves, leave without a back press.
-    //
-    // Both calls, and the second is not optional -- measured on the
-    // emulator, invalidateRoot() alone redraws the tab bar while More goes
-    // on serving a cached list missing the demoted destination.
-    //
-    // Not invalidateTree(): it also invalidates Playlists, Artists and
-    // Albums, forcing re-fetches of large lists whose contents did not
-    // change. A reordered destination always moves between root and
-    // More, so these two cover every case.
-    @OptIn(UnstableApi::class)
-    override fun onStop() {
-        super.onStop()
-        val saved = BrowseTabOrder.resolve(Preferences.getBrowseTabOrder())
-        if (saved == orderTheCarHas) return
-        BrowseTreeInvalidator.invalidateRoot()
-        BrowseTreeInvalidator.invalidateNode(Constants.MORE_ID, 0)
-        orderTheCarHas = saved
     }
 
     private inner class Adapter : RecyclerView.Adapter<Adapter.Row>() {

@@ -30,7 +30,7 @@ class PlexAuthenticator(
 ) : AbstractAccountAuthenticator(context) {
     // CarHostActivity is @UnstableApi (media3); this is the only call site in
     // this class that touches it, matching the per-call-site @OptIn pattern
-    // BrowseTabOrderFragment and PlexSignInFragment already use for the same
+    // CarSettingsFragment and PlexSignInFragment already use for the same
     // class, rather than an @UnstableApi on the whole authenticator. The OptIn
     // here must be androidx.annotation.OptIn, not kotlin.OptIn -- UnstableApi
     // carries androidx.annotation.RequiresOptIn, which only the androidx

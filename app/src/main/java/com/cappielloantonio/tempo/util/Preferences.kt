@@ -28,7 +28,7 @@ object Preferences {
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val ARTIST_MIX = "artist_mix"
     private const val ARTIST_RADIO = "artist_radio"
-    private const val BROWSE_TAB_ORDER = "browse_tab_order"
+    const val BROWSE_TAB_ORDER = "browse_tab_order"
     private const val VEHICLE_IDENTITY_TIER = "vehicle_identity_tier"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
     private const val MIX_TRACK_LIMIT = "mix_track_limit"

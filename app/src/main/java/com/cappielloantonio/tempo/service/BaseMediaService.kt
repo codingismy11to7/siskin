@@ -81,6 +81,7 @@ open class BaseMediaService : MediaLibraryService() {
     private lateinit var networkCallback: CustomNetworkCallback
     private lateinit var equalizerManager: EqualizerManager
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val tabOrderWatcher = BrowseTabOrderWatcher(mainHandler, BrowseTreeInvalidator::invalidateTabOrder)
     private val addressBook = ServerAddressBook.shared
     private val addressScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -460,6 +461,7 @@ open class BaseMediaService : MediaLibraryService() {
         // on any of the cleanup below succeeding. If an earlier step throws, the singleton
         // would otherwise keep pointing at a session that is about to be released.
         BrowseTreeInvalidator.detach()
+        tabOrderWatcher.stop()
         QueuePreloader.cancel()
         // Cancel before releaseNetworkCallback(): that call dereferences a lateinit
         // var with no ::isInitialized guard and throws if the callback was never
@@ -563,6 +565,7 @@ open class BaseMediaService : MediaLibraryService() {
                 .build()
 
         BrowseTreeInvalidator.attach(mediaLibrarySession)
+        tabOrderWatcher.start()
 
         // The car's Settings can remove the account while this service is
         // running, and nothing else tells us. Clearing the session here is what
