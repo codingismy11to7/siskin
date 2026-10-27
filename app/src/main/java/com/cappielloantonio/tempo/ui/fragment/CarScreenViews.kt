@@ -25,9 +25,9 @@ import com.google.android.material.radiobutton.MaterialRadioButton
  * question -- what a control has to look like to be operated at arm's length,
  * in a car -- and the answer is shared even where the callers are not.
  * [addChoice] is genuinely used by both screens: the server and library pickers
- * build their lists with it, and settings builds Customize tabs and Sign out
- * with it. [addToggle], [addValueRow], [addRadioRow] and [applyPressFeedback]
- * are settings' alone today, and [addPinField] is sign-in's; they live here
+ * build their lists with it, and settings builds Sign out with it.
+ * [addToggle], [addValueRow], [addRadioRow] and [applyPressFeedback] are
+ * settings' alone today, and [addPinField] is sign-in's; they live here
  * anyway so that a reader comparing a switch row against a button row finds the
  * two decisions side by side rather than in different files.
  *
