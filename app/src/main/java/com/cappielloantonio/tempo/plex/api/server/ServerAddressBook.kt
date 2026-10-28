@@ -87,12 +87,16 @@ class ServerAddressBook private constructor(
      * [storedCandidates]: a list belonging to another server reports as no
      * candidates rather than as this server's.
      *
+     * [session] lets a caller that already holds it skip re-reading it: each
+     * read of [PlexApi.session] goes to the system account store, and the debug
+     * Server tab asks once per probe result, on the main thread.
+     *
      * See docs/decisions/2026-08-14-server-address-debug-design.md.
      */
-    fun knownAddresses(): KnownAddresses {
-        val stored = storedCandidates(api.session?.machineIdentifier)
+    fun knownAddresses(session: PlexSession? = api.session): KnownAddresses {
+        val stored = storedCandidates(session?.machineIdentifier)
         return KnownAddresses(
-            current = current(),
+            current = session?.serverUri,
             direct = stored?.direct.orEmpty(),
             relay = stored?.relay.orEmpty(),
         )
@@ -253,6 +257,83 @@ class ServerAddressBook private constructor(
         }
 
     /**
+     * plex.tv's current listing of the session's server -- the debug Server
+     * tab's fetch on open. Null when there is no session, plex.tv cannot be
+     * reached, it no longer lists this server, or the session moved to another
+     * server during the fetch; otherwise the listing, even when its addresses
+     * were not stored.
+     *
+     * The fetch runs outside [mutex] because a debug screen must never stall
+     * recovery behind a plex.tv call. The re-check and store still take it so
+     * they cannot interleave with a race; the session is re-read there because
+     * sign-in and the library picker write it without the mutex.
+     *
+     * The list is stored only when it still contains the address in use.
+     * plex.tv's answer can lack the address that actually works, and replacing
+     * the list would cost recovery the one address known to answer.
+     *
+     * The wide catch is [reprobe]'s, for the same reasons: no either { } here,
+     * cancellation rethrown, and a caller -- a view's coroutine -- that an
+     * escaped JsonSyntaxException would crash.
+     *
+     * See docs/decisions/2026-10-27-debug-server-tab-design.md.
+     */
+    suspend fun refresh(): Resource? =
+        try {
+            val resource = freshResource(api.session?.machineIdentifier)
+            resource?.takeIf { mutex.withLock { storeIfItKeepsTheAddressInUse(it) } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            Log.w(TAG, "refresh failed unexpectedly", t)
+            null
+        }
+
+    /** False when the session no longer belongs to [resource]'s server. */
+    private fun storeIfItKeepsTheAddressInUse(resource: Resource): Boolean {
+        val session = api.session
+        val id = resource.clientIdentifier
+        if (session == null || id == null || session.machineIdentifier != id) {
+            Log.d(TAG, "session left $id during the refresh; not storing its addresses")
+            return false
+        }
+        val candidates = ServerProbe.candidates(resource)
+        if (session.serverUri in candidates.direct + candidates.relay) {
+            store(id, candidates)
+        } else {
+            Log.d(TAG, "plex.tv's list lacks ${session.serverUri}; keeping the stored one")
+        }
+        return true
+    }
+
+    /**
+     * Moves the session onto [uri] exactly as a re-probe win would -- the
+     * debug Server tab's "Use this address". One-shot: the next transport
+     * failure re-races as usual and may move it off again.
+     *
+     * Refuses an address outside the stored list for the session's server,
+     * which is what keeps this an address switch and never a server switch.
+     * Returns the address now in use, or null when it refused.
+     *
+     * The wide catch is [reprobe]'s: this runs from a view coroutine with no
+     * handler, where an escaped failure would crash the process and stop playback.
+     */
+    suspend fun use(uri: String): String? =
+        mutex.withLock {
+            try {
+                val session = api.session ?: return@withLock null
+                val stored = storedCandidates(session.machineIdentifier) ?: return@withLock null
+                if (uri !in stored.direct && uri !in stored.relay) return@withLock null
+                adoptAddress(session, uri)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                Log.w(TAG, "use failed unexpectedly", t)
+                null
+            }
+        }
+
+    /**
      * Moves the session onto [uri], leaving everything else in it untouched --
      * or refuses to write at all when the session moved out from under this
      * race. Returns null in that case; the caller's retry would not be
@@ -300,20 +381,22 @@ class ServerAddressBook private constructor(
      * Outside any either { } block, so nothing here can swallow a raise.
      */
     private suspend fun refreshFromPlexTv(machineIdentifier: String?): ServerProbe.Candidates? {
-        if (machineIdentifier.isNullOrBlank()) return null
-
-        val resources = fetchResources() ?: return null
-        val resource =
-            AuthClient
-                .mediaServers(resources)
-                .firstOrNull { it.clientIdentifier == machineIdentifier } ?: run {
-                Log.d(TAG, "plex.tv no longer lists $machineIdentifier")
-                return null
-            }
-
+        val resource = freshResource(machineIdentifier) ?: return null
+        val id = resource.clientIdentifier ?: return null
         val candidates = ServerProbe.candidates(resource)
-        store(machineIdentifier, candidates)
+        store(id, candidates)
         return candidates
+    }
+
+    private suspend fun freshResource(machineIdentifier: String?): Resource? {
+        if (machineIdentifier.isNullOrBlank()) return null
+        val resources = fetchResources() ?: return null
+        return AuthClient
+            .mediaServers(resources)
+            .firstOrNull { it.clientIdentifier == machineIdentifier } ?: run {
+            Log.d(TAG, "plex.tv no longer lists $machineIdentifier")
+            null
+        }
     }
 
     /**

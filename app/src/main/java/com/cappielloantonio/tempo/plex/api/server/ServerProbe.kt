@@ -10,8 +10,10 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Callback
+import okhttp3.ConnectionPool
 import okhttp3.Headers
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
@@ -47,6 +49,18 @@ class ServerProbe(
             .Builder()
             .apply { headers.forEach { (name, value) -> addUnsafeNonAscii(name, value) } }
             .build()
+
+    /**
+     * [client] with nothing kept for reuse, for [check]. HTTP/1.1 because an
+     * HTTP/2 connection is shared between calls by design.
+     */
+    private val checkClient: OkHttpClient by lazy {
+        client
+            .newBuilder()
+            .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
+            .protocols(listOf(Protocol.HTTP_1_1))
+            .build()
+    }
 
     /**
      * The winning connection, or null when nothing answered.
@@ -105,20 +119,66 @@ class ServerProbe(
     }
 
     /**
+     * One address, timed, reporting how it failed -- the debug Server tab's
+     * per-address probe. Unlike the race it never adopts anything.
+     *
+     * Same request and timeouts as the race, so "No answer" here means what a
+     * lost race means. See docs/decisions/2026-10-27-debug-server-tab-design.md.
+     *
+     * Every check opens a new TCP and TLS connection through [checkClient], so
+     * rows and repeats compare; a pooled one would make a repeat look far
+     * faster than the cold first round. TLS session resumption can still make
+     * a repeat slightly faster.
+     */
+    suspend fun check(uri: String): Check {
+        val request =
+            try {
+                identityRequest(uri)
+            } catch (e: IllegalArgumentException) {
+                // OkHttp rejects the URI before any socket. Outside any either { }.
+                return Check.Failed("Not a valid address")
+            }
+        val started = System.nanoTime()
+        return when (val outcome = exchange(checkClient, request)) {
+            is Exchange.Status -> {
+                if (outcome.code in 200..299) {
+                    Check.Answered(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started))
+                } else {
+                    Check.Failed("HTTP ${outcome.code}")
+                }
+            }
+
+            is Exchange.Error -> {
+                Check.Failed(
+                    outcome.error.javaClass.simpleName + (outcome.error.message?.let { ": $it" } ?: ""),
+                )
+            }
+        }
+    }
+
+    private suspend fun answers(uri: String): Boolean {
+        val outcome = exchange(client, identityRequest(uri))
+        return outcome is Exchange.Status && outcome.code in 200..299
+    }
+
+    private fun identityRequest(uri: String): Request =
+        Request
+            .Builder()
+            .url("${uri.trimEnd('/')}/identity")
+            .headers(plexHeaders)
+            .build()
+
+    /**
      * Cancellable because the losers of a race have to actually stop: OkHttp's
      * blocking execute() would ignore the coroutine being cancelled and hold the
      * socket until its own timeout.
      */
-    private suspend fun answers(uri: String): Boolean =
+    private suspend fun exchange(
+        via: OkHttpClient,
+        request: Request,
+    ): Exchange =
         suspendCancellableCoroutine { cont ->
-            val request =
-                Request
-                    .Builder()
-                    .url("${uri.trimEnd('/')}/identity")
-                    .headers(plexHeaders)
-                    .build()
-
-            val call = client.newCall(request)
+            val call = via.newCall(request)
             cont.invokeOnCancellation { call.cancel() }
 
             call.enqueue(
@@ -127,18 +187,39 @@ class ServerProbe(
                         call: okhttp3.Call,
                         response: Response,
                     ) {
-                        response.use { if (cont.isActive) cont.resume(it.isSuccessful) }
+                        response.use { if (cont.isActive) cont.resume(Exchange.Status(it.code)) }
                     }
 
                     override fun onFailure(
                         call: okhttp3.Call,
                         e: IOException,
                     ) {
-                        if (cont.isActive) cont.resume(false)
+                        if (cont.isActive) cont.resume(Exchange.Error(e))
                     }
                 },
             )
         }
+
+    private sealed interface Exchange {
+        data class Status(
+            val code: Int,
+        ) : Exchange
+
+        data class Error(
+            val error: IOException,
+        ) : Exchange
+    }
+
+    /** What [check] found at one address. */
+    sealed interface Check {
+        data class Answered(
+            val millis: Long,
+        ) : Check
+
+        data class Failed(
+            val reason: String,
+        ) : Check
+    }
 
     /** A server's connections, split into the tier that races and the fallback. */
     data class Candidates(
