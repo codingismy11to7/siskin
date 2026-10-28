@@ -11,6 +11,12 @@
 
 ## [Unreleased] — Siskin
 
+- **Debug:** the Server tab names the server and its library, and lists each
+  of its addresses as a row saying what kind it is (local network, remote or
+  Plex relay, as plex.tv reports it) and how fast it answered. Opening the tab
+  refreshes the stored address list from plex.tv and probes every address;
+  tapping one shows its details, probes it again, or switches to it.
+
 - **Debug:** a Failures tab lists the last 20 tracks that failed to play,
   each marked skipped or stopped, and sets how many failures in a row stop
   playback: 2, 3 (the default), 5, or never. Its rail item carries a badge

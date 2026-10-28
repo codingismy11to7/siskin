@@ -223,4 +223,79 @@ class ServerProbeTest {
             ),
         )
     }
+
+    @Test
+    fun checkTimesAnAddressThatAnswers() =
+        runTest {
+            val server =
+                MockWebServer().apply {
+                    enqueue(MockResponse().setBody("""{"MediaContainer":{}}"""))
+                    start()
+                }
+
+            val result = ServerProbe().check(server.url("/").toString())
+
+            assertTrue("was $result", result is ServerProbe.Check.Answered)
+            assertTrue((result as ServerProbe.Check.Answered).millis >= 0)
+            val recorded = server.takeRequest()
+            assertEquals("/identity", recorded.path)
+            server.shutdown()
+        }
+
+    @Test
+    fun everyCheckOpensAFreshConnection() =
+        runTest {
+            val server =
+                MockWebServer().apply {
+                    enqueue(MockResponse().setBody("""{"MediaContainer":{}}"""))
+                    enqueue(MockResponse().setBody("""{"MediaContainer":{}}"""))
+                    start()
+                }
+            val probe = ServerProbe()
+
+            probe.check(server.url("/").toString())
+            probe.check(server.url("/").toString())
+
+            // sequenceNumber is the request's index on its connection.
+            assertEquals(0, server.takeRequest().sequenceNumber)
+            assertEquals("a repeat must not reuse a warm connection", 0, server.takeRequest().sequenceNumber)
+            server.shutdown()
+        }
+
+    @Test
+    fun checkReportsTheStatusOfAnAddressThatAnswersWithAnError() =
+        runTest {
+            val server =
+                MockWebServer().apply {
+                    enqueue(MockResponse().setResponseCode(401))
+                    start()
+                }
+
+            val result = ServerProbe().check(server.url("/").toString())
+
+            assertEquals(ServerProbe.Check.Failed("HTTP 401"), result)
+            server.shutdown()
+        }
+
+    @Test
+    fun checkNamesTheErrorWhenNothingListens() =
+        runTest {
+            val server = MockWebServer().apply { start() }
+            val uri = server.url("/").toString()
+            server.shutdown()
+
+            val result = ServerProbe().check(uri)
+
+            assertTrue("was $result", result is ServerProbe.Check.Failed)
+            assertTrue(
+                "was $result",
+                (result as ServerProbe.Check.Failed).reason.startsWith("ConnectException"),
+            )
+        }
+
+    @Test
+    fun checkRejectsAnAddressOkHttpCannotParse() =
+        runTest {
+            assertEquals(ServerProbe.Check.Failed("Not a valid address"), ServerProbe().check("not a url"))
+        }
 }

@@ -75,16 +75,40 @@
          this is diagnostic output read by the app's author, in vocabulary that
          is not user-facing copy, and the debug_ prefix is what makes the
          exemption auditable. See the 2026-08-14 server address debug design. -->
-    <string name="debug_addresses_in_use" translatable="false">in use</string>
     <string name="debug_addresses_none" translatable="false">No addresses stored</string>
-    <string name="debug_addresses_direct" translatable="false">Direct</string>
-    <string name="debug_addresses_relay" translatable="false">Relay</string>
     <string name="debug_addresses_reprobe" translatable="false">Re-probe</string>
     <string name="debug_reprobe_running" translatable="false">Re-probing…</string>
     <string name="debug_reprobe_moved" translatable="false">Moved to %1$s</string>
     <string name="debug_reprobe_unchanged" translatable="false">Unchanged: %1$s</string>
     <string name="debug_reprobe_failed" translatable="false">Nothing answered</string>
-    <string name="debug_addresses_title" translatable="false">Server addresses</string>
+    <string name="debug_server_addresses" translatable="false">Addresses</string>
+    <string name="debug_server_loading" translatable="false">Loading…</string>
+    <string name="debug_server_unnamed" translatable="false">This server</string>
+    <string name="debug_server_plex_tv_unreachable" translatable="false">plex.tv gave no listing for this server; showing the addresses saved on this car</string>
+    <string name="debug_server_use_refused" translatable="false">Not switched: that address is no longer in this server\'s list</string>
+    <string name="debug_server_owned" translatable="false">Owned</string>
+    <string name="debug_server_shared" translatable="false">Shared with you</string>
+    <string name="debug_server_library" translatable="false">Library: %1$s</string>
+    <string name="debug_server_version" translatable="false">Plex Media Server %1$s</string>
+    <string name="debug_server_checked" translatable="false">Checked %1$s</string>
+    <string name="debug_server_probing" translatable="false">Probing…</string>
+    <string name="debug_server_kind_local" translatable="false">Local network</string>
+    <string name="debug_server_kind_remote" translatable="false">Remote</string>
+    <string name="debug_server_kind_relay" translatable="false">Plex relay</string>
+    <string name="debug_server_kind_direct" translatable="false">Direct</string>
+    <string name="debug_server_in_use" translatable="false">In use</string>
+    <string name="debug_server_latency" translatable="false">%1$d ms</string>
+    <string name="debug_server_no_answer" translatable="false">No answer</string>
+    <string name="debug_server_back" translatable="false">Back to addresses</string>
+    <string name="debug_server_fact_kind" translatable="false">Kind</string>
+    <string name="debug_server_fact_plex_tv" translatable="false">plex.tv says</string>
+    <string name="debug_server_fact_probe" translatable="false">Last probe</string>
+    <string name="debug_server_fact_address" translatable="false">Address</string>
+    <string name="debug_server_flags" translatable="false">local=%1$s, relay=%2$s</string>
+    <string name="debug_server_flags_unknown" translatable="false">Unknown: plex.tv was not reached or does not list it</string>
+    <string name="debug_server_docker_hint" translatable="false">In 172.16.0.0/12, the range Docker gives its bridge networks. Usually reachable only from the server\'s own host.</string>
+    <string name="debug_server_probe_one" translatable="false">Probe this address</string>
+    <string name="debug_server_use" translatable="false">Use this address</string>
     <string name="debug_tab_server" translatable="false">Server</string>
     <string name="debug_tab_car" translatable="false">Car</string>
     <string name="debug_tab_changelog" translatable="false">Changes</string>

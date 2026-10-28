@@ -11,10 +11,13 @@ import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -22,6 +25,7 @@ import okhttp3.mockwebserver.RecordedRequest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -29,6 +33,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.doSuspendableAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.stub
 import org.robolectric.RobolectricTestRunner
@@ -732,6 +737,19 @@ class ServerAddressBookTest {
     }
 
     @Test
+    fun knownAddressesReadsTheSessionItIsGivenRatherThanStorage() {
+        signedInAt("https://lan.example", machineIdentifier = "machine-a")
+        val book = ServerAddressBook.newForTest(api)
+        book.adopt(resource("machine-b", connection("https://other.example")), "https://other.example")
+        val given = api.session!!.copy(serverUri = "https://other.example", machineIdentifier = "machine-b")
+
+        val known = book.knownAddresses(given)
+
+        assertEquals("https://other.example", known.current)
+        assertEquals(listOf("https://other.example"), known.direct)
+    }
+
+    @Test
     fun knownAddressesReportsNoCandidatesWhenTheStampIsForAnotherServer() {
         // The stamp rule storedCandidates already enforces, reachable through
         // the new accessor: a list belonging to a server the user has left must
@@ -776,5 +794,152 @@ class ServerAddressBookTest {
 
             assertNull(book.reprobe("https://lan.example", force = true))
             assertTrue("force must race despite the cooldown", probeCalls > callsAfterFirst)
+        }
+
+    @Test
+    fun refreshStoresAndReturnsPlexTvsCurrentListing() =
+        runTest {
+            val fresh =
+                mediaServerResource(
+                    "machine-a",
+                    connection("https://lan.example"),
+                    connection("https://new.example"),
+                    connection("https://relay.example", relay = true),
+                )
+            val authClient =
+                mock<AuthClient>().stub {
+                    on { getResources() } doReturn listOf(fresh).right()
+                }
+            val book = ServerAddressBook.newForTest(api, authClient = authClient)
+            book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+            signedInAt("https://lan.example")
+
+            assertSame(fresh, book.refresh())
+            assertEquals(
+                listOf("https://lan.example", "https://new.example"),
+                book.storedCandidates("machine-a")?.direct,
+            )
+            assertEquals(listOf("https://relay.example"), book.storedCandidates("machine-a")?.relay)
+            assertEquals("a refresh moves no address", "https://lan.example", api.serverUri)
+        }
+
+    @Test
+    fun refreshKeepsTheStoredListWhenPlexTvsLacksTheAddressInUse() =
+        runTest {
+            val fresh = mediaServerResource("machine-a", connection("https://new.example"))
+            val authClient =
+                mock<AuthClient>().stub {
+                    on { getResources() } doReturn listOf(fresh).right()
+                }
+            val book = ServerAddressBook.newForTest(api, authClient = authClient)
+            book.adopt(resource("machine-a", connection("https://old.example")), "https://old.example")
+            signedInAt("https://old.example")
+
+            assertSame("the tab still shows plex.tv's answer", fresh, book.refresh())
+            assertEquals(listOf("https://old.example"), book.storedCandidates("machine-a")?.direct)
+        }
+
+    @Test
+    fun refreshDoesNotHoldTheLockWhileAskingPlexTv() =
+        runTest {
+            val gate = CompletableDeferred<Unit>()
+            val fresh = mediaServerResource("machine-a", connection("https://lan.example"))
+            val authClient =
+                mock<AuthClient>().stub {
+                    on { getResources() } doSuspendableAnswer {
+                        gate.await()
+                        listOf(fresh).right()
+                    }
+                }
+            val book = ServerAddressBook.newForTest(api, authClient = authClient)
+            book.adopt(
+                resource("machine-a", connection("https://lan.example"), connection("https://public.example")),
+                "https://lan.example",
+            )
+            signedInAt("https://lan.example")
+
+            val refreshing = launch { book.refresh() }
+            try {
+                testScheduler.runCurrent()
+                assertTrue("refresh must be waiting on plex.tv", refreshing.isActive)
+
+                // Virtual time fires this as soon as use() is all that is left to
+                // run, so a held lock fails the test instead of hanging it.
+                assertEquals("https://public.example", withTimeout(1_000) { book.use("https://public.example") })
+            } finally {
+                gate.complete(Unit)
+            }
+            refreshing.join()
+        }
+
+    @Test
+    fun refreshLeavesTheStoredListAloneWhenPlexTvCannotBeReached() =
+        runTest {
+            val authClient =
+                mock<AuthClient>().stub {
+                    on { getResources() } doReturn PlexTransportFailure.Unreachable(PlexHost.PlexTv).left()
+                }
+            val book = ServerAddressBook.newForTest(api, authClient = authClient)
+            book.adopt(resource("machine-a", connection("https://old.example")), "https://old.example")
+            signedInAt("https://old.example")
+
+            assertNull(book.refresh())
+            assertEquals(listOf("https://old.example"), book.storedCandidates("machine-a")?.direct)
+        }
+
+    @Test
+    fun refreshStoresNothingWhenPlexTvNoLongerListsTheServer() =
+        runTest {
+            val authClient =
+                mock<AuthClient>().stub {
+                    on { getResources() } doReturn
+                        listOf(mediaServerResource("machine-b", connection("https://b.example"))).right()
+                }
+            val book = ServerAddressBook.newForTest(api, authClient = authClient)
+            book.adopt(resource("machine-a", connection("https://old.example")), "https://old.example")
+            signedInAt("https://old.example")
+
+            assertNull(book.refresh())
+            assertEquals(listOf("https://old.example"), book.storedCandidates("machine-a")?.direct)
+            assertNull("another server's list is never stored", book.storedCandidates("machine-b"))
+        }
+
+    @Test
+    fun useMovesTheSessionOntoAStoredAddressAndNothingElse() =
+        runTest {
+            val book = ServerAddressBook.newForTest(api)
+            book.adopt(
+                resource("machine-a", connection("https://lan.example"), connection("https://public.example")),
+                "https://lan.example",
+            )
+            signedInAt("https://lan.example")
+
+            assertEquals("https://public.example", book.use("https://public.example"))
+
+            val session = api.session
+            assertEquals("https://public.example", session?.serverUri)
+            assertEquals("machine-a", session?.machineIdentifier)
+            assertEquals("5", session?.musicSectionKey?.value)
+            assertEquals("server-token", session?.serverToken)
+        }
+
+    @Test
+    fun useRefusesAnAddressOutsideTheStoredList() =
+        runTest {
+            val book = ServerAddressBook.newForTest(api)
+            book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+            signedInAt("https://lan.example")
+
+            assertNull(book.use("https://elsewhere.example"))
+            assertEquals("https://lan.example", api.serverUri)
+        }
+
+    @Test
+    fun useRefusesWithoutASession() =
+        runTest {
+            val book = ServerAddressBook.newForTest(api)
+            book.adopt(resource("machine-a", connection("https://lan.example")), "https://lan.example")
+
+            assertNull(book.use("https://lan.example"))
         }
 }

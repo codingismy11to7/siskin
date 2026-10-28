@@ -17,6 +17,8 @@ class Resource {
     var provides: String? = null
     var accessToken: String? = null
     var owned: Boolean? = null
+    var productVersion: String? = null
+    var platform: String? = null
     var connections: List<Connection>? = null
 }
 

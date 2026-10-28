@@ -1,45 +1,82 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.annotation.VisibleForTesting
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentDebugServerBinding
+import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.plex.api.server.ServerProbe
+import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
-import com.google.android.material.button.MaterialButton
+import com.google.android.material.color.MaterialColors
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import kotlinx.coroutines.launch
+import java.util.Date
 
 /**
- * The debug screen's Server tab: the addresses known for the current server,
- * a re-probe, and the sign-in flow's own server picker.
+ * The debug screen's Server tab: which server this is, every address it
+ * advertises with what kind it is and whether it answers, and one address's
+ * detail in place of the list.
  *
- * It cannot change which server or library is in use, only which address
- * reaches this one. Choose server goes through the sign-in flow's picker
- * rather than doing anything itself.
+ * Opening it fetches from plex.tv and probes every address; the stored list
+ * draws first and each answer fills in as it lands. It can move the session to
+ * another address of this server, never to another server -- Choose server
+ * goes through the sign-in flow's picker for that.
+ *
+ * See docs/decisions/2026-10-27-debug-server-tab-design.md.
  */
 class DebugServerFragment : Fragment() {
     private var bind: FragmentDebugServerBinding? = null
 
-    /**
-     * Held because [reprobe] disables it for the duration of a race. A local
-     * would not do: the lambda that calls [reprobe] is built as an argument to
-     * the call that creates the button, so there is nothing to close over yet
-     * at that point, and a local `var` cannot be `lateinit`.
-     */
-    private var reprobeRow: MaterialButton? = null
+    private val book get() = ServerAddressBook.shared
+    private val source: DebugServerSource get() = sourceForTest ?: LiveDebugServerSource
+
+    /** plex.tv's answer this visit; meaningful only once [plexTvSettled]. */
+    private var resource: Resource? = null
+    private var plexTvSettled = false
+    private var libraryName: String? = null
+    private val checks = mutableMapOf<String, ServerProbe.Check>()
+    private val checking = mutableSetOf<String>()
+    private var checkedAt: Long? = null
+    private var raceRunning = false
+
+    /** The previous re-probe's result, reported because a win by the same address looks like nothing. */
+    private var outcome: String? = null
+
+    /** The address whose detail is showing, or null on the list. */
+    private var detailUri: String? = null
 
     /**
-     * Held for the same reason as [reprobeRow]. Choose server covers the whole
-     * screen, which destroys this view and cancels a race running in its
-     * lifecycle, so it waits for the race as well.
+     * The inflated rows, keyed by URI, and the order they were built in. A
+     * redraw rebinds them in place, because re-inflating on every probe result
+     * drops rotary focus and any touch in progress.
      */
-    private var chooseServerRow: MaterialButton? = null
+    private val rowViews = mutableMapOf<String, View>()
+    private var rowOrder: List<String>? = null
+
+    /**
+     * Live only while a detail shows on a visible tab. Hidden, the tab must not
+     * hold back: one press leaves the debug screen from any tab
+     * (2026-10-25-debug-tabs-design.md), and a detail left open behind the Car
+     * tab would otherwise eat it.
+     */
+    private val backToList =
+        object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() = showList()
+        }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -48,47 +85,82 @@ class DebugServerFragment : Fragment() {
     ): View {
         val bind = FragmentDebugServerBinding.inflate(inflater, container, false)
         this.bind = bind
-
-        renderAddresses(outcome = null)
-
-        reprobeRow =
-            addChoice(bind.choiceContainer, getString(R.string.debug_addresses_reprobe)) {
-                reprobe()
-            }
-        chooseServerRow =
-            addChoice(bind.choiceContainer, getString(R.string.debug_choose_server)) {
-                chooseServer()
-            }
-
+        bind.reprobe.setOnClickListener { reprobe() }
+        bind.chooseServer.setOnClickListener { chooseServer() }
+        bind.detailBack.setOnClickListener { showList() }
+        bind.detailProbe.setOnClickListener { detailUri?.let(::checkOne) }
+        bind.detailUse.setOnClickListener { detailUri?.let(::useAddress) }
         return bind.root
+    }
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backToList)
+        detailUri = null
+        load()
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        syncBack()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         bind = null
-        reprobeRow = null
-        chooseServerRow = null
+        rowViews.clear()
+        rowOrder = null
     }
 
-    /**
-     * The address report, static by design: it reads what is already persisted
-     * and probes nothing on open. Per-address probing on open is strictly more
-     * informative and was rejected in the 2026-08-14 design because the
-     * re-probe row covers the same ground with code that already exists.
-     *
-     * [outcome], when present, is the previous re-probe's result.
-     */
-    private fun renderAddresses(outcome: String?) {
-        val bind = this.bind ?: return
-        bind.addressText.text =
-            buildAddressPanelBody(
-                known = ServerAddressBook.shared.knownAddresses(),
-                outcome = outcome,
-                noneLabel = getString(R.string.debug_addresses_none),
-                inUseLabel = getString(R.string.debug_addresses_in_use),
-                directLabel = getString(R.string.debug_addresses_direct),
-                relayLabel = getString(R.string.debug_addresses_relay),
-            )
+    private fun rows(known: ServerAddressBook.KnownAddresses = book.knownAddresses()): List<AddressRow> =
+        DebugServerRows.build(known, resource?.connections)
+
+    private fun load() {
+        resource = null
+        plexTvSettled = false
+        libraryName = null
+        checks.clear()
+        checking.clear()
+        checkedAt = null
+        outcome = null
+        raceRunning = false
+        render()
+
+        val scope = viewLifecycleOwner.lifecycleScope
+        scope.launch {
+            resource = source.refresh()
+            plexTvSettled = true
+            render()
+            // A fresh list can name addresses the stored one did not.
+            checkAll()
+        }
+        scope.launch {
+            libraryName = source.libraryName()
+            render()
+        }
+        checkAll()
+    }
+
+    private fun checkAll() {
+        for (row in rows()) {
+            if (row.uri !in checks) checkOne(row.uri)
+        }
+    }
+
+    private fun checkOne(uri: String) {
+        if (uri in checking) return
+        checking += uri
+        checks -= uri
+        render()
+        viewLifecycleOwner.lifecycleScope.launch {
+            checks[uri] = source.check(uri)
+            checking -= uri
+            if (checking.isEmpty()) checkedAt = System.currentTimeMillis()
+            render()
+        }
     }
 
     /**
@@ -104,35 +176,301 @@ class DebugServerFragment : Fragment() {
      * cooldown is armed.
      */
     private fun reprobe() {
-        val before = ServerAddressBook.shared.current()
+        val before = book.current()
         if (before == null) {
             // The session cleared out from under an open screen -- sign out is
             // one back press away. Reporting the same wording reprobe() uses
             // for "nothing answered" at least shows the press was seen.
-            renderAddresses(getString(R.string.debug_reprobe_failed))
+            outcome = getString(R.string.debug_reprobe_failed)
+            render()
             return
         }
 
-        setRaceRunning(true)
-        bind?.addressText?.text = getString(R.string.debug_reprobe_running)
+        raceRunning = true
+        render()
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val after = ServerAddressBook.shared.reprobe(before, force = true)
-            val outcome =
+            val after = book.reprobe(before, force = true)
+            outcome =
                 when (after) {
                     null -> getString(R.string.debug_reprobe_failed)
-                    before -> getString(R.string.debug_reprobe_unchanged, after)
-                    else -> getString(R.string.debug_reprobe_moved, after)
+                    before -> getString(R.string.debug_reprobe_unchanged, DebugServerRows.hostPort(after))
+                    else -> getString(R.string.debug_reprobe_moved, DebugServerRows.hostPort(after))
                 }
-            renderAddresses(outcome)
-            setRaceRunning(false)
+            raceRunning = false
+            checks.clear()
+            checkAll()
+            render()
         }
     }
 
-    private fun setRaceRunning(running: Boolean) {
-        reprobeRow?.isEnabled = !running
-        chooseServerRow?.isEnabled = !running
+    private fun useAddress(uri: String) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            outcome =
+                book.use(uri)?.let { getString(R.string.debug_reprobe_moved, DebugServerRows.hostPort(it)) }
+                    ?: getString(R.string.debug_server_use_refused)
+            render()
+        }
     }
+
+    private fun showDetail(uri: String) {
+        detailUri = uri
+        render()
+    }
+
+    private fun showList() {
+        detailUri = null
+        render()
+    }
+
+    private fun syncBack() {
+        backToList.isEnabled = detailUri != null && !isHidden
+    }
+
+    private fun render() {
+        val bind = bind ?: return
+        val session = PlexApi().session
+        val rows = rows(book.knownAddresses(session))
+        if (detailUri != null && rows.none { it.uri == detailUri }) detailUri = null
+        syncBack()
+
+        val detail = rows.firstOrNull { it.uri == detailUri }
+        bind.listScroll.visibility = if (detail == null) View.VISIBLE else View.GONE
+        bind.detailScroll.visibility = if (detail == null) View.GONE else View.VISIBLE
+
+        renderHeader(bind, session)
+        renderList(bind, rows)
+        if (detail != null) renderDetail(bind, detail)
+    }
+
+    private fun renderHeader(
+        bind: FragmentDebugServerBinding,
+        session: PlexSession?,
+    ) {
+        val resource = resource
+        bind.serverName.text =
+            when {
+                !plexTvSettled -> getString(R.string.debug_server_loading)
+                resource?.name.isNullOrBlank() -> getString(R.string.debug_server_unnamed)
+                else -> resource.name
+            }
+        bind.serverMeta.text =
+            listOfNotNull(
+                session?.let { getString(if (it.owned) R.string.debug_server_owned else R.string.debug_server_shared) },
+                libraryName?.let { getString(R.string.debug_server_library, it) },
+                resource?.productVersion?.let { getString(R.string.debug_server_version, it) },
+                resource?.platform,
+                if (plexTvSettled && resource == null) getString(R.string.debug_server_plex_tv_unreachable) else null,
+            ).joinToString(SEPARATOR)
+        bind.serverMachine.text = session?.machineIdentifier.orEmpty()
+        bind.chooseServer.isEnabled = !raceRunning
+    }
+
+    private fun renderList(
+        bind: FragmentDebugServerBinding,
+        rows: List<AddressRow>,
+    ) {
+        bind.reprobe.isEnabled = !raceRunning && checking.isEmpty()
+        bind.addressStatusLine.text =
+            when {
+                raceRunning -> {
+                    getString(R.string.debug_reprobe_running)
+                }
+
+                checking.isNotEmpty() -> {
+                    getString(R.string.debug_server_probing)
+                }
+
+                outcome != null -> {
+                    outcome
+                }
+
+                else -> {
+                    checkedAt?.let {
+                        getString(
+                            R.string.debug_server_checked,
+                            DateFormat.getTimeFormat(requireContext()).format(Date(it)),
+                        )
+                    }
+                }
+            }
+
+        val uris = rows.map { it.uri }
+        if (uris != rowOrder) {
+            val container = bind.addressRows
+            container.removeAllViews()
+            rowViews.clear()
+            rowOrder = uris
+            if (rows.isEmpty()) {
+                container.addView(TextView(requireContext()).apply { text = getString(R.string.debug_addresses_none) })
+                return
+            }
+            val inflater = LayoutInflater.from(requireContext())
+            for (uri in uris) {
+                val view = inflater.inflate(R.layout.item_debug_address, container, false)
+                view.setOnClickListener { showDetail(uri) }
+                rowViews[uri] = view
+                container.addView(view)
+            }
+        }
+        for (row in rows) bindRow(rowViews.getValue(row.uri), row)
+    }
+
+    private fun bindRow(
+        view: View,
+        row: AddressRow,
+    ) {
+        // The ripple is the layout's android:foreground, so clearing this loses nothing.
+        if (row.inUse) view.setBackgroundResource(R.drawable.bg_debug_address_in_use) else view.background = null
+        view.findViewById<ImageView>(R.id.address_kind_icon).setImageResource(iconFor(row.kind))
+        view.findViewById<TextView>(R.id.address_title).text = labelFor(row.kind)
+        view.findViewById<TextView>(R.id.address_subtitle).text = row.hostPort
+        view.findViewById<View>(R.id.address_in_use).visibility = if (row.inUse) View.VISIBLE else View.GONE
+        renderStatus(
+            view.findViewById(R.id.address_status),
+            view.findViewById(R.id.address_progress),
+            row.uri,
+        )
+    }
+
+    private fun renderStatus(
+        status: TextView,
+        progress: CircularProgressIndicator,
+        uri: String,
+    ) {
+        val check = checks[uri]
+        progress.visibility = if (uri in checking) View.VISIBLE else View.GONE
+        status.visibility = if (uri in checking) View.GONE else View.VISIBLE
+        status.text = describe(check, verbose = false)
+        status.setTextColor(
+            MaterialColors.getColor(
+                status,
+                if (check is ServerProbe.Check.Failed) {
+                    androidx.appcompat.R.attr.colorError
+                } else {
+                    com.google.android.material.R.attr.colorOnSurface
+                },
+            ),
+        )
+    }
+
+    private fun renderDetail(
+        bind: FragmentDebugServerBinding,
+        row: AddressRow,
+    ) {
+        bind.detailTitle.text = row.hostPort
+        bind.detailInUse.visibility = if (row.inUse) View.VISIBLE else View.GONE
+
+        val facts = bind.detailFacts
+        facts.removeAllViews()
+        facts.addView(
+            factRow(
+                getString(R.string.debug_server_fact_kind),
+                labelFor(row.kind),
+                if (row.dockerRange) getString(R.string.debug_server_docker_hint) else null,
+            ),
+        )
+        facts.addView(
+            factRow(
+                getString(R.string.debug_server_fact_plex_tv),
+                row.flags?.let { getString(R.string.debug_server_flags, it.local.toString(), it.relay.toString()) }
+                    ?: getString(R.string.debug_server_flags_unknown),
+                null,
+            ),
+        )
+        facts.addView(
+            factRow(
+                getString(R.string.debug_server_fact_probe),
+                if (row.uri in checking) {
+                    getString(R.string.debug_server_probing)
+                } else {
+                    describe(checks[row.uri], verbose = true)
+                },
+                null,
+            ),
+        )
+        facts.addView(factRow(getString(R.string.debug_server_fact_address), row.uri, null, monospace = true))
+
+        bind.detailProbe.isEnabled = row.uri !in checking
+        bind.detailUse.isEnabled = !row.inUse && !raceRunning && checks[row.uri] is ServerProbe.Check.Answered
+    }
+
+    /** A probe result as text; [verbose] names how it failed rather than just that it did. */
+    private fun describe(
+        check: ServerProbe.Check?,
+        verbose: Boolean,
+    ): String =
+        when (check) {
+            is ServerProbe.Check.Answered -> getString(R.string.debug_server_latency, check.millis)
+            is ServerProbe.Check.Failed -> if (verbose) check.reason else getString(R.string.debug_server_no_answer)
+            null -> ""
+        }
+
+    private fun factRow(
+        label: String,
+        value: String,
+        note: String?,
+        monospace: Boolean = false,
+    ): View =
+        LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, FACT_PADDING_DP.dp(), 0, FACT_PADDING_DP.dp())
+            addView(
+                text(label, com.google.android.material.R.attr.textAppearanceBodyLarge).apply {
+                    setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
+                },
+                LinearLayout.LayoutParams(FACT_LABEL_WIDTH_DP.dp(), ViewGroup.LayoutParams.WRAP_CONTENT),
+            )
+            addView(
+                LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(
+                        text(value, com.google.android.material.R.attr.textAppearanceBodyLarge).apply {
+                            if (monospace) typeface = android.graphics.Typeface.MONOSPACE
+                        },
+                    )
+                    note?.let {
+                        addView(
+                            text(it, com.google.android.material.R.attr.textAppearanceBodyMedium).apply {
+                                setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
+                            },
+                        )
+                    }
+                },
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+            )
+        }
+
+    private fun text(
+        value: String,
+        appearanceAttr: Int,
+    ): TextView =
+        TextView(requireContext()).apply {
+            text = value
+            val resolved = android.util.TypedValue()
+            context.theme.resolveAttribute(appearanceAttr, resolved, true)
+            setTextAppearance(resolved.resourceId)
+        }
+
+    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
+
+    private fun labelFor(kind: AddressKind): String =
+        getString(
+            when (kind) {
+                AddressKind.LOCAL -> R.string.debug_server_kind_local
+                AddressKind.REMOTE -> R.string.debug_server_kind_remote
+                AddressKind.RELAY -> R.string.debug_server_kind_relay
+                AddressKind.DIRECT -> R.string.debug_server_kind_direct
+            },
+        )
+
+    private fun iconFor(kind: AddressKind): Int =
+        when (kind) {
+            AddressKind.LOCAL -> R.drawable.ic_debug_address_local
+            AddressKind.REMOTE -> R.drawable.ic_debug_address_remote
+            AddressKind.RELAY -> R.drawable.ic_debug_address_relay
+            AddressKind.DIRECT -> R.drawable.ic_debug_address_direct
+        }
 
     /**
      * Opens the sign-in flow's own server picker, without signing in.
@@ -171,70 +509,12 @@ class DebugServerFragment : Fragment() {
     }
 
     companion object {
-        /**
-         * Builds the address report out of already-resolved data -- no
-         * [android.content.Context], no resource lookup, no Android framework
-         * class at all. That is what lets [DebugServerAddressPanelBodyTest] assert
-         * on it directly: `unitTests.returnDefaultValues = true` stubs
-         * `android.jar`, so a test that only touches framework classes can pass
-         * while asserting nothing, and keeping this function framework-free is
-         * what keeps that failure mode out of reach here.
-         *
-         * [outcome], when present, is the previous re-probe's result and is
-         * shown as its own paragraph ahead of the address list.
-         */
+        private const val SEPARATOR = " · "
+        private const val FACT_PADDING_DP = 12
+        private const val FACT_LABEL_WIDTH_DP = 180
+
+        /** Replaces the live plex.tv and probe calls in Robolectric tests. Static, so reset it in @After. */
         @VisibleForTesting
-        internal fun buildAddressPanelBody(
-            known: ServerAddressBook.KnownAddresses,
-            outcome: String?,
-            noneLabel: String,
-            inUseLabel: String,
-            directLabel: String,
-            relayLabel: String,
-        ): String =
-            buildString {
-                if (outcome != null) append(outcome).append("\n\n")
-
-                fun appendAddress(uri: String) {
-                    append(uri)
-                    if (uri == known.current) append("  <- ").append(inUseLabel)
-                    append("\n")
-                }
-
-                fun appendGroup(
-                    label: String,
-                    addresses: List<String>,
-                ) {
-                    if (addresses.isEmpty()) return
-                    append(label).append("\n")
-                    addresses.forEach(::appendAddress)
-                }
-
-                // known.current is live for a session written before the address
-                // book existed (see knownAddresses' own KDoc), which has no
-                // direct/relay candidates at all -- so "no addresses stored" has
-                // to be gated on current too, or it prints directly above the one
-                // address actually in use.
-                if (known.direct.isEmpty() && known.relay.isEmpty() && known.current == null) {
-                    append(noneLabel)
-                } else {
-                    // Direct and relay are kept apart rather than concatenated: a
-                    // relay URI and a direct-but-remote one are both
-                    // *.plex.direct-shaped and differ only by port, so flattening
-                    // them throws away the one distinction this panel exists to
-                    // show -- LAN, or out to the internet and back.
-                    appendGroup(directLabel, known.direct)
-                    appendGroup(relayLabel, known.relay)
-
-                    // Normally current is one of the candidates just printed above.
-                    // It is not for that same pre-address-book session, and
-                    // showing it separately beats a panel that omits the one
-                    // address actually in use.
-                    known.current?.takeIf { it !in known.direct && it !in known.relay }?.let {
-                        append("\n")
-                        appendAddress(it)
-                    }
-                }
-            }
+        internal var sourceForTest: DebugServerSource? = null
     }
 }

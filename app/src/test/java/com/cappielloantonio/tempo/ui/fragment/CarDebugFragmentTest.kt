@@ -17,6 +17,10 @@ import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
+import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
+import com.cappielloantonio.tempo.plex.api.server.ServerProbe
+import com.cappielloantonio.tempo.plex.models.Connection
+import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.FailedTrack
 import com.cappielloantonio.tempo.service.FailedTrackLog
@@ -100,7 +104,18 @@ class CarDebugFragmentTest {
                     ) as T
                 }
             }
+        DebugServerFragment.sourceForTest =
+            object : DebugServerSource {
+                override suspend fun refresh(): Resource? = null
+
+                override suspend fun libraryName(): String? = "Music"
+
+                override suspend fun check(uri: String) = checkFor(uri)
+            }
     }
+
+    /** What the fake source's probe reports per address; every address answers unless a test says otherwise. */
+    private var checkFor: (String) -> ServerProbe.Check = { ServerProbe.Check.Answered(12) }
 
     @After
     fun clearTheStub() {
@@ -108,6 +123,10 @@ class CarDebugFragmentTest {
         // set hands the next suite a stubbed AuthClient.
         CarHostActivity.viewModelFactoryForTest = null
         HomeUsersRepository.resetForTest()
+        DebugServerFragment.sourceForTest = null
+        // Robolectric keeps preferences between methods, and a stored list
+        // would add rows to every later Server tab test.
+        PlexApi().serverCandidates = null
     }
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
@@ -204,6 +223,144 @@ class CarDebugFragmentTest {
         assertTrue(screenOf(controller) is CarDebugFragment)
         assertEquals(DebugTab.SERVER.id, rail(controller).selectedItemId)
         assertTrue(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
+    }
+
+    private fun addressRows(controller: ActivityController<CarHostActivity>) = controller.get().findViewById<ViewGroup>(R.id.address_rows)
+
+    private fun openServerDetail(controller: ActivityController<CarHostActivity>) {
+        openDebugScreen(controller)
+        select(controller, DebugTab.SERVER)
+        addressRows(controller).getChildAt(0).performClick()
+        idle()
+    }
+
+    @Test
+    fun `the Server tab lists the address in use`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.SERVER)
+
+        val rows = addressRows(controller)
+        assertEquals(1, rows.childCount)
+        val row = rows.getChildAt(0)
+        assertEquals("example.invalid:443", row.findViewById<TextView>(R.id.address_subtitle).text.toString())
+        assertEquals(View.VISIBLE, row.findViewById<View>(R.id.address_in_use).visibility)
+        assertEquals("12 ms", row.findViewById<TextView>(R.id.address_status).text.toString())
+    }
+
+    @Test
+    fun `tapping an address opens its detail and back returns to the list`() {
+        val controller = launch()
+        openServerDetail(controller)
+
+        assertEquals(View.VISIBLE, controller.get().findViewById<View>(R.id.detail_scroll).visibility)
+        assertEquals(View.GONE, controller.get().findViewById<View>(R.id.list_scroll).visibility)
+
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertTrue(screenOf(controller) is CarDebugFragment)
+        assertEquals(View.VISIBLE, controller.get().findViewById<View>(R.id.list_scroll).visibility)
+        assertEquals(View.GONE, controller.get().findViewById<View>(R.id.detail_scroll).visibility)
+    }
+
+    @Test
+    fun `back from the address list leaves the debug screen`() {
+        val controller = launch()
+        openServerDetail(controller)
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertTrue(screenOf(controller) is CarSettingsFragment)
+    }
+
+    @Test
+    fun `a detail left open on the Server tab does not hold back on another tab`() {
+        val controller = launch()
+        openServerDetail(controller)
+        select(controller, DebugTab.CAR)
+
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertTrue(screenOf(controller) is CarSettingsFragment)
+    }
+
+    @Test
+    fun `a probe result rebinds the row rather than replacing it`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.SERVER)
+        val before = addressRows(controller).getChildAt(0)
+        checkFor = { ServerProbe.Check.Answered(34) }
+
+        before.performClick()
+        idle()
+        controller.get().findViewById<View>(R.id.detail_probe).performClick()
+        idle()
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        val after = addressRows(controller).getChildAt(0)
+        assertSame(before, after)
+        assertEquals("34 ms", after.findViewById<TextView>(R.id.address_status).text.toString())
+    }
+
+    @Test
+    fun `the address in use cannot be switched to`() {
+        val controller = launch()
+        openServerDetail(controller)
+
+        assertFalse(controller.get().findViewById<View>(R.id.detail_use).isEnabled)
+        assertTrue(controller.get().findViewById<View>(R.id.detail_probe).isEnabled)
+    }
+
+    @Test
+    fun `the Server tab lists every stored address with its own probe result`() {
+        val inUse = "https://10.0.0.5:32400"
+        val other = "https://10.0.0.6:32400"
+        PlexApi().session = PlexApi().session!!.copy(serverUri = inUse, machineIdentifier = "machine-id")
+        ServerAddressBook.shared.adopt(
+            Resource().apply {
+                clientIdentifier = "machine-id"
+                connections =
+                    listOf(inUse, other).map { address ->
+                        Connection().apply {
+                            uri = address
+                            local = true
+                        }
+                    }
+            },
+            inUse,
+        )
+        checkFor = { if (it == inUse) ServerProbe.Check.Failed("HTTP 401") else ServerProbe.Check.Answered(12) }
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.SERVER)
+
+        val rows = addressRows(controller)
+        assertEquals(2, rows.childCount)
+        val bySubtitle =
+            (0 until rows.childCount)
+                .map { rows.getChildAt(it) }
+                .associateBy { it.findViewById<TextView>(R.id.address_subtitle).text.toString() }
+        val noAnswer = controller.get().getString(R.string.debug_server_no_answer)
+        assertEquals(
+            noAnswer,
+            bySubtitle
+                .getValue("10.0.0.5:32400")
+                .findViewById<TextView>(R.id.address_status)
+                .text
+                .toString(),
+        )
+
+        bySubtitle.getValue("10.0.0.6:32400").performClick()
+        idle()
+
+        assertTrue(controller.get().findViewById<View>(R.id.detail_use).isEnabled)
     }
 
     private fun debugScreen(controller: ActivityController<CarHostActivity>) = screenOf(controller) as CarDebugFragment

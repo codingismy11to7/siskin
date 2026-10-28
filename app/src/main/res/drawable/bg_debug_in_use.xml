@@ -1,0 +1,5 @@
+<!-- The In use chip on an address row and in its detail. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <solid android:color="?attr/colorPrimaryContainer" />
+</shape>
