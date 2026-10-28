@@ -106,6 +106,15 @@
     <string name="debug_about_credits" translatable="false">Credits</string>
     <string name="debug_credits_qr" translatable="false">QR code for the credits page</string>
     <string name="debug_credits_close" translatable="false">Close</string>
+    <string name="debug_tab_failures" translatable="false">Failures</string>
+    <string name="debug_failures_limit_title" translatable="false">Stop after this many failures in a row</string>
+    <string name="debug_failures_never" translatable="false">Never</string>
+    <string name="debug_failures_recent_title" translatable="false">Recent failures</string>
+    <string name="debug_failures_none" translatable="false">No failures recorded</string>
+    <string name="debug_failures_clear" translatable="false">Clear failures</string>
+    <string name="debug_failures_unknown" translatable="false">(unknown)</string>
+    <string name="debug_failures_skipped" translatable="false">skipped</string>
+    <string name="debug_failures_stopped" translatable="false">stopped</string>
 
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
     <string name="exo_controls_repeat_off_description">Current mode: Repeat none. Toggle repeat mode.</string>

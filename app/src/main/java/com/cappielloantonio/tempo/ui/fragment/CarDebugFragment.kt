@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Menu
@@ -8,6 +9,8 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentCarDebugBinding
+import com.cappielloantonio.tempo.service.FailedTrackLog
+import com.google.android.material.navigationrail.NavigationRailView
 
 /**
  * Diagnostics, reached by tapping the version line in Settings: a rail of tabs
@@ -19,6 +22,8 @@ import com.cappielloantonio.tempo.databinding.FragmentCarDebugBinding
  * moving. That is what lets this screen be as dense as it needs to be.
  */
 class CarDebugFragment : Fragment() {
+    private var rail: NavigationRailView? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -35,6 +40,7 @@ class CarDebugFragment : Fragment() {
         savedInstanceState: Bundle?,
     ) {
         val rail = FragmentCarDebugBinding.bind(view).debugRail
+        this.rail = rail
         DebugTab.entries.forEach { tab ->
             rail.menu.add(Menu.NONE, tab.id, tab.ordinal, tab.label).setIcon(tab.icon)
         }
@@ -45,6 +51,39 @@ class CarDebugFragment : Fragment() {
         rail.setOnItemSelectedListener { item ->
             show(DebugTab.entries.first { it.id == item.itemId })
             true
+        }
+    }
+
+    private var failuresWatch: OnSharedPreferenceChangeListener? = null
+
+    override fun onStart() {
+        super.onStart()
+        failuresWatch = FailedTrackLog.watch(::updateFailuresBadge)
+        updateFailuresBadge()
+    }
+
+    override fun onStop() {
+        failuresWatch?.let(FailedTrackLog::unwatch)
+        failuresWatch = null
+        super.onStop()
+    }
+
+    override fun onDestroyView() {
+        rail = null
+        super.onDestroyView()
+    }
+
+    private fun updateFailuresBadge() {
+        val rail = rail ?: return
+        if (showing() == DebugTab.FAILURES) FailedTrackLog.markSeen()
+        val unseen = FailedTrackLog.unseenCount()
+        if (unseen > 0) {
+            rail.getOrCreateBadge(DebugTab.FAILURES.id).apply {
+                number = unseen
+                isVisible = true
+            }
+        } else {
+            rail.removeBadge(DebugTab.FAILURES.id)
         }
     }
 
@@ -88,5 +127,6 @@ class CarDebugFragment : Fragment() {
             }
         }
         transaction.commitNow()
+        updateFailuresBadge()
     }
 }

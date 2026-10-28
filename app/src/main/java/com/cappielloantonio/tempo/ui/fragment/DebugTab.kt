@@ -20,6 +20,7 @@ internal enum class DebugTab(
 ) {
     SERVER(R.id.debug_tab_server, R.string.debug_tab_server, R.drawable.ic_browse_server, ::DebugServerFragment),
     CAR(R.id.debug_tab_car, R.string.debug_tab_car, R.drawable.ic_debug_car, ::DebugCarFragment),
+    FAILURES(R.id.debug_tab_failures, R.string.debug_tab_failures, R.drawable.ic_debug_failures, ::DebugFailuresFragment),
     CHANGELOG(R.id.debug_tab_changelog, R.string.debug_tab_changelog, R.drawable.ic_debug_changelog, ::DebugChangelogFragment),
     ABOUT(R.id.debug_tab_about, R.string.debug_tab_about, R.drawable.ic_browse_info, ::DebugAboutFragment),
     ;

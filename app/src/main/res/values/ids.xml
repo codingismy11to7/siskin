@@ -7,6 +7,7 @@
     -->
     <item name="debug_tab_server" type="id" />
     <item name="debug_tab_car" type="id" />
+    <item name="debug_tab_failures" type="id" />
     <item name="debug_tab_changelog" type="id" />
     <item name="debug_tab_about" type="id" />
 </resources>

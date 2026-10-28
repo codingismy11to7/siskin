@@ -18,6 +18,8 @@ import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
+import com.cappielloantonio.tempo.service.FailedTrack
+import com.cappielloantonio.tempo.service.FailedTrackLog
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
 import com.cappielloantonio.tempo.util.Preferences
@@ -67,6 +69,7 @@ class CarDebugFragmentTest {
                 owned = true,
             )
         Preferences.setVehicleIdentityTier(VehicleInfoSource.VEHICLE)
+        FailedTrackLog.clear()
     }
 
     /**
@@ -242,6 +245,60 @@ class CarDebugFragmentTest {
         assertEquals(DebugTab.ABOUT.id, rail(controller).selectedItemId)
         assertTrue(tabFragment(controller, DebugTab.ABOUT)!!.isVisible)
     }
+
+    @Test
+    fun `the Failures item carries the unseen count until the tab is opened`() {
+        FailedTrackLog.add(aFailure(at = 10L))
+        FailedTrackLog.add(aFailure(at = 20L))
+        val controller = launch()
+        openDebugScreen(controller)
+
+        val badge = rail(controller).getBadge(DebugTab.FAILURES.id)
+        assertTrue(badge!!.isVisible)
+        assertEquals(2, badge.number)
+
+        select(controller, DebugTab.FAILURES)
+
+        assertFalse(rail(controller).getBadge(DebugTab.FAILURES.id)?.isVisible == true)
+        assertEquals(0, FailedTrackLog.unseenCount())
+    }
+
+    @Test
+    fun `a failure while the screen is open badges at once`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        FailedTrackLog.add(aFailure(at = 10L))
+        idle()
+
+        assertEquals(1, rail(controller).getBadge(DebugTab.FAILURES.id)?.number)
+    }
+
+    @Test
+    fun `a failure while the Failures tab is open lists at once and stays seen`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.FAILURES)
+        val empty = controller.get().findViewById<View>(R.id.empty_text)
+        assertEquals(View.VISIBLE, empty.visibility)
+
+        FailedTrackLog.add(aFailure(at = 10L))
+        idle()
+
+        assertEquals(View.GONE, empty.visibility)
+        assertTrue(controller.get().findViewById<View>(R.id.clear_button).isEnabled)
+        assertFalse(rail(controller).getBadge(DebugTab.FAILURES.id)?.isVisible == true)
+    }
+
+    @Test
+    fun `no unseen failures, no badge`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        assertFalse(rail(controller).getBadge(DebugTab.FAILURES.id)?.isVisible == true)
+    }
+
+    private fun aFailure(at: Long) = FailedTrack("1", "Title", null, null, "HTTP 404", true, at, null)
 
     @Test
     fun `selecting Car shows the Car tab and hides About`() {
