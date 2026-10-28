@@ -11,6 +11,17 @@
 
 ## [Unreleased] — Siskin
 
+- **Debug:** a Failures tab lists the last 20 tracks that failed to play,
+  each marked skipped or stopped, and sets how many failures in a row stop
+  playback: 2, 3 (the default), 5, or never. Its rail item carries a badge
+  counting the failures since the tab was last opened.
+
+- A track whose file is missing on the Plex server, or cannot be decoded, is
+  skipped and the next one plays. Playback used to stop on it and stay
+  stopped, which from the driver's seat looked like Siskin had crashed.
+  Three such tracks in a row still stop playback, so a server whose music
+  has gone missing does not race through the whole queue.
+
 ## [1.2.0] (2026-10-26)
 
 - The car's tabs follow a new order however Customize tabs is left. They

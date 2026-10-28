@@ -4,6 +4,7 @@ import androidx.core.content.edit
 import androidx.media3.common.Player
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.car.VehicleInfoSource
+import com.cappielloantonio.tempo.service.PlaybackFailurePolicy
 
 object Preferences {
     const val THEME = "theme"
@@ -37,6 +38,8 @@ object Preferences {
     private const val SELECTED_EQUALIZER = "selected_equalizer"
     private const val EQUALIZER_ENABLED = "equalizer_enabled"
     private const val EQUALIZER_BAND_LEVELS = "equalizer_band_levels"
+    private const val FAILURE_LIMIT = "failure_limit"
+    private const val DEFAULT_FAILURE_LIMIT = 3
 
     private const val DARK_THEME_STYLE = "dark_theme_style"
 
@@ -399,4 +402,15 @@ object Preferences {
 
     @JvmStatic
     fun getDarkThemeStyle(): String = App.getInstance().preferences.getString(DARK_THEME_STYLE, "standard") ?: "standard"
+
+    /** The debug screen's choices; [PlaybackFailurePolicy.NEVER] is "Never". */
+    val FAILURE_LIMIT_OPTIONS: List<Int> = listOf(2, 3, 5, PlaybackFailurePolicy.NEVER)
+
+    @JvmStatic
+    fun getFailureLimit(): Int = App.getInstance().preferences.getInt(FAILURE_LIMIT, DEFAULT_FAILURE_LIMIT)
+
+    @JvmStatic
+    fun setFailureLimit(limit: Int) {
+        App.getInstance().preferences.edit { putInt(FAILURE_LIMIT, limit) }
+    }
 }
