@@ -12,7 +12,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -23,15 +24,21 @@ import java.io.IOException
 @RunWith(RobolectricTestRunner::class)
 class PlaybackFailureHandlerTest {
     private val logged = mutableListOf<FailedTrack>()
+    private val markedSkipped = mutableListOf<String>()
     private var reprepared = 0
     private var limit = 3
+    private var extendable = false
+    private var extended = 0
 
     private val handler =
         PlaybackFailureHandler(
             limit = { limit },
             log = { logged += it },
+            markSkipped = { markedSkipped += it },
             server = { "abc123" },
             reprepare = { reprepared++ },
+            canExtend = { extendable },
+            extend = { extended++ },
             now = { 1_000L },
         )
 
@@ -48,11 +55,27 @@ class PlaybackFailureHandlerTest {
                     .build(),
             ).build()
 
-    private fun player(hasNext: Boolean = true): Player =
-        mock {
-            on { currentMediaItem } doReturn item
-            on { hasNextMediaItem() } doReturn hasNext
+    private var hasNext = true
+    private var error: PlaybackException? = null
+    private var current: MediaItem = item
+    private var count = 5
+    private var index = 4
+
+    private fun grow() {
+        hasNext = true
+        count += 2
+    }
+
+    private fun player(hasNext: Boolean = true): Player {
+        this.hasNext = hasNext
+        return mock {
+            on { currentMediaItem } doAnswer { current }
+            on { hasNextMediaItem() } doAnswer { this@PlaybackFailureHandlerTest.hasNext }
+            on { playerError } doAnswer { error }
+            on { mediaItemCount } doAnswer { count }
+            on { currentMediaItemIndex } doAnswer { index }
         }
+    }
 
     private fun http(status: Int): PlaybackException =
         ExoPlaybackException.createForSource(
@@ -154,6 +177,176 @@ class PlaybackFailureHandlerTest {
         verify(player, never()).seekToNextMediaItem()
         verify(player, never()).prepare()
         assertEquals(listOf(false), logged.map { it.skipped })
+    }
+
+    @Test
+    fun `a dead last track extends when it can and logs it as stopped`() {
+        extendable = true
+        val player = player(hasNext = false)
+        handler.onPlayerError(player, http(404))
+
+        assertEquals(1, extended)
+        verify(player, never()).seekToNextMediaItem()
+        assertEquals(listOf(false), logged.map { it.skipped })
+    }
+
+    @Test
+    fun `the queue growing past a dead last track skips onto it`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        grow()
+        handler.onTimelineChanged(player)
+
+        verify(player).seekToNextMediaItem()
+        verify(player).prepare()
+        assertEquals(listOf("275680"), markedSkipped)
+    }
+
+    @Test
+    fun `a timeline change with still nothing next waits`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        handler.onTimelineChanged(player)
+
+        verify(player, never()).seekToNextMediaItem()
+        grow()
+        handler.onTimelineChanged(player)
+        verify(player).seekToNextMediaItem()
+    }
+
+    @Test
+    fun `growth that shuffle leaves before the current item seeks to the first one added`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        count += 2
+        handler.onTimelineChanged(player)
+
+        verify(player, never()).seekToNextMediaItem()
+        verify(player).seekTo(5, 0)
+        verify(player).prepare()
+        assertEquals(listOf("275680"), markedSkipped)
+    }
+
+    @Test
+    fun `a purge before the current item does not resume`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        count -= 3
+        index -= 3
+        handler.onTimelineChanged(player)
+
+        verify(player, never()).seekTo(any<Int>(), any<Long>())
+        verify(player, never()).seekToNextMediaItem()
+        assertTrue(markedSkipped.isEmpty())
+
+        count += 2
+        handler.onTimelineChanged(player)
+        verify(player).seekTo(2, 0)
+        assertEquals(listOf("275680"), markedSkipped)
+    }
+
+    @Test
+    fun `it resumes only once`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        grow()
+        handler.onTimelineChanged(player)
+        handler.onTimelineChanged(player)
+
+        verify(player, times(1)).seekToNextMediaItem()
+    }
+
+    @Test
+    fun `reaching READY stops waiting for the extension`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        handler.onPlaybackStateChanged(Player.STATE_READY)
+        grow()
+        handler.onTimelineChanged(player)
+
+        verify(player, never()).seekToNextMediaItem()
+    }
+
+    @Test
+    fun `a new queue stops waiting for the extension`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        handler.onMediaItemTransition(Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED)
+        grow()
+        handler.onTimelineChanged(player)
+
+        verify(player, never()).seekToNextMediaItem()
+    }
+
+    @Test
+    fun `a player no longer in error is not skipped`() {
+        extendable = true
+        val player = player(hasNext = false)
+        handler.onPlayerError(player, http(404))
+        error = null
+        grow()
+        handler.onTimelineChanged(player)
+
+        verify(player, never()).seekToNextMediaItem()
+    }
+
+    @Test
+    fun `a different queue picked while waiting is not skipped`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        current = item.buildUpon().setMediaId("999").build()
+        grow()
+        handler.onTimelineChanged(player)
+
+        verify(player, never()).seekToNextMediaItem()
+        assertTrue(markedSkipped.isEmpty())
+
+        current = item
+        handler.onTimelineChanged(player)
+        verify(player, never()).seekToNextMediaItem()
+        assertTrue(markedSkipped.isEmpty())
+    }
+
+    @Test
+    fun `a later stop ends the wait`() {
+        extendable = true
+        val player = player(hasNext = false)
+        error = http(404)
+        handler.onPlayerError(player, error!!)
+        error = http(401)
+        handler.onPlayerError(player, error!!)
+        grow()
+        handler.onTimelineChanged(player)
+
+        verify(player, never()).seekToNextMediaItem()
+        assertTrue(markedSkipped.isEmpty())
+    }
+
+    @Test
+    fun `the limit-th dead last track stops without extending`() {
+        extendable = true
+        val player = player(hasNext = true)
+        repeat(2) { handler.onPlayerError(player, http(404)) }
+        hasNext = false
+        handler.onPlayerError(player, http(404))
+
+        assertEquals(0, extended)
     }
 
     @Test

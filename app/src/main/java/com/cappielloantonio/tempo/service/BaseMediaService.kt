@@ -162,8 +162,11 @@ open class BaseMediaService : MediaLibraryService() {
         PlaybackFailureHandler(
             limit = Preferences::getFailureLimit,
             log = FailedTrackLog::add,
+            markSkipped = FailedTrackLog::markNewestSkipped,
             server = { PlexApi().machineIdentifier },
             reprepare = ::recoverFromNetworkError,
+            canExtend = ::canExtendQueue,
+            extend = { player -> player.currentMediaItem?.let { extendQueue(player, it) } },
         )
 
     /**
@@ -230,6 +233,7 @@ open class BaseMediaService : MediaLibraryService() {
                     reason: Int,
                 ) {
                     Log.d(TAG, "onTimelineChanged reason=$reason")
+                    failureHandler.onTimelineChanged(player)
                     try {
                         ReplayGainUtil.prefetchQueueGains(player)
                     } catch (t: Throwable) {
@@ -250,26 +254,7 @@ open class BaseMediaService : MediaLibraryService() {
                     ReplayGainUtil.setReplayGain(player, tracks)
                     val currentMediaItem = player.currentMediaItem
                     if (currentMediaItem != null) {
-                        // A station track is reported by the top-up, which has to
-                        // finish reporting before it reads the queue back.
-                        if (PlexMediaMapper.stationTagOf(currentMediaItem) != null) {
-                            topUpStation(player, currentMediaItem)
-                        }
-
-                        if (player.nextMediaItemIndex == C.INDEX_UNSET) {
-                            if (Preferences.isContinuousPlayEnabled()) {
-                                val browserFuture =
-                                    MediaBrowser
-                                        .Builder(
-                                            this@BaseMediaService,
-                                            SessionToken(
-                                                this@BaseMediaService,
-                                                ComponentName(this@BaseMediaService, this@BaseMediaService::class.java),
-                                            ),
-                                        ).buildAsync()
-                                MediaManager.continuousPlay(currentMediaItem, browserFuture)
-                            }
-                        }
+                        extendQueue(player, currentMediaItem)
                     }
 
                     if (player is ExoPlayer) {
@@ -416,6 +401,35 @@ open class BaseMediaService : MediaLibraryService() {
     }
 
     override fun onGetSession(controllerInfo: ControllerInfo): MediaLibrarySession = mediaLibrarySession
+
+    private fun extendQueue(
+        player: Player,
+        current: MediaItem,
+    ) {
+        // A station track is reported by the top-up, which has to
+        // finish reporting before it reads the queue back.
+        if (extendsByStation(current)) {
+            topUpStation(player, current)
+        }
+
+        if (player.nextMediaItemIndex == C.INDEX_UNSET && extendsByContinuousPlay()) {
+            // continuousPlay returns early on these; a browser built first would never be released.
+            if (MediaManager.continuousPlayIsRunning.get() || !Preferences.isInstantMixUsable()) return
+            val browserFuture =
+                MediaBrowser
+                    .Builder(
+                        this,
+                        SessionToken(this, ComponentName(this, this::class.java)),
+                    ).buildAsync()
+            MediaManager.continuousPlay(current, browserFuture)
+        }
+    }
+
+    private fun extendsByStation(item: MediaItem?): Boolean = PlexMediaMapper.stationTagOf(item) != null
+
+    private fun extendsByContinuousPlay(): Boolean = Preferences.isContinuousPlayEnabled()
+
+    private fun canExtendQueue(player: Player): Boolean = extendsByStation(player.currentMediaItem) || extendsByContinuousPlay()
 
     private fun topUpStation(
         player: Player,

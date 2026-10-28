@@ -101,6 +101,37 @@ class FailedTrackLogTest {
         assertEquals(1, FailedTrackLog.unseenCount())
     }
 
+    private fun stopped(key: String) = track(key).copy(skipped = false)
+
+    @Test
+    fun `markNewestSkipped flips the newest entry when it is that track`() {
+        FailedTrackLog.add(stopped("1"))
+        FailedTrackLog.add(stopped("2"))
+        FailedTrackLog.markNewestSkipped("2")
+        assertEquals(listOf(true, false), FailedTrackLog.all().map { it.skipped })
+    }
+
+    @Test
+    fun `markNewestSkipped leaves an older entry for that track alone`() {
+        FailedTrackLog.add(stopped("1"))
+        FailedTrackLog.add(stopped("2"))
+        FailedTrackLog.markNewestSkipped("1")
+        assertEquals(listOf(false, false), FailedTrackLog.all().map { it.skipped })
+    }
+
+    @Test
+    fun `markNewestSkipped does not count as a new failure`() {
+        FailedTrackLog.add(stopped("1"))
+        FailedTrackLog.markNewestSkipped("1")
+        assertEquals(1, FailedTrackLog.unseenCount())
+    }
+
+    @Test
+    fun `markNewestSkipped on an empty log does nothing`() {
+        FailedTrackLog.markNewestSkipped("1")
+        assertTrue(FailedTrackLog.all().isEmpty())
+    }
+
     @Test
     fun `an unreadable stored value reads as empty`() {
         com.cappielloantonio.tempo.App

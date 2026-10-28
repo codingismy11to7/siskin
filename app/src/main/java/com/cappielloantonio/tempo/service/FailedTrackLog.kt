@@ -49,6 +49,19 @@ object FailedTrackLog {
         }
     }
 
+    /**
+     * Marks the newest entry skipped if it is [ratingKey]'s: a dead last track
+     * is logged stopped, then turns out skipped once the queue grows past it.
+     * Not counted as an addition, so the badge does not see it twice.
+     */
+    fun markNewestSkipped(ratingKey: String) {
+        val entries = all()
+        val newest = entries.firstOrNull()?.takeIf { it.ratingKey == ratingKey } ?: return
+        App.getInstance().preferences.edit {
+            putString(KEY, gson.toJson(listOf(newest.copy(skipped = true)) + entries.drop(1)))
+        }
+    }
+
     fun all(): List<FailedTrack> {
         val json = App.getInstance().preferences.getString(KEY, null) ?: return emptyList()
         return try {
