@@ -13,7 +13,8 @@ class PlaybackFailurePolicyTest {
         before: Int = 0,
         limit: Int = 3,
         hasNext: Boolean = true,
-    ) = PlaybackFailurePolicy.decide(code, status, before, limit, hasNext)
+        canExtend: Boolean = false,
+    ) = PlaybackFailurePolicy.decide(code, status, before, limit, hasNext, canExtend)
 
     private val badHttp = PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
 
@@ -117,6 +118,38 @@ class PlaybackFailurePolicyTest {
         assertEquals(
             FailureDecision(FailureOutcome.STOP, trackFailure = true, failuresInARow = 10_001),
             decide(badHttp, 404, before = 10_000, limit = PlaybackFailurePolicy.NEVER, hasNext = false),
+        )
+    }
+
+    @Test
+    fun `a track failure with nothing next extends when it can`() {
+        assertEquals(
+            FailureDecision(FailureOutcome.EXTEND, trackFailure = true, failuresInARow = 1),
+            decide(badHttp, 404, hasNext = false, canExtend = true),
+        )
+    }
+
+    @Test
+    fun `the limit-th failure stops even when it could extend`() {
+        assertEquals(
+            FailureDecision(FailureOutcome.STOP, trackFailure = true, failuresInARow = 3),
+            decide(badHttp, 404, before = 2, hasNext = false, canExtend = true),
+        )
+    }
+
+    @Test
+    fun `a next item skips rather than extends`() {
+        assertEquals(
+            FailureDecision(FailureOutcome.SKIP, trackFailure = true, failuresInARow = 1),
+            decide(badHttp, 404, hasNext = true, canExtend = true),
+        )
+    }
+
+    @Test
+    fun `a failure that is not the track's never extends`() {
+        assertEquals(
+            FailureDecision(FailureOutcome.STOP, trackFailure = false, failuresInARow = 0),
+            decide(badHttp, 401, hasNext = false, canExtend = true),
         )
     }
 }

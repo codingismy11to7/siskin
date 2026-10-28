@@ -2,7 +2,7 @@ package com.cappielloantonio.tempo.service
 
 import androidx.media3.common.PlaybackException
 
-enum class FailureOutcome { REPREPARE, SKIP, STOP }
+enum class FailureOutcome { REPREPARE, SKIP, EXTEND, STOP }
 
 /** [failuresInARow] is the count after this error: one more for a track failure, unchanged otherwise. */
 data class FailureDecision(
@@ -20,6 +20,9 @@ data class FailureDecision(
  * queue while signing in again is what is needed. A decoder that will not
  * start or answer is the head unit's problem rather than the file's, so those
  * codes are not track failures either.
+ *
+ * A dead last track extends the queue when continuous play or a station can;
+ * see docs/decisions/2026-10-27-dead-last-track-design.md.
  */
 object PlaybackFailurePolicy {
     const val NEVER: Int = Int.MAX_VALUE
@@ -49,6 +52,7 @@ object PlaybackFailurePolicy {
         failuresBefore: Int,
         limit: Int,
         hasNext: Boolean,
+        canExtend: Boolean,
     ): FailureDecision {
         if (errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
             errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
@@ -60,7 +64,13 @@ object PlaybackFailurePolicy {
             return FailureDecision(FailureOutcome.STOP, trackFailure = false, failuresInARow = failuresBefore)
         }
         val count = failuresBefore + 1
-        val outcome = if (hasNext && count < limit) FailureOutcome.SKIP else FailureOutcome.STOP
+        val outcome =
+            when {
+                count >= limit -> FailureOutcome.STOP
+                hasNext -> FailureOutcome.SKIP
+                canExtend -> FailureOutcome.EXTEND
+                else -> FailureOutcome.STOP
+            }
         return FailureDecision(outcome, trackFailure = true, failuresInARow = count)
     }
 }

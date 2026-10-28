@@ -11,6 +11,10 @@
 
 ## [Unreleased] — Siskin
 
+- When the last track in the queue is missing on the Plex server or cannot be
+  decoded, continuous play (Keep the music playing) and artist stations add
+  more tracks and playback carries on past it, shuffled or not.
+
 - **Debug:** the Server tab names the server and its library, and lists each
   of its addresses as a row saying what kind it is (local network, remote or
   Plex relay, as plex.tv reports it) and how fast it answered. Opening the tab
