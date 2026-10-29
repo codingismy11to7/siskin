@@ -117,8 +117,8 @@ object BrowseTreeInvalidator {
         Futures.addCallback(
             MediaBrowserTree.getChildren(Constants.ROOT_ID),
             object : FutureCallback<LibraryResult<ImmutableList<MediaItem>>> {
-                override fun onSuccess(result: LibraryResult<ImmutableList<MediaItem>>?) {
-                    val childCount = result?.value?.size ?: 0
+                override fun onSuccess(result: LibraryResult<ImmutableList<MediaItem>>) {
+                    val childCount = result.value?.size ?: 0
                     current.notifyChildrenChanged(Constants.ROOT_ID, childCount, null)
                     // This confirms the call was made, not that any subscribed controller
                     // received it -- notifyChildrenChanged doesn't report delivery.

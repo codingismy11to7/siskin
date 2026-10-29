@@ -130,7 +130,7 @@ class MediaLibrarySessionCallback(
         val future = MediaBrowserTree.getChildren(parentId)
 
         return Futures.transformAsync(future, { result ->
-            if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
+            if (result.resultCode == LibraryResult.RESULT_SUCCESS) {
                 val items = result.value ?: emptyList()
                 queueSourceCache[Constants.QUEUE_CACHED_SOURCE] = items
                 queueSource = QueueSource(parentId, items)
@@ -391,7 +391,7 @@ class MediaLibrarySessionCallback(
         return Futures.transform(
             futureQueue,
             { resolvedItems ->
-                val items = resolvedItems ?: emptyList()
+                val items = resolvedItems
                 val opening = openingPositionIn(items, firstItem, mixRow, startIndex)
                 Log.d(TAG, "Opening at $opening of ${items.size} for ${firstItem.mediaId}")
 
@@ -543,7 +543,7 @@ class MediaLibrarySessionCallback(
                     Futures.transform(
                         mixTracks,
                         { result ->
-                            val tracks = result?.value ?: emptyList()
+                            val tracks = result.value ?: emptyList()
                             if (station) tracks else tracks.shuffled()
                         },
                         MoreExecutors.directExecutor(),
@@ -561,7 +561,7 @@ class MediaLibrarySessionCallback(
                             val refetched =
                                 Futures.transform(
                                     browseRepository.getPlaylistTracksForQueue(trusted.id),
-                                    { result -> result?.value ?: emptyList() },
+                                    { result -> result.value ?: emptyList() },
                                     MoreExecutors.directExecutor(),
                                 )
                             // A transport failure would otherwise fail a plain track tap;
@@ -702,7 +702,7 @@ class MediaLibrarySessionCallback(
         return Futures.transform(
             MediaBrowserTree.search(query),
             { result ->
-                if (result != null && result.resultCode == LibraryResult.RESULT_SUCCESS) {
+                if (result.resultCode == LibraryResult.RESULT_SUCCESS) {
                     rememberTracks(result.value ?: emptyList())
                 }
                 result
