@@ -11,6 +11,13 @@
 
 ## [Unreleased] — Siskin
 
+- **Debug:** the Failures tab keeps its place in the list when you leave the
+  debug screen and come back, or when the car switches between day and night.
+
+- **Debug:** on the Server tab, the server details and the Addresses heading
+  with its Re-probe button stay in place and only the list of addresses
+  scrolls.
+
 ## [1.2.1] (2026-10-28)
 
 - **Debug:** on the Failures tab, the failure limit and the Recent heading

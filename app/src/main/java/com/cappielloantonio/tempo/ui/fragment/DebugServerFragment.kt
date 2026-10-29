@@ -235,7 +235,7 @@ class DebugServerFragment : Fragment() {
         syncBack()
 
         val detail = rows.firstOrNull { it.uri == detailUri }
-        bind.listScroll.visibility = if (detail == null) View.VISIBLE else View.GONE
+        bind.listPane.visibility = if (detail == null) View.VISIBLE else View.GONE
         bind.detailScroll.visibility = if (detail == null) View.GONE else View.VISIBLE
 
         renderHeader(bind, session)

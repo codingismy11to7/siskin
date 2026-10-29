@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.ui.fragment
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
@@ -249,18 +250,32 @@ class CarDebugFragmentTest {
     }
 
     @Test
+    fun `on the Server tab only the addresses scroll`() {
+        val controller = launch()
+        openDebugScreen(controller)
+        select(controller, DebugTab.SERVER)
+
+        fun scrolls(id: Int) =
+            generateSequence(controller.get().findViewById<View>(id).parent) { it.parent }
+                .any { it is ScrollView }
+        assertFalse(scrolls(R.id.choose_server))
+        assertFalse(scrolls(R.id.reprobe))
+        assertTrue(scrolls(R.id.address_rows))
+    }
+
+    @Test
     fun `tapping an address opens its detail and back returns to the list`() {
         val controller = launch()
         openServerDetail(controller)
 
         assertEquals(View.VISIBLE, controller.get().findViewById<View>(R.id.detail_scroll).visibility)
-        assertEquals(View.GONE, controller.get().findViewById<View>(R.id.list_scroll).visibility)
+        assertEquals(View.GONE, controller.get().findViewById<View>(R.id.list_pane).visibility)
 
         controller.get().onBackPressedDispatcher.onBackPressed()
         idle()
 
         assertTrue(screenOf(controller) is CarDebugFragment)
-        assertEquals(View.VISIBLE, controller.get().findViewById<View>(R.id.list_scroll).visibility)
+        assertEquals(View.VISIBLE, controller.get().findViewById<View>(R.id.list_pane).visibility)
         assertEquals(View.GONE, controller.get().findViewById<View>(R.id.detail_scroll).visibility)
     }
 
