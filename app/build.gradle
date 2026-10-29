@@ -419,7 +419,8 @@ configurations.matching { it.name.toLowerCase().contains('annotationprocessor') 
 // Android lint runs from its own classpath, which the root buildscript's
 // constraints do not reach, and it carries the same AGP-era bouncycastle,
 // commons-lang3 and guava. Same constraints, same deletion rule -- see the root
-// build.gradle.
+// build.gradle. Room's annotation processor is a third such classpath, and
+// room-compiler carries an old guava of its own.
 //
 // media3 asks for a guava with a published advisory, and that one ships in the
 // APK. Delete the implementation line when releaseRuntimeClasspath shows media3
@@ -431,6 +432,7 @@ dependencies {
         androidLintTool libs.bouncycastle.bcutil
         androidLintTool libs.commons.lang3
         androidLintTool libs.guava.jre
+        annotationProcessor libs.guava.jre
         implementation libs.guava.android
     }
 }
