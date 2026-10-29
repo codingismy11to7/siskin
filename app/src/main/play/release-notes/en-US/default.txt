@@ -1,4 +1,2 @@
-• New Settings rows for the music cache size and how many upcoming tracks to download ahead.
-• Customize tabs shows the car's current tabs, and a new order takes effect however you leave the screen.
-• Settings no longer jumps after opening; who is listening now shows on the Switch user row.
-• Queuing a long playlist uses far less memory for cover art.
+• A track whose file is missing or can't be decoded is now skipped instead of stopping playback. Three in a row still stop it.
+• Keep the music playing and artist stations carry on past a dead last track instead of ending there.

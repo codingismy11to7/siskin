@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.2.1] (2026-10-28)
+
 - **Debug:** on the Failures tab, the failure limit and the Recent heading
   stay in place and only the list of failures scrolls.
 
