@@ -178,10 +178,10 @@
       # Deploying is Cloudflare's job now: a merge to main publishes. Nothing
       # here copies files to a web server, and nothing should. See
       # docs/decisions/2026-09-07-site-deploy-design.md.
-      siskin-render-web = pkgs.writeShellScriptBin "siskin-render-web" ''
+      siskinRenderWebFor = p: p.writeShellScriptBin "siskin-render-web" ''
         set -euo pipefail
-        root="$(${pkgs.git}/bin/git rev-parse --show-toplevel)"
-        export PATH="${pkgs.pandoc}/bin:$PATH"
+        root="$(${p.git}/bin/git rev-parse --show-toplevel)"
+        export PATH="${p.pandoc}/bin:$PATH"
         exec "$root/scripts/build-site.sh" "$@"
       '';
 
@@ -201,10 +201,12 @@
         exec "$root/gradlew" "$@"
       '';
 
-      # The release cut edits text and never touches the Android SDK, so unlike
-      # everything else here it is offered on aarch64 too -- where the dev
-      # shell cannot evaluate usefully, because every Android binary is x86_64.
-      cutSystems = [ "x86_64-linux" "aarch64-linux" ];
+      # aarch64 gets a shell with no Android SDK: there is no native aapt2 for
+      # it, so it cannot build the app. See
+      # docs/decisions/2026-10-29-aarch64-dev-shell-design.md.
+      armSystem = "aarch64-linux";
+      armPkgs = nixpkgs.legacyPackages.${armSystem};
+      pkgsFor = s: if s == system then pkgs else armPkgs;
 
       siskinCutFor = p: p.writeShellApplication {
         name = "siskin-cut";
@@ -213,6 +215,22 @@
           exec "$(git rev-parse --show-toplevel)/scripts/cut-release.sh" "$@"
         '';
       };
+
+      # Everything both shells carry. scrcpy's wrapper brings android-tools' adb
+      # with it, which on x86_64 the shell's $ADB overrides -- see below.
+      sharedToolsFor = p: [
+        (siskinRenderWebFor p)
+        (siskinCutFor p)
+        # Siskin is developed on GitHub — PRs, CI logs and issues are all read
+        # through gh, so it belongs in the shell rather than being reached for
+        # ad hoc via `nix run`.
+        p.gh
+        # The editor lints and formats Kotlin with ktlint on every write, so it
+        # has to be on PATH before nvim starts rather than reached for ad hoc —
+        # and from flake.lock, so its version is pinned like everything else.
+        p.ktlint
+        p.scrcpy
+      ];
     in
     {
       devShells.${system}.default = pkgs.mkShell {
@@ -221,22 +239,19 @@
           androidComposition.androidsdk
           siskin-avd
           siskin-emulator
-          siskin-render-web
           gr
-          (siskinCutFor pkgs)
-          # Siskin is developed on GitHub — PRs, CI logs and issues are all read
-          # through gh, so it belongs in the shell rather than being reached for
-          # ad hoc via `nix run`.
-          pkgs.gh
-          # The editor lints and formats Kotlin with ktlint on every write, so it
-          # has to be on PATH before nvim starts rather than reached for ad hoc —
-          # and from flake.lock, so its version is pinned like everything else.
-          pkgs.ktlint
-        ];
+        ] ++ sharedToolsFor pkgs;
 
         JAVA_HOME = "${jdk.home}";
         ANDROID_HOME = androidSdk;
         ANDROID_SDK_ROOT = androidSdk;
+
+        # Points scrcpy at the SDK's adb rather than the android-tools one its
+        # wrapper puts first on its PATH. Removing this lets scrcpy quietly use
+        # a different adb from the shell's. Overriding scrcpy's android-tools
+        # instead would drop that adb from the closure, but costs a local build
+        # where this hits the binary cache.
+        ADB = "${androidSdk}/platform-tools/adb";
 
         # AGP otherwise downloads an aapt2 binary from Maven that cannot run on
         # NixOS. Point it at the Nix-patched one instead.
@@ -251,10 +266,17 @@
         '';
       };
 
-      apps = nixpkgs.lib.genAttrs cutSystems (s: {
+      devShells.${armSystem}.default = armPkgs.mkShell {
+        packages = [ armPkgs.android-tools ] ++ sharedToolsFor armPkgs;
+        shellHook = ''
+          echo "Siskin dev shell (${armSystem}): no Android SDK, so no Gradle builds or emulator" >&2
+        '';
+      };
+
+      apps = nixpkgs.lib.genAttrs [ system armSystem ] (s: {
         siskin-cut = {
           type = "app";
-          program = "${siskinCutFor nixpkgs.legacyPackages.${s}}/bin/siskin-cut";
+          program = "${siskinCutFor (pkgsFor s)}/bin/siskin-cut";
           meta.description = "Cut a Siskin release and open its pull request";
         };
       });
