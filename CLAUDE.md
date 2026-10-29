@@ -77,8 +77,10 @@ claim 88 languages.
 
 ## Toolchain
 
-`flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, `gh` and
-`ktlint` — `nix develop`, or direnv via `.envrc`. `gr` runs `./gradlew` from
+`flake.nix` supplies JDK 21, the Android SDK, the AAOS emulator image, `gh`,
+`ktlint` and `scrcpy` — `nix develop`, or direnv via `.envrc`. **On
+aarch64-linux the shell has no Android SDK and cannot build the app**; see
+`docs/decisions/2026-10-29-aarch64-dev-shell-design.md`. `gr` runs `./gradlew` from
 anywhere in the tree, `siskin-render-web` renders the website into `build/web/`,
 `siskin-cut` cuts a release (below), and two more scripts drive the emulator:
 
