@@ -44,11 +44,16 @@ androidxTestRunner = "1.7.0"
 androidxTestCore = "1.7.0"
 zxing = "3.5.4"
 
-# Build classpath only -- raised over what AGP brings, see the root build.gradle
+# Build classpath only -- raised over what AGP and plugins bring, see the root build.gradle
 bouncycastle = "1.86"
 jose4j = "0.9.7"
 jdom2 = "2.0.6.1"
 commonsLang3 = "3.21.0"
+jackson = "2.22.4"
+guavaJre = "33.7.2-jre"
+
+# Raised over what media3 brings, see the constraint in app/build.gradle
+guavaAndroid = "33.7.2-android"
 
 [libraries]
 androidx-activity = { group = "androidx.activity", name="activity", version.ref = "activity" }
@@ -99,6 +104,12 @@ bouncycastle-bcutil = { group = "org.bouncycastle", name = "bcutil-jdk18on", ver
 jose4j = { group = "org.bitbucket.b_c", name = "jose4j", version.ref = "jose4j" }
 jdom2 = { group = "org.jdom", name = "jdom2", version.ref = "jdom2" }
 commons-lang3 = { group = "org.apache.commons", name = "commons-lang3", version.ref = "commonsLang3" }
+jackson-core = { group = "com.fasterxml.jackson.core", name = "jackson-core", version.ref = "jackson" }
+jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
+guava-jre = { group = "com.google.guava", name = "guava", version.ref = "guavaJre" }
+
+# Raised over what media3 brings, see the constraint in app/build.gradle
+guava-android = { group = "com.google.guava", name = "guava", version.ref = "guavaAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

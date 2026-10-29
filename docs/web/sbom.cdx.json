@@ -4961,43 +4961,43 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/com.google.guava/failureaccess@1.0.2?type=jar",
+            "bom-ref": "pkg:maven/com.google.guava/failureaccess@1.0.3?type=jar",
             "group": "com.google.guava",
             "name": "failureaccess",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "description": "Contains com.google.common.util.concurrent.internal.InternalFutureFailureAccess and InternalFutures. Most users will never need to use this artifact. Its classes are conceptually a part of Guava, but they're in this separate artifact so that Android libraries can use them without pulling in all of Guava (just as they can use ListenableFuture by depending on the listenablefuture artifact).",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "3f75955b49b6758fd6d1e1bd9bf777b3"
+                    "content": "29a782e90f6b37218b18bb880d2a8f4a"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "c4a06a64e650562f30b7bf9aaec1bfed43aca12b"
+                    "content": "aeaffd00d57023a2c947393ed251f0354f0985fc"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "8a8f81cf9b359e3f6dfa691a1e776985c061ef2f223c9b2c80753e1b458e8064"
+                    "content": "cbfc3906b19b8f55dd7cfd6dfe0aa4532e834250d7f080bd8d211a3e246b59cb"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "ff4ee76aa661708989d53d45576cff3beea9ebbd86481dbbf2ee8c81bb22f882097b430588312b711025f0e890f22c6799d722ccd422a6a7278de08660fe2f51"
+                    "content": "72be228e7805da5623e42bf024ded7d9147023c66b22f4dbd04ac6898201af46ee82e1f92ea51eb0595f1b49151c4b8ecb862653d4906c17609c42544ee97abf"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "a650b2f7982affc2dbb7e2807fbb0fbf58b74fd8dc111cc6dc5e95a00179b7e3"
+                    "content": "08a77b528a72ca412b36e4004692705ebfd75cfb4897c88632d367d08a34b09f"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "2c5ee7629a8fb1c952f437b80fcd1cff86c54ff81de02eda1eb73c0bbfe38d3f072946f8c6396c7f1e46e16a6d44ad393dfe6fd2dd96f75ebb854263d36bb193"
+                    "content": "7cba6c266babbe8272f029eea6e2cbddadee96eb1a16916a6eb2441a55837867ce717385d4388735fd83f2f6555931077c0ebda011a1ee9a37ac38c8c0c43a65"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "85a7bd379da27ad57a4e5c02099fef206083caa52244597ac858a921b48e2912cfa7ef0e7d0c7a10ab2dd8d0f7d6ada0"
+                    "content": "9dd1a2a08efda311604992d3e7cee64873bc8c64de3b423b1b3a3dcc1f7f0810bb03901fbfe39a5f835accb0646f4ad8"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "652b22d09b297320e62ac254801e7d3a0fd2a8038461c5cbf7a53a27d681f62b768b964aa62c864453c4e7af217c8c4a"
+                    "content": "ffd67766c165ee77e96824e06de2c19864a6e61f785b2085eb825f308f173d71f2555559d90d910f33f3367378ace0e3"
                 }
             ],
             "licenses": [
@@ -5007,7 +5007,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/com.google.guava/failureaccess@1.0.2?type=jar",
+            "purl": "pkg:maven/com.google.guava/failureaccess@1.0.3?type=jar",
             "modified": false,
             "properties": [
                 {
@@ -5018,43 +5018,43 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/com.google.guava/guava@33.3.1-android?type=jar",
+            "bom-ref": "pkg:maven/com.google.guava/guava@33.7.2-android?type=jar",
             "group": "com.google.guava",
             "name": "guava",
-            "version": "33.3.1-android",
+            "version": "33.7.2-android",
             "description": "Guava is a suite of core and expanded libraries that include utility classes, Google's collections, I/O classes, and much more.",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "1d7790a577f8a1c7c629fe325e92101a"
+                    "content": "95d86a8dc0236096fd3f93ed2f934284"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "36162b3b4e9df67dae90db62a2c54616ca42c1bd"
+                    "content": "0e601df8fa35293ad4fa7c6ec4522152d304eb41"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "2c3e41d1b380f2044d257947a3aa82dabf3ae4b978622745254aa18b6cf89ab0"
+                    "content": "b949fe975a32421c1a2633c07a4f1578b462f2f467668aa0a4023c5ff7c4a808"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "f552f01c63fe797c4a91908bf76e1739463c6d5ff2765689d5072e94f2aff513bf1ef575acaec83a284e440b5bfa9e7e4612af38f6db4df2587f131ea3b0f252"
+                    "content": "3673d56efbab0384ddf1f3b564b09fd4439b132aee914e57bd0867b4fc43a6751246c4a74c5057c0b8440d1be20142bb838880e7783d6f9efea2a0eb6ba7c252"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "11f25a06f3da7a662f46006fc83ad5231c73c2109db84fd65a8ca626534c5a19"
+                    "content": "3d7055729a763bde36b74f87dd670a7f755ef83d6989dbc8a88b4189fbfc8715"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "6fb66454b03a7cd16528fc820226d30a39f32c90e8834cb3e2b52d7856da421729e2fdc6ebd3f92601e0577656e9620c39b51abcfbd504181ca72fdd1c385aa2"
+                    "content": "ee4c9032d0288faddf7e37e4df67fc60836c44f2909910a97361fbe6e7f72a46641b928e02ec493540d26c897ba1d32db5bedaad6a9c00fe331bcde77263a3b8"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "0d8dd76235adc4b26b205cbc0c810d909e74b70849914a2328871ec3a682dedba73461054dc40c34be00a219b64bb89e"
+                    "content": "1c45018398902fda0c87d0c3b46f5da5a25fa2ca563cedeb693ca3b045b4f93a997bb859a880fe881d3d8cf4b4db6a2e"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "02298fb2044aa0e462965c2eb01cb6d879fb3f99a48efc6032b74f3133e522d5ff806c08cc27a7a5a59325219b5a92a7"
+                    "content": "cc105d80f727d490ab23e8229d58b124691d28184ef2cc092c2f387096a5921adbde7f839c96f600318fae127cccf6f1"
                 }
             ],
             "licenses": [
@@ -5064,7 +5064,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/com.google.guava/guava@33.3.1-android?type=jar",
+            "purl": "pkg:maven/com.google.guava/guava@33.7.2-android?type=jar",
             "modified": false,
             "properties": [
                 {
@@ -6806,43 +6806,43 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
+            "bom-ref": "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
             "group": "org.jspecify",
             "name": "jspecify",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "description": "An artifact of well-named and well-specified annotations to power static analysis checks",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "9133aba420d0ca3b001dbb6ae9992cf6"
+                    "content": "d4fe1ea4d953b66fcb1d6043c22bffcf"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "7425a601c1c7ec76645a78d22b8c6a627edee507"
+                    "content": "3d60fd98eb8ade73004f4195c37b6317e02cf3d7"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab"
+                    "content": "070d75f261fe4c5b8202508366715f7f2d4660f88c8ef7e6d3575e48c9683b66"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "efded31ef5b342f09422935076e599789076431e93a746685c0607e7de5592719ba6aacde0be670b3f064d1e85630d58d5bce6b34aed2a288fdb34f745efb7bc"
+                    "content": "8f5ca6f5c25ee353bfbe3e5e5cd9847b3b3ed1e954a14a52c9aa016c673e02bfbc2e0f9308ad576c2a58720f8bf2139ad9883c7a881050fe96a2f87e2e623711"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "4b4f08ad7606a3ac62997779484919a302267b26d26ee19125f8a7eea60e8a71"
+                    "content": "f9392a7b674c37a7617d7e5ab4a6197c235c0a036244eaf550291d6756c0f1c9"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "65c6845ebae981cb81b61107707ced39f5b377dae970b47606ef482aaf10e3729def0da40d9377c43abbfb483a5ceae039b0d51c129c50a6d36ad351a5d6b01e"
+                    "content": "3154b4940937103d74b77eede7abc7034168dc986284ef00ab4e4d5b537ed6370c6856787ae50711e62906b3011243c9a656b659ddd025c1e6b828c44b980855"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "814f860e5a44ead6c457676841eef471a8b87be31b84c60a8a4477a18a9cbcb6e3c2ae700969d5c5e52309d961e0537a"
+                    "content": "f7c6aea402675ed6d9286e6107d4bf6c2d1f757f9fce4c74807cbd43d426569324cf4c7faed28dc777e90ddb3a63db68"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "c8844e5b71e5ecfbb7366097ce34af2f5863d86d5ccc3f9ec384d8ade4b60ccc8124c7fc88664f1afd2b0962fc8775bf"
+                    "content": "d462ead4749cc7b404b1699aedf472664e9bb38db769f2ec78a6457d2d080602f673af8b3114724dd92ee2262f464c41"
                 }
             ],
             "licenses": [
@@ -6852,7 +6852,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
+            "purl": "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
             "modified": false,
             "externalReferences": [
                 {
@@ -6909,7 +6909,7 @@
             "ref": "pkg:maven/androidx.appcompat/appcompat-resources@1.8.0?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.vectordrawable/vectordrawable-animated@1.1.0?type=aar",
                 "pkg:maven/androidx.collection/collection@1.5.0?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
@@ -6922,9 +6922,9 @@
             "dependsOn": [
                 "pkg:maven/androidx.drawerlayout/drawerlayout@1.1.1?type=aar",
                 "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.emoji2/emoji2@1.3.0?type=aar",
                 "pkg:maven/androidx.savedstate/savedstate@1.4.0?type=pom",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
                 "pkg:maven/androidx.cursoradapter/cursoradapter@1.0.0?type=aar",
                 "pkg:maven/androidx.collection/collection@1.5.0?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
@@ -7032,7 +7032,7 @@
             "ref": "pkg:maven/androidx.core/core@1.19.1?type=aar",
             "dependsOn": [
                 "pkg:maven/com.google.guava/listenablefuture@9999.0-empty-to-avoid-conflict-with-guava?type=jar",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.collection/collection@1.5.0?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
                 "pkg:maven/androidx.interpolator/interpolator@1.0.0?type=aar",
@@ -7064,7 +7064,7 @@
             "ref": "pkg:maven/androidx.customview/customview@1.2.0?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.collection/collection@1.5.0?type=pom",
                 "pkg:maven/androidx.core/core@1.19.1?type=aar"
             ]
@@ -7087,7 +7087,7 @@
         {
             "ref": "pkg:maven/androidx.dynamicanimation/dynamicanimation@1.1.0?type=aar",
             "dependsOn": [
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.collection/collection@1.5.0?type=pom",
                 "pkg:maven/androidx.core/core@1.19.1?type=aar"
             ]
@@ -7114,7 +7114,7 @@
             "ref": "pkg:maven/androidx.exifinterface/exifinterface@1.4.2?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar"
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar"
             ]
         },
         {
@@ -7161,7 +7161,7 @@
             "dependsOn": [
                 "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-core@1.11.0?type=pom",
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar"
             ]
         },
@@ -7181,8 +7181,8 @@
         {
             "ref": "pkg:maven/androidx.lifecycle/lifecycle-livedata-core@2.10.0?type=aar",
             "dependsOn": [
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.arch.core/core-runtime@2.2.0?type=aar",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
                 "pkg:maven/androidx.lifecycle/lifecycle-common@2.10.0?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
                 "pkg:maven/androidx.arch.core/core-common@2.2.0?type=jar"
@@ -7192,8 +7192,8 @@
             "ref": "pkg:maven/androidx.lifecycle/lifecycle-livedata@2.10.0?type=aar",
             "dependsOn": [
                 "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-core@1.11.0?type=pom",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.arch.core/core-runtime@2.2.0?type=aar",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
                 "pkg:maven/androidx.lifecycle/lifecycle-livedata-core@2.10.0?type=aar",
                 "pkg:maven/androidx.arch.core/core-common@2.2.0?type=jar",
@@ -7214,8 +7214,8 @@
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
                 "pkg:maven/androidx.profileinstaller/profileinstaller@1.4.1?type=aar",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.arch.core/core-runtime@2.2.0?type=aar",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
                 "pkg:maven/androidx.lifecycle/lifecycle-common@2.10.0?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
                 "pkg:maven/org.jetbrains.kotlinx/kotlinx-coroutines-android@1.11.0?type=jar",
@@ -7302,8 +7302,8 @@
             "ref": "pkg:maven/androidx.media3/media3-common@1.11.0?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
-                "pkg:maven/androidx.annotation/annotation-experimental@1.5.0?type=aar",
-                "pkg:maven/com.google.guava/guava@33.3.1-android?type=jar"
+                "pkg:maven/com.google.guava/guava@33.7.2-android?type=jar",
+                "pkg:maven/androidx.annotation/annotation-experimental@1.5.0?type=aar"
             ]
         },
         {
@@ -7449,8 +7449,8 @@
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
                 "pkg:maven/androidx.sqlite/sqlite@2.6.2?type=pom",
                 "pkg:maven/androidx.room/room-common@2.8.5?type=pom",
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
                 "pkg:maven/androidx.arch.core/core-runtime@2.2.0?type=aar",
-                "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
                 "pkg:maven/androidx.sqlite/sqlite-framework@2.6.2?type=pom",
                 "pkg:maven/androidx.collection/collection@1.5.0?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
@@ -7612,16 +7612,17 @@
             ]
         },
         {
-            "ref": "pkg:maven/com.google.guava/failureaccess@1.0.2?type=jar",
+            "ref": "pkg:maven/com.google.guava/failureaccess@1.0.3?type=jar",
             "dependsOn": [
                 
             ]
         },
         {
-            "ref": "pkg:maven/com.google.guava/guava@33.3.1-android?type=jar",
+            "ref": "pkg:maven/com.google.guava/guava@33.7.2-android?type=jar",
             "dependsOn": [
                 "pkg:maven/com.google.guava/listenablefuture@9999.0-empty-to-avoid-conflict-with-guava?type=jar",
-                "pkg:maven/com.google.guava/failureaccess@1.0.2?type=jar"
+                "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
+                "pkg:maven/com.google.guava/failureaccess@1.0.3?type=jar"
             ]
         },
         {
@@ -7864,7 +7865,7 @@
             ]
         },
         {
-            "ref": "pkg:maven/org.jspecify/jspecify@1.0.0?type=jar",
+            "ref": "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
             "dependsOn": [
                 
             ]

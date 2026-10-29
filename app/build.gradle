@@ -417,15 +417,21 @@ configurations.matching { it.name.toLowerCase().contains('annotationprocessor') 
 }
 
 // Android lint runs from its own classpath, which the root buildscript's
-// constraints do not reach, and it carries the same AGP-era bouncycastle and
-// commons-lang3. Same constraints, same deletion rule -- see the root
+// constraints do not reach, and it carries the same AGP-era bouncycastle,
+// commons-lang3 and guava. Same constraints, same deletion rule -- see the root
 // build.gradle.
+//
+// media3 asks for a guava with a published advisory, and that one ships in the
+// APK. Delete the implementation line when releaseRuntimeClasspath shows media3
+// asking for at least as much.
 dependencies {
     constraints {
         androidLintTool libs.bouncycastle.bcprov
         androidLintTool libs.bouncycastle.bcpkix
         androidLintTool libs.bouncycastle.bcutil
         androidLintTool libs.commons.lang3
+        androidLintTool libs.guava.jre
+        implementation libs.guava.android
     }
 }
 
