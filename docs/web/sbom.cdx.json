@@ -1390,42 +1390,42 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/androidx.databinding/viewbinding@9.4.1?type=aar",
+            "bom-ref": "pkg:maven/androidx.databinding/viewbinding@9.5.0?type=aar",
             "group": "androidx.databinding",
             "name": "viewbinding",
-            "version": "9.4.1",
+            "version": "9.5.0",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "440ffa17d1177e438ab0c28ce83911a3"
+                    "content": "68ffdcbd83febf1d803d441727d4b708"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "7acf80db759b8c01da2d4fc7013bea0bb3772c34"
+                    "content": "b09fb2aa80f3083b4d9fd308b5cff2c613c3bc34"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "5f865fb5c450766ac841019909ab773cf1be67e332e46c6f12f9b5438d818104"
+                    "content": "5f0b7db2bd8fcea17bae43d779c5fea6469a3b294c9984da6fb7079923ca8f10"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "e42369c0d0f7d72e250a6803573500e20d1a02601313765c1dad87b2c768e5788606d118c32a4e70634e0093d2b6ed82c1bb2912d1b193f53a8a956a306c2331"
+                    "content": "1478f1bb912ca16112db4286d49109e2a2c8bfd063e3febb8ca9c5cd815d5d276f6fd924b827cf03136f35682868bd074d04b9ce4ff86adfe644cba796bcdf30"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "3426d6425f1bdcece34140bd0fe103506f574bde29f5b23bc0cf08275266c362"
+                    "content": "163fa7b5fe2373ccad7eaa281cb5927e1400da14455708d5cb0999b4f8e2fb18"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "335ce59d9c8790857d70bdc59e8879d485858c6f05d23d52fed256de57726c61cf68d83e9bde59934136ffd35d075aeacb75b2dc0155d12b10d30e8b8f712d3d"
+                    "content": "652d40d80fc8f5fd55f114baa945929a9c7e0cfcf7a2f9652d2a83a7328bf82f3804477c60862a0b710d846de20944dc7b578c749beecfc6a4725d301fff595f"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "73f6a006734d72807f773a7cbfdab00afab50424f6088f6e550459a13e9c0d85c963893a23179ec79583a65d22843230"
+                    "content": "6246fbc21426cf5c13aa0dcfe8f74f391e64b1b42239812b336aa2f1a1e79ba1d5885149b49a77883a4996ef7e72c986"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "5d41a4e477c9b2ae5d3a7d34567b10712231ed44a139ef34c70b6747d2d3ea473b3cb5393cea02db574577d891fd77cb"
+                    "content": "283f842f3b1df284c79ee49b8598dd0d4aa2867ed343c4b3291849c3aadd1cc965a8cf29244838a30cf182c350f56f3e"
                 }
             ],
             "licenses": [
@@ -1435,7 +1435,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/androidx.databinding/viewbinding@9.4.1?type=aar",
+            "purl": "pkg:maven/androidx.databinding/viewbinding@9.5.0?type=aar",
             "modified": false,
             "properties": [
                 {
@@ -7070,7 +7070,7 @@
             ]
         },
         {
-            "ref": "pkg:maven/androidx.databinding/viewbinding@9.4.1?type=aar",
+            "ref": "pkg:maven/androidx.databinding/viewbinding@9.5.0?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar"
@@ -7881,13 +7881,13 @@
                 "pkg:maven/com.google.android.material/material@1.14.0?type=aar",
                 "pkg:maven/io.coil-kt.coil3/coil-core@3.6.3?type=pom",
                 "pkg:maven/androidx.media3/media3-exoplayer@1.11.0?type=aar",
+                "pkg:maven/androidx.databinding/viewbinding@9.5.0?type=aar",
                 "pkg:maven/androidx.media3/media3-exoplayer-hls@1.11.0?type=aar",
                 "pkg:maven/androidx.constraintlayout/constraintlayout@2.2.2?type=aar",
                 "pkg:maven/com.squareup.retrofit2/retrofit@3.0.0?type=jar",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
                 "pkg:maven/org.jellyfin.media3/media3-ffmpeg-decoder@1.9.0%2B1?type=aar",
                 "pkg:maven/androidx.room/room-runtime@2.8.5?type=pom",
-                "pkg:maven/androidx.databinding/viewbinding@9.4.1?type=aar",
                 "pkg:maven/io.coil-kt.coil3/coil-network-okhttp@3.6.3?type=pom",
                 "pkg:maven/androidx.appcompat/appcompat@1.8.0?type=aar",
                 "pkg:maven/androidx.core/core-ktx@1.19.1?type=aar",
