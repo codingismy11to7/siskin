@@ -11,6 +11,9 @@
 
 ## [Unreleased] — Siskin
 
+- **Debug:** on the Failures tab, the failure limit and the Recent heading
+  stay in place and only the list of failures scrolls.
+
 - When the last track in the queue is missing on the Plex server or cannot be
   decoded, continuous play (Keep the music playing) and artist stations add
   more tracks and playback carries on past it, shuffled or not.

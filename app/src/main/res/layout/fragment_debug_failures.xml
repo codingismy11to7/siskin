@@ -3,68 +3,75 @@
     The Failures tab of the debug screen. See
     docs/decisions/2026-10-27-skip-dead-tracks-design.md.
 -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fadingEdgeLength="48dp"
-    android:paddingBottom="32dp"
-    android:requiresFadingEdge="vertical"
-    android:scrollbars="none">
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/debug_failures_limit_title"
+        android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/limit_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="24dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="@string/debug_failures_limit_title"
+            android:layout_weight="1"
+            android:text="@string/debug_failures_recent_title"
             android:textAppearance="?attr/textAppearanceTitleLarge" />
 
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/limit_group"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/clear_button"
+            style="?attr/materialButtonOutlinedStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="24dp" />
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minHeight="56dp"
+            android:text="@string/debug_failures_clear" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fadingEdgeLength="48dp"
+        android:paddingBottom="32dp"
+        android:requiresFadingEdge="vertical"
+        android:scrollbars="none">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
             <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/debug_failures_recent_title"
-                android:textAppearance="?attr/textAppearanceTitleLarge" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/clear_button"
-                style="?attr/materialButtonOutlinedStyle"
+                android:id="@+id/empty_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minHeight="56dp"
-                android:text="@string/debug_failures_clear" />
+                android:layout_marginTop="12dp"
+                android:text="@string/debug_failures_none"
+                android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+            <LinearLayout
+                android:id="@+id/entry_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/empty_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/debug_failures_none"
-            android:textAppearance="?attr/textAppearanceBodyLarge" />
-
-        <LinearLayout
-            android:id="@+id/entry_container"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-    </LinearLayout>
-</ScrollView>
+    </ScrollView>
+</LinearLayout>
