@@ -106,13 +106,10 @@
 
         <ScrollView
             android:id="@+id/address_scroll"
+            style="@style/FadingScrollView"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:fadingEdgeLength="48dp"
-            android:paddingBottom="32dp"
-            android:requiresFadingEdge="vertical"
-            android:scrollbars="none">
+            android:layout_weight="1">
 
             <LinearLayout
                 android:id="@+id/address_rows"
