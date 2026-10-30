@@ -41,23 +41,17 @@
         android:textAppearance="?attr/textAppearanceDisplaySmall" />
 
     <!--
-        requiresFadingEdge is the affordance for a list that runs past the
-        bottom: the platform fades the clipped edge, which is the only cue that
-        scrolling is possible on a screen with no scrollbar (the app theme sets
-        android:scrollbars=none). This list is the one that grows, so it is the
-        one that needs it.
+        This list is the one that grows, so it is the one that scrolls; see
+        FadingScrollView for the faded edge that says so.
     -->
     <ScrollView
         android:id="@+id/content_scroll"
+        style="@style/FadingScrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fadingEdgeLength="48dp"
         android:fillViewport="true"
-        android:paddingTop="8dp"
-        android:paddingBottom="32dp"
-        android:requiresFadingEdge="vertical"
-        android:scrollbars="none">
+        android:paddingTop="8dp">
 
         <LinearLayout
             android:id="@+id/scroll_content"

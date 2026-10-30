@@ -51,4 +51,18 @@
         <item name="cornerFamilyBottomRight">rounded</item>
     </style>
 
+    <!--
+        For a list that can run past the bottom of the screen. The faded edge
+        is the only cue that it scrolls, because there is no scrollbar.
+        scrollbars has to be stated here even though AppTheme states it too:
+        the platform's ScrollView style sets it to vertical, and a widget's
+        default style outranks the theme.
+    -->
+    <style name="FadingScrollView">
+        <item name="android:fadingEdgeLength">48dp</item>
+        <item name="android:paddingBottom">32dp</item>
+        <item name="android:requiresFadingEdge">vertical</item>
+        <item name="android:scrollbars">none</item>
+    </style>
+
 </resources>

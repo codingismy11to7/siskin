@@ -4,12 +4,9 @@
     docs/decisions/2026-10-25-changelog-tab-design.md.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/FadingScrollView"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fadingEdgeLength="48dp"
-    android:paddingBottom="32dp"
-    android:requiresFadingEdge="vertical"
-    android:scrollbars="none">
+    android:layout_height="match_parent">
 
     <TextView
         android:id="@+id/changelog_text"

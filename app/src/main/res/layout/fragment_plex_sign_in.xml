@@ -46,22 +46,16 @@
 
     <!--
         fillViewport lets the child fill the leftover space so short content
-        still centres in it. requiresFadingEdge is the affordance for a list
-        that runs past the bottom: the platform fades the clipped edge, which
-        is the only cue that scrolling is possible on a screen with no
-        scrollbar (the app theme sets android:scrollbars=none).
+        still centres in it.
     -->
     <ScrollView
         android:id="@+id/content_scroll"
+        style="@style/FadingScrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fadingEdgeLength="48dp"
         android:fillViewport="true"
-        android:paddingTop="8dp"
-        android:paddingBottom="32dp"
-        android:requiresFadingEdge="vertical"
-        android:scrollbars="none">
+        android:paddingTop="8dp">
 
         <!--
             Gravity is set per state in render(), because the states want
