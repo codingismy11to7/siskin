@@ -2,8 +2,12 @@ package com.cappielloantonio.tempo.service
 
 import android.content.Context
 import android.util.Log
+import androidx.core.content.ContextCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -23,6 +27,17 @@ import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "MediaLibrarySessionCallback"
 private val queueSourceCache = ConcurrentHashMap<String, List<MediaItem>>()
+
+/** Fails a voice request's future; the driver hears the [VoiceFailure], not this. */
+internal class VoiceRequestRejected(
+    val failure: VoiceFailure,
+) : Exception(failure.name)
+
+/**
+ * Fails a voice request that resumed the player. media3 replaces the queue with
+ * whatever a successful future holds, and ignores a failed one from a search.
+ */
+internal class VoiceRequestResumed : Exception()
 
 @UnstableApi
 class MediaLibrarySessionCallback(
@@ -48,6 +63,8 @@ class MediaLibrarySessionCallback(
      */
     @Volatile
     private var queueSource: QueueSource? = null
+
+    private val voiceRequests = VoiceRequestResolver(browseRepository)
 
     // ─────────────────────────────────────────────────────────────
     // Android Auto — browse
@@ -381,6 +398,9 @@ class MediaLibrarySessionCallback(
                 ?: return super.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
 
         Log.d(TAG, "mediaId = ${firstItem.mediaId}, startIndex = $startIndex, startPositionMs = $startPositionMs")
+        if (firstItem.mediaId.isEmpty()) {
+            return if (isVoiceRequest(firstItem)) playVoiceRequest(mediaSession, firstItem) else unsupportedRequest()
+        }
 
         val mixRow = isMixRow(firstItem)
         // Nothing here writes shuffleModeEnabled -- see the note on
@@ -395,22 +415,7 @@ class MediaLibrarySessionCallback(
                 val opening = openingPositionIn(items, firstItem, mixRow, startIndex)
                 Log.d(TAG, "Opening at $opening of ${items.size} for ${firstItem.mediaId}")
 
-                if (items.isNotEmpty()) {
-                    val queue = QueueRepository()
-                    // No detagging needed here: Queue.fromMediaItem reads its fields
-                    // through PlexMediaMapper.readTrackFields, which never reads
-                    // EXTRA_PARENT_ID, and the `queue` table has no parent_id column.
-                    // A left-over parent tag on a queued item is inert.
-                    queue.insertAll(items, true, 0)
-                    // Marks the opening track as the one to resume at. The player
-                    // will not do it: BaseMediaService records a last-played row on
-                    // a seek or an automatic transition, and opening a fresh queue
-                    // is neither, so without this a process death before the first
-                    // track change would restore the queue at track one. Same
-                    // executor as insertAll above, which is what orders it after
-                    // the rows it marks.
-                    items.getOrNull(opening)?.let { queue.setLastPlayedTimestamp(it.mediaId) }
-                }
+                if (items.isNotEmpty()) saveOpenedQueue(items, opening)
 
                 MediaSession.MediaItemsWithStartPosition(items, opening, startPositionMs)
             },
@@ -427,6 +432,9 @@ class MediaLibrarySessionCallback(
         val firstItem = mediaItems.firstOrNull() ?: return Futures.immediateFuture(mediaItems)
 
         Log.d(TAG, "mediaId = ${firstItem.mediaId}")
+        if (firstItem.mediaId.isEmpty()) {
+            return if (isVoiceRequest(firstItem)) addVoiceRequest(mediaSession, firstItem) else unsupportedRequest()
+        }
         val extras = firstItem.requestMetadata.extras ?: firstItem.mediaMetadata.extras
         Log.d(TAG, "extras: ${extras?.keySet()?.joinToString { key -> "$key=${extras.getString(key)}" } ?: "null"}")
 
@@ -434,6 +442,149 @@ class MediaLibrarySessionCallback(
         // does not need to: resolveQueueForItem shuffles a Mix, so track one is a
         // random draw, and leaves a station in the server order it came in.
         return resolveQueueForItem(firstItem, mediaItems)
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Voice requests
+    // ─────────────────────────────────────────────────────────────
+
+    // An empty query is still a query. A request by URI also has no id, and playing
+    // it as "play music" would replace the saved queue.
+    private fun isVoiceRequest(item: MediaItem) = item.requestMetadata.searchQuery != null
+
+    private fun <T> unsupportedRequest(): ListenableFuture<T> =
+        Futures.immediateFailedFuture(UnsupportedOperationException("a request with neither an id nor a query"))
+
+    /**
+     * A voice request: an item with no id, carrying what was asked for in its
+     * request metadata. It must not reach [resolveQueueForItem], whose fallback
+     * would hand the stream-less item to the player after clearing the saved
+     * queue. See docs/decisions/2026-10-31-assistant-voice-requests-design.md.
+     */
+    private fun playVoiceRequest(
+        session: MediaSession,
+        item: MediaItem,
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
+        Futures.transformAsync(
+            resolveVoiceRequest(session, item),
+            { outcome ->
+                when (outcome) {
+                    is VoiceOutcome.Play -> {
+                        saveOpenedQueue(outcome.items, outcome.index)
+                        Futures.immediateFuture(
+                            MediaSession.MediaItemsWithStartPosition(outcome.items, outcome.index, C.TIME_UNSET),
+                        )
+                    }
+
+                    is VoiceOutcome.Resume -> {
+                        resumePlayback(session)
+                    }
+
+                    is VoiceOutcome.Failed -> {
+                        rejectVoiceRequest(session, outcome.failure)
+                    }
+                }
+            },
+            MoreExecutors.directExecutor(),
+        )
+
+    /** A bare list cannot carry a position, and an append has nothing to resume. */
+    private fun addVoiceRequest(
+        session: MediaSession,
+        item: MediaItem,
+    ): ListenableFuture<List<MediaItem>> =
+        Futures.transformAsync(
+            resolveVoiceRequest(session, item),
+            { outcome ->
+                when (outcome) {
+                    is VoiceOutcome.Play -> Futures.immediateFuture(outcome.items)
+                    is VoiceOutcome.Resume -> Futures.immediateFuture(emptyList())
+                    is VoiceOutcome.Failed -> rejectVoiceRequest(session, outcome.failure)
+                }
+            },
+            MoreExecutors.directExecutor(),
+        )
+
+    /** Runs on the application thread, which is why the player can be read here. */
+    private fun resolveVoiceRequest(
+        session: MediaSession,
+        item: MediaItem,
+    ): ListenableFuture<VoiceOutcome> {
+        val request = VoiceRequest.from(item.requestMetadata)
+        val atMillis = System.currentTimeMillis()
+        Log.d(TAG, "Voice request query='${request.query}' focus=${request.focus}")
+        VoiceRequestLog.add(VoiceLogEntry(request.query, request.focus, null, atMillis, request.artist, request.album, request.title))
+
+        return Futures.transform(
+            voiceRequests.resolve(request, resumePointOf(session.player)),
+            { outcome ->
+                VoiceRequestLog.finish(atMillis, describe(outcome))
+                outcome
+            },
+            MoreExecutors.directExecutor(),
+        )
+    }
+
+    // An ended queue reports its last track's end as the position, so seeking
+    // there plays nothing and the request would log as a success.
+    private fun resumePointOf(player: Player): ResumePoint? =
+        if (player.mediaItemCount == 0 || player.playbackState == Player.STATE_ENDED) {
+            null
+        } else {
+            ResumePoint(player.mediaItemCount)
+        }
+
+    private fun describe(outcome: VoiceOutcome): String =
+        when (outcome) {
+            is VoiceOutcome.Play -> "${outcome.described} (${outcome.items.size} tracks)"
+            is VoiceOutcome.Resume -> "resumed ${outcome.point.tracks} tracks"
+            is VoiceOutcome.Failed -> outcome.failure.name
+        }
+
+    /** On the application thread, for the reason given on [rejectVoiceRequest]. */
+    private fun <T> resumePlayback(session: MediaSession): ListenableFuture<T> {
+        ContextCompat.getMainExecutor(context).execute { Util.handlePlayButtonAction(session.player) }
+        return Futures.immediateFailedFuture(VoiceRequestResumed())
+    }
+
+    /**
+     * The resolver's futures complete on an IO thread, and a session may only be
+     * called on its application thread.
+     */
+    private fun <T> rejectVoiceRequest(
+        session: MediaSession,
+        failure: VoiceFailure,
+    ): ListenableFuture<T> {
+        val (code, message) =
+            when (failure) {
+                VoiceFailure.SignIn -> SessionError.ERROR_SESSION_AUTHENTICATION_EXPIRED to R.string.voice_error_sign_in
+                VoiceFailure.NotFound -> SessionError.ERROR_SESSION_NOT_AVAILABLE_IN_REGION to R.string.voice_error_not_found
+                VoiceFailure.Unreachable -> SessionError.ERROR_IO to R.string.voice_error_unreachable
+            }
+        ContextCompat.getMainExecutor(context).execute {
+            session.sendError(SessionError(code, context.getString(message)))
+        }
+        return Futures.immediateFailedFuture(VoiceRequestRejected(failure))
+    }
+
+    private fun saveOpenedQueue(
+        items: List<MediaItem>,
+        opening: Int,
+    ) {
+        val queue = QueueRepository()
+        // No detagging needed here: Queue.fromMediaItem reads its fields
+        // through PlexMediaMapper.readTrackFields, which never reads
+        // EXTRA_PARENT_ID, and the `queue` table has no parent_id column.
+        // A left-over parent tag on a queued item is inert.
+        queue.insertAll(items, true, 0)
+        // Marks the opening track as the one to resume at. The player
+        // will not do it: BaseMediaService records a last-played row on
+        // a seek or an automatic transition, and opening a fresh queue
+        // is neither, so without this a process death before the first
+        // track change would restore the queue at track one. Same
+        // executor as insertAll above, which is what orders it after
+        // the rows it marks.
+        items.getOrNull(opening)?.let { queue.setLastPlayedTimestamp(it.mediaId) }
     }
 
     /**
