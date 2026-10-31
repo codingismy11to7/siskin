@@ -711,6 +711,116 @@ class PlexBrowseRepositoryTest {
     }
 
     @Test
+    fun voiceSearchReturnsEachTierWithItsPrefixes() {
+        PlexApi().musicSectionKey = "1"
+        server.dispatcher = searchDispatcher()
+
+        val hits = PlexBrowseRepository().voiceSearch("q").get(10, TimeUnit.SECONDS)
+
+        assertEquals(listOf(Constants.ARTIST_ID + "a1"), hits.artists.map { it.mediaId })
+        assertEquals(listOf(Constants.ALBUM_ID + "b1"), hits.albums.map { it.mediaId })
+        assertEquals(listOf("t1"), hits.tracks.map { it.item.mediaId })
+    }
+
+    @Test
+    fun voiceSearchKeepsATracksAlbumKey() {
+        PlexApi().musicSectionKey = "1"
+        server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) =
+                    MockResponse().setResponseCode(200).setBody(
+                        if (request.requestUrl?.queryParameter("type")?.toInt() == PlexItemType.TRACK) {
+                            """{"MediaContainer":{"Metadata":[{"ratingKey":"t1","type":"track","title":"t1","parentRatingKey":"b9"}]}}"""
+                        } else {
+                            """{"MediaContainer":{"Metadata":[]}}"""
+                        },
+                    )
+            }
+
+        val hits = PlexBrowseRepository().voiceSearch("q").get(10, TimeUnit.SECONDS)
+
+        assertEquals("b9", hits.tracks.single().albumKey)
+    }
+
+    @Test
+    fun voiceSearchKeepsTheOtherTiersWhenOneFails() {
+        PlexApi().musicSectionKey = "1"
+        server.dispatcher = searchDispatcher(failingType = PlexItemType.ALBUM)
+
+        val hits = PlexBrowseRepository().voiceSearch("q").get(10, TimeUnit.SECONDS)
+
+        assertEquals(listOf(Constants.ARTIST_ID + "a1"), hits.artists.map { it.mediaId })
+        assertEquals(emptyList<MediaItem>(), hits.albums)
+    }
+
+    @Test
+    fun voiceSearchFailsWhenEveryTierFails() {
+        PlexApi().musicSectionKey = "1"
+        server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(500)
+            }
+
+        val failure =
+            assertThrows(ExecutionException::class.java) {
+                PlexBrowseRepository().voiceSearch("q").get(10, TimeUnit.SECONDS)
+            }
+
+        assertTrue(failure.cause is PlexTransportException)
+    }
+
+    @Test
+    fun voiceSearchReportsARejectedTokenOverOtherFailures() {
+        PlexApi().musicSectionKey = "1"
+        server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) =
+                    MockResponse().setResponseCode(
+                        if (request.requestUrl?.queryParameter("type")?.toInt() == PlexItemType.TRACK) 401 else 500,
+                    )
+            }
+
+        val failure =
+            assertThrows(ExecutionException::class.java) {
+                PlexBrowseRepository().voiceSearch("q").get(10, TimeUnit.SECONDS)
+            }
+
+        val transport = (failure.cause as PlexTransportException).failure
+        assertEquals(401, (transport as PlexTransportFailure.Http).code)
+    }
+
+    @Test
+    fun voiceSearchWithNothingFoundIsAnEmptySuccess() {
+        PlexApi().musicSectionKey = "1"
+        server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) =
+                    MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"Metadata":[]}}""")
+            }
+
+        val hits = PlexBrowseRepository().voiceSearch("q").get(10, TimeUnit.SECONDS)
+
+        assertTrue(hits.artists.isEmpty() && hits.albums.isEmpty() && hits.tracks.isEmpty())
+    }
+
+    @Test
+    fun libraryShuffleAsksForRandomTracksWithNoFilter() {
+        PlexApi().musicSectionKey = "1"
+        server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(200).setBody(typedBody("track", "t1"))
+            }
+
+        val result = await(PlexBrowseRepository().getLibraryShuffle())
+
+        val url = server.takeRequest().requestUrl!!
+        assertEquals(listOf("t1"), result.value!!.map { it.mediaId })
+        assertEquals(LibraryClient.SORT_RANDOM, url.queryParameter("sort"))
+        assertEquals(null, url.queryParameter("artist.id"))
+        assertEquals(null, url.queryParameter("album.id"))
+    }
+
+    @Test
     fun eachSearchTierKeepsOnlyResultsOfItsOwnType() {
         // Every browse node narrows its response with itemsOf(body, TYPE_X);
         // search used to narrow with a filter that admitted tracks, albums and

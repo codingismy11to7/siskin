@@ -11,6 +11,15 @@
 
 ## [Unreleased] — Siskin
 
+- **Debug:** a Voice tab lists recent voice requests with what each one matched,
+  or why it failed. An empty list after asking Assistant means the request never
+  reached Siskin.
+
+- Google Assistant can play from Siskin: ask for a song, album or artist by name,
+  or just "play music", which picks up where you left off, or shuffles your library
+  if there is nothing to resume. A request that can't be played leaves your saved
+  queue as it was.
+
 - More no longer shows Select Library unless you turn on **Show library
   quick switch** in Settings. Most accounts have a single library, so the row had
   nothing to switch to and read as a screen that was stuck.

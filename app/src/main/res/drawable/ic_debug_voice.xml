@@ -1,0 +1,18 @@
+<!--
+    Material Symbols "mic", for the debug screen's Voice tab.
+
+    On the "0 -960 960 960" viewBox Material Symbols exports; the group
+    supplies the 960 offset, as in ic_browse_library.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:viewportHeight="960"
+    android:viewportWidth="960"
+    android:width="24dp">
+
+    <group android:translateY="960">
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M480,-400Q430,-400 395,-435Q360,-470 360,-520L360,-760Q360,-810 395,-845Q430,-880 480,-880Q530,-880 565,-845Q600,-810 600,-760L600,-520Q600,-470 565,-435Q530,-400 480,-400ZM440,-120L440,-243Q336,-257 268,-336Q200,-415 200,-520L280,-520Q280,-437 338.5,-378.5Q397,-320 480,-320Q563,-320 621.5,-378.5Q680,-437 680,-520L760,-520Q760,-415 692,-336Q624,-257 520,-243L520,-120L440,-120Z" />
+    </group>
+</vector>

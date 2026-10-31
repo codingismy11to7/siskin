@@ -8,6 +8,7 @@ import androidx.media3.session.LibraryResult
 import androidx.media3.session.SessionError
 import arrow.core.Either
 import arrow.core.flatMap
+import arrow.core.getOrElse
 import arrow.core.left
 import arrow.core.raise.either
 import arrow.core.right
@@ -36,6 +37,7 @@ import com.cappielloantonio.tempo.util.HubKey
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.SmartPlaylistQuery
 import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -1015,6 +1017,59 @@ class PlexBrowseRepository {
     }
 
     /**
+     * [search] for a request that plays rather than lists: it keeps each track's
+     * album key, and fails when every tier failed, so a dead server is not
+     * reported as nothing found and a stale address reaches [launchInto]'s
+     * recovery. [search] stays as it is. See
+     * docs/decisions/2026-10-31-assistant-voice-requests-design.md.
+     */
+    fun voiceSearch(query: String): ListenableFuture<VoiceSearchHits> {
+        val key =
+            sectionKey ?: return Futures.immediateFailedFuture(IllegalStateException("no music section selected"))
+
+        return launchInto {
+            val artists = voiceTier(key, query, PlexItemType.ARTIST, TYPE_ARTIST)
+            val albums = voiceTier(key, query, PlexItemType.ALBUM, TYPE_ALBUM)
+            val tracks = voiceTier(key, query, PlexItemType.TRACK, TYPE_TRACK)
+            val failures = listOf(artists, albums, tracks).mapNotNull { it.leftOrNull() }
+
+            if (failures.size == VOICE_TIERS) {
+                (failures.firstOrNull(::isRejection) ?: failures.first()).left()
+            } else {
+                VoiceSearchHits(
+                    artists =
+                        artists.getOrElse { emptyList() }.mapNotNull {
+                            PlexMediaMapper.artistToMediaItem(it, Constants.ARTIST_ID)
+                        },
+                    albums =
+                        albums.getOrElse { emptyList() }.mapNotNull {
+                            PlexMediaMapper.albumToMediaItem(it, Constants.ALBUM_ID)
+                        },
+                    tracks =
+                        tracks.getOrElse { emptyList() }.mapNotNull { track ->
+                            PlexMediaMapper
+                                .trackToMediaItem(track, null, serverUri, token)
+                                ?.let { VoiceTrackHit(it, track.parentRatingKey) }
+                        },
+                ).right()
+            }
+        }
+    }
+
+    private suspend fun voiceTier(
+        key: SectionKey,
+        query: String,
+        type: Int,
+        expectedType: String,
+    ): Either<PlexTransportFailure, List<Metadata>> = searchClient.search(key, query, type).map { itemsOf(it, expectedType) }
+
+    private fun isRejection(failure: PlexTransportFailure) =
+        failure is PlexTransportFailure.Http && (failure.code == HTTP_UNAUTHORIZED || failure.code == HTTP_FORBIDDEN)
+
+    /** Random tracks from the whole library: with neither filter, Plex shuffles everything. */
+    fun getLibraryShuffle() = getHubTracksForIds(emptyList(), emptyList())
+
+    /**
      * One tier of the search.
      *
      * Narrowed with [itemsOf] and the tier's own [expectedType], the same way
@@ -1117,7 +1172,8 @@ class PlexBrowseRepository {
      * Search is the exception, and stays one: [collect] folds each tier's
      * failure into an empty list, so search's block is always Right and never
      * reaches recovery. Changing that means changing what a partial search
-     * failure means, which is a separate decision.
+     * failure means, which is a separate decision. [voiceSearch] is not,
+     * deliberately.
      *
      * The future is completed on every path: with a value, with a
      * [PlexTransportException] carrying a transport failure, or exceptionally
@@ -1127,10 +1183,8 @@ class PlexBrowseRepository {
      * wide as it is -- it is outside any `either { }` block, so there is no
      * `raise` for it to swallow.
      */
-    private fun launchInto(
-        block: suspend () -> Either<PlexTransportFailure, LibraryResult<ImmutableList<MediaItem>>>,
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
+    private fun <T : Any> launchInto(block: suspend () -> Either<PlexTransportFailure, T>): ListenableFuture<T> {
+        val future = SettableFuture.create<T>()
 
         scope.launch {
             try {
@@ -1163,6 +1217,7 @@ class PlexBrowseRepository {
     }
 
     companion object {
+        private const val VOICE_TIERS = 3
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_FORBIDDEN = 403
 

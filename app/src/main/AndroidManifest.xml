@@ -30,6 +30,13 @@
          it pairs with localeFilters in app/build.gradle, and the platform
          ignores attributes it does not know. See the five-locales design doc. -->
     <!-- Play review rejects an AAOS bundle without appCategory. -->
+    <!-- Without this Android hides Assistant from Siskin, media3 cannot verify it
+         as a trusted controller, and it silently drops its voice requests. See
+         docs/decisions/2026-10-31-assistant-voice-requests-design.md. -->
+    <queries>
+        <package android:name="com.google.android.carassistant" />
+    </queries>
+
     <application
         android:name="App"
         android:allowBackup="false"
