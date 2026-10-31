@@ -62,6 +62,9 @@
     <string name="car_sign_in_again">Plex ha rifiutato la connessione salvata</string>
     <string name="car_sign_in_back_description">Indietro</string>
     <string name="car_sign_in_hint">Tocca l\'icona delle impostazioni per connetterti</string>
+    <string name="voice_error_sign_in">Accedi a Siskin per riprodurre la tua musica</string>
+    <string name="voice_error_not_found">Non è nella tua libreria musicale</string>
+    <string name="voice_error_unreachable">Impossibile raggiungere il tuo server Plex</string>
     <string name="car_sign_in_required">La tua musica è su Plex. Connettiti per iniziare ad ascoltare.</string>
     <string name="car_sign_in_row_title">La tua musica è su Plex.</string>
     <string name="exo_controls_repeat_all_description">Modalità attuale: ripeti tutto. Cambia modalità di ripetizione.</string>

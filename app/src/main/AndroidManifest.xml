@@ -21,6 +21,13 @@
         android:name="android.hardware.type.automotive"
         android:required="true" />
 
+    <!-- Without this Android hides Assistant from Siskin, media3 cannot verify it
+         as a trusted controller, and it silently drops its voice requests. See
+         docs/decisions/2026-10-31-assistant-voice-requests-design.md. -->
+    <queries>
+        <package android:name="com.google.android.carassistant" />
+    </queries>
+
     <!-- Three attributes, one posture: Siskin's data does not leave the head unit
          through backup or transfer. None is redundant across minSdk 28 to target 36:
          dataExtractionRules is read only from API 31, fullBackupContent only below

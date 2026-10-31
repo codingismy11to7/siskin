@@ -62,6 +62,9 @@
     <string name="car_sign_in_again">Plex a refusé la connexion enregistrée</string>
     <string name="car_sign_in_back_description">Retour</string>
     <string name="car_sign_in_hint">Touchez l\'icône des paramètres pour vous connecter</string>
+    <string name="voice_error_sign_in">Connectez-vous à Siskin pour écouter votre musique</string>
+    <string name="voice_error_not_found">Ce n\'est pas dans votre bibliothèque musicale</string>
+    <string name="voice_error_unreachable">Impossible de joindre votre serveur Plex</string>
     <string name="car_sign_in_required">Votre musique est sur Plex. Connectez-vous pour l\'écouter.</string>
     <string name="car_sign_in_row_title">Votre musique est sur Plex.</string>
     <string name="exo_controls_repeat_all_description">Mode actuel : tout répéter. Changer le mode de répétition.</string>
