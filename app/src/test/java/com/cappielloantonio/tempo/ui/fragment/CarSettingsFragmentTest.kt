@@ -20,7 +20,6 @@ import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.plex.models.PlexAccount
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
-import com.cappielloantonio.tempo.service.MediaBrowserTree
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
@@ -40,7 +39,9 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.stub
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
@@ -81,6 +82,7 @@ class CarSettingsFragmentTest {
             .remove("artists_by_initial")
             .remove("artist_mix")
             .remove("artist_radio")
+            .remove("select_library")
             .remove("streaming_cache_size")
             .remove("precache_tracks_count")
             .commit()
@@ -90,6 +92,7 @@ class CarSettingsFragmentTest {
 
     @After
     fun tearDown() {
+        Preferences.setSelectLibraryEnabled(false)
         CarHostTestFixture.tearDown()
         StreamingCacheTestHooks.release()
     }
@@ -136,11 +139,13 @@ class CarSettingsFragmentTest {
 
     private fun artistRadioSwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_artist_radio))
 
+    private fun selectLibrarySwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_select_library))
+
     @Test
     fun `settings offers every toggle at its default`() {
         val screen = settingsScreen()
 
-        assertEquals(5, switchesIn(screen).size)
+        assertEquals(6, switchesIn(screen).size)
         // The defaults differ, and each is a decision: continuous play is off
         // because reaching the end of a queue is not a request for more music,
         // and replay gain is off because a library carrying no ReplayGain tags
@@ -154,6 +159,9 @@ class CarSettingsFragmentTest {
         assertTrue(artistMixSwitch(screen).isChecked)
         // Off: radio is an addition, and every row pushes the albums down.
         assertFalse(artistRadioSwitch(screen).isChecked)
+        // Off for every install: most accounts have one library, and the row
+        // then has nothing to offer.
+        assertFalse(selectLibrarySwitch(screen).isChecked)
     }
 
     @Test
@@ -243,6 +251,49 @@ class CarSettingsFragmentTest {
         assertTrue(Preferences.isArtistsByInitialEnabled())
         assertTrue(Preferences.isArtistMixEnabled())
         assertFalse(Preferences.isArtistRadioEnabled())
+        assertFalse(Preferences.isSelectLibraryEnabled())
+    }
+
+    @Test
+    fun `tapping the select library row turns it on and puts it under More`() {
+        val toggle = selectLibrarySwitch(settingsScreen())
+
+        (toggle.parent as View).performClick()
+
+        assertTrue(Preferences.isSelectLibraryEnabled())
+        assertTrue(selectLibrarySwitch(settingsScreen()).isChecked)
+        assertTrue(BrowseTabOrderFixture.moreChildren().contains(Constants.SELECT_LIBRARY_ID))
+
+        // The car caches More and will not re-fetch it on the way back from
+        // Settings unless told; invalidateNode posts to the main looper. The
+        // root's children did not change, so it gets no notification.
+        shadowOf(Looper.getMainLooper()).idle()
+        verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), eq(0), eq(null))
+        verify(session, never()).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
+    }
+
+    @Test
+    fun `tapping the select library row twice takes it back out of More`() {
+        (selectLibrarySwitch(settingsScreen()).parent as View).performClick()
+        (selectLibrarySwitch(settingsScreen()).parent as View).performClick()
+
+        assertFalse(Preferences.isSelectLibraryEnabled())
+        assertFalse(selectLibrarySwitch(settingsScreen()).isChecked)
+        assertFalse(BrowseTabOrderFixture.moreChildren().contains(Constants.SELECT_LIBRARY_ID))
+
+        // Once per tap: taking a row out of the car's cached list matters as
+        // much as adding one.
+        shadowOf(Looper.getMainLooper()).idle()
+        verify(session, times(2)).notifyChildrenChanged(eq(Constants.MORE_ID), eq(0), eq(null))
+    }
+
+    @Test
+    fun `the select library row sits right after customize tabs`() {
+        val texts = visibleTexts(settingsScreen())
+        val tabs = texts.indexOf(App.getContext().getString(R.string.car_settings_customize_tabs))
+
+        // +2: the Customize tabs row carries its value line beneath its label.
+        assertEquals(App.getContext().getString(R.string.car_settings_select_library), texts[tabs + 2])
     }
 
     @Test

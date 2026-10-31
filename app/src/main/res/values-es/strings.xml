@@ -35,6 +35,7 @@
     <string name="car_settings_listening_as">Escuchando como %1$s</string>
     <string name="car_settings_title">Ajustes</string>
     <string name="car_settings_customize_tabs">Personalizar pestañas</string>
+    <string name="car_settings_select_library">Mostrar el cambio rápido de biblioteca</string>
     <string name="car_settings_cache_size">Tamaño de la caché</string>
     <string name="car_settings_cache_size_explainer">La música que has escuchado se guarda en este equipo y empieza sin esperas.</string>
     <string name="car_settings_precache">Precarga</string>

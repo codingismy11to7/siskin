@@ -34,6 +34,7 @@
     <string name="car_settings_listening_as">Wiedergabe als %1$s</string>
     <string name="car_settings_title">Einstellungen</string>
     <string name="car_settings_customize_tabs">Tabs anpassen</string>
+    <string name="car_settings_select_library">Bibliotheks-Schnellwechsel anzeigen</string>
     <string name="car_settings_cache_size">Cache-Größe</string>
     <string name="car_settings_cache_size_explainer">Gespielte Musik bleibt auf diesem Gerät gespeichert und startet ohne Wartezeit.</string>
     <string name="car_settings_precache">Vorab laden</string>

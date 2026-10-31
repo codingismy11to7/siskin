@@ -11,6 +11,7 @@ import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -29,15 +30,16 @@ class MediaBrowserTreeTest {
     fun setUp() {
         // Robolectric caches SharedPreferences statically across test methods
         // (and across test classes in the same JVM fork). This class writes
-        // the by-initial key and reads the tab-order key, so without this
-        // reset -- done before the build below -- one method's write would
-        // decide another's result, and a later-running class would inherit it
-        // too.
+        // the by-initial and select-library keys and reads the tab-order key,
+        // so without this reset -- done before the build below -- one method's
+        // write would decide another's result, and a later-running class would
+        // inherit it too.
         App
             .getInstance()
             .preferences
             .edit()
             .remove("artists_by_initial")
+            .remove("select_library")
             .commit()
         BrowseTabOrderFixture.clearSavedOrder()
 
@@ -56,6 +58,12 @@ class MediaBrowserTreeTest {
         val context = RuntimeEnvironment.getApplication()
         MediaBrowserTree.initialize(context, mock<PlexBrowseRepository>())
         MediaBrowserTree.buildTree()
+    }
+
+    /** A later-running class must not inherit a row this one turned on. */
+    @After
+    fun tearDown() {
+        Preferences.setSelectLibraryEnabled(false)
     }
 
     @Test
@@ -244,16 +252,32 @@ class MediaBrowserTreeTest {
 
     @Test
     fun moreOffersDiscoverFirst() {
-        val children =
-            MediaBrowserTree
-                .getChildren(Constants.MORE_ID)
-                .get()
-                .value!!
-                .map { it.mediaId }
+        assertEquals(listOf(Constants.DISCOVER_ID, Constants.DECADES_ID), BrowseTabOrderFixture.moreChildren())
+    }
+
+    @Test
+    fun moreEndsWithSelectLibraryOnceItIsTurnedOn() {
+        Preferences.setSelectLibraryEnabled(true)
+        MediaBrowserTree.buildTree()
 
         assertEquals(
             listOf(Constants.DISCOVER_ID, Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
-            children,
+            BrowseTabOrderFixture.moreChildren(),
+        )
+    }
+
+    /** A car that subscribed while the row was shown must not find it gone. */
+    @Test
+    fun selectLibraryStillResolvesOnceHidden() {
+        Preferences.setSelectLibraryEnabled(true)
+        MediaBrowserTree.buildTree()
+        Preferences.setSelectLibraryEnabled(false)
+        MediaBrowserTree.buildTree()
+
+        assertFalse(BrowseTabOrderFixture.moreChildren().contains(Constants.SELECT_LIBRARY_ID))
+        assertEquals(
+            Constants.SELECT_LIBRARY_ID,
+            MediaBrowserTree.getItem(Constants.SELECT_LIBRARY_ID)?.mediaId,
         )
     }
 
@@ -456,18 +480,12 @@ class MediaBrowserTreeTest {
                 Constants.PLAYLIST_ID,
             ),
         )
+        Preferences.setSelectLibraryEnabled(true)
         MediaBrowserTree.buildTree()
-
-        val children =
-            MediaBrowserTree
-                .getChildren(Constants.MORE_ID)
-                .get()
-                .value!!
-                .map { it.mediaId }
 
         assertEquals(
             listOf(Constants.PLAYLIST_ID, Constants.DISCOVER_ID, Constants.SELECT_LIBRARY_ID),
-            children,
+            BrowseTabOrderFixture.moreChildren(),
         )
     }
 
@@ -489,6 +507,7 @@ class MediaBrowserTreeTest {
                 Constants.DECADES_ID,
             ),
         )
+        Preferences.setSelectLibraryEnabled(true)
         MediaBrowserTree.buildTree()
 
         val root =
@@ -507,15 +526,9 @@ class MediaBrowserTreeTest {
             root,
         )
 
-        val more =
-            MediaBrowserTree
-                .getChildren(Constants.MORE_ID)
-                .get()
-                .value!!
-                .map { it.mediaId }
         assertEquals(
             listOf(Constants.ALBUMS_ID, Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
-            more,
+            BrowseTabOrderFixture.moreChildren(),
         )
 
         // Promotion is free: the node carries its own presentation, so Discover

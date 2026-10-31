@@ -29,6 +29,7 @@ object Preferences {
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val ARTIST_MIX = "artist_mix"
     private const val ARTIST_RADIO = "artist_radio"
+    private const val SELECT_LIBRARY = "select_library"
     const val BROWSE_TAB_ORDER = "browse_tab_order"
     private const val VEHICLE_IDENTITY_TIER = "vehicle_identity_tier"
     private const val NUMBER_TRACKS_KEEP_IN_QUEUE = "number_tracks_keep_in_queue"
@@ -273,6 +274,15 @@ object Preferences {
     @JvmStatic
     fun setArtistRadioEnabled(enabled: Boolean) {
         App.getInstance().preferences.edit { putBoolean(ARTIST_RADIO, enabled) }
+    }
+
+    /** Whether More offers Select Library. */
+    @JvmStatic
+    fun isSelectLibraryEnabled(): Boolean = App.getInstance().preferences.getBoolean(SELECT_LIBRARY, false)
+
+    @JvmStatic
+    fun setSelectLibraryEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit { putBoolean(SELECT_LIBRARY, enabled) }
     }
 
     /**

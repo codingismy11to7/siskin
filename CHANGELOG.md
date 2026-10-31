@@ -11,6 +11,10 @@
 
 ## [Unreleased] — Siskin
 
+- More no longer shows Select Library unless you turn on **Show library
+  quick switch** in Settings. Most accounts have a single library, so the row had
+  nothing to switch to and read as a screen that was stuck.
+
 - **Debug:** the Failures tab keeps its place in the list when you leave the
   debug screen and come back, or when the car switches between day and night.
 

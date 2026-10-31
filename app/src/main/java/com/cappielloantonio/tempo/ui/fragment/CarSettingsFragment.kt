@@ -169,6 +169,17 @@ class CarSettingsFragment : Fragment() {
             tabs.joinToString(" · ") { getString(BrowseTabOrderFragment.labelFor(it)) },
         ) { push(BrowseTabOrderFragment()) }
 
+        // Rebuilds the tree as well as writing the key: the tree is held in
+        // memory, and the car keeps showing its cached More until told it changed.
+        addToggle(
+            rows,
+            getString(R.string.car_settings_select_library),
+            Preferences.isSelectLibraryEnabled(),
+        ) {
+            Preferences.setSelectLibraryEnabled(it)
+            BrowseTreeInvalidator.invalidateMore()
+        }
+
         // Shown only for a Home with more than one member. Drawn from the
         // remembered answer, so the row is usually in place before plex.tv
         // replies; a failed reply then changes nothing, since hiding a drawn
