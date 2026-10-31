@@ -65,6 +65,9 @@
     <!-- The activity draws no toolbar, so this is the screen's only affordance for leaving it. -->
     <string name="car_sign_in_back_description">Back</string>
     <string name="car_sign_in_hint">Tap the settings icon to connect</string>
+    <string name="voice_error_sign_in">Sign in to Siskin to play your music</string>
+    <string name="voice_error_not_found">That isn\'t in your music library</string>
+    <string name="voice_error_unreachable">Can\'t reach your Plex server</string>
     <string name="car_sign_in_required">Your music is on Plex. Connect to start listening.</string>
     <!-- The browse row's title, where car_sign_in_required truncates: the car gives
          it roughly 30 characters at 1024px and less on a narrower head unit, and
@@ -140,6 +143,13 @@
     <string name="debug_failures_unknown" translatable="false">(unknown)</string>
     <string name="debug_failures_skipped" translatable="false">skipped</string>
     <string name="debug_failures_stopped" translatable="false">stopped</string>
+    <string name="debug_tab_voice" translatable="false">Voice</string>
+    <string name="debug_voice_recent_title" translatable="false">Recent voice requests</string>
+    <string name="debug_voice_none" translatable="false">No voice requests received</string>
+    <string name="debug_voice_clear" translatable="false">Clear requests</string>
+    <string name="debug_voice_no_query" translatable="false">(no query)</string>
+    <string name="debug_voice_no_focus" translatable="false">no focus</string>
+    <string name="debug_voice_pending" translatable="false">pending</string>
 
     <string name="exo_controls_repeat_all_description">Current mode: Repeat all. Toggle repeat mode.</string>
     <string name="exo_controls_repeat_off_description">Current mode: Repeat none. Toggle repeat mode.</string>

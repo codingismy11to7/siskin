@@ -60,6 +60,9 @@
     <string name="car_sign_in_again">Plex hat die gespeicherte Verbindung abgelehnt</string>
     <string name="car_sign_in_back_description">Zurück</string>
     <string name="car_sign_in_hint">Tippe auf das Einstellungssymbol, um dich zu verbinden</string>
+    <string name="voice_error_sign_in">Melde dich bei Siskin an, um deine Musik abzuspielen</string>
+    <string name="voice_error_not_found">Das ist nicht in deiner Musikbibliothek</string>
+    <string name="voice_error_unreachable">Dein Plex-Server ist nicht erreichbar</string>
     <string name="car_sign_in_required">Deine Musik liegt auf Plex. Verbinde dich, um loszuhören.</string>
     <string name="car_sign_in_row_title">Deine Musik liegt auf Plex.</string>
     <string name="exo_controls_repeat_all_description">Aktueller Modus: Alle wiederholen. Wiederholmodus wechseln.</string>

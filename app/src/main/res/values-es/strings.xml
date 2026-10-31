@@ -62,6 +62,9 @@
     <string name="car_sign_in_again">Plex rechazó la conexión guardada</string>
     <string name="car_sign_in_back_description">Atrás</string>
     <string name="car_sign_in_hint">Toca el icono de ajustes para conectarte</string>
+    <string name="voice_error_sign_in">Inicia sesión en Siskin para reproducir tu música</string>
+    <string name="voice_error_not_found">Eso no está en tu biblioteca de música</string>
+    <string name="voice_error_unreachable">No se puede conectar con tu servidor Plex</string>
     <string name="car_sign_in_required">Tu música está en Plex. Conéctate para empezar a escuchar.</string>
     <string name="car_sign_in_row_title">Tu música está en Plex.</string>
     <string name="exo_controls_repeat_all_description">Modo actual: repetir todo. Cambiar modo de repetición.</string>
