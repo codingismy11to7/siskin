@@ -222,6 +222,22 @@ object BrowseTreeInvalidator {
     }
 
     /**
+     * Tells the car More's contents changed while the root's did not.
+     *
+     * Guarded on the session as [invalidateRoot] is: without one the service
+     * may never have run, and the tree cannot be built yet. Must be called on
+     * the main thread, as [invalidateRoot] is.
+     */
+    fun invalidateMore() {
+        if (session == null) {
+            Log.d(TAG, "no live session; nothing to invalidate for More")
+            return
+        }
+        MediaBrowserTree.buildTree()
+        invalidateNode(Constants.MORE_ID, 0)
+    }
+
+    /**
      * Stops playback and empties the player's timeline.
      *
      * Called when the saved queue has just been discarded because the user

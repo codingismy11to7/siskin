@@ -118,8 +118,9 @@ object MediaBrowserTree {
 
     /**
      * The browse root is the first three ids of the user's saved order, then
-     * More -- which is always fourth and never moves, because Select Library
-     * lives inside it and is the only route to switching libraries. See
+     * More -- which is always fourth and never moves, because it holds the
+     * destinations the order leaves over, and Select Library when its Settings
+     * switch is on. See
      * docs/decisions/2026-08-14-customizable-browse-tabs-design.md.
      *
      * Four is still the maximum the car allows: it enforces a root-children
@@ -258,10 +259,14 @@ object MediaBrowserTree {
         val resolved = BrowseTabOrder.resolve(Preferences.getBrowseTabOrder())
 
         BrowseTabOrder.moreRows(resolved).forEach { treeNodes[Constants.MORE_ID]!!.addChild(it) }
-        // Pinned last, and not part of the order: it is settings rather than
-        // music, and burying the only route to switching libraries underneath
-        // the destinations it changes would be a trap.
-        treeNodes[Constants.MORE_ID]!!.addChild(Constants.SELECT_LIBRARY_ID)
+        // Off unless Settings turns it on: most accounts have one library, and
+        // for them the row reads as a stuck screen. When shown it is pinned
+        // last and is not part of the order, since it is settings rather than
+        // music. The node above stays registered either way. See
+        // docs/decisions/2026-10-30-select-library-switch-design.md.
+        if (Preferences.isSelectLibraryEnabled()) {
+            treeNodes[Constants.MORE_ID]!!.addChild(Constants.SELECT_LIBRARY_ID)
+        }
 
         val root = treeNodes[Constants.ROOT_ID]!!
         BrowseTabOrder.rootTabs(resolved).forEach { root.addChild(it) }

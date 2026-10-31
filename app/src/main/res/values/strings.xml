@@ -38,6 +38,7 @@
     <string name="car_settings_listening_as">Listening as %1$s</string>
     <string name="car_settings_title">Settings</string>
     <string name="car_settings_customize_tabs">Customize tabs</string>
+    <string name="car_settings_select_library">Show library quick switch</string>
     <string name="car_settings_cache_size">Cache size</string>
     <string name="car_settings_cache_size_explainer">Music you have played stays on this head unit, so it starts without waiting.</string>
     <string name="car_settings_precache">Precache</string>

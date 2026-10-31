@@ -1,6 +1,8 @@
 package com.cappielloantonio.tempo.util
 
+import androidx.media3.common.util.UnstableApi
 import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.service.MediaBrowserTree
 
 /**
  * Robolectric keeps App's SharedPreferences in a static field between test
@@ -22,4 +24,12 @@ object BrowseTabOrderFixture {
             .remove(KEY)
             .commit()
     }
+
+    @UnstableApi
+    fun moreChildren(): List<String> =
+        MediaBrowserTree
+            .getChildren(Constants.MORE_ID)
+            .get()
+            .value!!
+            .map { it.mediaId }
 }
