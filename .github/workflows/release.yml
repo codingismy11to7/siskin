@@ -22,8 +22,6 @@ concurrency:
 jobs:
   publish:
     name: Build and publish to Play
-    # workflow_dispatch can name any branch; only main publishes.
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
