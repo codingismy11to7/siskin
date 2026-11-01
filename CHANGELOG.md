@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.3.0] (2026-11-01)
+
 - **Debug:** a Voice tab lists recent voice requests with what each one matched,
   or why it failed. An empty list after asking Assistant means the request never
   reached Siskin.

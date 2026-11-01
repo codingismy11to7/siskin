@@ -1,2 +1,2 @@
-• A track whose file is missing or can't be decoded is now skipped instead of stopping playback. Three in a row still stop it.
-• Keep the music playing and artist stations carry on past a dead last track instead of ending there.
+• Google Assistant can now play from Siskin: ask for a song, album or artist "on Siskin", or say "play music on Siskin" to pick up where you left off. Not available in cars with Gemini.
+• Select Library is now off by default. To switch library or server from More, turn on Show library quick switch in Settings.
