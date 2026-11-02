@@ -43,6 +43,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import retrofit2.HttpException
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
@@ -296,7 +297,114 @@ class PlexBrowseRepositoryTest {
         val result = await(PlexBrowseRepository().getArtistRadioTracks("15100"))
 
         assertEquals(listOf("5"), result.value!!.map { it.mediaId })
-        assertEquals(PlexMediaMapper.StationTag(9, 50, "15100"), PlexMediaMapper.stationTagOf(result.value!!.single()))
+        assertEquals(
+            PlexMediaMapper.StationTag(9, 50, PlexMediaMapper.StationSeed.Artist("15100")),
+            PlexMediaMapper.stationTagOf(result.value!!.single()),
+        )
+    }
+
+    private val stationHubs =
+        """
+        {"MediaContainer":{"size":2,"Hub":[
+        {"hubIdentifier":"music.recent.added.7","type":"album","size":1,"key":"/library/sections/7/all?type=9",
+         "Metadata":[{"title":"Not a station","key":"/library/metadata/1/children"}]},
+        {"hubIdentifier":"music.stations.7","title":"Stations","type":"station","size":3,"Metadata":[
+        {"title":"Library Radio","key":"/library/sections/7/stations/1","type":"playlist","radio":"1"},
+        {"title":"Deep Cuts Radio","key":"/library/sections/7/stations/8","type":"playlist","radio":"1"},
+        {"title":"Unsafe","key":"https://elsewhere.example/x","type":"playlist","radio":"1"}]}]}}
+        """.trimIndent()
+
+    private fun answerHubs(body: String) {
+        fixture.server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse =
+                    if (request.requestUrl!!.encodedPath.startsWith("/hubs/sections/") &&
+                        request.requestUrl!!.queryParameter("includeStations") == "1"
+                    ) {
+                        MockResponse().setResponseCode(200).setBody(body)
+                    } else {
+                        MockResponse().setResponseCode(500)
+                    }
+            }
+    }
+
+    @Test
+    fun theStationHubBecomesPlayableRowsInServerOrder() {
+        answerHubs(stationHubs)
+
+        val rows = await(PlexBrowseRepository().getRadioStations()).value!!
+
+        assertEquals(
+            listOf(
+                Constants.MIX_RADIO_STATION_ID + HubKey.of(scope(), "/library/sections/7/stations/1"),
+                Constants.MIX_RADIO_STATION_ID + HubKey.of(scope(), "/library/sections/7/stations/8"),
+            ),
+            rows.map { it.mediaId },
+        )
+        assertEquals(
+            "Library Radio",
+            rows
+                .first()
+                .mediaMetadata.title
+                .toString(),
+        )
+        assertEquals(true, rows.first().mediaMetadata.isPlayable)
+        assertEquals(false, rows.first().mediaMetadata.isBrowsable)
+    }
+
+    @Test
+    fun aServerWithNoStationsGetsAMessageRowNotABlankScreen() {
+        answerHubs("""{"MediaContainer":{"size":0,"Hub":[]}}""")
+
+        val rows = await(PlexBrowseRepository().getRadioStations()).value!!
+
+        assertEquals(
+            RuntimeEnvironment.getApplication().getString(R.string.browse_radio_empty),
+            rows
+                .single()
+                .mediaMetadata.title
+                .toString(),
+        )
+    }
+
+    @Test
+    fun aStationRowResolvesToItsTracksTaggedWithItsKey() {
+        fixture.server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse =
+                    when (request.requestUrl!!.encodedPath) {
+                        "/identity" -> {
+                            MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"machineIdentifier":"m"}}""")
+                        }
+
+                        "/playQueues" -> {
+                            MockResponse().setResponseCode(200).setBody(
+                                """{"MediaContainer":{"playQueueID":9,"playQueueTotalCount":80,"Metadata":[{"ratingKey":"5","type":"track","playQueueItemID":50}]}}""",
+                            )
+                        }
+
+                        else -> {
+                            MockResponse().setResponseCode(500)
+                        }
+                    }
+            }
+
+        val result = await(PlexBrowseRepository().getRadioStationTracks(HubKey.of(scope(), "/library/sections/7/stations/2")))
+
+        assertEquals(
+            PlexMediaMapper.StationTag(9, 50, PlexMediaMapper.StationSeed.Library("/library/sections/7/stations/2")),
+            PlexMediaMapper.stationTagOf(result.value!!.single()),
+        )
+    }
+
+    @Test
+    fun aStationRowFromAnotherLibraryIsRefusedWithoutPosting() {
+        val stale = HubKey.of("some-other-scope-9", "/library/sections/7/stations/2")
+
+        val result = await(PlexBrowseRepository().getRadioStationTracks(stale))
+
+        assertTrue(result.resultCode != LibraryResult.RESULT_SUCCESS)
+        assertEquals(0, server.requestCount)
     }
 
     @Test

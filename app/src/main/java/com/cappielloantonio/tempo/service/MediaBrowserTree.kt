@@ -240,6 +240,19 @@ object MediaBrowserTree {
                 ),
             )
 
+        treeNodes[Constants.RADIO_ID] =
+            MediaItemNode(
+                buildMediaItem(
+                    browsableChildrenAsGrid = false,
+                    title = appContext.getString(R.string.browse_radio),
+                    mediaId = Constants.RADIO_ID,
+                    isPlayable = false,
+                    isBrowsable = true,
+                    imageUri = iconUri(androidx.media3.session.R.drawable.media3_icon_radio),
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+                ),
+            )
+
         treeNodes[Constants.SELECT_LIBRARY_ID] =
             MediaItemNode(
                 buildMediaItem(
@@ -391,6 +404,10 @@ object MediaBrowserTree {
 
             Constants.DISCOVER_ID -> {
                 browseRepository.getHubs(Constants.HUB_ID)
+            }
+
+            Constants.RADIO_ID -> {
+                browseRepository.getRadioStations()
             }
 
             else -> {

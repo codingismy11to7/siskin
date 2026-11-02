@@ -322,6 +322,8 @@ class LibraryPickerRepository {
                 Constants.PICK_SERVER_ID + machineIdentifier,
                 0,
             )
+            // Its rows are scoped to a library and refuse to play once it changes.
+            BrowseTreeInvalidator.invalidateNode(Constants.RADIO_ID, 0)
 
             future.set(LibraryResult.ofItemList(ImmutableList.of(confirmationRow(payload)), null))
         }

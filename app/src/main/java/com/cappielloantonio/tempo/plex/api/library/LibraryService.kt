@@ -176,6 +176,16 @@ interface LibraryService {
     ): PlexResponse
 
     /**
+     * [getSectionHubs] plus the `music.stations` hub. Separate so Discover
+     * keeps its own read. See docs/decisions/2026-11-01-radio-stations-design.md.
+     */
+    @GET("hubs/sections/{sectionId}")
+    suspend fun getSectionHubsWithStations(
+        @Path("sectionId") sectionId: String,
+        @Query("includeStations") includeStations: Int = 1,
+    ): PlexResponse
+
+    /**
      * The decades this section's albums fall into, newest first.
      *
      * `type` must be 9 (album). A music section exposes a decade filter for

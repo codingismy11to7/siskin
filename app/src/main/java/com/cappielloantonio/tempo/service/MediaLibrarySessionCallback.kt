@@ -197,7 +197,12 @@ class MediaLibrarySessionCallback(
             item.mediaId.startsWith(Constants.MIX_PLAYLIST_ID) ||
             item.mediaId.startsWith(Constants.MIX_DECADE_ID) ||
             item.mediaId.startsWith(Constants.MIX_HUB_ID) ||
-            item.mediaId.startsWith(Constants.MIX_RADIO_ARTIST_ID)
+            isStationRow(item)
+
+    /** A station's order is the server's: shuffling it here breaks the top-up, which follows that order. */
+    private fun isStationRow(item: MediaItem) =
+        item.mediaId.startsWith(Constants.MIX_RADIO_ARTIST_ID) ||
+            item.mediaId.startsWith(Constants.MIX_RADIO_STATION_ID)
 
     /**
      * Fetches the tracks a tapped Mix row stands for, or null if the item is
@@ -252,6 +257,12 @@ class MediaLibrarySessionCallback(
                 val artist = id.removePrefix(Constants.MIX_RADIO_ARTIST_ID)
                 Log.d(TAG, "Starting artist $artist's station")
                 browseRepository.getArtistRadioTracks(artist)
+            }
+
+            id.startsWith(Constants.MIX_RADIO_STATION_ID) -> {
+                val station = id.removePrefix(Constants.MIX_RADIO_STATION_ID)
+                Log.d(TAG, "Starting station $station")
+                browseRepository.getRadioStationTracks(station)
             }
 
             else -> {
@@ -690,11 +701,13 @@ class MediaLibrarySessionCallback(
                 // because the server advances along it. See the 2026-10-23 artist
                 // radio design.
                 mixTracks != null -> {
-                    val station = firstItem.mediaId.startsWith(Constants.MIX_RADIO_ARTIST_ID)
+                    val station = isStationRow(firstItem)
                     Futures.transform(
                         mixTracks,
                         { result ->
                             val tracks = result.value ?: emptyList()
+                            // Handing the player no items stops what is playing; a failed future leaves it be.
+                            check(!station || tracks.isNotEmpty()) { "no tracks for ${firstItem.mediaId}" }
                             if (station) tracks else tracks.shuffled()
                         },
                         MoreExecutors.directExecutor(),

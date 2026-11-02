@@ -20,24 +20,24 @@ object BrowseTabOrder {
     const val ROOT_TAB_COUNT = 3
 
     /**
-     * Today's browse root, exactly: Playlists, Artists and Albums as tabs, with
-     * Discover then Decades under More. An install that never opens the reorder
-     * screen must see no change, so this list is not a preference about what is
-     * nicest -- it is a reproduction of the shipped behaviour.
+     * What an install that never reordered its tabs sees: the first
+     * [ROOT_TAB_COUNT] as tabs, the rest as More's rows in this order.
      *
-     * Discover sits fourth for that reason: it is More's *first* row today, and
-     * More's rows are everything past [ROOT_TAB_COUNT] in this order.
+     * Radio is third on purpose, at the cost of moving Albums under More: under
+     * More it would be as hidden as Artist Radio. See
+     * docs/decisions/2026-11-01-radio-stations-design.md.
      *
-     * A destination added later is appended here *and* picked up by [resolve]'s
-     * append rule for anyone who already saved an order. Those two disagree on
-     * purpose -- a fresh install gets the new destination at its default rank,
-     * an upgrade gets it last -- because inserting it at that rank for an
-     * existing user could demote a tab they deliberately chose. See the spec.
+     * A destination added later goes here at its default rank *and* is picked up
+     * by [resolve]'s append rule for anyone who already saved an order. Those
+     * two disagree on purpose -- a fresh install gets it at that rank, an
+     * upgrade gets it last -- because inserting it at that rank for an existing
+     * user could demote a tab they deliberately chose. See the spec.
      */
     val DEFAULT_ORDER: List<String> =
         listOf(
             Constants.PLAYLIST_ID,
             Constants.ARTISTS_ID,
+            Constants.RADIO_ID,
             Constants.ALBUMS_ID,
             Constants.DISCOVER_ID,
             Constants.DECADES_ID,

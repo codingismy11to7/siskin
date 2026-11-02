@@ -18,6 +18,7 @@ import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaBrowserTree
+import com.cappielloantonio.tempo.util.Constants
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,6 +41,7 @@ import org.robolectric.Shadows.shadowOf
 class LibraryPickerCommitTest {
     private val api = PlexApi()
     private lateinit var player: Player
+    private lateinit var session: MediaLibrarySession
 
     @Before
     fun setUp() {
@@ -62,7 +64,7 @@ class LibraryPickerCommitTest {
         // stopPlayback() do anything at all -- both return early without one, so
         // every assertion about them would pass vacuously.
         player = mock()
-        val session = mock<MediaLibrarySession>()
+        session = mock()
         whenever(session.player).thenReturn(player)
         MediaBrowserTree.initialize(App.getContext(), mock())
         BrowseTreeInvalidator.attach(session)
@@ -356,6 +358,22 @@ class LibraryPickerCommitTest {
         // it -- is still entirely valid.
         verify(player, never()).stop()
         verify(player, never()).clearMediaItems()
+    }
+
+    @Test
+    fun `switching library tells the car to re-fetch Radio, whose rows belong to the old one`() {
+        val repo = LibraryPickerRepository()
+        repo.primeCandidateForTest(
+            uri = "http://pms:32400",
+            resource = resource(id = "abc123"),
+            sectionKey = "7",
+            libraryName = "Soundtrack",
+        )
+
+        repo.selectNow("abc123|7")
+        shadowOf(Looper.getMainLooper()).idle()
+
+        verify(session).notifyChildrenChanged(Constants.RADIO_ID, 0, null)
     }
 
     @Test

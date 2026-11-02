@@ -18,8 +18,23 @@ class BrowseTabOrderTest {
 
     @Test
     fun `a complete saved order is returned unchanged`() {
-        // Complete means every id the build knows, Discover included -- a save
-        // missing one is the append case two tests below, not this one.
+        // Complete means every id the build knows, Discover and Radio included
+        // -- a save missing one is the append case below, not this one.
+        val saved =
+            listOf(
+                Constants.DECADES_ID,
+                Constants.ALBUMS_ID,
+                Constants.DISCOVER_ID,
+                Constants.ARTISTS_ID,
+                Constants.PLAYLIST_ID,
+                Constants.RADIO_ID,
+            )
+
+        assertEquals(saved, BrowseTabOrder.resolve(saved))
+    }
+
+    @Test
+    fun `an order saved before Radio shipped gets it last, keeping the chosen tabs`() {
         val saved =
             listOf(
                 Constants.DECADES_ID,
@@ -29,7 +44,7 @@ class BrowseTabOrderTest {
                 Constants.PLAYLIST_ID,
             )
 
-        assertEquals(saved, BrowseTabOrder.resolve(saved))
+        assertEquals(saved + Constants.RADIO_ID, BrowseTabOrder.resolve(saved))
     }
 
     /**
@@ -93,11 +108,11 @@ class BrowseTabOrderTest {
         val resolved = BrowseTabOrder.resolve(emptyList())
 
         assertEquals(
-            listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
+            listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.RADIO_ID),
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
-            listOf(Constants.DISCOVER_ID, Constants.DECADES_ID),
+            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID, Constants.DECADES_ID),
             BrowseTabOrder.moreRows(resolved),
         )
     }
@@ -118,15 +133,16 @@ class BrowseTabOrderTest {
     }
 
     /**
-     * The shipped default must reproduce today's browse root exactly, so an
-     * install that never opens the screen sees no change at all.
+     * The shipped default puts Radio third, so a default install sees Albums
+     * move under More. See docs/decisions/2026-11-01-radio-stations-design.md.
      */
     @Test
-    fun `the default reproduces todays root`() {
+    fun `the default is Playlists, Artists, Radio, then the rest`() {
         assertEquals(
             listOf(
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
+                Constants.RADIO_ID,
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
                 Constants.DECADES_ID,
@@ -161,7 +177,7 @@ class BrowseTabOrderTest {
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
-            listOf(Constants.DECADES_ID, Constants.DISCOVER_ID),
+            listOf(Constants.DECADES_ID, Constants.RADIO_ID, Constants.DISCOVER_ID),
             BrowseTabOrder.moreRows(resolved),
         )
     }

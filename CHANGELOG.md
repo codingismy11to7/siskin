@@ -11,6 +11,11 @@
 
 ## [Unreleased] — Siskin
 
+- A new **Radio** tab plays your server's stations: Library Radio, Deep Cuts
+  Radio, Time Travel Radio and Random Album Radio. A station keeps going when it
+  reaches its last track, by drawing a fresh one. Radio takes the third tab, so
+  Albums moves under More unless you've customised your tabs.
+
 ## [1.3.0] (2026-11-01)
 
 - **Debug:** a Voice tab lists recent voice requests with what each one matched,

@@ -8,6 +8,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.model.SessionMediaItem
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
@@ -16,10 +17,12 @@ import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DecadeKey
+import com.cappielloantonio.tempo.util.HubKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -32,6 +35,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import java.util.concurrent.ExecutionException
 
 /**
  * That a browse tap never touches shuffle mode, and that a Mix row is served
@@ -310,6 +314,29 @@ class MediaLibrarySessionCallbackShuffleTest {
 
         assertEquals(tracks.map { it.mediaId }, result.mediaItems.map { it.mediaId })
         assertShuffleUntouched()
+    }
+
+    @Test
+    fun aLibraryStationIsServedInTheServersOrder() {
+        val station = HubKey.of("machine-7", "/library/sections/7/stations/2")
+        val tracks = albumTracks("1", "2", "3", "4", "5", "6", "7", "8")
+        whenever(browseRepository.getRadioStationTracks(station)).thenReturn(itemList(tracks))
+
+        val result = setMediaItems(MediaItem.Builder().setMediaId(Constants.MIX_RADIO_STATION_ID + station).build())
+
+        assertEquals(tracks.map { it.mediaId }, result.mediaItems.map { it.mediaId })
+        assertShuffleUntouched()
+    }
+
+    @Test
+    fun aRefusedStationFailsTheTapSoWhatIsPlayingContinues() {
+        val station = HubKey.of("machine-7", "/library/sections/7/stations/2")
+        whenever(browseRepository.getRadioStationTracks(station))
+            .thenReturn(Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)))
+
+        assertThrows(ExecutionException::class.java) {
+            setMediaItems(MediaItem.Builder().setMediaId(Constants.MIX_RADIO_STATION_ID + station).build())
+        }
     }
 
     /**

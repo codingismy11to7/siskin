@@ -79,10 +79,24 @@ class MediaBrowserTreeTest {
             listOf(
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
-                Constants.ALBUMS_ID,
+                Constants.RADIO_ID,
                 Constants.MORE_ID,
             ),
             children,
+        )
+    }
+
+    @Test
+    fun `Radio is a list, because its rows have no artwork worth a grid`() {
+        MediaBrowserTree.buildTree()
+
+        val radio = MediaBrowserTree.getItem(Constants.RADIO_ID)!!
+
+        assertEquals(true, radio.mediaMetadata.isBrowsable)
+        assertEquals(false, radio.mediaMetadata.isPlayable)
+        assertEquals(
+            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM,
+            radio.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE),
         )
     }
 
@@ -98,7 +112,6 @@ class MediaBrowserTreeTest {
         listOf(
             "[homeID]",
             "[podcastID]",
-            "[radioID]",
             "[genresID]",
             "[folderID]",
             "[downloadedID]",
@@ -251,8 +264,11 @@ class MediaBrowserTreeTest {
     }
 
     @Test
-    fun moreOffersDiscoverFirst() {
-        assertEquals(listOf(Constants.DISCOVER_ID, Constants.DECADES_ID), BrowseTabOrderFixture.moreChildren())
+    fun moreOffersAlbumsThenDiscover() {
+        assertEquals(
+            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID, Constants.DECADES_ID),
+            BrowseTabOrderFixture.moreChildren(),
+        )
     }
 
     @Test
@@ -261,7 +277,12 @@ class MediaBrowserTreeTest {
         MediaBrowserTree.buildTree()
 
         assertEquals(
-            listOf(Constants.DISCOVER_ID, Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
+            listOf(
+                Constants.ALBUMS_ID,
+                Constants.DISCOVER_ID,
+                Constants.DECADES_ID,
+                Constants.SELECT_LIBRARY_ID,
+            ),
             BrowseTabOrderFixture.moreChildren(),
         )
     }
@@ -466,8 +487,9 @@ class MediaBrowserTreeTest {
     }
 
     /**
-     * The saved order here predates Discover, so resolve() appends it -- which
-     * is why Discover follows Playlists rather than leading More. That is the
+     * The saved order here predates Radio and Discover, so resolve() appends
+     * them in default order -- which is why they follow Playlists rather than
+     * leading More. That is the
      * upgrade case the spec describes, arriving at the tree.
      */
     @Test
@@ -484,7 +506,12 @@ class MediaBrowserTreeTest {
         MediaBrowserTree.buildTree()
 
         assertEquals(
-            listOf(Constants.PLAYLIST_ID, Constants.DISCOVER_ID, Constants.SELECT_LIBRARY_ID),
+            listOf(
+                Constants.PLAYLIST_ID,
+                Constants.RADIO_ID,
+                Constants.DISCOVER_ID,
+                Constants.SELECT_LIBRARY_ID,
+            ),
             BrowseTabOrderFixture.moreChildren(),
         )
     }
@@ -494,7 +521,7 @@ class MediaBrowserTreeTest {
      * order feature had to preserve when Discover landed beside it: promoted to
      * position 0 it is a root tab, it leaves More entirely, and it keeps the
      * list styling its own node declares. The default case -- Discover as
-     * More's first row -- is covered by moreOffersDiscoverFirst above.
+     * More's second row, behind Albums -- is covered by moreOffersAlbumsThenDiscover above.
      */
     @Test
     fun `Discover is reorderable like any other destination`() {
@@ -527,7 +554,12 @@ class MediaBrowserTreeTest {
         )
 
         assertEquals(
-            listOf(Constants.ALBUMS_ID, Constants.DECADES_ID, Constants.SELECT_LIBRARY_ID),
+            listOf(
+                Constants.ALBUMS_ID,
+                Constants.DECADES_ID,
+                Constants.RADIO_ID,
+                Constants.SELECT_LIBRARY_ID,
+            ),
             BrowseTabOrderFixture.moreChildren(),
         )
 

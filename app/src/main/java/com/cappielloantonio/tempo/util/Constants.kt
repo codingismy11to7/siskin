@@ -75,6 +75,8 @@ object Constants {
 
     const val DISCOVER_ID = "[discoverID]"
 
+    const val RADIO_ID = "[radioID]"
+
     /**
      * Prefix; the remainder is a [HubKey] -- "<scope>|<the hub's own key>".
      *
@@ -113,13 +115,14 @@ object Constants {
      * Prefixes of the synthetic Mix rows, each carrying the ratingKey of the
      * thing to mix after it -- or, for [MIX_DECADE_ID] and [MIX_HUB_ID], the same
      * [DecadeKey] or [HubKey] payload [DECADE_ID] and [HUB_ID] carry, whole and
-     * unsplit. That is what lets `MediaLibrarySessionCallback.cachedDecadeTracks`
+     * unsplit, and for [MIX_RADIO_STATION_ID] a [HubKey] naming the station.
+     * That is what lets `MediaLibrarySessionCallback.cachedDecadeTracks`
      * rebuild the row's id from what the car sends back and match it against
      * the browse list it cached. Nothing on the server answers to these ids:
      * they are playable rows with no stream, and MediaLibrarySessionCallback
      * swaps one for its subject's tracks when it is tapped.
      *
-     * Four prefixes rather than one plus an embedded kind, because the prefix is
+     * A prefix per kind rather than one plus an embedded kind, because the prefix is
      * what the callback dispatches on -- it decides which repository call
      * supplies the tracks.
      *
@@ -135,6 +138,7 @@ object Constants {
     const val MIX_DECADE_ID = "[shuffleDecadeID]"
     const val MIX_HUB_ID = "[shuffleHubID]"
     const val MIX_RADIO_ARTIST_ID = "[radioArtistID]"
+    const val MIX_RADIO_STATION_ID = "[radioStationID]"
 
     // Source tag for the most recent browse list.
     const val QUEUE_CACHED_SOURCE = "[aaQueueCachedSource]"

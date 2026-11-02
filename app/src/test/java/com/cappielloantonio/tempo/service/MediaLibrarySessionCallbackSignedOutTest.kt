@@ -71,7 +71,7 @@ class MediaLibrarySessionCallbackSignedOutTest {
             listOf(
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
-                Constants.ALBUMS_ID,
+                Constants.RADIO_ID,
                 Constants.MORE_ID,
             ),
             children,
@@ -84,6 +84,7 @@ class MediaLibrarySessionCallbackSignedOutTest {
             Constants.PLAYLIST_ID,
             Constants.ARTISTS_ID,
             Constants.ALBUMS_ID,
+            Constants.RADIO_ID,
             Constants.MORE_ID,
         ).forEach { parentId ->
             val row = getChildren(parentId).single()

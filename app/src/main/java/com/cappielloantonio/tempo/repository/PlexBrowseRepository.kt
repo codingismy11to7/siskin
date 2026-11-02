@@ -444,13 +444,18 @@ class PlexBrowseRepository {
      * does rather than an error screen for "you switched libraries".
      */
     private suspend fun followHubKey(hubKey: String): Either<PlexTransportFailure, PlexResponse> {
-        if (HubKey.scopeIn(hubKey) != CompositeArt.currentScope()) {
-            Log.w(TAG, "not following a stale hub key from another library: $hubKey")
-            return PlexResponse().right()
-        }
-        return libraryClient.getByHubKey(HubKey.keyIn(hubKey))
+        val key =
+            liveHubKey(hubKey) ?: run {
+                Log.w(TAG, "not following a stale hub key from another library: $hubKey")
+                return PlexResponse().right()
+            }
+        return libraryClient.getByHubKey(key)
             ?: PlexTransportFailure.Http(PlexHost.Server, HTTP_FORBIDDEN).left()
     }
+
+    /** The server path in a [HubKey] payload, or null when it was minted under another library. */
+    private fun liveHubKey(payload: String): String? =
+        HubKey.keyIn(payload).takeIf { HubKey.scopeIn(payload) == CompositeArt.currentScope() }
 
     private fun mixHubRow(hubKey: String): MediaItem =
         PlexMediaMapper.mixRowToMediaItem(
@@ -600,7 +605,58 @@ class PlexBrowseRepository {
      */
     fun getArtistRadioTracks(artistRatingKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         sectionKey ?: return errorFuture()
-        return fetch({ radio.startStation(artistRatingKey) }) { radio.stationTracks(it, artistRatingKey) }
+        val seed = PlexMediaMapper.StationSeed.Artist(artistRatingKey)
+        return fetch({ radio.startStation(seed) }) { radio.stationTracks(it, seed) }
+    }
+
+    /**
+     * The server's stations, in its order. The hub carries no `key`, so the
+     * safety check applies to each station's, which rides in the row's id.
+     * See docs/decisions/2026-11-01-radio-stations-design.md.
+     */
+    fun getRadioStations(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val session = api.session ?: return errorFuture()
+        val scope = CompositeArt.scopeOf(session)
+        return fetch({ libraryClient.getSectionHubsWithStations(session.musicSectionKey) }) { body ->
+            val rows =
+                hubsOf(body)
+                    .filter { it.type == TYPE_STATION }
+                    .flatMap { it.metadata.orEmpty() }
+                    .mapNotNull { station ->
+                        val key = station.key?.takeIf(LibraryClient::isSafeHubKey) ?: return@mapNotNull null
+                        PlexMediaMapper.mixRowToMediaItem(
+                            Constants.MIX_RADIO_STATION_ID + HubKey.of(scope, key),
+                            station.title,
+                            androidx.media3.session.R.drawable.media3_icon_radio,
+                        )
+                    }
+
+            rows.ifEmpty {
+                listOf(
+                    LibraryPickerRepository.messageRow(
+                        App.getContext().getString(R.string.browse_radio_empty),
+                        App.getContext().getString(R.string.browse_radio_empty_hint),
+                    ),
+                )
+            }
+        }
+    }
+
+    /**
+     * Starts a library station. [payload] is the row id's [HubKey] payload: a
+     * station key names a section by number, so one minted under another
+     * library is refused rather than posting that section number to this
+     * server.
+     */
+    fun getRadioStationTracks(payload: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        sectionKey ?: return errorFuture()
+        val key =
+            liveHubKey(payload)?.takeIf(LibraryClient::isSafeHubKey) ?: run {
+                Log.w(TAG, "not starting a stale or unsafe station: $payload")
+                return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+            }
+        val seed = PlexMediaMapper.StationSeed.Library(key)
+        return fetch({ radio.startStation(seed) }) { radio.stationTracks(it, seed) }
     }
 
     /**
@@ -1256,6 +1312,7 @@ class PlexBrowseRepository {
         private const val TYPE_ARTIST = "artist"
         private const val TYPE_PLAYLIST = "playlist"
         private const val TYPE_CLIP = "clip"
+        private const val TYPE_STATION = "station"
 
         /**
          * Narrows a container to streamable tracks. An absent Metadata list is an
