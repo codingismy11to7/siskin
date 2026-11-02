@@ -85,7 +85,7 @@ class CarHostActivityTest {
         verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.PLAYLIST_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.RADIO_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))
     }
 
@@ -100,7 +100,7 @@ class CarHostActivityTest {
         verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.PLAYLIST_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.RADIO_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))
     }
 

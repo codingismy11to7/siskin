@@ -52,25 +52,50 @@ object PlexMediaMapper {
     const val EXTRA_PLAY_QUEUE_ID = "playQueueId"
     const val EXTRA_PLAY_QUEUE_ITEM_ID = "playQueueItemId"
     const val EXTRA_STATION_ARTIST_ID = "stationArtistId"
+    const val EXTRA_STATION_KEY = "stationKey"
+
+    /** What a station is redrawn from. See docs/decisions/2026-11-01-radio-stations-design.md. */
+    sealed interface StationSeed {
+        data class Artist(
+            val ratingKey: String,
+        ) : StationSeed
+
+        data class Library(
+            val key: String,
+        ) : StationSeed
+
+        companion object {
+            /** Exactly one is stored; anything else is not a station. */
+            fun of(
+                artistRatingKey: String?,
+                stationKey: String?,
+            ): StationSeed? =
+                when {
+                    artistRatingKey != null && stationKey == null -> Artist(artistRatingKey)
+                    stationKey != null && artistRatingKey == null -> Library(stationKey)
+                    else -> null
+                }
+        }
+    }
 
     /**
-     * Which artist station a track came from, and where it sits in that
-     * station's server-side play queue. The station's whole state: there is
-     * no "active station" anywhere else. See
+     * Which station a track came from, and where it sits in that station's
+     * server-side play queue. The station's whole state: there is no "active
+     * station" anywhere else. See
      * docs/decisions/2026-10-23-artist-radio-design.md.
      */
     data class StationTag(
         val playQueueId: Long,
         val playQueueItemId: Long,
-        val artistRatingKey: String,
+        val seed: StationSeed,
     )
 
     @JvmStatic
     fun stationTagOf(item: MediaItem?): StationTag? {
         val extras = item?.mediaMetadata?.extras ?: return null
         if (!extras.containsKey(EXTRA_PLAY_QUEUE_ID) || !extras.containsKey(EXTRA_PLAY_QUEUE_ITEM_ID)) return null
-        val artist = extras.getString(EXTRA_STATION_ARTIST_ID) ?: return null
-        return StationTag(extras.getLong(EXTRA_PLAY_QUEUE_ID), extras.getLong(EXTRA_PLAY_QUEUE_ITEM_ID), artist)
+        val seed = StationSeed.of(extras.getString(EXTRA_STATION_ARTIST_ID), extras.getString(EXTRA_STATION_KEY)) ?: return null
+        return StationTag(extras.getLong(EXTRA_PLAY_QUEUE_ID), extras.getLong(EXTRA_PLAY_QUEUE_ITEM_ID), seed)
     }
 
     /**
@@ -179,7 +204,10 @@ object PlexMediaMapper {
                 if (station != null) {
                     putLong(EXTRA_PLAY_QUEUE_ID, station.playQueueId)
                     putLong(EXTRA_PLAY_QUEUE_ITEM_ID, station.playQueueItemId)
-                    putString(EXTRA_STATION_ARTIST_ID, station.artistRatingKey)
+                    when (val seed = station.seed) {
+                        is StationSeed.Artist -> putString(EXTRA_STATION_ARTIST_ID, seed.ratingKey)
+                        is StationSeed.Library -> putString(EXTRA_STATION_KEY, seed.key)
+                    }
                 }
             }
 

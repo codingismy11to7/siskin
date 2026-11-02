@@ -135,6 +135,18 @@ class LibraryServiceTest {
         }
 
     @Test
+    fun getSectionHubsWithStationsAsksForThem() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+            service().getSectionHubsWithStations("1")
+
+            val url = server.takeRequest().requestUrl!!
+            assertEquals("/hubs/sections/1", url.encodedPath)
+            assertEquals("1", url.queryParameter("includeStations"))
+        }
+
+    @Test
     fun getDecadesAsksTheSectionsDecadeIndexForAlbums() =
         runTest {
             server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
@@ -514,6 +526,7 @@ class LibraryServiceTest {
                 "getNearest",
                 "getMetadata",
                 "getSectionHubs",
+                "getSectionHubsWithStations",
                 "getDecades",
                 "getFirstCharacters",
                 "getFirstCharacterContent",

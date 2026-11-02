@@ -156,7 +156,12 @@ class RoomEntityRoundTripTest {
 
     @Test
     fun aStationTrackKeepsItsStationThroughTheQueue() {
-        val station = PlexMediaMapper.StationTag(playQueueId = 32194, playQueueItemId = 1381657, artistRatingKey = "270597")
+        val station =
+            PlexMediaMapper.StationTag(
+                playQueueId = 32194,
+                playQueueItemId = 1381657,
+                seed = PlexMediaMapper.StationSeed.Artist("270597"),
+            )
         val item =
             PlexMediaMapper.buildTrackMediaItem(
                 ratingKey = "270615",
@@ -179,6 +184,46 @@ class RoomEntityRoundTripTest {
         val restored = Queue.fromMediaItem(item)!!.toMediaItem()
 
         assertEquals(station, PlexMediaMapper.stationTagOf(restored))
+    }
+
+    @Test
+    fun aLibraryStationTrackKeepsItsStationThroughTheQueue() {
+        val station =
+            PlexMediaMapper.StationTag(
+                playQueueId = 32194,
+                playQueueItemId = 1381657,
+                seed = PlexMediaMapper.StationSeed.Library("/library/sections/7/stations/2"),
+            )
+        val item =
+            PlexMediaMapper.buildTrackMediaItem(
+                ratingKey = "270615",
+                title = "Baudelaire",
+                albumTitle = null,
+                artist = null,
+                thumb = null,
+                partKey = "/library/parts/1/file.flac",
+                durationMs = null,
+                trackIndex = null,
+                year = null,
+                grandparentRatingKey = "270597",
+                isHearted = false,
+                parentId = null,
+                serverUri = server,
+                token = token,
+                station = station,
+            )
+
+        val saved = Queue.fromMediaItem(item)!!
+
+        assertEquals("/library/sections/7/stations/2", saved.stationKey)
+        assertNull(saved.stationArtistId)
+        assertEquals(station, PlexMediaMapper.stationTagOf(saved.toMediaItem()))
+    }
+
+    @Test
+    fun aRowCarryingBothSeedsIsNoStation() {
+        assertNull(PlexMediaMapper.StationSeed.of("270597", "/library/sections/7/stations/2"))
+        assertNull(PlexMediaMapper.StationSeed.of(null, null))
     }
 
     @Test

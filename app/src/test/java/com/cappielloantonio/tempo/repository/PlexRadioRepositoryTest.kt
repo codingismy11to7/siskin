@@ -18,16 +18,19 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Starting and extending an artist station against a fake server whose
+ * Starting and extending artist and library stations against a fake server whose
  * responses are shaped like the live ones in
  * docs/decisions/2026-10-23-artist-radio-design.md.
  */
 @RunWith(RobolectricTestRunner::class)
 class PlexRadioRepositoryTest {
+    private val artist = PlexMediaMapper.StationSeed.Artist("270597")
     private val fixture = PlexBrowseTestServer()
     private val requests = mutableListOf<RecordedRequest>()
     private var stationMints = 0
     private var playQueueStatus = 200
+    private var windowAtEnd = false
+    private var windowMidQueue = false
 
     @Before
     fun setUp() {
@@ -43,6 +46,8 @@ class PlexRadioRepositoryTest {
                         path == "/library/metadata/270597" -> json(artistWithStation(++stationMints))
                         path == "/library/metadata/1" -> json("""{"MediaContainer":{"Metadata":[{"ratingKey":"1","type":"artist"}]}}""")
                         path == "/playQueues" && request.method == "POST" -> json(queue(32194, "11" to 101, "12" to 102))
+                        path == "/playQueues/32194" && windowAtEnd -> json(endOfQueue())
+                        path == "/playQueues/32194" && windowMidQueue -> json(endOfQueue(offset = 10))
                         path == "/playQueues/32194" && playQueueStatus != 200 -> MockResponse().setResponseCode(playQueueStatus)
                         path == "/playQueues/32194" -> json(queue(32194, "11" to 101, "12" to 102, "13" to 103))
                         else -> MockResponse().setResponseCode(500)
@@ -80,19 +85,19 @@ class PlexRadioRepositoryTest {
     fun startingAStationPostsItsUriAgainstTheSessionsServer() =
         runTest {
             val repo = repository()
-            val response = (repo.startStation("270597") as Either.Right).value
+            val response = (repo.startStation(artist) as Either.Right).value
 
             val uri = posted().single().requestUrl!!.queryParameter("uri")
             assertEquals("server://abc123/com.plexapp.plugins.library/library/metadata/270597/station/uuid-1?type=10", uri)
-            assertEquals(listOf("11", "12"), repo.stationTracks(response, "270597").map { it.mediaId })
+            assertEquals(listOf("11", "12"), repo.stationTracks(response, artist).map { it.mediaId })
         }
 
     @Test
     fun everyTapFetchesAFreshStationKey() =
         runTest {
             val repo = repository()
-            repo.startStation("270597")
-            repo.startStation("270597")
+            repo.startStation(artist)
+            repo.startStation(artist)
 
             val keys = posted().map { it.requestUrl!!.queryParameter("uri") }
             assertEquals(2, keys.toSet().size)
@@ -103,7 +108,7 @@ class PlexRadioRepositoryTest {
         runTest {
             PlexApi().machineIdentifier = null
 
-            repository().startStation("270597")
+            repository().startStation(artist)
 
             assertTrue(
                 posted()
@@ -118,14 +123,14 @@ class PlexRadioRepositoryTest {
     fun stationTracksCarryTheirPlaceInTheQueue() =
         runTest {
             val repo = repository()
-            val response = (repo.startStation("270597") as Either.Right).value
+            val response = (repo.startStation(artist) as Either.Right).value
 
-            val tags = repo.stationTracks(response, "270597").map { PlexMediaMapper.stationTagOf(it) }
+            val tags = repo.stationTracks(response, artist).map { PlexMediaMapper.stationTagOf(it) }
 
             assertEquals(
                 listOf(
-                    PlexMediaMapper.StationTag(32194, 101, "270597"),
-                    PlexMediaMapper.StationTag(32194, 102, "270597"),
+                    PlexMediaMapper.StationTag(32194, 101, artist),
+                    PlexMediaMapper.StationTag(32194, 102, artist),
                 ),
                 tags,
             )
@@ -135,16 +140,17 @@ class PlexRadioRepositoryTest {
     fun anArtistWithoutAStationStartsNothing() =
         runTest {
             val repo = repository()
-            val response = (repo.startStation("1") as Either.Right).value
+            val noStation = PlexMediaMapper.StationSeed.Artist("1")
+            val response = (repo.startStation(noStation) as Either.Right).value
 
-            assertTrue(repo.stationTracks(response, "1").isEmpty())
+            assertTrue(repo.stationTracks(response, noStation).isEmpty())
             assertTrue(posted().isEmpty())
         }
 
     @Test
     fun extendingReadsTheQueueBack() =
         runTest {
-            val tracks = (repository().extendStation(PlexMediaMapper.StationTag(32194, 102, "270597")) as Either.Right).value
+            val tracks = (repository().extendStation(PlexMediaMapper.StationTag(32194, 102, artist), 102, false) as Either.Right).value
 
             assertEquals(listOf("11", "12", "13"), tracks.map { it.mediaId })
         }
@@ -154,7 +160,7 @@ class PlexRadioRepositoryTest {
         runTest {
             playQueueStatus = 404
 
-            val tracks = (repository().extendStation(PlexMediaMapper.StationTag(32194, 102, "270597")) as Either.Right).value
+            val tracks = (repository().extendStation(PlexMediaMapper.StationTag(32194, 102, artist), 102, false) as Either.Right).value
 
             assertEquals(1, posted().size)
             assertEquals(listOf("11", "12"), tracks.map { it.mediaId })
@@ -165,9 +171,143 @@ class PlexRadioRepositoryTest {
         runTest {
             playQueueStatus = 500
 
-            val result = repository().extendStation(PlexMediaMapper.StationTag(32194, 102, "270597"))
+            val result = repository().extendStation(PlexMediaMapper.StationTag(32194, 102, artist), 102, false)
 
             assertEquals(PlexTransportFailure.Http(PlexHost.Server, 500), (result as Either.Left).value)
             assertTrue(posted().isEmpty())
+        }
+
+    @Test
+    fun aLibraryStationStartsFromItsKeyWithoutFetchingOne() =
+        runTest {
+            val seed = PlexMediaMapper.StationSeed.Library("/library/sections/7/stations/2")
+            val repo = repository()
+
+            val response = (repo.startStation(seed) as Either.Right).value
+
+            assertEquals(
+                "server://abc123/com.plexapp.plugins.library/library/sections/7/stations/2",
+                posted().single().requestUrl!!.queryParameter("uri"),
+            )
+            assertEquals(
+                PlexMediaMapper.StationTag(32194, 101, seed),
+                PlexMediaMapper.stationTagOf(repo.stationTracks(response, seed).first()),
+            )
+        }
+
+    private fun endOfQueue(offset: Int = 77) =
+        """{"MediaContainer":{"playQueueID":32194,"playQueueTotalCount":80,
+        "playQueueSelectedItemID":120,"playQueueSelectedItemOffset":$offset,"Metadata":[
+        {"ratingKey":"19","type":"track","playQueueItemID":119},
+        {"ratingKey":"20","type":"track","playQueueItemID":120},
+        {"ratingKey":"21","type":"track","playQueueItemID":121},
+        {"ratingKey":"22","type":"track","playQueueItemID":122}]}}"""
+
+    private val timeTravel = PlexMediaMapper.StationSeed.Library("/library/sections/7/stations/2")
+
+    @Test
+    fun aStationAtItsEndWithNothingNewIsDrawnAgain() =
+        runTest {
+            windowAtEnd = true
+
+            val tracks =
+                (
+                    repository().extendStation(
+                        PlexMediaMapper.StationTag(32194, 120, timeTravel),
+                        lastQueuedItemId = 122,
+                        onLastTrack = false,
+                    ) as Either.Right
+                ).value
+
+            assertEquals(
+                "server://abc123/com.plexapp.plugins.library/library/sections/7/stations/2",
+                posted().single().requestUrl!!.queryParameter("uri"),
+            )
+            assertEquals(listOf("11", "12"), tracks.map { it.mediaId })
+        }
+
+    @Test
+    fun theLastWindowIsAppendedBeforeAnyRedraw() =
+        runTest {
+            windowAtEnd = true
+
+            val tracks =
+                (
+                    repository().extendStation(
+                        PlexMediaMapper.StationTag(32194, 120, timeTravel),
+                        lastQueuedItemId = 120,
+                        onLastTrack = false,
+                    ) as Either.Right
+                ).value
+
+            assertTrue(posted().isEmpty())
+            assertEquals(listOf("19", "20", "21", "22"), tracks.map { it.mediaId })
+        }
+
+    @Test
+    fun aQueueWithoutATotalIsNeverAtItsEnd() =
+        runTest {
+            repository().extendStation(PlexMediaMapper.StationTag(32194, 103, artist), 103, onLastTrack = true)
+
+            assertTrue(posted().isEmpty())
+        }
+
+    @Test
+    fun theLastTrackWithNothingNewIsRedrawnWhereverTheWindowSits() =
+        runTest {
+            windowMidQueue = true
+
+            repository().extendStation(
+                PlexMediaMapper.StationTag(32194, 120, timeTravel),
+                lastQueuedItemId = 122,
+                onLastTrack = true,
+            )
+
+            assertEquals(1, posted().size)
+        }
+
+    @Test
+    fun theLastTrackIsNotRedrawnWhileTheWindowHoldsMore() =
+        runTest {
+            windowMidQueue = true
+
+            repository().extendStation(
+                PlexMediaMapper.StationTag(32194, 120, timeTravel),
+                lastQueuedItemId = 120,
+                onLastTrack = true,
+            )
+
+            assertTrue(posted().isEmpty())
+        }
+
+    @Test
+    fun aWindowShortOfTheTotalIsNotRedrawnEvenWithNothingNew() =
+        runTest {
+            windowMidQueue = true
+
+            val tracks =
+                (
+                    repository().extendStation(
+                        PlexMediaMapper.StationTag(32194, 120, timeTravel),
+                        lastQueuedItemId = 122,
+                        onLastTrack = false,
+                    ) as Either.Right
+                ).value
+
+            assertTrue(posted().isEmpty())
+            assertEquals(listOf("19", "20", "21", "22"), tracks.map { it.mediaId })
+        }
+
+    @Test
+    fun aDiscardedLibraryStationQueueIsReplacedFromItsOwnKey() =
+        runTest {
+            playQueueStatus = 404
+
+            repository().extendStation(PlexMediaMapper.StationTag(32194, 120, timeTravel), 120, false)
+
+            assertEquals(
+                "server://abc123/com.plexapp.plugins.library/library/sections/7/stations/2",
+                posted().single().requestUrl!!.queryParameter("uri"),
+            )
         }
 }

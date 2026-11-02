@@ -6,12 +6,14 @@ import arrow.core.left
 import arrow.core.right
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.PlexMediaMapper.StationSeed
 import com.cappielloantonio.tempo.plex.PlexMediaMapper.StationTag
 import com.cappielloantonio.tempo.plex.PlexTransportFailure
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,7 +27,7 @@ class StationTopUpTest {
     private fun stationTrack(
         ratingKey: String,
         itemId: Long = 100,
-    ) = stationTrack(ratingKey, StationTag(32194, itemId, "270597"))
+    ) = stationTrack(ratingKey, StationTag(32194, itemId, StationSeed.Artist("270597")))
 
     private fun stationTrack(
         ratingKey: String,
@@ -50,8 +52,8 @@ class StationTopUpTest {
 
     private fun topUp(result: Either<PlexTransportFailure, List<MediaItem>> = listOf(stationTrack("3"), stationTrack("4")).right()) =
         StationTopUp(
-            extend = {
-                events += "extend ${it.playQueueId}"
+            extend = { tag, _, _ ->
+                events += "extend ${tag.playQueueId}"
                 result
             },
             report = { item, _ -> events += "report ${item.mediaId}" },
@@ -60,7 +62,7 @@ class StationTopUpTest {
     @Test
     fun aStationTrackIsAlwaysReported() =
         runTest {
-            topUp().onTrackStarted(stationTrack("1"), 0, remainingAfterCurrent = 10, queuedMediaIds = setOf("1"))
+            topUp().onTrackStarted(stationTrack("1"), 0, remainingAfterCurrent = 10, queued = listOf(stationTrack("1")))
 
             assertEquals(listOf("report 1"), events)
         }
@@ -70,7 +72,7 @@ class StationTopUpTest {
         runTest {
             val plain = MediaItem.Builder().setMediaId("9").build()
 
-            val more = topUp().onTrackStarted(plain, 0, remainingAfterCurrent = 0, queuedMediaIds = setOf("9"))
+            val more = topUp().onTrackStarted(plain, 0, remainingAfterCurrent = 0, queued = listOf(plain))
 
             assertTrue(more.isEmpty())
             assertTrue(events.isEmpty())
@@ -79,7 +81,7 @@ class StationTopUpTest {
     @Test
     fun runningLowReportsFirstThenReadsTheQueue() =
         runTest {
-            topUp().onTrackStarted(stationTrack("1"), 0, remainingAfterCurrent = 2, queuedMediaIds = setOf("1", "2"))
+            topUp().onTrackStarted(stationTrack("1"), 0, remainingAfterCurrent = 2, queued = listOf(stationTrack("1"), stationTrack("2")))
 
             assertEquals(listOf("report 1", "extend 32194"), events)
         }
@@ -87,7 +89,7 @@ class StationTopUpTest {
     @Test
     fun plentyLeftDoesNotReadTheQueue() =
         runTest {
-            topUp().onTrackStarted(stationTrack("1"), 0, remainingAfterCurrent = 3, queuedMediaIds = setOf("1"))
+            topUp().onTrackStarted(stationTrack("1"), 0, remainingAfterCurrent = 3, queued = listOf(stationTrack("1")))
 
             assertEquals(listOf("report 1"), events)
         }
@@ -95,7 +97,7 @@ class StationTopUpTest {
     @Test
     fun tracksAlreadyQueuedAreNotAppendedAgain() =
         runTest {
-            val more = topUp().onTrackStarted(stationTrack("1"), 0, 1, queuedMediaIds = setOf("1", "3"))
+            val more = topUp().onTrackStarted(stationTrack("1"), 0, 1, queued = listOf(stationTrack("1"), stationTrack("3")))
 
             assertEquals(listOf("4"), more.map { it.mediaId })
         }
@@ -105,7 +107,7 @@ class StationTopUpTest {
         runTest {
             val more =
                 topUp(PlexTransportFailure.Unreachable(PlexHost.Server).left())
-                    .onTrackStarted(stationTrack("1"), 0, 0, setOf("1"))
+                    .onTrackStarted(stationTrack("1"), 0, 0, listOf(stationTrack("1")))
 
             assertTrue(more.isEmpty())
         }
@@ -116,16 +118,16 @@ class StationTopUpTest {
             val gate = CompletableDeferred<Unit>()
             val slow =
                 StationTopUp(
-                    extend = {
+                    extend = { _, _, _ ->
                         gate.await()
                         listOf(stationTrack("3")).right()
                     },
                     report = { _, _ -> },
                 )
 
-            val first = async { slow.onTrackStarted(stationTrack("1"), 0, 0, setOf("1")) }
+            val first = async { slow.onTrackStarted(stationTrack("1"), 0, 0, listOf(stationTrack("1"))) }
             testScheduler.runCurrent()
-            val second = slow.onTrackStarted(stationTrack("2"), 0, 0, setOf("1", "2"))
+            val second = slow.onTrackStarted(stationTrack("2"), 0, 0, listOf(stationTrack("1"), stationTrack("2")))
             gate.complete(Unit)
 
             assertTrue(second.isEmpty())
@@ -154,7 +156,12 @@ class StationTopUpTest {
 
     @Test
     fun aRedrawnQueueAppendsEverything() {
-        val redrawn = listOf(StationTag(777, 1, "270597"), StationTag(777, 2, "270597")).mapIndexed { i, tag -> stationTrack("r$i", tag) }
+        val tags =
+            listOf(
+                StationTag(777, 1, StationSeed.Artist("270597")),
+                StationTag(777, 2, StationSeed.Artist("270597")),
+            )
+        val redrawn = tags.mapIndexed { i, tag -> stationTrack("r$i", tag) }
         val live = listOf(stationTrack("t4", 4))
 
         val result = StationTopUp.appendable(redrawn, live[0], live[0], live)
@@ -199,7 +206,7 @@ class StationTopUpTest {
                 parentId = null,
                 serverUri = "https://plex.example",
                 token = "t",
-                station = StationTag(99999, 1, "270597"),
+                station = StationTag(99999, 1, StationSeed.Artist("270597")),
             )
 
         val result =
@@ -218,4 +225,53 @@ class StationTopUpTest {
         assertEquals(0, StationTopUp.firstToKeep(currentIndex = 5, keep = 29))
         assertEquals(11, StationTopUp.firstToKeep(currentIndex = 40, keep = 29))
     }
+
+    @Test
+    fun theLastQueuedItemIsThePlayersLastOfThatQueue() {
+        val redrawn = stationTrack("r0", StationTag(777, 1, StationSeed.Artist("270597")))
+        val items = listOf(stationTrack("t3", 3), stationTrack("t4", 4), redrawn)
+
+        assertEquals(4L, StationTopUp.lastQueuedItemId(items, 32194))
+        assertEquals(1L, StationTopUp.lastQueuedItemId(items, 777))
+        assertNull(StationTopUp.lastQueuedItemId(items, 5))
+    }
+
+    @Test
+    fun theReadIsToldHowFarThePlayerHas() =
+        runTest {
+            var told: Long? = null
+            val topUp =
+                StationTopUp(
+                    extend = { _, lastQueued, _ ->
+                        told = lastQueued
+                        emptyList<MediaItem>().right()
+                    },
+                    report = { _, _ -> },
+                )
+            val current = stationTrack("1", 100)
+
+            topUp.onTrackStarted(current, 0, 0, listOf(stationTrack("5", 105), current))
+
+            assertEquals(100L, told)
+        }
+
+    @Test
+    fun theReadIsToldWhenThePlayerIsOnItsLastTrack() =
+        runTest {
+            val told = mutableListOf<Boolean>()
+            val topUp =
+                StationTopUp(
+                    extend = { _, _, onLastTrack ->
+                        told += onLastTrack
+                        emptyList<MediaItem>().right()
+                    },
+                    report = { _, _ -> },
+                )
+            val current = stationTrack("1")
+
+            topUp.onTrackStarted(current, 0, 1, listOf(current))
+            topUp.onTrackStarted(current, 0, 0, listOf(current))
+
+            assertEquals(listOf(false, true), told)
+        }
 }

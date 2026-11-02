@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 
 /**
- * Keeps an artist station's queue growing. The server extends a station only
+ * Keeps a station's queue growing. The server extends a station only
  * once it hears which of its items is playing, so a station track is reported
  * before the queue is read back -- in that order, or the read finds nothing
  * new. See docs/decisions/2026-10-23-artist-radio-design.md.
@@ -18,7 +18,7 @@ import kotlin.math.max
  * the current track.
  */
 class StationTopUp(
-    private val extend: suspend (PlexMediaMapper.StationTag) -> Either<PlexTransportFailure, List<MediaItem>>,
+    private val extend: suspend (PlexMediaMapper.StationTag, Long, Boolean) -> Either<PlexTransportFailure, List<MediaItem>>,
     private val report: suspend (MediaItem, Long) -> Unit,
 ) {
     private val extending = AtomicBoolean(false)
@@ -26,14 +26,14 @@ class StationTopUp(
     /**
      * Reports [current] if it is a station track and returns what to append,
      * which is empty unless the queue is running low. Deduplicated against
-     * [queuedMediaIds] because QueueRepository drops a repeated mediaId, which
-     * would leave the saved queue out of step with the player.
+     * [queued] because QueueRepository drops a repeated mediaId, which would
+     * leave the saved queue out of step with the player.
      */
     suspend fun onTrackStarted(
         current: MediaItem,
         positionMs: Long,
         remainingAfterCurrent: Int,
-        queuedMediaIds: Set<String>,
+        queued: List<MediaItem>,
     ): List<MediaItem> {
         val station = PlexMediaMapper.stationTagOf(current) ?: return emptyList()
         report(current, positionMs)
@@ -41,12 +41,16 @@ class StationTopUp(
         // Rapid skips fire a track change each; one read is enough for all of them.
         if (!extending.compareAndSet(false, true)) return emptyList()
         try {
-            return extend(station).fold(
+            val lastQueued = lastQueuedItemId(queued, station.playQueueId) ?: station.playQueueItemId
+            return extend(station, lastQueued, remainingAfterCurrent == 0).fold(
                 { failure ->
                     Log.w(TAG, "could not extend station ${station.playQueueId}: $failure")
                     emptyList()
                 },
-                { tracks -> tracks.filter { it.mediaId !in queuedMediaIds } },
+                { tracks ->
+                    val queuedIds = queued.mapTo(HashSet()) { it.mediaId }
+                    tracks.filter { it.mediaId !in queuedIds }
+                },
             )
         } finally {
             extending.set(false)
@@ -64,7 +68,7 @@ class StationTopUp(
          * change while the report and read were in flight: [livePlaying] may be
          * a different queue, and [liveItems] may now hold tracks that continuous
          * play added. The station is compared by [started]'s play queue, not the
-         * returned tracks', which a 404 redraw legitimately changes.
+         * returned tracks', which a redraw legitimately changes.
          *
          * The read returns the server's whole window, played items included, and
          * those were trimmed from the player, so a mediaId check alone would
@@ -89,17 +93,22 @@ class StationTopUp(
             liveItems: List<MediaItem>,
         ): List<MediaItem> {
             val returnedQueue = more.firstNotNullOfOrNull { PlexMediaMapper.stationTagOf(it)?.playQueueId } ?: return more
-            val anchor =
-                liveItems
-                    .mapNotNull { PlexMediaMapper.stationTagOf(it) }
-                    .lastOrNull { it.playQueueId == returnedQueue }
-                    ?.playQueueItemId
-                    ?: return more
+            val anchor = lastQueuedItemId(liveItems, returnedQueue) ?: return more
             val at = more.indexOfFirst { PlexMediaMapper.stationTagOf(it)?.playQueueItemId == anchor }
             if (at >= 0) return more.drop(at + 1)
             // Item ids only grow as the server appends, so a window past the anchor is told by size.
             return more.filter { (PlexMediaMapper.stationTagOf(it)?.playQueueItemId ?: Long.MIN_VALUE) > anchor }
         }
+
+        /** The player's last item from [playQueueId], which a redraw may have appended after. */
+        fun lastQueuedItemId(
+            items: List<MediaItem>,
+            playQueueId: Long,
+        ): Long? =
+            items
+                .mapNotNull { PlexMediaMapper.stationTagOf(it) }
+                .lastOrNull { it.playQueueId == playQueueId }
+                ?.playQueueItemId
 
         /** The first index to keep, so [keep] played tracks stay behind [currentIndex]. */
         fun firstToKeep(

@@ -413,7 +413,7 @@ class CarSettingsFragmentTest {
 
     @Test
     fun `customize tabs shows the default tabs`() {
-        assertEquals("Playlists · Artists · Albums", customizeTabsValue(settingsScreen()))
+        assertEquals("Playlists · Artists · Radio", customizeTabsValue(settingsScreen()))
     }
 
     /** Resolved, not read raw: the save names two, and the car fills the third. */

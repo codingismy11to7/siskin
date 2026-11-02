@@ -90,7 +90,9 @@ open class BaseMediaService : MediaLibraryService() {
     private val stationTopUp by lazy {
         val radio = PlexRadioRepository()
         StationTopUp(
-            extend = { tag -> ServerAddressBook.shared.withAddressRecovery { radio.extendStation(tag) } },
+            extend = { tag, lastQueued, onLastTrack ->
+                ServerAddressBook.shared.withAddressRecovery { radio.extendStation(tag, lastQueued, onLastTrack) }
+            },
             report = { item, position ->
                 PlexScrobbler.reportNow(item, playbackReporter?.state ?: TimelineState.PLAYING, position)
             },
@@ -436,11 +438,11 @@ open class BaseMediaService : MediaLibraryService() {
         current: MediaItem,
     ) {
         val remaining = remainingInPlayOrder(player)
-        val queued = (0 until player.mediaItemCount).mapTo(HashSet()) { player.getMediaItemAt(it).mediaId }
+        val items = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
         val position = player.currentPosition
         stationScope.launch {
             try {
-                val fetched = stationTopUp.onTrackStarted(current, position, remaining, queued)
+                val fetched = stationTopUp.onTrackStarted(current, position, remaining, items)
                 val live = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
                 val more = StationTopUp.appendable(fetched, current, player.currentMediaItem, live)
                 if (more.isEmpty()) return@launch

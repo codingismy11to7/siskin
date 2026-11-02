@@ -37,6 +37,15 @@ class MediaContainer {
     /** Present only on a play-queue response. */
     var playQueueID: Long? = null
 
+    /** Present only on a finite station's play queue; an artist station has none. */
+    var playQueueTotalCount: Int? = null
+
+    /** Play-queue only; `PlexRadioRepository.hasRunOut` reads it. */
+    var playQueueSelectedItemID: Long? = null
+
+    /** Play-queue only; `PlexRadioRepository.hasRunOut` reads it. */
+    var playQueueSelectedItemOffset: Int? = null
+
     /** Present only on `GET /identity`. */
     var machineIdentifier: String? = null
 

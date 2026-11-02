@@ -111,6 +111,9 @@ class LibraryClient(
     suspend fun getSectionHubs(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getSectionHubs(sectionKey.value) }
 
+    suspend fun getSectionHubsWithStations(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getSectionHubsWithStations(sectionKey.value) }
+
     /**
      * The decades this section's albums fall into. Always asks for
      * [PlexItemType.ALBUM] -- see [LibraryService.getDecades] for why no other
