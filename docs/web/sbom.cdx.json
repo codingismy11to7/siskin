@@ -5505,43 +5505,43 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/io.arrow-kt/arrow-annotations-android@2.2.3?type=aar",
+            "bom-ref": "pkg:maven/io.arrow-kt/arrow-annotations-android@2.3.0.1?type=aar",
             "group": "io.arrow-kt",
             "name": "arrow-annotations-android",
-            "version": "2.2.3",
+            "version": "2.3.0.1",
             "description": "The perfect companion for your Kotlin journey",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "5216d92a8b33e5fc033454af5b8ef3d4"
+                    "content": "8d2c448c7a04adfdfee90fff2fb48eb9"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "f7f22cbb98adadf59968ae9df02c4e86cf210d07"
+                    "content": "29a6699f2db773c21269cc4c77f8ae5f123bdc1b"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "28215cd67dcb706101e8e28427d078b87a672e974c952f497d3539f58ac4ce3e"
+                    "content": "0498cc241e8ff719e9e759f037a951b94f405f408cc58d7df125c831ee0eb904"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "763a812eac626bffc2d690f338e610e08ccc2ab6a64f54e44e2759115b4e1a35082cf2296d7f735343c9fa7af27a7fb813af8831e072c094e3a7417709093715"
+                    "content": "5f273e9db6d1e08c9f240b3f7369d291e1da603ac27d93f8dd290986f71fafd5cf3539baf7d8ab695dd6642dc01c6e44947a7b1625402182ab78a30417087647"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "5a5f6eaf0ba91059c76b4c8d355197ac3aae4877524e1266e48b30af74e51214"
+                    "content": "334cce4751d83dc4f53b397601a84c640e57e084cf3df52f95b996c729880a29"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "22ca7d5a8f9132c0eb5426a846ae4d78606a86419ec98335d7fa416e885da39cb9db5a3af74601d9d5a626f648a0ca4c2c60cefc0a8692441563583802143d73"
+                    "content": "4ada00059e911f8c63e14dd21700feb806ab752d8922879c34344c6dffa367c2d588921fb66445ecc1721593737a4ad1b23da003102891cc19e15f2cf4d6b16d"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "9f1f58df36a09010bab640367358c43fa8869acfda64a91ccbf88d9b3617d89dd0dcbe9cff99614f6230d4900278bd37"
+                    "content": "00011c79e7a9a9eea92fd5c19f2e3d92923f3d9e07c4473dcc5465f9cd020d7bd469069946d4ba3a067135779643ca0d"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "8381326b334b9d035270cda8e71163ed9cc1a2409b5917a05f96dc2116c94d53a7e6d7015a9937663898fd4e75e4a05e"
+                    "content": "757e9a1eea39902873cadfbbd802666e05dea8cc8a08e99899848c82347fc0ee3feb0d3e8f306b94d462e11225a03d20"
                 }
             ],
             "licenses": [
@@ -5551,7 +5551,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/io.arrow-kt/arrow-annotations-android@2.2.3?type=aar",
+            "purl": "pkg:maven/io.arrow-kt/arrow-annotations-android@2.3.0.1?type=aar",
             "modified": false,
             "externalReferences": [
                 {
@@ -5568,10 +5568,10 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/io.arrow-kt/arrow-annotations@2.2.3?type=pom",
+            "bom-ref": "pkg:maven/io.arrow-kt/arrow-annotations@2.3.0.1?type=pom",
             "group": "io.arrow-kt",
             "name": "arrow-annotations",
-            "version": "2.2.3",
+            "version": "2.3.0.1",
             "description": "The perfect companion for your Kotlin journey",
             "licenses": [
                 {
@@ -5580,7 +5580,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/io.arrow-kt/arrow-annotations@2.2.3?type=pom",
+            "purl": "pkg:maven/io.arrow-kt/arrow-annotations@2.3.0.1?type=pom",
             "modified": false,
             "externalReferences": [
                 {
@@ -5597,43 +5597,43 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/io.arrow-kt/arrow-atomic-android@2.2.3?type=aar",
+            "bom-ref": "pkg:maven/io.arrow-kt/arrow-atomic-android@2.3.0.1?type=aar",
             "group": "io.arrow-kt",
             "name": "arrow-atomic-android",
-            "version": "2.2.3",
+            "version": "2.3.0.1",
             "description": "The perfect companion for your Kotlin journey",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "eb5eaf631f97f3e119eb8feda7c8d0e0"
+                    "content": "ea33cf8faae97a70cbe0319c952b8fb0"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "1f32a9d9040b4c44730a38e74f64f23ad45f48be"
+                    "content": "80bdf842f952ed4838c0edcb1ab8b9ce61312be6"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "04dc4b74b3545703c52ba8499c59b3f4ebffdc9163700cfe6cdfe8be796f8910"
+                    "content": "0bc88042e0c07ca97fa4c63f4393c5ecb4bd058c1c98c763646e0605547427e7"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "0820dc75ff7f142fc86e03885e9ff82222b79c517932a9932d7be36ee36d79ed54954ed8ec60b5e35e813ccbb7b58dd76809aa0e319aee33fc310f0a4f8fae3a"
+                    "content": "ed9e28f966be40213d0ab75d337b20e95cd9fe4bb72e6e95a7aeb6f4f7c4e1f819041d65a7b0d7daac4d4cf34019d64e56720379f1cc0d1f6dc5dff9c02e963e"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "7d9fb2cd46f1a5e3f03b823e3951d21aa7bc0c01702d237013ee2a62c522e42b"
+                    "content": "63ee96a528e4f1cd7ce6ee3b5fb4481768dddecbcc1e820efa62884c13a3391b"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "753d860df9bbf5ea7006d605a63c28135bc2c91c06b24869e87848a7a4e2ebdd1b46f1e20352c66b0d8c083d0dada35b6f6ef42056fdfcb43d0f3da04920b3f7"
+                    "content": "10d06f78378dfe50f75bebb83c7aad9a96e942bfd27db4f49de23b4525d4718994176e953343d0d3e384985b3b2be393be8b92e12914fda15c6fa03c466ea04e"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "10fb9c6ae12b930e294c8988fc1a1525c030df19e9f81bea68a1170ed66a3a7ee775cd804f4f4e1d7aecb80c680f6e75"
+                    "content": "4ad02604d5f04e799b5b2ab07fad950c78e1a619cb9fe75cac832d05eb132e1a754114af0db93c799001f8735d82738a"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "e852cc6083b51ae01febd33ed31e291ba1d2163c006902b2ce6f74beca07c7dfacc4ea2cd804080ed12fffde01ff9909"
+                    "content": "a05e9cea3f015f521bebafc764da81c0183d0eb247afa5fa989e8b9e84e4aeb3ea750ef514aed35bde9af4f6e66ac41f"
                 }
             ],
             "licenses": [
@@ -5643,7 +5643,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/io.arrow-kt/arrow-atomic-android@2.2.3?type=aar",
+            "purl": "pkg:maven/io.arrow-kt/arrow-atomic-android@2.3.0.1?type=aar",
             "modified": false,
             "externalReferences": [
                 {
@@ -5660,10 +5660,10 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/io.arrow-kt/arrow-atomic@2.2.3?type=pom",
+            "bom-ref": "pkg:maven/io.arrow-kt/arrow-atomic@2.3.0.1?type=pom",
             "group": "io.arrow-kt",
             "name": "arrow-atomic",
-            "version": "2.2.3",
+            "version": "2.3.0.1",
             "description": "The perfect companion for your Kotlin journey",
             "licenses": [
                 {
@@ -5672,7 +5672,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/io.arrow-kt/arrow-atomic@2.2.3?type=pom",
+            "purl": "pkg:maven/io.arrow-kt/arrow-atomic@2.3.0.1?type=pom",
             "modified": false,
             "externalReferences": [
                 {
@@ -5689,43 +5689,43 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/io.arrow-kt/arrow-core-android@2.2.3?type=aar",
+            "bom-ref": "pkg:maven/io.arrow-kt/arrow-core-android@2.3.0.1?type=aar",
             "group": "io.arrow-kt",
             "name": "arrow-core-android",
-            "version": "2.2.3",
+            "version": "2.3.0.1",
             "description": "The perfect companion for your Kotlin journey",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "a16cd5002abc1f935c22f145d4bbd479"
+                    "content": "9be4f484abe90e2d5cfe8291b3a30244"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "e24cc26df680f0a8f681d7f1839c7f3d70811a0c"
+                    "content": "23e86a810bb8a5d9ad07faad5c5dde026ce5e12b"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "61d72e17bade8446a63dd29ec068d33ea9273e1f592df45d8a6e57f34bcf2c11"
+                    "content": "718b9fa266c7e247b512d80bae3d548851af4d56e081953afa75696f76801491"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "dadc3f2b78ec9de03a7e607eb790a6baff8970881bb8b527fbb4c7c12438b4cfdfd5546f7946f3158d4eaa27633b45a029e5c8a08819b2c8930ccee677dc5128"
+                    "content": "2e82330a6e8840e3bfbacc43745194d4313f980b09e911183ff4cb5da26caf2d2e9d18f4e219443b4586c9b8bf1fdb5de45ed787b6814494fc9b3b734feca8a7"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "16ec5a20cda7d87a027c583f8e723a0b5e30600d216115f80efd6608ceeecb44"
+                    "content": "0bf71bd8f5457e46007a8963d1e2687d91c55e4301d75f9b5c17020849b365f0"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "8bb4db4d1d2d8b919e6479626990c1b0df86e16277dd47f957b098f7c11ca8616f3edd96be24fd294001f70408bda08e601c5e65c820ebcbbe7faafcb2077db1"
+                    "content": "367e7cd74b7ea48d10f5a203a13cd7019d9b4e547ec834fcfa7d614e6d6f51e758c5f695753525662cc7c7b34861bf1e7279f4b7ef75159d4fc9e8a70a23f823"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "9a42e1983bec0e916feac275fa692a79134ec92ef11c394d52f2fad358d50785eb8c90ea25d9155bdeb7649b5bb750d9"
+                    "content": "cdfa758a8c289c6276c80f2f8e15083ce0fe99a36bfdc90109aac7b7d3167a827c46e913e3ac55cff82283328505a186"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "8ccc7aa153ba3af4863918602fd8376e3b8676db79897b80069f0ced6a7afe953ffb2b2406d1a04391bbeaddc6761943"
+                    "content": "33fbacb6d88210d055557e3fa22114d69fd7fa3de4e99a9205c03d82e260eb408f8002b44165bdd93df0737361f112b7"
                 }
             ],
             "licenses": [
@@ -5735,7 +5735,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/io.arrow-kt/arrow-core-android@2.2.3?type=aar",
+            "purl": "pkg:maven/io.arrow-kt/arrow-core-android@2.3.0.1?type=aar",
             "modified": false,
             "externalReferences": [
                 {
@@ -5752,10 +5752,10 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/io.arrow-kt/arrow-core@2.2.3?type=pom",
+            "bom-ref": "pkg:maven/io.arrow-kt/arrow-core@2.3.0.1?type=pom",
             "group": "io.arrow-kt",
             "name": "arrow-core",
-            "version": "2.2.3",
+            "version": "2.3.0.1",
             "description": "The perfect companion for your Kotlin journey",
             "licenses": [
                 {
@@ -5764,7 +5764,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/io.arrow-kt/arrow-core@2.2.3?type=pom",
+            "purl": "pkg:maven/io.arrow-kt/arrow-core@2.3.0.1?type=pom",
             "modified": false,
             "externalReferences": [
                 {
@@ -5781,43 +5781,43 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/io.arrow-kt/arrow-exception-utils-android@2.2.3?type=aar",
+            "bom-ref": "pkg:maven/io.arrow-kt/arrow-exception-utils-android@2.3.0.1?type=aar",
             "group": "io.arrow-kt",
             "name": "arrow-exception-utils-android",
-            "version": "2.2.3",
+            "version": "2.3.0.1",
             "description": "The perfect companion for your Kotlin journey",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "4825a1f8805a524bd353e99828875159"
+                    "content": "0a0d9c6b2f7b0336e13fac31b0624b99"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "a03c3e0ad658f853826c8836478d57d313d98db6"
+                    "content": "4e1e070aacc4be28c981aaaa2cb4ce2d8a2f080a"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "b694db569f5fb471fbd7a6817c911941c8e649d09eb5f7ecfaaefb4f2b8fa436"
+                    "content": "5f591ac8fea87473cbddfe94c6466fce67df76c0d70a6194d8943f67d5d038ac"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "5486376fc6dd9ae2e316828c235d4b40f25145e22725d944c371a44c7b29fbb44d27aee3e03bbd992219e752d5937a6c47f5a29a6865d5143294671e8f4d37a7"
+                    "content": "ba27584092ca5540942c4a9040f78b98936370c4975da65c93c8ca9c95affd54922ffcb00837989ecbc67e4b6f0a5d6bdeee8ac13d7985e27a51b0df85034244"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "346b4f394a331bcbf380b6e91c463c0ecb9f041dc29f964781d115aff1962fd5"
+                    "content": "63f1e5e32e49961b047b5521d62f4de2159d303c2e426b37184dddf7ee08a904"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "f8c44ca0ca3dd14bbd65d298746321bbd48388043542e42edf0eeca9d76abceb58e9d3b3421d5ea40300ca41132e08e310eaaf776c4fe9eeb429fd274c9db570"
+                    "content": "05b7be47bfc0830d43ff891e63a7aafc4db172b49807645f6e39ace50d5fa59430be4e1c851caf8f7e900535254b2c18d92500b55ee713824342253e9b9ec24e"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "fab389acbab73519c99b9cfce7719a6c43518949d448b2fd7ceda0a32aa57de09b561995ba50e06e015c2c3ccf8825b2"
+                    "content": "958b43924d1d9d1bb89652d95a0c2c4a064a1c780f52bf5731437241e709baf7f4529151afae6ce309f0911319fce426"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "dcac9b45e07ae472031ddfd2980bb7aa5c03eda35ea54df2ce743fbbcfb860ac74fd7b0ed5bc5673d15382159ce8f07a"
+                    "content": "a3b7afc012fe9cff1093b8586083b281b62dba02223031b894235be5da180e44d1f8cfb25e4b747b505d7cdbfbc21ec7"
                 }
             ],
             "licenses": [
@@ -5827,7 +5827,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/io.arrow-kt/arrow-exception-utils-android@2.2.3?type=aar",
+            "purl": "pkg:maven/io.arrow-kt/arrow-exception-utils-android@2.3.0.1?type=aar",
             "modified": false,
             "externalReferences": [
                 {
@@ -5844,10 +5844,10 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/io.arrow-kt/arrow-exception-utils@2.2.3?type=pom",
+            "bom-ref": "pkg:maven/io.arrow-kt/arrow-exception-utils@2.3.0.1?type=pom",
             "group": "io.arrow-kt",
             "name": "arrow-exception-utils",
-            "version": "2.2.3",
+            "version": "2.3.0.1",
             "description": "The perfect companion for your Kotlin journey",
             "licenses": [
                 {
@@ -5856,7 +5856,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/io.arrow-kt/arrow-exception-utils@2.2.3?type=pom",
+            "purl": "pkg:maven/io.arrow-kt/arrow-exception-utils@2.3.0.1?type=pom",
             "modified": false,
             "externalReferences": [
                 {
@@ -7680,54 +7680,54 @@
             ]
         },
         {
-            "ref": "pkg:maven/io.arrow-kt/arrow-annotations-android@2.2.3?type=aar",
+            "ref": "pkg:maven/io.arrow-kt/arrow-annotations-android@2.3.0.1?type=aar",
             "dependsOn": [
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar"
             ]
         },
         {
-            "ref": "pkg:maven/io.arrow-kt/arrow-annotations@2.2.3?type=pom",
+            "ref": "pkg:maven/io.arrow-kt/arrow-annotations@2.3.0.1?type=pom",
             "dependsOn": [
-                "pkg:maven/io.arrow-kt/arrow-annotations-android@2.2.3?type=aar"
+                "pkg:maven/io.arrow-kt/arrow-annotations-android@2.3.0.1?type=aar"
             ]
         },
         {
-            "ref": "pkg:maven/io.arrow-kt/arrow-atomic-android@2.2.3?type=aar",
+            "ref": "pkg:maven/io.arrow-kt/arrow-atomic-android@2.3.0.1?type=aar",
             "dependsOn": [
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar"
             ]
         },
         {
-            "ref": "pkg:maven/io.arrow-kt/arrow-atomic@2.2.3?type=pom",
+            "ref": "pkg:maven/io.arrow-kt/arrow-atomic@2.3.0.1?type=pom",
             "dependsOn": [
-                "pkg:maven/io.arrow-kt/arrow-atomic-android@2.2.3?type=aar"
+                "pkg:maven/io.arrow-kt/arrow-atomic-android@2.3.0.1?type=aar"
             ]
         },
         {
-            "ref": "pkg:maven/io.arrow-kt/arrow-core-android@2.2.3?type=aar",
+            "ref": "pkg:maven/io.arrow-kt/arrow-core-android@2.3.0.1?type=aar",
             "dependsOn": [
-                "pkg:maven/io.arrow-kt/arrow-atomic@2.2.3?type=pom",
-                "pkg:maven/io.arrow-kt/arrow-exception-utils@2.2.3?type=pom",
+                "pkg:maven/io.arrow-kt/arrow-atomic@2.3.0.1?type=pom",
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar",
-                "pkg:maven/io.arrow-kt/arrow-annotations@2.2.3?type=pom"
+                "pkg:maven/io.arrow-kt/arrow-exception-utils@2.3.0.1?type=pom",
+                "pkg:maven/io.arrow-kt/arrow-annotations@2.3.0.1?type=pom"
             ]
         },
         {
-            "ref": "pkg:maven/io.arrow-kt/arrow-core@2.2.3?type=pom",
+            "ref": "pkg:maven/io.arrow-kt/arrow-core@2.3.0.1?type=pom",
             "dependsOn": [
-                "pkg:maven/io.arrow-kt/arrow-core-android@2.2.3?type=aar"
+                "pkg:maven/io.arrow-kt/arrow-core-android@2.3.0.1?type=aar"
             ]
         },
         {
-            "ref": "pkg:maven/io.arrow-kt/arrow-exception-utils-android@2.2.3?type=aar",
+            "ref": "pkg:maven/io.arrow-kt/arrow-exception-utils-android@2.3.0.1?type=aar",
             "dependsOn": [
                 "pkg:maven/org.jetbrains.kotlin/kotlin-stdlib@2.4.21?type=jar"
             ]
         },
         {
-            "ref": "pkg:maven/io.arrow-kt/arrow-exception-utils@2.2.3?type=pom",
+            "ref": "pkg:maven/io.arrow-kt/arrow-exception-utils@2.3.0.1?type=pom",
             "dependsOn": [
-                "pkg:maven/io.arrow-kt/arrow-exception-utils-android@2.2.3?type=aar"
+                "pkg:maven/io.arrow-kt/arrow-exception-utils-android@2.3.0.1?type=aar"
             ]
         },
         {
@@ -7873,7 +7873,6 @@
         {
             "ref": "pkg:maven/us.codingismy11to7/siskin@unspecified?project_path=%3Aapp",
             "dependsOn": [
-                "pkg:maven/io.arrow-kt/arrow-core@2.2.3?type=pom",
                 "pkg:maven/com.squareup.retrofit2/converter-gson@3.0.0?type=jar",
                 "pkg:maven/com.squareup.okhttp3/logging-interceptor@5.5.1?type=jar",
                 "pkg:maven/androidx.lifecycle/lifecycle-viewmodel-ktx@2.10.0?type=aar",
@@ -7890,6 +7889,7 @@
                 "pkg:maven/org.jellyfin.media3/media3-ffmpeg-decoder@1.9.0%2B1?type=aar",
                 "pkg:maven/androidx.room/room-runtime@2.8.5?type=pom",
                 "pkg:maven/io.coil-kt.coil3/coil-network-okhttp@3.6.3?type=pom",
+                "pkg:maven/io.arrow-kt/arrow-core@2.3.0.1?type=pom",
                 "pkg:maven/androidx.appcompat/appcompat@1.8.0?type=aar",
                 "pkg:maven/androidx.core/core-ktx@1.19.1?type=aar",
                 "pkg:maven/androidx.activity/activity@1.13.0?type=aar",
