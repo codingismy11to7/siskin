@@ -1,7 +1,6 @@
 package com.cappielloantonio.tempo.util
 
 import androidx.media3.common.util.UnstableApi
-import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.service.MediaBrowserTree
 
 /**
@@ -16,14 +15,7 @@ import com.cappielloantonio.tempo.service.MediaBrowserTree
 object BrowseTabOrderFixture {
     const val KEY = Preferences.BROWSE_TAB_ORDER
 
-    fun clearSavedOrder() {
-        App
-            .getInstance()
-            .preferences
-            .edit()
-            .remove(KEY)
-            .commit()
-    }
+    fun clearSavedOrder() = Preferences.clearBrowseTabOrder()
 
     @UnstableApi
     fun moreChildren(): List<String> =

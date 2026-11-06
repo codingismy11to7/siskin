@@ -319,6 +319,15 @@ object Preferences {
     }
 
     /**
+     * Removes the key rather than saving the default, so a reset install
+     * follows a later change to the default the way a fresh one does.
+     */
+    @JvmStatic
+    fun clearBrowseTabOrder() {
+        App.getInstance().preferences.edit { remove(BROWSE_TAB_ORDER) }
+    }
+
+    /**
      * Which identity tier the ladder starts from. The stored words are
      * persisted data, so renaming an enum value cannot rename them; an
      * unrecognised one reads as the vehicle, today's behaviour. See the

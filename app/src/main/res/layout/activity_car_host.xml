@@ -20,7 +20,6 @@
     heading and the content under it have to move together or not at all.
 -->
 <merge xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:parentTag="android.widget.FrameLayout">
 
@@ -41,13 +40,8 @@
     -->
     <ImageButton
         android:id="@+id/back_button"
-        android:layout_width="@dimen/plex_sign_in_choice_min_height"
-        android:layout_height="@dimen/plex_sign_in_choice_min_height"
+        style="@style/CarCornerButton"
         android:layout_gravity="start|top"
-        android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/car_sign_in_back_description"
-        android:padding="18dp"
-        android:scaleType="fitCenter"
-        android:src="@drawable/ic_back_arrow"
-        app:tint="?attr/colorOnSurface" />
+        android:src="@drawable/ic_back_arrow" />
 </merge>

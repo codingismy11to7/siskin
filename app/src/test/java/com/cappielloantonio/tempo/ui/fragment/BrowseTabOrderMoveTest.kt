@@ -2,6 +2,8 @@ package com.cappielloantonio.tempo.ui.fragment
 
 import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.RecyclerView
+import com.cappielloantonio.tempo.App
+import com.cappielloantonio.tempo.util.BrowseTabOrder
 import com.cappielloantonio.tempo.util.BrowseTabOrderFixture
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.Preferences
@@ -127,5 +129,25 @@ class BrowseTabOrderMoveTest {
             listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
             order,
         )
+    }
+
+    @Test
+    fun `reset puts the rows back in the default order`() {
+        val order = BrowseTabOrder.DEFAULT_ORDER.reversed().toMutableList()
+        Preferences.setBrowseTabOrder(order)
+
+        BrowseTabOrderFragment.resetAndPersist(order)
+
+        assertEquals(BrowseTabOrder.DEFAULT_ORDER, order)
+    }
+
+    @Test
+    fun `reset forgets the saved order rather than saving the default`() {
+        val order = BrowseTabOrder.DEFAULT_ORDER.reversed().toMutableList()
+        Preferences.setBrowseTabOrder(order)
+
+        BrowseTabOrderFragment.resetAndPersist(order)
+
+        assertFalse(App.getInstance().preferences.contains(BrowseTabOrderFixture.KEY))
     }
 }

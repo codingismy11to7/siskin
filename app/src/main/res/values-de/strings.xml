@@ -59,6 +59,7 @@
     <string name="car_tab_order_hint">Zeile am Griff ziehen — die obersten drei werden Tabs</string>
     <string name="car_tab_order_drag_handle">Umsortieren</string>
     <string name="car_tab_order_tab_badge">Tab</string>
+    <string name="car_tab_order_reset">Standardreihenfolge wiederherstellen</string>
     <string name="car_sign_in_action">Verbinden</string>
     <string name="car_sign_in_again">Plex hat die gespeicherte Verbindung abgelehnt</string>
     <string name="car_sign_in_back_description">Zurück</string>

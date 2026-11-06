@@ -65,4 +65,18 @@
         <item name="android:scrollbars">none</item>
     </style>
 
+    <!--
+        The icon buttons in the top corners of CarHostActivity's screens: back
+        at start|top, and a screen's own action at end|top. Shared so the two
+        corners cannot drift apart.
+    -->
+    <style name="CarCornerButton">
+        <item name="android:layout_width">@dimen/plex_sign_in_choice_min_height</item>
+        <item name="android:layout_height">@dimen/plex_sign_in_choice_min_height</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:padding">18dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="tint">?attr/colorOnSurface</item>
+    </style>
+
 </resources>

@@ -61,6 +61,7 @@
     <string name="car_tab_order_hint">Arrastra una fila por su tirador: las tres primeras serán pestañas</string>
     <string name="car_tab_order_drag_handle">Reordenar</string>
     <string name="car_tab_order_tab_badge">Pestaña</string>
+    <string name="car_tab_order_reset">Restablecer el orden predeterminado</string>
     <string name="car_sign_in_action">Conectar</string>
     <string name="car_sign_in_again">Plex rechazó la conexión guardada</string>
     <string name="car_sign_in_back_description">Atrás</string>
