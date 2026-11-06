@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+- The **Tab order** screen has a reset button at the top right, which puts your
+  tabs back in the default order.
 - A new **Radio** tab plays your server's stations: Library Radio, Deep Cuts
   Radio, Time Travel Radio and Random Album Radio. A station keeps going when it
   reaches its last track, by drawing a fresh one. Radio takes the third tab, so

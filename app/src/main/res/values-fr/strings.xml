@@ -61,6 +61,7 @@
     <string name="car_tab_order_hint">Faites glisser une ligne par sa poignée — les trois premiers deviennent des onglets</string>
     <string name="car_tab_order_drag_handle">Réorganiser</string>
     <string name="car_tab_order_tab_badge">Onglet</string>
+    <string name="car_tab_order_reset">Rétablir l\'ordre par défaut</string>
     <string name="car_sign_in_action">Se connecter</string>
     <string name="car_sign_in_again">Plex a refusé la connexion enregistrée</string>
     <string name="car_sign_in_back_description">Retour</string>

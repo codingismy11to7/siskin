@@ -37,6 +37,10 @@ class BrowseTabOrderFragment : Fragment() {
     // to startDrag.
     private lateinit var itemTouchHelper: ItemTouchHelper
 
+    // A second finger can reach the reset button mid-drag, and the drag's
+    // next swap would then write its own order over the reset.
+    private var dragging = false
+
     companion object {
         /**
          * The label for a destination row, reusing the string its browse tab
@@ -94,6 +98,13 @@ class BrowseTabOrderFragment : Fragment() {
             if (from == RecyclerView.NO_POSITION || to == RecyclerView.NO_POSITION) return false
             moveAndPersist(order, from, to)
             return true
+        }
+
+        /** Forgets the saved order and puts [order] back to the default. */
+        fun resetAndPersist(order: MutableList<String>) {
+            Preferences.clearBrowseTabOrder()
+            order.clear()
+            order.addAll(BrowseTabOrder.resolve(emptyList()))
         }
     }
 
@@ -169,12 +180,26 @@ class BrowseTabOrderFragment : Fragment() {
                         direction: Int,
                     ) = Unit
 
+                    override fun onSelectedChanged(
+                        viewHolder: RecyclerView.ViewHolder?,
+                        actionState: Int,
+                    ) {
+                        super.onSelectedChanged(viewHolder, actionState)
+                        dragging = actionState == ItemTouchHelper.ACTION_STATE_DRAG
+                    }
+
                     // Removal is not offered: a destination is always somewhere,
                     // above the line or below it.
                     override fun isItemViewSwipeEnabled(): Boolean = false
                 },
             )
         itemTouchHelper.attachToRecyclerView(list)
+
+        root.findViewById<View>(R.id.tab_order_reset).setOnClickListener {
+            if (dragging) return@setOnClickListener
+            resetAndPersist(order)
+            list.adapter?.notifyItemRangeChanged(0, order.size)
+        }
 
         return root
     }
