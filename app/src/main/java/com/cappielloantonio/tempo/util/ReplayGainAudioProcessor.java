@@ -79,6 +79,10 @@ public final class ReplayGainAudioProcessor extends BaseAudioProcessor {
         Log.d(TAG, "setGainImmediate: " + gainDb + " dB -> linear=" + linear);
     }
 
+    public float getTargetGainDb() {
+        return (float) (20.0 * Math.log10(targetGainLinear));
+    }
+
     public void clearPendingGain() {
         hasPendingFlushGain = false;
     }

@@ -34,6 +34,7 @@
     </plurals>
     <string name="car_settings_continuous_play">Continua a riprodurre musica</string>
     <string name="car_settings_replay_gain">Livellamento del volume</string>
+    <string name="car_settings_crossfade">Dissolvenza incrociata tra i brani</string>
     <string name="car_settings_artists_by_initial">Mostra artisti per iniziale</string>
     <string name="car_settings_artist_mix">Mostra il mix dell\'artista</string>
     <string name="car_settings_artist_radio">Mostra la radio dell\'artista</string>

@@ -152,6 +152,13 @@ interface LibraryService {
         @Query("includeStations") includeStations: Int = 1,
     ): PlexResponse
 
+    /** [getMetadata] with each audio stream's loudness ramps, which time a cross-fade. */
+    @GET("library/metadata/{id}")
+    suspend fun getMetadataWithRamps(
+        @Path("id") ratingKey: String,
+        @Query("includeLoudnessRamps") includeLoudnessRamps: Int = 1,
+    ): PlexResponse
+
     /** The server's own identity; the machine identifier a play-queue uri names. */
     @GET("identity")
     suspend fun getIdentity(): PlexResponse

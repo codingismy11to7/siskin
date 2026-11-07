@@ -11,6 +11,11 @@
 
 ## [Unreleased] — Siskin
 
+- Tracks now cross-fade, as in Plexamp. Each fade starts where the song itself
+  starts to fade out, using the loudness analysis your Plex server already
+  does, so its length suits the song. Tracks from the same album still play
+  back to back, and a library without loudness analysis plays without fades.
+  Turn it off with **Cross-fade between tracks** in Settings.
 - A new **Mixes** tab plays Plex's Mixes for You: mixes named after an artist
   you listen to, each drawing on related artists, shown with the artist's
   photo. A mix plays shuffled and keeps going when it runs out. It's the second

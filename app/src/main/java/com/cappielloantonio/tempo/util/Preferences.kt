@@ -26,6 +26,7 @@ object Preferences {
     private const val PRECACHE_TRACKS_COUNT = "precache_tracks_count"
     const val DEFAULT_PRECACHE_TRACKS_COUNT = 2
     private const val CONTINUOUS_PLAY = "continuous_play"
+    private const val CROSSFADE = "crossfade"
     private const val ARTISTS_BY_INITIAL = "artists_by_initial"
     private const val ARTIST_MIX = "artist_mix"
     private const val ARTIST_RADIO = "artist_radio"
@@ -239,6 +240,14 @@ object Preferences {
     @JvmStatic
     fun setContinuousPlayEnabled(enabled: Boolean) {
         App.getInstance().preferences.edit { putBoolean(CONTINUOUS_PLAY, enabled) }
+    }
+
+    @JvmStatic
+    fun isCrossfadeEnabled(): Boolean = App.getInstance().preferences.getBoolean(CROSSFADE, true)
+
+    @JvmStatic
+    fun setCrossfadeEnabled(enabled: Boolean) {
+        App.getInstance().preferences.edit { putBoolean(CROSSFADE, enabled) }
     }
 
     /**

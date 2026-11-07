@@ -15,12 +15,14 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressResolver
 
 @UnstableApi
 class DynamicMediaSourceFactory(
     private val context: Context,
+    private val exactMp3Seeking: Boolean = false,
 ) : MediaSource.Factory {
     override fun createMediaSource(mediaItem: MediaItem): MediaSource {
         val dataSourceFactory = buildDataSourceFactory()
@@ -35,7 +37,13 @@ class DynamicMediaSourceFactory(
             }
 
             else -> {
-                val extractorsFactory: ExtractorsFactory = DefaultExtractorsFactory()
+                // A VBR MP3's default seek can land seconds from where it reports; index seeking
+                // fixes that by reading the file from its start to the seek point, so it is for
+                // the cross-fade tail only.
+                val extractorsFactory: ExtractorsFactory =
+                    DefaultExtractorsFactory().apply {
+                        if (exactMp3Seeking) setMp3ExtractorFlags(Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING)
+                    }
                 val progressiveFactory = ProgressiveMediaSource.Factory(dataSourceFactory, extractorsFactory)
 
                 progressiveFactory.createMediaSource(mediaItem)

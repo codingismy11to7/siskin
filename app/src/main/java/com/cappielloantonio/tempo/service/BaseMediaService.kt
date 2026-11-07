@@ -41,17 +41,23 @@ import com.cappielloantonio.tempo.equalizer.EqualizerManager
 import com.cappielloantonio.tempo.equalizer.ExternalBackend
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
+import com.cappielloantonio.tempo.plex.RatingKey
 import com.cappielloantonio.tempo.plex.account.PlexAccountStore
+import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.repository.PlexRadioRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
+import com.cappielloantonio.tempo.service.crossfade.CrossfadeController
+import com.cappielloantonio.tempo.service.crossfade.CrossfadeRamps
+import com.cappielloantonio.tempo.service.crossfade.TrackFadeInfo
 import com.cappielloantonio.tempo.ui.activity.CarHostActivity
 import com.cappielloantonio.tempo.util.Constants
 import com.cappielloantonio.tempo.util.DownloadUtil
 import com.cappielloantonio.tempo.util.DynamicMediaSourceFactory
 import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.util.ReplayGainAudioProcessor
 import com.cappielloantonio.tempo.util.ReplayGainUtil
 import com.cappielloantonio.tempo.util.StreamingCacheDataSource
 import kotlinx.coroutines.CancellationException
@@ -60,6 +66,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
@@ -101,6 +108,9 @@ open class BaseMediaService : MediaLibraryService() {
 
     private var playbackReporter: PlaybackReporter? = null
 
+    private var crossfade: CrossfadeController? = null
+    private val crossfadeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     private val binder = LocalBinder()
 
     override fun onStartCommand(
@@ -120,6 +130,42 @@ open class BaseMediaService : MediaLibraryService() {
         initializePlayerListener(exoplayer)
         playbackReporter = PlaybackReporter(exoplayer, MediaManager::scrobble).also(exoplayer::addListener)
         setPlayer(null, exoplayer)
+        val api = PlexApi()
+        val ramps =
+            CrossfadeRamps(crossfadeScope, { api.serverUri to api.machineIdentifier }) { mediaId ->
+                // api.session reads the account store over binder.
+                withContext(Dispatchers.IO) {
+                    val session = api.session ?: return@withContext null
+                    LibraryClient(api, session.serverUri, session.serverAuthToken, { null })
+                        .getMetadataWithRamps(RatingKey(mediaId))
+                        .getOrNull()
+                        ?.mediaContainer
+                        ?.metadata
+                        ?.firstOrNull()
+                        ?.let(TrackFadeInfo::from)
+                }
+            }
+        crossfade =
+            CrossfadeController(
+                main = exoplayer,
+                ramps = ramps,
+                enabled = Preferences::isCrossfadeEnabled,
+                newTail = ::buildTailPlayer,
+                currentGainDb = { ReplayGainUtil.getAudioProcessor().targetGainDb },
+            ).also { it.start() }
+    }
+
+    // Unattached and without audio focus: it plays only while the session's
+    // player, which holds focus, is playing too.
+    private fun buildTailPlayer(gainDb: Float): ExoPlayer {
+        val replayGain = ReplayGainAudioProcessor().apply { setGainImmediate(gainDb) }
+        return ExoPlayer
+            .Builder(this)
+            .setRenderersFactory(getRenderersFactory(replayGain))
+            .setMediaSourceFactory(DynamicMediaSourceFactory(this, exactMp3Seeking = true))
+            .setAudioAttributes(AudioAttributes.DEFAULT, false)
+            .build()
+            .also { it.audioSessionId = exoplayer.audioSessionId }
     }
 
     open fun getMediaLibrarySessionCallback(): MediaLibrarySession.Callback = BaseSessionCallback(baseContext, this)
@@ -493,6 +539,9 @@ open class BaseMediaService : MediaLibraryService() {
         addressScope.cancel()
         stationScope.cancel()
         playbackReporter?.release()
+        // Before releaseNetworkCallback(), which can throw and would leave the tick posting.
+        crossfade?.release()
+        crossfadeScope.cancel()
         releaseNetworkCallback()
         equalizerManager.release(exoplayer.audioSessionId)
         ReplayGainUtil.release()
@@ -515,7 +564,7 @@ open class BaseMediaService : MediaLibraryService() {
         exoplayer =
             ExoPlayer
                 .Builder(this)
-                .setRenderersFactory(getRenderersFactory())
+                .setRenderersFactory(getRenderersFactory(ReplayGainUtil.getAudioProcessor()))
                 .setMediaSourceFactory(getMediaSourceFactory())
                 .setAudioAttributes(AudioAttributes.DEFAULT, true)
                 .setHandleAudioBecomingNoisy(true)
@@ -624,7 +673,7 @@ open class BaseMediaService : MediaLibraryService() {
         getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
     }
 
-    private fun getRenderersFactory(): DefaultRenderersFactory {
+    private fun getRenderersFactory(replayGain: ReplayGainAudioProcessor): DefaultRenderersFactory {
         val extensionRendererMode =
             if (DownloadUtil.useExtensionRenderers()) {
                 DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
@@ -644,7 +693,7 @@ open class BaseMediaService : MediaLibraryService() {
             ): AudioSink =
                 DefaultAudioSink
                     .Builder(context)
-                    .setAudioProcessors(arrayOf(ReplayGainUtil.getAudioProcessor()))
+                    .setAudioProcessors(arrayOf(replayGain))
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioOutputPlaybackParameters(enableAudioTrackPlaybackParams)
                     .build()
