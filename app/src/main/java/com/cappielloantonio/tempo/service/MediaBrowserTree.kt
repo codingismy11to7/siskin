@@ -59,6 +59,7 @@ object MediaBrowserTree {
     @OptIn(UnstableApi::class)
     private fun buildMediaItem(
         browsableChildrenAsGrid: Boolean,
+        playableChildStyle: Int = BrowseContentStyle.PLAYABLE_CHILD_STYLE,
         title: String,
         mediaId: String,
         isPlayable: Boolean,
@@ -79,7 +80,7 @@ object MediaBrowserTree {
                 )
                 putInt(
                     MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-                    BrowseContentStyle.PLAYABLE_CHILD_STYLE,
+                    playableChildStyle,
                 )
             }
 
@@ -232,6 +233,20 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(androidx.media3.session.R.drawable.media3_icon_radio),
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+                ),
+            )
+
+        treeNodes[Constants.MIXES_ID] =
+            MediaItemNode(
+                buildMediaItem(
+                    browsableChildrenAsGrid = false,
+                    playableChildStyle = BrowseContentStyle.PLAYABLE_GRID_STYLE,
+                    title = appContext.getString(R.string.browse_mixes),
+                    mediaId = Constants.MIXES_ID,
+                    isPlayable = false,
+                    isBrowsable = true,
+                    imageUri = iconUri(androidx.media3.session.R.drawable.media3_icon_shuffle_on),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
                 ),
             )
@@ -395,6 +410,10 @@ object MediaBrowserTree {
 
             Constants.RADIO_ID -> {
                 browseRepository.getRadioStations()
+            }
+
+            Constants.MIXES_ID -> {
+                browseRepository.getMixes()
             }
 
             Constants.FOLDERS_ID -> {

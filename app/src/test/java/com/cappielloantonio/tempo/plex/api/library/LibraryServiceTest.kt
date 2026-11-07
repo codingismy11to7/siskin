@@ -147,6 +147,48 @@ class LibraryServiceTest {
         }
 
     @Test
+    fun getSectionHubsWithMixesAsksForThem() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+            service().getSectionHubsWithMixes("1")
+
+            val url = server.takeRequest().requestUrl!!
+            assertEquals("/hubs/sections/1", url.encodedPath)
+            assertEquals("1", url.queryParameter("includeMyMixes"))
+            assertEquals("summary", url.queryParameter("excludeFields"))
+        }
+
+    @Test
+    fun aMixesHubParsesItsContextAndEachMixsArtists() =
+        runTest {
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    {"MediaContainer":{"Hub":[{"hubIdentifier":"music.mixes.7","context":"hub.music.mixes",
+                     "type":"playlist","size":1,"Metadata":[{"title":"Anberlin Mix","type":"playlist",
+                     "key":"/library/sections/7/all?artist.id=&or=1&album.id=258195,258224",
+                     "Metadata":[{"centroid":true,"ratingKey":"267559","type":"artist","title":"Anberlin",
+                      "thumb":"/library/metadata/267559/thumb/1"},
+                     {"ratingKey":"258161","type":"artist","title":"Thursday","thumb":"/library/metadata/258161/thumb/2"}]}]}]}}
+                    """.trimIndent(),
+                ),
+            )
+
+            val hub =
+                service()
+                    .getSectionHubsWithMixes("7")
+                    .mediaContainer!!
+                    .hub!!
+                    .single()
+            val mix = hub.metadata!!.single()
+
+            assertEquals("hub.music.mixes", hub.context)
+            assertEquals(listOf(true, null), mix.metadata!!.map { it.centroid })
+            assertEquals("Thursday", mix.metadata!![1].title)
+        }
+
+    @Test
     fun getSectionContentFiltersAlbumsOnDecadeNotAlbumDecade() =
         runTest {
             server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
@@ -424,6 +466,24 @@ class LibraryServiceTest {
         }
 
     @Test
+    fun createPlayQueueCarriesAMixKeyWholeAndAsksForAShuffle() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"playQueueID":1}}"""))
+            // The key's own ? and & must reach the server inside the uri value,
+            // not split into parameters of the play-queue request.
+            val uri =
+                "server://abc123/com.plexapp.plugins.library" +
+                    "/library/sections/7/all?artist.id=259987,270963&or=1&album.id=256469,261379"
+
+            service().createPlayQueue(type = "audio", uri = uri, repeat = 0, shuffle = 1)
+
+            val url = server.takeRequest().requestUrl!!
+            assertEquals(uri, url.queryParameter("uri"))
+            assertEquals("1", url.queryParameter("shuffle"))
+            assertEquals(null, url.queryParameter("or"))
+        }
+
+    @Test
     fun createPlayQueuePostsAStationUri() =
         runTest {
             server.enqueue(
@@ -436,7 +496,7 @@ class LibraryServiceTest {
             )
             val uri = "server://abc123/com.plexapp.plugins.library/library/metadata/270597/station/u?type=10"
 
-            val queue = service().createPlayQueue(type = "audio", uri = uri, repeat = 0)
+            val queue = service().createPlayQueue(type = "audio", uri = uri, repeat = 0, shuffle = 0)
 
             val request = server.takeRequest()
             assertEquals("POST", request.method)
@@ -444,6 +504,7 @@ class LibraryServiceTest {
             assertEquals("audio", request.requestUrl?.queryParameter("type"))
             assertEquals(uri, request.requestUrl?.queryParameter("uri"))
             assertEquals("0", request.requestUrl?.queryParameter("repeat"))
+            assertEquals("0", request.requestUrl?.queryParameter("shuffle"))
             assertEquals(32194L, queue.mediaContainer!!.playQueueID)
             assertEquals(
                 1381657L,
@@ -480,6 +541,7 @@ class LibraryServiceTest {
                 "getMetadata",
                 "getSectionHubs",
                 "getSectionHubsWithStations",
+                "getSectionHubsWithMixes",
                 "getFirstCharacters",
                 "getFirstCharacterContent",
                 "getByPath",

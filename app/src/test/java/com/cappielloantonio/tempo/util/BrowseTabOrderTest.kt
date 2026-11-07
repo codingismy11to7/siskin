@@ -18,7 +18,7 @@ class BrowseTabOrderTest {
 
     @Test
     fun `a complete saved order is returned unchanged`() {
-        // Complete means every id the build knows, Discover and Radio included
+        // Complete means every id the build knows, Discover, Radio and Mixes included
         // -- a save missing one is the append case below, not this one.
         val saved =
             listOf(
@@ -26,6 +26,7 @@ class BrowseTabOrderTest {
                 Constants.DISCOVER_ID,
                 Constants.ARTISTS_ID,
                 Constants.PLAYLIST_ID,
+                Constants.MIXES_ID,
                 Constants.RADIO_ID,
                 Constants.FOLDERS_ID,
             )
@@ -43,7 +44,10 @@ class BrowseTabOrderTest {
                 Constants.PLAYLIST_ID,
             )
 
-        assertEquals(saved + Constants.RADIO_ID + Constants.FOLDERS_ID, BrowseTabOrder.resolve(saved))
+        assertEquals(
+            saved + Constants.MIXES_ID + Constants.RADIO_ID + Constants.FOLDERS_ID,
+            BrowseTabOrder.resolve(saved),
+        )
     }
 
     /**
@@ -99,6 +103,7 @@ class BrowseTabOrderTest {
             listOf(
                 Constants.ALBUMS_ID,
                 Constants.PLAYLIST_ID,
+                Constants.MIXES_ID,
                 Constants.RADIO_ID,
                 Constants.ARTISTS_ID,
                 Constants.DISCOVER_ID,
@@ -124,11 +129,16 @@ class BrowseTabOrderTest {
         val resolved = BrowseTabOrder.resolve(emptyList())
 
         assertEquals(
-            listOf(Constants.PLAYLIST_ID, Constants.RADIO_ID, Constants.ARTISTS_ID),
+            listOf(Constants.PLAYLIST_ID, Constants.MIXES_ID, Constants.RADIO_ID),
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
-            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID, Constants.FOLDERS_ID),
+            listOf(
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.DISCOVER_ID,
+                Constants.FOLDERS_ID,
+            ),
             BrowseTabOrder.moreRows(resolved),
         )
     }
@@ -149,15 +159,16 @@ class BrowseTabOrderTest {
     }
 
     /**
-     * The shipped default puts Radio second and Artists third, so a default
-     * install sees Albums move under More. See
-     * docs/decisions/2026-11-01-radio-stations-design.md.
+     * The shipped default puts Mixes second and Radio third, so a default
+     * install sees Artists move under More. See
+     * docs/decisions/2026-11-07-mixes-for-you-design.md.
      */
     @Test
-    fun `the default is Playlists, Radio, Artists, then the rest`() {
+    fun `the default is Playlists, Mixes, Radio, then the rest`() {
         assertEquals(
             listOf(
                 Constants.PLAYLIST_ID,
+                Constants.MIXES_ID,
                 Constants.RADIO_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
@@ -168,10 +179,26 @@ class BrowseTabOrderTest {
         )
     }
 
+    @Test
+    fun `an order saved before Mixes shipped gets it last, keeping the chosen tabs`() {
+        // Complete as of 1.4.1: every destination that build knew.
+        val saved =
+            listOf(
+                Constants.PLAYLIST_ID,
+                Constants.RADIO_ID,
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.DISCOVER_ID,
+                Constants.FOLDERS_ID,
+            )
+
+        assertEquals(saved + Constants.MIXES_ID, BrowseTabOrder.resolve(saved))
+    }
+
     /**
      * The asymmetry the spec accepts, pinned so it is not "fixed" later. Ids a
      * save does not know get appended behind everything the user saved, in
-     * default order. Radio is the id whose default rank (second) differs from
+     * default order. Mixes is the id whose default rank (second) differs from
      * where it lands (after the saved tabs); inserting it at that rank would
      * demote whichever tab the user had deliberately chosen there.
      */
@@ -194,7 +221,12 @@ class BrowseTabOrderTest {
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
-            listOf(Constants.RADIO_ID, Constants.DISCOVER_ID, Constants.FOLDERS_ID),
+            listOf(
+                Constants.MIXES_ID,
+                Constants.RADIO_ID,
+                Constants.DISCOVER_ID,
+                Constants.FOLDERS_ID,
+            ),
             BrowseTabOrder.moreRows(resolved),
         )
     }

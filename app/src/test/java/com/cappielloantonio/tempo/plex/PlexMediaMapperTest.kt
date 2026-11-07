@@ -193,4 +193,52 @@ class PlexMediaMapperTest {
         assertNull(PlexMediaMapper.hubToMediaItem(noKey, Constants.HUB_ID, "abc123-7", bucket = 487234L))
         assertNull(PlexMediaMapper.hubToMediaItem(noTitle, Constants.HUB_ID, "abc123-7", bucket = 487234L))
     }
+
+    private fun artist(
+        title: String,
+        thumb: String?,
+        centroid: Boolean? = null,
+    ) = Metadata().apply {
+        this.title = title
+        this.thumb = thumb
+        this.centroid = centroid
+    }
+
+    private fun mix(vararg artists: Metadata) = Metadata().apply { metadata = artists.toList() }
+
+    @Test
+    fun aMixWearsItsNamesakesPhoto() {
+        val m = mix(artist("Thursday", "/t"), artist("Anberlin", "/a", centroid = true))
+
+        assertEquals("/a", PlexMediaMapper.mixArtistThumb(m))
+    }
+
+    @Test
+    fun aMixWithNoNamesakeWearsItsFirstArtistsPhoto() {
+        assertEquals("/t", PlexMediaMapper.mixArtistThumb(mix(artist("Thursday", "/t"), artist("Plankeye", "/p"))))
+    }
+
+    @Test
+    fun aNamesakeWithoutAPhotoFallsBackToTheFirstThatHasOne() {
+        val m = mix(artist("Anberlin", null, centroid = true), artist("Thursday", ""), artist("Plankeye", "/p"))
+
+        assertEquals("/p", PlexMediaMapper.mixArtistThumb(m))
+    }
+
+    @Test
+    fun aMixWithNoArtistsHasNoPhoto() {
+        assertEquals(null, PlexMediaMapper.mixArtistThumb(Metadata()))
+    }
+
+    @Test
+    fun aMixsSubtitleNamesTheArtistsBesideItsNamesake() {
+        val m = mix(artist("Anberlin", "/a", centroid = true), artist("Thursday", "/t"), artist("Plankeye", "/p"))
+
+        assertEquals("Thursday, Plankeye", PlexMediaMapper.mixSubtitle(m))
+    }
+
+    @Test
+    fun aMixOfOnlyItsNamesakeHasNoSubtitle() {
+        assertEquals(null, PlexMediaMapper.mixSubtitle(mix(artist("Anberlin", "/a", centroid = true))))
+    }
 }

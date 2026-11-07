@@ -106,9 +106,14 @@ class LibraryClient(
 
     suspend fun getIdentity(): Either<PlexTransportFailure, PlexResponse> = plexCall(PlexHost.Server) { service.getIdentity() }
 
-    suspend fun createPlayQueue(uri: String): Either<PlexTransportFailure, PlexResponse> {
-        Log.d(TAG, "createPlayQueue($uri)")
-        return plexCall(PlexHost.Server) { service.createPlayQueue(type = "audio", uri = uri, repeat = 0) }
+    suspend fun createPlayQueue(
+        uri: String,
+        shuffle: Boolean,
+    ): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "createPlayQueue($uri, shuffle=$shuffle)")
+        return plexCall(PlexHost.Server) {
+            service.createPlayQueue(type = "audio", uri = uri, repeat = 0, shuffle = if (shuffle) 1 else 0)
+        }
     }
 
     suspend fun getPlayQueue(playQueueId: Long): Either<PlexTransportFailure, PlexResponse> {
@@ -121,6 +126,9 @@ class LibraryClient(
 
     suspend fun getSectionHubsWithStations(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getSectionHubsWithStations(sectionKey.value) }
+
+    suspend fun getSectionHubsWithMixes(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getSectionHubsWithMixes(sectionKey.value) }
 
     /**
      * The first-character buckets this section's artists fall into. Always asks

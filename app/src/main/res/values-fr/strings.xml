@@ -22,6 +22,9 @@
     <string name="browse_folder_empty">Ce dossier est vide</string>
     <string name="browse_radio_empty">Aucune station sur ce serveur</string>
     <string name="browse_radio_empty_hint">Ce serveur Plex n\'en propose aucune</string>
+    <string name="browse_mixes">Mix</string>
+    <string name="browse_mixes_empty">Aucun mix pour l\'instant</string>
+    <string name="browse_mixes_empty_hint">Plex les crée à partir de ce que vous écoutez</string>
     <string name="browse_radio_directory_empty">Aucune station ici</string>
 
     <plurals name="car_artist_count">

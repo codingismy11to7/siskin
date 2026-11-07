@@ -70,8 +70,8 @@ class MediaLibrarySessionCallbackSignedOutTest {
         assertEquals(
             listOf(
                 Constants.PLAYLIST_ID,
+                Constants.MIXES_ID,
                 Constants.RADIO_ID,
-                Constants.ARTISTS_ID,
                 Constants.MORE_ID,
             ),
             children,
@@ -82,6 +82,7 @@ class MediaLibrarySessionCallbackSignedOutTest {
     fun aNonRootParentReturnsTheInfoRowWhileSignedOut() {
         listOf(
             Constants.PLAYLIST_ID,
+            Constants.MIXES_ID,
             Constants.ARTISTS_ID,
             Constants.ALBUMS_ID,
             Constants.RADIO_ID,

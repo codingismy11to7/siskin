@@ -22,6 +22,9 @@
     <string name="browse_folder_empty">This folder is empty</string>
     <string name="browse_radio_empty">No stations on this server</string>
     <string name="browse_radio_empty_hint">This Plex server doesn\'t offer any</string>
+    <string name="browse_mixes">Mixes</string>
+    <string name="browse_mixes_empty">No mixes yet</string>
+    <string name="browse_mixes_empty_hint">Plex builds them from what you listen to</string>
     <string name="browse_radio_directory_empty">No stations here</string>
 
     <!-- A proper noun. Marked non-translatable because every locale file used to

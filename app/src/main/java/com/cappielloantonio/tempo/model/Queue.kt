@@ -74,6 +74,9 @@ class Queue {
     @ColumnInfo(name = "station_key")
     var stationKey: String? = null
 
+    @ColumnInfo(name = "station_mix_key")
+    var stationMixKey: String? = null
+
     fun toMediaItem(): MediaItem {
         val api = PlexApi()
         return PlexMediaMapper.buildTrackMediaItem(
@@ -98,7 +101,7 @@ class Queue {
     private fun stationTag(): PlexMediaMapper.StationTag? {
         val queueId = playQueueId ?: return null
         val itemId = playQueueItemId ?: return null
-        val seed = PlexMediaMapper.StationSeed.of(stationArtistId, stationKey) ?: return null
+        val seed = PlexMediaMapper.StationSeed.of(stationArtistId, stationKey, stationMixKey) ?: return null
         return PlexMediaMapper.StationTag(queueId, itemId, seed)
     }
 
@@ -124,6 +127,7 @@ class Queue {
                 val seed = fields.station?.seed
                 stationArtistId = (seed as? PlexMediaMapper.StationSeed.Artist)?.ratingKey
                 stationKey = (seed as? PlexMediaMapper.StationSeed.Library)?.key
+                stationMixKey = (seed as? PlexMediaMapper.StationSeed.Mix)?.key
             }
         }
     }

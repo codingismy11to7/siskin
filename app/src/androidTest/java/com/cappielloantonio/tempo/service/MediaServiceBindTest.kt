@@ -93,6 +93,7 @@ class MediaServiceBindTest {
     fun nonRootParentReturnsASingleBrowsableRow() {
         listOf(
             Constants.PLAYLIST_ID,
+            Constants.MIXES_ID,
             Constants.ARTISTS_ID,
             Constants.RADIO_ID,
             Constants.MORE_ID,

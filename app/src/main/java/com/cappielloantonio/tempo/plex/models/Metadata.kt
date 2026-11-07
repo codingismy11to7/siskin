@@ -89,6 +89,13 @@ class Metadata {
     @SerializedName("Stations")
     var stations: Stations? = null
 
+    /** On a Mixes for You artist: the one the mix is named after. */
+    var centroid: Boolean? = null
+
+    /** A Mixes for You mix's artists, from `includeMyMixes=1`. */
+    @SerializedName("Metadata")
+    var metadata: List<Metadata>? = null
+
     @SerializedName("Media")
     var media: List<Media>? = null
 }

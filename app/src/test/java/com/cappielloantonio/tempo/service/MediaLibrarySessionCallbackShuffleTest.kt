@@ -251,6 +251,29 @@ class MediaLibrarySessionCallbackShuffleTest {
         }
     }
 
+    @Test
+    fun aMixIsServedInTheServersOrder() {
+        val mix = HubKey.of("machine-7", "/library/sections/7/all?artist.id=&or=1&album.id=1,2")
+        val tracks = albumTracks("1", "2", "3", "4", "5", "6", "7", "8")
+        whenever(browseRepository.getMixTracks(mix)).thenReturn(itemList(tracks))
+
+        val result = setMediaItems(MediaItem.Builder().setMediaId(Constants.MIX_FOR_YOU_ID + mix).build())
+
+        assertEquals(tracks.map { it.mediaId }, result.mediaItems.map { it.mediaId })
+        assertShuffleUntouched()
+    }
+
+    @Test
+    fun aRefusedMixFailsTheTapSoWhatIsPlayingContinues() {
+        val mix = HubKey.of("machine-7", "/library/sections/7/all?album.id=1")
+        whenever(browseRepository.getMixTracks(mix))
+            .thenReturn(Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)))
+
+        assertThrows(ExecutionException::class.java) {
+            setMediaItems(MediaItem.Builder().setMediaId(Constants.MIX_FOR_YOU_ID + mix).build())
+        }
+    }
+
     /**
      * `onAddMediaItems` is not only a browse-tap path: MediaManager's continuous
      * play appends instant-mix tracks to a running queue through
