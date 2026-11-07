@@ -11,6 +11,9 @@
 
 ## [Unreleased] — Siskin
 
+- Radio is now the second tab and Artists the third, unless you've customized
+  your tabs.
+
 ## [1.4.0] (2026-11-06)
 
 - A **Folders** entry under More browses your library by its folders on disk,

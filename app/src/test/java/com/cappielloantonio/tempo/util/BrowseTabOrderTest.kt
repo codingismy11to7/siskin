@@ -99,8 +99,8 @@ class BrowseTabOrderTest {
             listOf(
                 Constants.ALBUMS_ID,
                 Constants.PLAYLIST_ID,
-                Constants.ARTISTS_ID,
                 Constants.RADIO_ID,
+                Constants.ARTISTS_ID,
                 Constants.DISCOVER_ID,
                 Constants.FOLDERS_ID,
             ),
@@ -124,7 +124,7 @@ class BrowseTabOrderTest {
         val resolved = BrowseTabOrder.resolve(emptyList())
 
         assertEquals(
-            listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.RADIO_ID),
+            listOf(Constants.PLAYLIST_ID, Constants.RADIO_ID, Constants.ARTISTS_ID),
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
@@ -149,16 +149,17 @@ class BrowseTabOrderTest {
     }
 
     /**
-     * The shipped default puts Radio third, so a default install sees Albums
-     * move under More. See docs/decisions/2026-11-01-radio-stations-design.md.
+     * The shipped default puts Radio second and Artists third, so a default
+     * install sees Albums move under More. See
+     * docs/decisions/2026-11-01-radio-stations-design.md.
      */
     @Test
-    fun `the default is Playlists, Artists, Radio, then the rest`() {
+    fun `the default is Playlists, Radio, Artists, then the rest`() {
         assertEquals(
             listOf(
                 Constants.PLAYLIST_ID,
-                Constants.ARTISTS_ID,
                 Constants.RADIO_ID,
+                Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
                 Constants.FOLDERS_ID,
@@ -170,7 +171,7 @@ class BrowseTabOrderTest {
     /**
      * The asymmetry the spec accepts, pinned so it is not "fixed" later. Ids a
      * save does not know get appended behind everything the user saved, in
-     * default order. Radio is the id whose default rank (third) differs from
+     * default order. Radio is the id whose default rank (second) differs from
      * where it lands (after the saved tabs); inserting it at that rank would
      * demote whichever tab the user had deliberately chosen there.
      */
