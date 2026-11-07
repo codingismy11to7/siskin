@@ -56,7 +56,6 @@ class BrowseTabOrderFragment : Fragment() {
                 Constants.ALBUMS_ID -> R.string.browse_albums
                 Constants.RADIO_ID -> R.string.browse_radio
                 Constants.DISCOVER_ID -> R.string.browse_discover
-                Constants.DECADES_ID -> R.string.browse_decades
                 else -> 0
             }
 

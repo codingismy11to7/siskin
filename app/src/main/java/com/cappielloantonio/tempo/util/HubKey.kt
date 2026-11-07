@@ -4,12 +4,19 @@ package com.cappielloantonio.tempo.util
  * The payload of a [Constants.HUB_ID] row: which library, then the server's own
  * query for that hub.
  *
- * The scope is here for the reason [DecadeKey] carries one -- a stale row
- * tapped after a server switch must not query the new server -- and it matters
- * more here than there. A hub key names a section by number
+ * The scope is here because a stale row tapped after a server switch must not
+ * query the new server. A hub key names a section by number
  * (`/library/sections/7/all?...`), so the same id pointed at a different server
  * would address whatever section 7 happens to be on *that* machine, which may
  * not be music at all.
+ *
+ * It is also what stops a library switch crashing the car: an id that stays the
+ * same while its artwork URI changes, delivered in the same refresh as a
+ * removal, throws an `IndexOutOfBoundsException` out of `com.android.car.media`'s
+ * `BrowseAdapter.onBindViewHolder`. Carrying the scope makes a switch a pure
+ * remove-and-insert for rows whose artwork names the library (decade station
+ * tiles do), and the hourly artwork bucket is kept out of the id so an hour roll
+ * changes art without changing ids.
  *
  * Naming the hazard is not the same as closing it: [scopeIn] is what
  * `PlexBrowseRepository.followHubKey` compares against the live session
@@ -18,11 +25,10 @@ package com.cappielloantonio.tempo.util
  * `getHubs` mints these ids with. A mismatch renders the empty-hub message
  * row rather than reaching the server at all.
  *
- * **Pipe rather than colon**, following [Constants.PICK_LIBRARY_ID] and
- * [DecadeKey]. A scope is a normalised machine identifier then `-` then an
- * integer section key, so it cannot contain one; [keyIn] takes the *first* pipe
- * rather than the last, because unlike a decade the key side is a URL and has
- * no such guarantee.
+ * **Pipe rather than colon**, following [Constants.PICK_LIBRARY_ID]. A scope is
+ * a normalised machine identifier then `-` then an integer section key, so it
+ * cannot contain one; [keyIn] takes the *first* pipe rather than the last,
+ * because the key side is a URL and has no such guarantee.
  */
 object HubKey {
     private const val SEPARATOR = '|'

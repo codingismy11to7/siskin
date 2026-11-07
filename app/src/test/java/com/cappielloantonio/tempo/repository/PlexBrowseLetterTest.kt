@@ -217,7 +217,7 @@ class PlexBrowseLetterTest {
             // bucket rows already in hand: the request succeeded, but a 200 with no
             // Metadata -- or entries itemsOf's narrowing does not match -- would
             // otherwise render the tab completely empty. Plex omitting per-endpoint
-            // fields is not hypothetical; see the decade index.
+            // fields is not hypothetical; see the bucket index.
             fixture.server.enqueue(ok(index(Triple("A", "A", 3), Triple("B", "B", 2))))
             fixture.server.enqueue(ok(listing()))
 
@@ -268,8 +268,7 @@ class PlexBrowseLetterTest {
             // type=8 is honoured by the server and changes the answer -- on bucket
             // "Q", type=9 returns 3 albums where no type returns 4 artists. This is
             // the first test anywhere that drives LibraryClient's hardcoded
-            // PlexItemType.ARTIST, mirroring how PlexBrowseRepositoryTest is what
-            // pins getDecades' hardcoded ALBUM.
+            // PlexItemType.ARTIST.
             assertEquals("8", request.requestUrl!!.queryParameter("type"))
         }
 

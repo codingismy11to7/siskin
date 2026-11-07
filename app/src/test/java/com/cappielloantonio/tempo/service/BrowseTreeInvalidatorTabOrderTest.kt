@@ -42,7 +42,7 @@ class BrowseTreeInvalidatorTabOrderTest {
 
     @Test
     fun `applying an order notifies the root and More`() {
-        Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID, Constants.ALBUMS_ID))
+        Preferences.setBrowseTabOrder(listOf(Constants.DISCOVER_ID, Constants.ALBUMS_ID))
 
         BrowseTreeInvalidator.invalidateTabOrder()
         // invalidateNode posts to the main looper rather than requiring it.

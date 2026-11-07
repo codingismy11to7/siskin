@@ -32,7 +32,6 @@ import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.CompositeArt
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.SmartPlaylistQuery
@@ -227,30 +226,6 @@ class PlexBrowseRepository {
         tracks: List<MediaItem>,
         limit: Int,
     ): List<MediaItem> = if (tracks.size <= limit) tracks else tracks.shuffled().take(limit)
-
-    /**
-     * The decades the section's albums fall into, newest first as the server
-     * returns them.
-     */
-    fun getDecades(prefix: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        // The whole session rather than sectionKey, because the composite URIs
-        // below need the machine identifier too. Still the one way this fails,
-        // not a second: sectionKey reads this same session, so a null here is
-        // the same signed-out case every other browse node returns an error
-        // future for.
-        val session = api.session ?: return errorFuture()
-        // Both read once per browse rather than once per row, so every decade
-        // in one listing agrees: the eight tiles roll together on the hour
-        // rather than drifting, and they all name the library this listing was
-        // actually fetched from.
-        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
-        val scope = CompositeArt.scopeOf(session)
-        return fetch({ libraryClient.getDecades(session.musicSectionKey) }) { body ->
-            directoriesOf(body).mapNotNull {
-                PlexMediaMapper.decadeToMediaItem(it, prefix, scope, bucket)
-            }
-        }
-    }
 
     /**
      * The hubs this section's server chose to compute, in the order it returned
@@ -464,88 +439,6 @@ class PlexBrowseRepository {
         )
 
     /**
-     * The browse list: the shuffle row, then a random sample of the decade.
-     *
-     * [decadeKey] is the whole [DecadeKey] payload -- library and decade -- as
-     * it came off the tapped row's media id, and it stays whole here. The
-     * shuffle row is built from it unsplit so that the guard in
-     * `MediaLibrarySessionCallback.cachedDecadeTracks`, which reconstructs
-     * `MIX_DECADE_ID + key` from what the car sends back, matches by
-     * construction.
-     */
-    fun getDecadeTracks(decadeKey: String) =
-        decadeTracks(decadeKey) { tracks ->
-            listOf(shuffleDecadeRow(decadeKey)) + tracks
-        }
-
-    /**
-     * The same query with no shuffle row, for when the row's tap cannot be
-     * served from what is already on screen.
-     *
-     * `MediaLibrarySessionCallback.cachedDecadeTracks` tries the cached browse
-     * list first -- the tap should queue what the user was looking at, not
-     * spend a round trip drawing a second uniform random N that is
-     * statistically identical for the purpose but not the same tracks. This
-     * function is the fallback for when that cache cannot be trusted: cold
-     * after a process restart, or holding a different node's list.
-     *
-     * Each call is its own `sort=random` draw and Plex offers no seed to pin
-     * one -- measured against PMS 1.43.3, where `sort=random:12345` is accepted
-     * and ignored -- so even the fallback path yields a *different* sample than
-     * whatever the browse list last showed. That is accepted here rather than
-     * worked around: it is what "shuffle the decade" means when there is no
-     * displayed list left to honor.
-     */
-    fun getDecadeTracksForShuffle(decadeKey: String) = decadeTracks(decadeKey) { it }
-
-    /**
-     * Randomly sorted, unlike [getArtistTracks], and the two do not contradict
-     * each other. An artist has a real running order to fall back to when the
-     * car's shuffle toggle goes off mid-listen, so inventing one there would be
-     * dishonest. A decade has none -- and unsorted would mean permanently
-     * sampling the first N of the decade in library order, leaving the rest
-     * unreachable by any sequence of taps. Random is the honest description of
-     * what the server was asked for.
-     *
-     * **The one place a decade row's id is taken apart.** [decadeKey] arrives as
-     * the whole `<scope>|<decade>` payload and is opaque to every other caller;
-     * only the Plex filter needs the bare decade, and only here. Splitting it
-     * anywhere else would put the shuffle row and the browse-cache guard at risk
-     * of disagreeing about which string names a decade -- see [DecadeKey].
-     */
-    private fun decadeTracks(
-        decadeKey: String,
-        decorate: (List<MediaItem>) -> List<MediaItem>,
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val key = sectionKey ?: return errorFuture()
-        return cachedTracks({
-            libraryClient.getSectionContent(
-                key,
-                PlexItemType.TRACK,
-                0,
-                // The Mix limit, not Constants.MAX_ITEMS: this is the one
-                // browse node sized to the queue limit rather than the browse
-                // one, because MediaLibrarySessionCallback.cachedDecadeTracks
-                // replays this same list to serve the Decade Mix tap. See
-                // "Where N lives" in docs/decisions/2026-08-28-mix-paging-design.md.
-                Preferences.getMixTrackLimit(),
-                sort = LibraryClient.SORT_RANDOM,
-                // The bare decade, never the composite key: Plex answers an
-                // unrecognised filter value with 200 and an empty container,
-                // so the whole key here would render as an empty decade rather
-                // than as an error.
-                trackDecade = DecadeKey.decadeIn(decadeKey),
-            )
-        }, decorate)
-    }
-
-    private fun shuffleDecadeRow(decadeKey: String): MediaItem =
-        PlexMediaMapper.mixRowToMediaItem(
-            Constants.MIX_DECADE_ID + decadeKey,
-            App.getContext().getString(R.string.browse_mix_decade),
-        )
-
-    /**
      * Deliberately the section listing filtered by artist rather than the
      * artist's own children endpoint, which drops albums -- see
      * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getChildren]
@@ -617,30 +510,47 @@ class PlexBrowseRepository {
     fun getRadioStations(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val session = api.session ?: return errorFuture()
         val scope = CompositeArt.scopeOf(session)
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
         return fetch({ libraryClient.getSectionHubsWithStations(session.musicSectionKey) }) { body ->
-            val rows =
-                hubsOf(body)
-                    .filter { it.type == TYPE_STATION }
-                    .flatMap { it.metadata.orEmpty() }
-                    .mapNotNull { station ->
-                        val key = station.key?.takeIf(LibraryClient::isSafeHubKey) ?: return@mapNotNull null
-                        PlexMediaMapper.mixRowToMediaItem(
-                            Constants.MIX_RADIO_STATION_ID + HubKey.of(scope, key),
-                            station.title,
-                            androidx.media3.session.R.drawable.media3_icon_radio,
-                        )
-                    }
+            radioRows(hubsOf(body).filter { it.type == TYPE_STATION }.flatMap { it.metadata.orEmpty() }, scope, bucket)
+                .ifEmpty { listOf(noStationsRow()) }
+        }
+    }
 
-            rows.ifEmpty {
-                listOf(
-                    LibraryPickerRepository.messageRow(
-                        App.getContext().getString(R.string.browse_radio_empty),
-                        App.getContext().getString(R.string.browse_radio_empty_hint),
-                    ),
-                )
+    /**
+     * One station directory's stations. [payload] is the row id's [HubKey]
+     * payload; one minted under another library is refused by [followHubKey]
+     * before any request, and reads as an empty directory -- so the message
+     * names no cause, since a stale row is not a server without stations.
+     */
+    fun getRadioDirectory(payload: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val session = api.session ?: return errorFuture()
+        val scope = CompositeArt.scopeOf(session)
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        return fetch({ followHubKey(payload) }) { body ->
+            radioRows(body.mediaContainer?.metadata.orEmpty(), scope, bucket).ifEmpty {
+                listOf(LibraryPickerRepository.messageRow(App.getContext().getString(R.string.browse_radio_directory_empty)))
             }
         }
     }
+
+    /** Stations and directories alike, in server order, minus any unsafe key. */
+    private fun radioRows(
+        stations: List<Metadata>,
+        scope: String,
+        bucket: Long,
+    ): List<MediaItem> =
+        stations
+            .mapNotNull { station ->
+                val key = station.key?.takeIf(LibraryClient::isSafeHubKey) ?: return@mapNotNull null
+                PlexMediaMapper.radioRowToMediaItem(station, key, scope, bucket)
+            }.take(Constants.MAX_ITEMS)
+
+    private fun noStationsRow(): MediaItem =
+        LibraryPickerRepository.messageRow(
+            App.getContext().getString(R.string.browse_radio_empty),
+            App.getContext().getString(R.string.browse_radio_empty_hint),
+        )
 
     /**
      * Starts a library station. [payload] is the row id's [HubKey] payload: a
@@ -661,9 +571,10 @@ class PlexBrowseRepository {
 
     /**
      * Unsorted under the limit and `sort=random` over it -- the two do not
-     * contradict each other, for the reason [decadeTracks] argues from the
-     * other side: under the limit the whole artist is in hand, so its real
-     * running order is what the car's shuffle toggle falls back to.
+     * contradict each other. Under the limit the whole artist is in hand, so
+     * its real running order is what the car's shuffle toggle falls back to;
+     * over it, unsorted would mean permanently sampling the first N in library
+     * order, leaving the rest unreachable by any sequence of taps.
      *
      * Both the probe and the fetch filter with `artist.id`, the same filter
      * [getArtistAlbums] uses, rather than the artist's allLeaves endpoint. Both
@@ -991,7 +902,7 @@ class PlexBrowseRepository {
      * the setting is flipped. Null on any failure. That is not the only case
      * the caller has to guard: a successful request can still answer 200 with
      * no `Metadata`, which comes back here as an empty (non-null) list -- Plex
-     * omitting per-endpoint fields is not hypothetical, see the decade index.
+     * omitting per-endpoint fields is not hypothetical, see the bucket index.
      * [getArtistLetters] therefore falls back to the bucket rows on null *or*
      * empty, both read as "keep the bucket rows".
      */
@@ -1334,11 +1245,11 @@ class PlexBrowseRepository {
                 ?: emptyList()
 
         /**
-         * Narrows a container to its Directory entries. Decades arrive this way
-         * rather than as Metadata, so [itemsOf] does not apply -- and unlike
-         * `LibraryClient.musicSections` there is no `type` to filter on, because
-         * a decade Directory carries none. An absent list is an empty result,
-         * not a failure, for the same reason it is in [itemsOf].
+         * Narrows a container to its Directory entries. First-character buckets
+         * arrive this way rather than as Metadata, so [itemsOf] does not apply --
+         * and unlike `LibraryClient.musicSections` there is no `type` to filter
+         * on, because a bucket Directory carries none. An absent list is an
+         * empty result, not a failure, for the same reason it is in [itemsOf].
          */
         @JvmStatic
         fun directoriesOf(response: PlexResponse?): List<Directory> = response?.mediaContainer?.directory ?: emptyList()

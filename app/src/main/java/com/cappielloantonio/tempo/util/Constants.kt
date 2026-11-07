@@ -60,22 +60,16 @@ object Constants {
     const val MORE_ID = "[moreID]"
     const val SELECT_LIBRARY_ID = "[selectLibraryID]"
 
-    const val DECADES_ID = "[decadesID]"
-
-    /**
-     * Prefix; the remainder is a [DecadeKey] -- "<scope>|<decade>", e.g.
-     * "abc123def456-4|1980".
-     *
-     * The library is in there and the decade's first year alone is not, because
-     * a decade key is the same string on every server. That made a decade row
-     * the one row whose id survived a server switch unchanged, which crashed
-     * `com.android.car.media`'s browse adapter; [DecadeKey] tells that story.
-     */
-    const val DECADE_ID = "[decadeID]"
-
     const val DISCOVER_ID = "[discoverID]"
 
     const val RADIO_ID = "[radioID]"
+
+    /**
+     * Prefix; the remainder is a [HubKey] naming one of the server's station
+     * directories -- Style, Mood or Decade Radio. A [HubKey] because the key
+     * names a section by number, as a station's does.
+     */
+    const val RADIO_DIRECTORY_ID = "[radioDirectoryID]"
 
     /**
      * Prefix; the remainder is a [HubKey] -- "<scope>|<the hub's own key>".
@@ -113,12 +107,9 @@ object Constants {
 
     /**
      * Prefixes of the synthetic Mix rows, each carrying the ratingKey of the
-     * thing to mix after it -- or, for [MIX_DECADE_ID] and [MIX_HUB_ID], the same
-     * [DecadeKey] or [HubKey] payload [DECADE_ID] and [HUB_ID] carry, whole and
-     * unsplit, and for [MIX_RADIO_STATION_ID] a [HubKey] naming the station.
-     * That is what lets `MediaLibrarySessionCallback.cachedDecadeTracks`
-     * rebuild the row's id from what the car sends back and match it against
-     * the browse list it cached. Nothing on the server answers to these ids:
+     * thing to mix after it -- or, for [MIX_HUB_ID], the same [HubKey] payload
+     * [HUB_ID] carries, whole and unsplit, and for [MIX_RADIO_STATION_ID] a
+     * [HubKey] naming the station. Nothing on the server answers to these ids:
      * they are playable rows with no stream, and MediaLibrarySessionCallback
      * swaps one for its subject's tracks when it is tapped.
      *
@@ -135,10 +126,12 @@ object Constants {
      */
     const val MIX_ARTIST_ID = "[shuffleArtistID]"
     const val MIX_PLAYLIST_ID = "[shufflePlaylistID]"
-    const val MIX_DECADE_ID = "[shuffleDecadeID]"
     const val MIX_HUB_ID = "[shuffleHubID]"
     const val MIX_RADIO_ARTIST_ID = "[radioArtistID]"
     const val MIX_RADIO_STATION_ID = "[radioStationID]"
+
+    /** What every shuffle-spelled Mix id above starts with, including ones a later build drops. */
+    const val MIX_ID_PREFIX = "[shuffle"
 
     // Source tag for the most recent browse list.
     const val QUEUE_CACHED_SOURCE = "[aaQueueCachedSource]"

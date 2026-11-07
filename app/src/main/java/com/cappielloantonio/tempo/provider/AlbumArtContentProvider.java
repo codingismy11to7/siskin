@@ -266,7 +266,7 @@ public class AlbumArtContentProvider extends ContentProvider {
         }
 
         // The hit path does no background work at all: no cover fetch, no Retrofit, no
-        // executor thread. Eight decades scroll into view at once against a pool
+        // executor thread. Every Decade Radio tile asks at once against a pool
         // sized max(2, cores / 2), and only the first browse in an hour should
         // pay for a build.
         File cached = DecadeCompositeArt.cached(context, decade, bucket);

@@ -131,13 +131,12 @@ object MediaBrowserTree {
      * Grid-versus-list styling: Playlists is a list, and Artists and Albums
      * became lists when they started serving group rows -- a window's range
      * ("Beck  -  Cake") or a bucket's letter carries no artwork of its own, and a
-     * grid of placeholders is worse than a list, the same call
-     * decadeToMediaItem makes. Artists is a list under *both* settings on
-     * purpose: this runs on onGetLibraryRoot, before any library has been
-     * queried, so a style that followed the by-initial preference would need the
-     * root invalidated and visibly re-rendered on every toggle. It governs each
-     * tab's *browsable* children only -- see BrowseContentStyle for why tracks
-     * are never affected.
+     * grid of placeholders is worse than a list. Artists is a list under *both*
+     * settings on purpose: this runs on onGetLibraryRoot, before any library
+     * has been queried, so a style that followed the by-initial preference
+     * would need the root invalidated and visibly re-rendered on every toggle.
+     * It governs each tab's *browsable* children only -- see
+     * BrowseContentStyle for why tracks are never affected.
      */
     fun buildTree() {
         treeNodes.clear()
@@ -220,22 +219,6 @@ object MediaBrowserTree {
                     isPlayable = false,
                     isBrowsable = true,
                     imageUri = iconUri(R.drawable.ic_browse_discover),
-                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
-                ),
-            )
-
-        treeNodes[Constants.DECADES_ID] =
-            MediaItemNode(
-                buildMediaItem(
-                    // A grid: each row wears a composite of four covers drawn
-                    // from that decade, so there is artwork worth the space.
-                    // See the 2026-08-09 decade composite artwork design.
-                    browsableChildrenAsGrid = true,
-                    title = appContext.getString(R.string.browse_decades),
-                    mediaId = Constants.DECADES_ID,
-                    isPlayable = false,
-                    isBrowsable = true,
-                    imageUri = iconUri(R.drawable.ic_browse_decades),
                     mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
                 ),
             )
@@ -344,15 +327,10 @@ object MediaBrowserTree {
             )
         }
 
-        // No branch for DECADE_ID or HUB_ID rows, deliberately: unlike the
-        // rows above, nothing calls BrowseTreeInvalidator on a decade or a
-        // hub, so there's no live subscription that a null here would drop.
-        // Album rows already navigate correctly with no branch here either.
-        //
-        // That is a different question from the DECADES_ID node itself: like
-        // the three music tabs, it is a registered tree node left stale on a
-        // library switch on purpose -- see LibraryPickerRepository.selectLibrary,
-        // which invalidates the root and the picker node but not those tabs.
+        // No branch for HUB_ID rows, deliberately: unlike the rows above,
+        // nothing calls BrowseTreeInvalidator on a hub, so there's no live
+        // subscription that a null here would drop. Album rows already
+        // navigate correctly with no branch here either.
         return null
     }
 
@@ -398,10 +376,6 @@ object MediaBrowserTree {
                 pickerRepository.getServers()
             }
 
-            Constants.DECADES_ID -> {
-                browseRepository.getDecades(Constants.DECADE_ID)
-            }
-
             Constants.DISCOVER_ID -> {
                 browseRepository.getHubs(Constants.HUB_ID)
             }
@@ -443,12 +417,16 @@ object MediaBrowserTree {
                 // must not be mistaken for either.
                 if (id.startsWith(Constants.HUB_ID)) {
                     // The whole HubKey payload -- library and the server's own
-                    // query -- handed over unsplit, for the reason the decade
-                    // branch hands its key over whole: the Mix row the
-                    // repository builds must carry the same string the
-                    // callback's cache guard rebuilds.
+                    // query -- handed over unsplit: the Mix row the repository
+                    // builds must carry the same string the callback's cache
+                    // guard rebuilds.
                     return browseRepository.getHubContent(
                         id.removePrefix(Constants.HUB_ID),
+                    )
+                }
+                if (id.startsWith(Constants.RADIO_DIRECTORY_ID)) {
+                    return browseRepository.getRadioDirectory(
+                        id.removePrefix(Constants.RADIO_DIRECTORY_ID),
                     )
                 }
                 if (id.startsWith(Constants.ALBUM_ID)) {
@@ -461,15 +439,6 @@ object MediaBrowserTree {
                     return browseRepository.getArtistAlbums(
                         Constants.ALBUM_ID,
                         id.removePrefix(Constants.ARTIST_ID),
-                    )
-                }
-                if (id.startsWith(Constants.DECADE_ID)) {
-                    // The DecadeKey payload -- library and decade -- handed over
-                    // whole. Nothing here needs to know its shape, and the
-                    // shuffle row the repository builds from it has to carry the
-                    // same string the callback's cache guard rebuilds.
-                    return browseRepository.getDecadeTracks(
-                        id.removePrefix(Constants.DECADE_ID),
                     )
                 }
                 if (id.startsWith(Constants.PICK_LIBRARY_ID)) {

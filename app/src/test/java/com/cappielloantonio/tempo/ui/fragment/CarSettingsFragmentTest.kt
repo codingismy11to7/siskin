@@ -419,9 +419,9 @@ class CarSettingsFragmentTest {
     /** Resolved, not read raw: the save names two, and the car fills the third. */
     @Test
     fun `customize tabs shows a saved order as the car resolves it`() {
-        Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID, Constants.ALBUMS_ID))
+        Preferences.setBrowseTabOrder(listOf(Constants.DISCOVER_ID, Constants.ALBUMS_ID))
 
-        assertEquals("Decades · Albums · Playlists", customizeTabsValue(settingsScreen()))
+        assertEquals("Discover · Albums · Playlists", customizeTabsValue(settingsScreen()))
     }
 
     @Test

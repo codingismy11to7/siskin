@@ -24,8 +24,8 @@ import retrofit2.http.Url
  * Start/Size. getByPath is not windowed the same way -- a hub's followed key is
  * fetched once, in full, capped at MAX_ITEMS rather than sliced -- but it rides
  * the same mechanism; see its own KDoc for why that bound is load-bearing
- * rather than decorative. getSections, getMetadata, getSectionHubs, getDecades
- * and getFirstCharacters return bounded results and take no paging.
+ * rather than decorative. getSections, getMetadata, getSectionHubs and
+ * getFirstCharacters return bounded results and take no paging.
  *
  * The OpenAPI spec does not document these headers on these operations -- container
  * paging is a general Plex mechanism rather than a per-endpoint one -- so they were
@@ -53,22 +53,13 @@ interface LibraryService {
      * app asks for an artist's albums -- see [getChildren] for why the obvious
      * endpoint is not used.
      *
-     * There are **two** decade parameters and they are not interchangeable.
-     *
-     * [trackDecade] narrows a *track* listing and is spelled `album.decade`,
-     * for the same reason `artistId` is spelled `artist.id`: it filters on a
-     * related item's field, not the track's own. [albumDecade] narrows an
-     * *album* listing and is spelled plain `decade`, because an album's decade
-     * is its own field. The server states that spelling itself, in the
-     * `fastKey` it returns on every entry of the decade index:
-     * `/library/sections/4/all?decade=1980&type=9`.
-     *
-     * Getting either wrong is silent. Measured against PMS 1.43.3,
+     * [albumDecade] narrows an *album* listing and is spelled plain `decade`,
+     * because an album's decade is its own field. It does not narrow tracks,
+     * and the failure is silent: measured against PMS 1.43.3,
      * `type=10&decade=1980` answers 200 with an empty container, as does
-     * `type=10&year=1985`; only `type=10&album.decade=1980` returns tracks.
-     * What a caller sees is an empty list, which reads as an empty library
-     * rather than as a malformed request -- and for the composite artwork that
-     * feeds off the album form, as artwork that quietly never appears.
+     * `type=10&year=1985`. What a caller sees is an empty list, which reads as
+     * an empty library rather than as a malformed request -- which is why the
+     * decade composite artwork filters albums rather than tracks.
      *
      * [albumId] and [artistId] both accept a comma-separated list, which is
      * how a Discover Mix turns the containers on screen into tracks in one
@@ -83,7 +74,6 @@ interface LibraryService {
         @Header("X-Plex-Container-Size") size: Int,
         @Query("sort") sort: String?,
         @Query("artist.id") artistId: String?,
-        @Query("album.decade") trackDecade: String?,
         @Query("decade") albumDecade: String?,
         @Query("album.id") albumId: String?,
     ): PlexResponse
@@ -176,38 +166,16 @@ interface LibraryService {
     ): PlexResponse
 
     /**
-     * [getSectionHubs] plus the `music.stations` hub. Separate so Discover
-     * keeps its own read. See docs/decisions/2026-11-01-radio-stations-design.md.
+     * [getSectionHubs] plus the `music.stations` hub, whose directories --
+     * Style, Mood and Decade Radio -- the second parameter adds. Separate so
+     * Discover keeps its own read. See
+     * docs/decisions/2026-11-06-station-directories-design.md.
      */
     @GET("hubs/sections/{sectionId}")
     suspend fun getSectionHubsWithStations(
         @Path("sectionId") sectionId: String,
         @Query("includeStations") includeStations: Int = 1,
-    ): PlexResponse
-
-    /**
-     * The decades this section's albums fall into, newest first.
-     *
-     * `type` must be 9 (album). A music section exposes a decade filter for
-     * albums only -- measured against PMS 1.43.3, where `filters?type=9` lists
-     * genre, mood, style, year, decade, studio, format, subformat, collection
-     * and unmatched, while `filters?type=10` lists only mood, genre, userRating
-     * and audioCodec. Asking for the decades of *tracks* is not an error, it is
-     * an empty answer.
-     *
-     * Returns `Directory` entries, not `Metadata`, and each carries only
-     * `fastKey`, `key` and `title` -- no `type`, and no artwork of any kind.
-     * `key` is the decade's first year ("1980"); `title` is already formatted
-     * for display ("1980s"), so nothing here needs localising or deriving.
-     * Decades with no albums are simply absent, so there are no gaps to filter.
-     *
-     * Takes no paging: a library spans a handful of decades and the response is
-     * bounded by that.
-     */
-    @GET("library/sections/{sectionId}/decade")
-    suspend fun getDecades(
-        @Path("sectionId") sectionId: String,
-        @Query("type") type: Int,
+        @Query("includeStationDirectories") includeStationDirectories: Int = 1,
     ): PlexResponse
 
     /**
@@ -215,8 +183,8 @@ interface LibraryService {
      * "By First Letter" index.
      *
      * Returns `Directory` entries carrying only `size`, `key` and `title`: no
-     * `type`, no artwork, and -- unlike the decade index -- **no `fastKey`**, so
-     * there is no server-supplied query to reproduce and the bucket has to be
+     * `type`, no artwork, and no `fastKey`, so there
+     * is no server-supplied query to reproduce and the bucket has to be
      * addressed by [getFirstCharacterContent]'s path instead.
      *
      * `title` is already display-ready ("A", "#", "∆") and needs no localising.
@@ -229,8 +197,8 @@ interface LibraryService {
      * assume 27, index by letter, or expect a fixed set. `∆` gets a bucket of
      * its own, so the set is not "`#` plus the alphabet" either.
      *
-     * Takes no paging, for the reason [getDecades] takes none: the response is
-     * bounded by the number of distinct initials a library can have.
+     * Takes no paging: the response is bounded by the number of distinct
+     * initials a library can have.
      */
     @GET("library/sections/{sectionId}/firstCharacter")
     suspend fun getFirstCharacters(

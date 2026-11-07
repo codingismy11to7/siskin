@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.repository
 
 import androidx.media3.common.MediaItem
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaConstants
 import androidx.media3.session.SessionError
 import arrow.core.left
 import arrow.core.right
@@ -23,9 +24,9 @@ import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.provider.CompositeArt
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
 import com.cappielloantonio.tempo.util.Preferences
+import com.cappielloantonio.tempo.util.ResourceUris
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.test.runTest
@@ -263,6 +264,35 @@ class PlexBrowseRepositoryTest {
            "leafCount":$leafCount,"smart":$smart}]}}
         """.trimIndent()
 
+    private val decadeListing =
+        """
+        {"MediaContainer":{"size":3,"Metadata":[
+        {"key":"/library/sections/7/stations/6/1990","guid":"tv.plex://station/decade/1990","type":"playlist","title":"1990s Radio","radio":"1"},
+        {"key":"/library/sections/7/stations/6/199","guid":"tv.plex://station/decade/199","type":"playlist","title":"Malformed","radio":"1"},
+        {"key":"/library/sections/7/stations/7/148896","guid":"tv.plex://station/style/148896","type":"playlist","title":"Album Rock Radio","radio":"1"}]}}
+        """.trimIndent()
+
+    @Test
+    fun aDecadeStationWearsTheDecadeCompositeAndOthersTheRadioIcon() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(decadeListing))
+
+        val rows = await(PlexBrowseRepository().getRadioDirectory(HubKey.of(scope(), "/library/sections/7/stations/decade"))).value!!
+
+        val decade = rows[0].mediaMetadata.artworkUri!!
+        assertEquals(AlbumArtContentProvider.AUTHORITY, decade.authority)
+        assertEquals(
+            listOf(AlbumArtContentProvider.DECADE_ART, scope(), "1990"),
+            decade.pathSegments.dropLast(1),
+        )
+        assertTrue(
+            "artwork bucket must be live: $decade",
+            CompositeArtBucket.isLive(decade.lastPathSegment!!.toLong(), System.currentTimeMillis()),
+        )
+        val icon = ResourceUris.forResource(androidx.media3.session.R.drawable.media3_icon_radio)
+        assertEquals(icon, rows[1].mediaMetadata.artworkUri)
+        assertEquals(icon, rows[2].mediaMetadata.artworkUri)
+    }
+
     /** Bounded so a bridge that never completes its future fails instead of hanging. */
     private fun await(future: ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>) = future.get(10, TimeUnit.SECONDS)
 
@@ -308,10 +338,12 @@ class PlexBrowseRepositoryTest {
         {"MediaContainer":{"size":2,"Hub":[
         {"hubIdentifier":"music.recent.added.7","type":"album","size":1,"key":"/library/sections/7/all?type=9",
          "Metadata":[{"title":"Not a station","key":"/library/metadata/1/children"}]},
-        {"hubIdentifier":"music.stations.7","title":"Stations","type":"station","size":3,"Metadata":[
-        {"title":"Library Radio","key":"/library/sections/7/stations/1","type":"playlist","radio":"1"},
-        {"title":"Deep Cuts Radio","key":"/library/sections/7/stations/8","type":"playlist","radio":"1"},
-        {"title":"Unsafe","key":"https://elsewhere.example/x","type":"playlist","radio":"1"}]}]}}
+        {"hubIdentifier":"music.stations.7","title":"Stations","type":"station","size":5,"Metadata":[
+        {"title":"Library Radio","key":"/library/sections/7/stations/1","type":"playlist","radio":"1","guid":"tv.plex://station/library"},
+        {"title":"Deep Cuts Radio","key":"/library/sections/7/stations/8","type":"playlist","radio":"1","guid":"tv.plex://station/deep-cuts"},
+        {"title":"Unsafe","key":"https://elsewhere.example/x","type":"playlist","radio":"1"},
+        {"title":"Style Radio","key":"/library/sections/7/stations/style","type":"directory","radio":"1","guid":""},
+        {"title":"Decade Radio","key":"/library/sections/7/stations/decade","type":"directory","radio":"1","guid":""}]}]}}
         """.trimIndent()
 
     private fun answerHubs(body: String) {
@@ -338,6 +370,8 @@ class PlexBrowseRepositoryTest {
             listOf(
                 Constants.MIX_RADIO_STATION_ID + HubKey.of(scope(), "/library/sections/7/stations/1"),
                 Constants.MIX_RADIO_STATION_ID + HubKey.of(scope(), "/library/sections/7/stations/8"),
+                Constants.RADIO_DIRECTORY_ID + HubKey.of(scope(), "/library/sections/7/stations/style"),
+                Constants.RADIO_DIRECTORY_ID + HubKey.of(scope(), "/library/sections/7/stations/decade"),
             ),
             rows.map { it.mediaId },
         )
@@ -353,6 +387,27 @@ class PlexBrowseRepositoryTest {
     }
 
     @Test
+    fun aStationDirectoryIsABrowsableRowAndOnlyDecadesAskForAGrid() {
+        answerHubs(stationHubs)
+
+        val rows = await(PlexBrowseRepository().getRadioStations()).value!!
+        val style = rows[2]
+        val decade = rows[3]
+
+        assertEquals("Style Radio", style.mediaMetadata.title.toString())
+        assertEquals(true, style.mediaMetadata.isBrowsable)
+        assertEquals(false, style.mediaMetadata.isPlayable)
+        assertEquals(
+            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM,
+            style.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE),
+        )
+        assertEquals(
+            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM,
+            decade.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE),
+        )
+    }
+
+    @Test
     fun aServerWithNoStationsGetsAMessageRowNotABlankScreen() {
         answerHubs("""{"MediaContainer":{"size":0,"Hub":[]}}""")
 
@@ -365,6 +420,54 @@ class PlexBrowseRepositoryTest {
                 .mediaMetadata.title
                 .toString(),
         )
+    }
+
+    private val moodListing =
+        """
+        {"MediaContainer":{"size":2,"Metadata":[
+        {"key":"/library/sections/7/stations/7/145840","guid":"tv.plex://station/mood/145840","type":"playlist","title":"Aggressive Radio","radio":"1"},
+        {"key":"/library/sections/7/stations/7/143981","guid":"tv.plex://station/mood/143981","type":"playlist","title":"Ambitious Radio","radio":"1"}]}}
+        """.trimIndent()
+
+    @Test
+    fun aDirectoryOpensToItsStationsInServerOrder() {
+        fixture.server.enqueue(MockResponse().setResponseCode(200).setBody(moodListing))
+
+        val rows =
+            await(
+                PlexBrowseRepository().getRadioDirectory(HubKey.of(scope(), "/library/sections/7/stations/mood")),
+            ).value!!
+
+        assertEquals(
+            "/library/sections/7/stations/mood",
+            fixture.server
+                .takeRequest()
+                .requestUrl!!
+                .encodedPath,
+        )
+        assertEquals(
+            listOf(
+                Constants.MIX_RADIO_STATION_ID + HubKey.of(scope(), "/library/sections/7/stations/7/145840"),
+                Constants.MIX_RADIO_STATION_ID + HubKey.of(scope(), "/library/sections/7/stations/7/143981"),
+            ),
+            rows.map { it.mediaId },
+        )
+        assertEquals(true, rows.first().mediaMetadata.isPlayable)
+    }
+
+    @Test
+    fun aDirectoryFromAnotherLibraryIsAMessageRowWithoutARequest() {
+        val stale = HubKey.of("some-other-scope-9", "/library/sections/7/stations/mood")
+
+        val row = await(PlexBrowseRepository().getRadioDirectory(stale)).value!!.single()
+
+        // No cause given: the server has stations, the row is just stale.
+        assertEquals(
+            RuntimeEnvironment.getApplication().getString(R.string.browse_radio_directory_empty),
+            row.mediaMetadata.title.toString(),
+        )
+        assertNull(row.mediaMetadata.artist)
+        assertEquals(0, fixture.server.requestCount)
     }
 
     @Test
@@ -1066,78 +1169,6 @@ class PlexBrowseRepositoryTest {
         assertEquals(SessionError.ERROR_PERMISSION_DENIED, result.resultCode)
     }
 
-    // ── getDecades / decade tracks ──────────────────────────────
-
-    private fun decadesBody(vararg decades: String) =
-        """
-        {"MediaContainer":{"Directory":[${
-            decades.joinToString(",") { """{"fastKey":"/x","key":"$it","title":"${it}s"}""" }
-        }]}}
-        """.trimIndent()
-
-    @Test
-    fun decadesComeFromTheSectionsDecadeIndexInServerOrder() {
-        server.enqueue(MockResponse().setResponseCode(200).setBody(decadesBody("2000", "1990")))
-
-        val result = await(PlexBrowseRepository().getDecades(Constants.DECADE_ID))
-
-        val request = server.takeRequest()
-        assertEquals("/library/sections/1/decade", request.requestUrl?.encodedPath)
-        // Albums, the only type with a decade filter.
-        assertEquals(PlexItemType.ALBUM, request.requestUrl?.queryParameter("type")?.toInt())
-        // The library rides in the id, not just the decade: a decade key is the
-        // same string on every server, and a row whose id survived a server
-        // switch unchanged is what let the car's browse adapter diff two
-        // libraries' rows as one changed row and crash. See DecadeKey.
-        assertEquals(
-            listOf(
-                Constants.DECADE_ID + DecadeKey.of(scope(), "2000"),
-                Constants.DECADE_ID + DecadeKey.of(scope(), "1990"),
-            ),
-            result.value!!.map { it.mediaId },
-        )
-        // Server order is preserved -- Plex returns newest first, which is the
-        // order the car should show, so nothing re-sorts it.
-        assertEquals(listOf("2000s", "1990s"), result.value!!.map { it.mediaMetadata.title })
-    }
-
-    /**
-     * The repository -> mapper -> URI wiring, end to end.
-     *
-     * `PlexMediaMapperAssemblyTest` pins that the mapper puts whatever scope it
-     * is handed into the artwork URI, but not that this function hands it the
-     * *session's* scope: a `getDecades` that passed a constant, or the section
-     * key alone, would pass every mapper test and reintroduce the identical
-     * mosaic across two servers that the scope segment exists to prevent.
-     *
-     * The bucket is asserted as live rather than as an exact value, because it
-     * is read off the clock inside `getDecades` and a test that recomputed it
-     * afterwards would fail once an hour.
-     */
-    @Test
-    fun aDecadeRowsArtworkUriNamesTheSessionsLibrary() {
-        server.enqueue(MockResponse().setResponseCode(200).setBody(decadesBody("2000")))
-
-        val result = await(PlexBrowseRepository().getDecades(Constants.DECADE_ID))
-
-        val artwork =
-            result.value!!
-                .single()
-                .mediaMetadata.artworkUri!!
-        assertEquals(AlbumArtContentProvider.AUTHORITY, artwork.authority)
-        assertEquals(
-            listOf(AlbumArtContentProvider.DECADE_ART, scope(), "2000"),
-            artwork.pathSegments.dropLast(1),
-        )
-        assertTrue(
-            "artwork bucket must be live: $artwork",
-            CompositeArtBucket.isLive(
-                artwork.lastPathSegment!!.toLong(),
-                System.currentTimeMillis(),
-            ),
-        )
-    }
-
     /** The scope of the session [PlexBrowseTestServer] wrote, computed through
      * the one definition the rows themselves use rather than spelled out here,
      * so this cannot pin a format the minting side has moved off. */
@@ -1156,88 +1187,6 @@ class PlexBrowseRepositoryTest {
     fun directoriesOfReturnsEmptyForAnAbsentOrEmptyContainer() {
         assertTrue(PlexBrowseRepository.directoriesOf(null).isEmpty())
         assertTrue(PlexBrowseRepository.directoriesOf(PlexResponse()).isEmpty())
-    }
-
-    @Test
-    fun aDecadesTracksAreSampledRandomlyAndLedByTheShuffleRow() {
-        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
-
-        val result = await(PlexBrowseRepository().getDecadeTracks(DECADE_KEY))
-
-        val request = server.takeRequest()
-        assertEquals("/library/sections/1/all", request.requestUrl?.encodedPath)
-        assertEquals(PlexItemType.TRACK, request.requestUrl?.queryParameter("type")?.toInt())
-        // album.decade, not decade -- a bare `decade` on type=10 answers 200
-        // with an empty container and the screen would render empty.
-        assertEquals("1980", request.requestUrl?.queryParameter("album.decade"))
-        assertNull(request.requestUrl?.queryParameter("decade"))
-        // Random rather than library order: the 2000s holds 17,649 tracks
-        // against a 500 cap, so unsorted would pin every visit to the same
-        // sliver and leave the rest of the decade unreachable by any tap.
-        assertEquals(LibraryClient.SORT_RANDOM, request.requestUrl?.queryParameter("sort"))
-
-        // The row carries the whole key it was asked for, library included --
-        // MediaLibrarySessionCallback.cachedDecadeTracks rebuilds exactly this
-        // string from what the car sends back and compares it against index 0
-        // of the cached browse list, so the two agree only if neither splits it.
-        val row = result.value!!.first()
-        assertEquals(Constants.MIX_DECADE_ID + DECADE_KEY, row.mediaId)
-        assertEquals(true, row.mediaMetadata.isPlayable)
-        assertEquals(false, row.mediaMetadata.isBrowsable)
-        // A non-null localConfiguration would make resolveQueueForItem treat the
-        // row as an already-resolved track and play a stream that does not exist.
-        assertNull(row.localConfiguration)
-        assertEquals(listOf("11", "22"), result.value!!.drop(1).map { it.mediaId })
-    }
-
-    /**
-     * The composite key is opaque everywhere but the Plex filter, and this is
-     * where it stops being opaque.
-     *
-     * Silent if wrong, which is why it earns a direct assertion rather than
-     * coverage by implication: measured against PMS 1.43.3, an unrecognised
-     * `album.decade` value answers HTTP 200 with an empty container, so the
-     * whole key reaching the query renders as a decade with no tracks -- which
-     * reads as an empty library, not as a malformed request.
-     */
-    @Test
-    fun theDecadeTracksRequestCarriesTheBareDecadeNotTheCompositeKey() {
-        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11")))
-
-        await(PlexBrowseRepository().getDecadeTracks(DECADE_KEY))
-
-        val filter = server.takeRequest().requestUrl?.queryParameter("album.decade")
-        assertEquals("1980", filter)
-    }
-
-    /**
-     * `decadeTracks` backs both the decade's browse listing and its queue
-     * fallback, and `MediaLibrarySessionCallback.cachedDecadeTracks` replays
-     * the browse list to serve the Decade Mix tap -- so this is the one
-     * browse node sized to the Mix limit rather than [Constants.MAX_ITEMS].
-     * A revert to [Constants.MAX_ITEMS] here would be invisible without this
-     * assertion. See docs/decisions/2026-08-28-mix-paging-design.md.
-     */
-    @Test
-    fun theDecadeTracksBrowseRequestAsksForTheMixLimitNotMaxItems() {
-        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11")))
-
-        await(PlexBrowseRepository().getDecadeTracks(DECADE_KEY))
-
-        assertEquals(
-            Preferences.getMixTrackLimit().toString(),
-            server.takeRequest().getHeader("X-Plex-Container-Size"),
-        )
-    }
-
-    @Test
-    fun theQueueADecadeShuffleRowBuildsDoesNotContainTheRowItself() {
-        // A queue holding the row would hold a playable item with no stream.
-        server.enqueue(MockResponse().setResponseCode(200).setBody(tracksBody("11", "22")))
-
-        val result = await(PlexBrowseRepository().getDecadeTracksForShuffle(DECADE_KEY))
-
-        assertEquals(listOf("11", "22"), result.value!!.map { it.mediaId })
     }
 
     // ── getHubs ───────────────────────────────────────────────
@@ -1285,21 +1234,19 @@ class PlexBrowseRepositoryTest {
     }
 
     /**
-     * The repository -> mapper -> URI wiring, end to end, on the other row
-     * type. `PlexMediaMapperAssemblyTest` pins that the mapper puts whatever
+     * The repository -> mapper -> URI wiring, end to end, on a hub row.
+     * `PlexMediaMapperAssemblyTest` pins that the mapper puts whatever
      * scope and bucket it is handed into the artwork URI, but not that
      * `getHubs` hands it the *session's* scope and a *live* bucket -- a
      * `getHubs` that passed a constant scope, or `0L`, or a bucket that never
      * lands in the live/previous window, would pass every mapper test and
      * every other test in this file.
      *
-     * Mirrors [aDecadeRowsArtworkUriNamesTheSessionsLibrary]: the bucket is
-     * asserted as live rather than as an exact value, because it is read off
-     * the clock inside `getHubs` and a test that recomputed it afterwards
-     * would fail once an hour. The path shape differs from the decade URI's,
-     * though -- `hubArt` trails the pool rather than the bucket (see
-     * `AlbumArtContentProvider.hubContentUri`), so the bucket is read from
-     * index 2 rather than off the last segment.
+     * The bucket is asserted as live rather than as an exact value, because it
+     * is read off the clock inside `getHubs` and a test that recomputed it
+     * afterwards would fail once an hour. `hubArt` trails the pool rather than
+     * the bucket (see `AlbumArtContentProvider.hubContentUri`), so the bucket
+     * is read from index 2 rather than off the last segment.
      */
     @Test
     fun aHubRowsArtworkUriNamesTheSessionsLibrary() {
@@ -1591,14 +1538,5 @@ class PlexBrowseRepositoryTest {
 
         // The Mix row plus exactly MAX_ITEMS containers, not MAX_ITEMS + 50.
         assertEquals(Constants.MAX_ITEMS + 1, result.value!!.size)
-    }
-
-    private companion object {
-        /** What the car sends back on a decade tap: the whole DecadeKey
-         * payload, library and decade, exactly as `getDecades` minted it. The
-         * scope is a foreign one on purpose -- it is not the session's -- so a
-         * repository that quietly recomputed the decade from its own session
-         * instead of reading the key would be visible here. */
-        val DECADE_KEY = DecadeKey.of("f00dcafe-9", "1980")
     }
 }

@@ -6,9 +6,8 @@ WHAT IT DOES
 
 • Browse your playlists, artists and albums, plus the Discover rows your Plex server builds
 • Choose which tabs the car shows, and in what order
-• Artist, Playlist and Decade Mixes give you a shuffled queue you can see
+• Artist and Playlist Mixes give you a shuffled queue you can see
 • Artist Radio keeps playing similar music when the artist's own songs run out (turn it on in Settings)
-• Browse your library by decade
 • Search your library
 • Your queue is still there the next time you start the car
 • Plays your files as they are, with no transcoding, including lossless FLAC

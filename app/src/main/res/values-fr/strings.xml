@@ -13,8 +13,6 @@
     <string name="browse_now_browsing_no_server">Navigation en cours : %1$s</string>
     <string name="browse_playlists">Playlists</string>
     <string name="browse_select_library">Choisir une bibliothèque</string>
-    <string name="browse_decades">Décennies</string>
-    <string name="browse_mix_decade">Mix de la décennie</string>
     <string name="browse_discover">Découvrir</string>
     <string name="browse_mix_hub">Mix</string>
     <string name="browse_discover_empty">Aucune suggestion pour l\'instant</string>
@@ -22,6 +20,7 @@
     <string name="browse_radio">Radio</string>
     <string name="browse_radio_empty">Aucune station sur ce serveur</string>
     <string name="browse_radio_empty_hint">Ce serveur Plex n\'en propose aucune</string>
+    <string name="browse_radio_directory_empty">Aucune station ici</string>
 
     <plurals name="car_artist_count">
         <item quantity="one">%d artiste</item>

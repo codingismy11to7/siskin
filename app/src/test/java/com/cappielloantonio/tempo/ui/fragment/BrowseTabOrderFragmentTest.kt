@@ -40,7 +40,6 @@ class BrowseTabOrderFragmentTest {
         assertEquals(R.string.browse_albums, BrowseTabOrderFragment.labelFor(Constants.ALBUMS_ID))
         assertEquals(R.string.browse_radio, BrowseTabOrderFragment.labelFor(Constants.RADIO_ID))
         assertEquals(R.string.browse_discover, BrowseTabOrderFragment.labelFor(Constants.DISCOVER_ID))
-        assertEquals(R.string.browse_decades, BrowseTabOrderFragment.labelFor(Constants.DECADES_ID))
     }
 
     @Test

@@ -11,12 +11,17 @@
 
 ## [Unreleased] — Siskin
 
+- Decade Radio replaces Decades: a decade plays the server's station for that
+  decade rather than a shuffled sample, and keeps the grid of album covers. If
+  Decades was one of your tabs, the next one in your order takes its place.
 - The **Tab order** screen has a reset button at the top right, which puts your
   tabs back in the default order.
 - A new **Radio** tab plays your server's stations: Library Radio, Deep Cuts
-  Radio, Time Travel Radio and Random Album Radio. A station keeps going when it
-  reaches its last track, by drawing a fresh one. Radio takes the third tab, so
-  Albums moves under More unless you've customised your tabs.
+  Radio, Time Travel Radio and Random Album Radio, plus **Style Radio**, **Mood
+  Radio** and **Decade Radio**, which open to a station for each style, mood or
+  decade. A station keeps going when it reaches its last track, by drawing a
+  fresh one. Radio takes the third tab, so Albums moves under More unless you've
+  customised your tabs.
 
 ## [1.3.0] (2026-11-01)
 

@@ -12,13 +12,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaConstants
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.api.media.MediaUrlBuilder
-import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.Hub
 import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.AlbumArtContentProvider
 import com.cappielloantonio.tempo.util.BrowseContentStyle
 import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubCoverPool
 import com.cappielloantonio.tempo.util.HubKey
 import com.cappielloantonio.tempo.util.ResourceUris
@@ -53,6 +51,10 @@ object PlexMediaMapper {
     const val EXTRA_PLAY_QUEUE_ITEM_ID = "playQueueItemId"
     const val EXTRA_STATION_ARTIST_ID = "stationArtistId"
     const val EXTRA_STATION_KEY = "stationKey"
+    private const val TYPE_STATION_DIRECTORY = "directory"
+    private const val DECADE_DIRECTORY_SUFFIX = "/stations/decade"
+    private const val DECADE_STATION_GUID = "tv.plex://station/decade/"
+    private val FOUR_DIGITS = Regex("\\d{4}")
 
     /** What a station is redrawn from. See docs/decisions/2026-11-01-radio-stations-design.md. */
     sealed interface StationSeed {
@@ -363,7 +365,7 @@ object PlexMediaMapper {
 
     /**
      * A "shuffle this <thing>" row, at the head of the list of what it shuffles:
-     * an artist's albums, a playlist's tracks, or a decade's tracks.
+     * an artist's albums, a playlist's tracks, or a hub's albums and artists.
      *
      * [mediaId] is one of Constants's shuffle prefixes plus the subject's
      * ratingKey, and carrying it in the id is the whole mechanism --
@@ -376,16 +378,18 @@ object PlexMediaMapper {
      * resolved and "play" a track with no stream.
      *
      * The icon defaults to media3's own Material shuffle glyph rather than a
-     * vendored copy, and the caller may pass another (the radio row does). The
-     * glyph is not declared in media3's public.xml, so a rename on upgrade
-     * would break the reference -- as a compile error, which is why relying on
-     * it is acceptable.
+     * vendored copy, and the caller may pass another (the radio row does), or
+     * artwork in place of an icon (a decade station does). The glyph is not
+     * declared in media3's public.xml, so a rename on upgrade would break the
+     * reference -- as a compile error, which is why relying on it is
+     * acceptable.
      */
     @JvmStatic
     fun mixRowToMediaItem(
         mediaId: String,
         title: String?,
         iconRes: Int = androidx.media3.session.R.drawable.media3_icon_shuffle_on,
+        artworkUri: Uri = ResourceUris.forResource(iconRes),
     ): MediaItem =
         MediaItem
             .Builder()
@@ -397,78 +401,72 @@ object PlexMediaMapper {
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
                     .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                    .setArtworkUri(ResourceUris.forResource(iconRes))
+                    .setArtworkUri(artworkUri)
                     .build(),
             ).build()
 
     /**
-     * A decade row, from the `Directory` entries
-     * [com.cappielloantonio.tempo.plex.api.library.LibraryService.getDecades]
-     * returns.
+     * One row of the Radio tab or of a station directory. A directory opens to
+     * its stations; anything else is a station and plays. [key] is the
+     * station's own, already checked safe by the caller.
      *
-     * Deliberately not built through [browsableItem], which falls back to an
-     * icon when there is no thumb. A decade wants no artwork at all rather than
-     * a shared glyph when its composite cannot be built: eight rows wearing the
-     * same icon carry less than the car's own per-row placeholder does.
-     *
-     * The artwork is ours rather than Plex's -- there is no composite for a
-     * filter value, see the 2026-08-09 decade composite artwork design.
-     * [bucket] is the hour window it belongs to and [scope] is the library it
-     * was drawn from; both ride in the URI for one reason, which is that the
-     * car's image cache keys on the URI and will otherwise pin a tile for the
-     * life of the process. An hour's roll has to change the URI, and so does a
-     * switch to another server. Both are passed in rather than read from a
-     * clock or a session here, so this stays a pure function.
-     *
-     * Filtered on key and title rather than on `type`: a decade Directory has no
-     * `type` field, unlike the section Directory `LibraryClient.musicSections`
-     * narrows.
-     *
-     * [Directory.title] arrives already formatted for display ("1980s") and
-     * [Directory.key] is the first year ("1980"). The key rides in the media id
-     * because that is all the car sends back on a tap -- and so does [scope],
-     * via [DecadeKey], because a decade is the one row type whose key means the
-     * same thing on every server. See [DecadeKey] for what the car does with
-     * two servers' rows that share an id.
+     * A directory's guid is empty, so Decade Radio is known by its key -- and
+     * only to choose a grid. See
+     * docs/decisions/2026-11-06-station-directories-design.md.
      */
     @JvmStatic
-    fun decadeToMediaItem(
-        directory: Directory,
-        idPrefix: String,
+    fun radioRowToMediaItem(
+        station: Metadata,
+        key: String,
         scope: String,
         bucket: Long,
-    ): MediaItem? {
-        val key = directory.key?.takeIf { it.isNotBlank() } ?: return null
-        val title = directory.title?.takeIf { it.isNotBlank() } ?: return null
-
-        // Only the playable-child key is set. A decade's children are the
-        // shuffle row and tracks -- all playable, and none browsable -- so
-        // EXTRAS_KEY_CONTENT_STYLE_BROWSABLE would be a hint
-        // about a grid that never renders here. See BrowseContentStyle's KDoc:
-        // these keys describe an item's children, not the item itself.
-        val extras =
-            Bundle().apply {
-                putInt(
-                    MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE,
-                    BrowseContentStyle.PLAYABLE_CHILD_STYLE,
-                )
-            }
-
-        return MediaItem
-            .Builder()
-            .setMediaId(idPrefix + DecadeKey.of(scope, key))
-            .setMediaMetadata(
-                MediaMetadata
-                    .Builder()
-                    .setTitle(title)
-                    .setIsBrowsable(true)
-                    .setIsPlayable(false)
-                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                    .setArtworkUri(AlbumArtContentProvider.decadeContentUri(scope, key, bucket))
-                    .setExtras(extras)
-                    .build(),
-            ).build()
+    ): MediaItem {
+        val icon = ResourceUris.forResource(androidx.media3.session.R.drawable.media3_icon_radio)
+        if (station.type == TYPE_STATION_DIRECTORY) {
+            val style =
+                if (key.endsWith(DECADE_DIRECTORY_SUFFIX)) {
+                    BrowseContentStyle.STATION_GRID_STYLE
+                } else {
+                    BrowseContentStyle.PLAYABLE_CHILD_STYLE
+                }
+            return MediaItem
+                .Builder()
+                .setMediaId(Constants.RADIO_DIRECTORY_ID + HubKey.of(scope, key))
+                .setMediaMetadata(
+                    MediaMetadata
+                        .Builder()
+                        .setTitle(station.title)
+                        .setIsBrowsable(true)
+                        .setIsPlayable(false)
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                        .setArtworkUri(icon)
+                        .setExtras(Bundle().apply { putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, style) })
+                        .build(),
+                ).build()
+        }
+        return mixRowToMediaItem(
+            Constants.MIX_RADIO_STATION_ID + HubKey.of(scope, key),
+            station.title,
+            artworkUri = decadeArtwork(station, scope, bucket) ?: icon,
+        )
     }
+
+    /**
+     * The decade composite for a decade station, by guid rather than key: the
+     * guid names the kind, while the key's station number is the server's to
+     * choose. Null for any other station, and for a decade that is not four
+     * digits, which the provider would refuse.
+     */
+    private fun decadeArtwork(
+        station: Metadata,
+        scope: String,
+        bucket: Long,
+    ): Uri? =
+        station.guid
+            ?.takeIf { it.startsWith(DECADE_STATION_GUID) }
+            ?.removePrefix(DECADE_STATION_GUID)
+            ?.takeIf { FOUR_DIGITS.matches(it) }
+            ?.let { AlbumArtContentProvider.decadeContentUri(scope, it, bucket) }
 
     /**
      * A Discover row, from one [Hub].
@@ -545,18 +543,18 @@ object PlexMediaMapper {
      *
      * A group is a range or a filter value rather than a library item, so there
      * is nothing on the server to draw and [icon] is always a local drawable. It
-     * is set rather than left null -- which is what [decadeToMediaItem] does --
-     * because the car fills an absent artworkUri with a music note on a per-row
-     * colour, and a tab holding 25 to 56 of them turns that into a column of
-     * unrelated colours competing for a driver's attention. One repeated glyph
-     * says just as little and says it quietly.
+     * is set rather than left null because the car fills an absent artworkUri
+     * with a music note on a per-row colour, and a tab holding 25 to 56 of
+     * them turns that into a column of unrelated colours competing for a
+     * driver's attention. One repeated glyph says just as little and says it
+     * quietly.
      *
      * [subtitle] rides the browse list's second line, the same one an album uses
      * for its artist. Letter rows spend it on the bucket's count; window rows
      * pass none, because every window holds WINDOW_SIZE items but the last.
      *
-     * Its children *are* artists or albums, so unlike [decadeToMediaItem] this
-     * sets the browsable content style -- those children render as a grid.
+     * Its children *are* artists or albums, so this sets the browsable content
+     * style -- those children render as a grid.
      *
      * Otherwise this largely re-implements [browsableItem]; the one deliberate
      * difference from it is that EXTRAS_KEY_CONTENT_STYLE_PLAYABLE is not set

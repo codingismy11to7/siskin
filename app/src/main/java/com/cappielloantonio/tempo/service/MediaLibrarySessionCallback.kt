@@ -195,9 +195,19 @@ class MediaLibrarySessionCallback(
     private fun isMixRow(item: MediaItem) =
         item.mediaId.startsWith(Constants.MIX_ARTIST_ID) ||
             item.mediaId.startsWith(Constants.MIX_PLAYLIST_ID) ||
-            item.mediaId.startsWith(Constants.MIX_DECADE_ID) ||
             item.mediaId.startsWith(Constants.MIX_HUB_ID) ||
             isStationRow(item)
+
+    /**
+     * A Mix row whose kind this build no longer has, which a car can still be
+     * showing from before an upgrade. It has no stream, so the fallback in
+     * [resolveQueueForItem] would hand it to the player and save it as the
+     * whole queue.
+     */
+    private fun isUnknownMixRow(item: MediaItem) = item.mediaId.startsWith(Constants.MIX_ID_PREFIX) && !isMixRow(item)
+
+    private fun <T> unknownMixRequest(item: MediaItem): ListenableFuture<T> =
+        Futures.immediateFailedFuture(UnsupportedOperationException("a Mix row this build does not know: ${item.mediaId}"))
 
     /** A station's order is the server's: shuffling it here breaks the top-up, which follows that order. */
     private fun isStationRow(item: MediaItem) =
@@ -206,12 +216,10 @@ class MediaLibrarySessionCallback(
 
     /**
      * Fetches the tracks a tapped Mix row stands for, or null if the item is
-     * not a Mix row. **Issues a network request** -- call it once per tap --
-     * except for the decade branch's cache hit, which is already-complete and
-     * issues none; see [cachedDecadeTracks]. The hub branch's cache hit is
-     * different: it still issues one, because it saves following the hub's
-     * key a second time, not the round trip that expands containers to
-     * tracks; see [cachedHubTracks].
+     * not a Mix row. **Issues a network request** -- call it once per tap.
+     * The hub branch's cache hit still issues one, because it saves following
+     * the hub's key a second time, not the round trip that expands containers
+     * to tracks; see [cachedHubTracks].
      *
      * Dispatch is on the id prefix, which is the only thing the car sends back:
      * it rebuilds the item from the media id alone, so the extras the row was
@@ -230,18 +238,6 @@ class MediaLibrarySessionCallback(
                 val playlist = id.removePrefix(Constants.MIX_PLAYLIST_ID)
                 Log.d(TAG, "Fetching every track in playlist $playlist to shuffle")
                 browseRepository.getPlaylistTracksForShuffle(playlist)
-            }
-
-            id.startsWith(Constants.MIX_DECADE_ID) -> {
-                // The whole DecadeKey payload -- library and decade -- passed
-                // on unsplit. Only PlexBrowseRepository.decadeTracks takes it
-                // apart, and only to build the Plex filter.
-                val decadeKey = id.removePrefix(Constants.MIX_DECADE_ID)
-                cachedDecadeTracks(decadeKey)
-                    ?: run {
-                        Log.d(TAG, "Fetching a random sample of decade $decadeKey to shuffle")
-                        browseRepository.getDecadeTracksForShuffle(decadeKey)
-                    }
             }
 
             id.startsWith(Constants.MIX_HUB_ID) -> {
@@ -272,69 +268,23 @@ class MediaLibrarySessionCallback(
     }
 
     /**
-     * Replays the decade's own browse list instead of drawing a second
-     * `sort=random` sample, or null to fall back to
-     * [PlexBrowseRepository.getDecadeTracksForShuffle] if the cache cannot be
-     * trusted for this decade.
-     *
-     * The list on screen when the row was tapped is already a uniform random
-     * sample bounded by the Mix track limit --
-     * [PlexBrowseRepository.getDecadeTracks] draws it the same way this
-     * fallback would. A second draw is statistically identical for the tap: it
-     * buys no extra randomness, only different tracks, so what plays stops
-     * matching what was on screen. Measured cost of that extra round trip:
-     * ~300ms of dead air before playback on a fast connection, worse on
-     * cellular in a car.
-     *
-     * [queueSourceCache] is a single slot keyed by one constant, so it can hold
-     * any node's most recent list -- a stale or unrelated one would queue the
-     * wrong decade's tracks entirely. [PlexBrowseRepository.getDecadeTracks]
-     * always puts the decade's own Mix row at index 0, so the cached list
-     * identifies itself: a match there is certain enough to trust, and its
-     * absence (empty cache, cold after a process restart, or a different node's
-     * list) is the signal to fall back rather than guess.
-     *
-     * [decadeKey] is compared whole, as the
-     * [com.cappielloantonio.tempo.util.DecadeKey] payload that came off the
-     * tapped row, which is the same string `getDecadeTracks` built its row from.
-     * Neither side splits it, so neither side can split it differently -- and
-     * the library being *in* it is what makes a row cached before a server
-     * switch fail this guard rather than replay another library's tracks.
-     *
-     * `drop(1)` rather than filtering by [isMixRow]: index 0 is the row by
-     * construction, and dropping exactly the item the guard just matched is
-     * narrower than a predicate that could also drop something else. The queue
-     * must not contain the Mix row -- it is playable with no stream, and a
-     * queue holding it would "play" a track that does not exist.
-     */
-    private fun cachedDecadeTracks(decadeKey: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>? {
-        val cached = queueSourceCache[Constants.QUEUE_CACHED_SOURCE]
-        if (cached?.firstOrNull()?.mediaId != Constants.MIX_DECADE_ID + decadeKey) return null
-
-        Log.d(TAG, "Serving decade $decadeKey shuffle from the cached browse list")
-        return Futures.immediateFuture(
-            LibraryResult.ofItemList(ImmutableList.copyOf(cached.drop(1)), null),
-        )
-    }
-
-    /**
      * Expands the container ids already on screen instead of following the
      * hub's key a second time, or null when the cache cannot be trusted for
      * this hub.
      *
-     * **Unlike [cachedDecadeTracks] this still issues a request, and it must.**
-     * A decade's browse list is tracks, so a hit replays it directly. A hub's
-     * browse list is albums and artists -- browsable, with no stream -- so
+     * **This still issues a request, and it must.** A hub's browse list is
+     * albums and artists -- browsable, with no stream -- so
      * replaying it would hand media3 a queue of items it cannot play. What the
      * cache saves is the round trip that re-fetches the containers, and for a
      * hub whose key carries `sort=random` it saves more than time: following
      * the key again returns a *different* set, so the mix would stop matching
      * what the driver is looking at.
      *
-     * The guard is [cachedDecadeTracks]'s, unchanged in shape:
+     * [queueSourceCache] is a single slot that holds whichever node was browsed
+     * last, so the list must identify itself:
      * `PlexBrowseRepository.getHubContent` always writes this hub's own Mix row
-     * at index 0, so a cached list identifies itself and anything else -- a
-     * cold cache, another node's list -- falls back.
+     * at index 0, and anything else -- a cold cache, another node's list --
+     * falls back.
      *
      * The ids are read off each row's own prefix rather than from the hub's
      * declared type, so a hub mixing albums and artists sends both filters.
@@ -412,6 +362,7 @@ class MediaLibrarySessionCallback(
         if (firstItem.mediaId.isEmpty()) {
             return if (isVoiceRequest(firstItem)) playVoiceRequest(mediaSession, firstItem) else unsupportedRequest()
         }
+        if (isUnknownMixRow(firstItem)) return unknownMixRequest(firstItem)
 
         val mixRow = isMixRow(firstItem)
         // Nothing here writes shuffleModeEnabled -- see the note on
@@ -446,6 +397,7 @@ class MediaLibrarySessionCallback(
         if (firstItem.mediaId.isEmpty()) {
             return if (isVoiceRequest(firstItem)) addVoiceRequest(mediaSession, firstItem) else unsupportedRequest()
         }
+        if (isUnknownMixRow(firstItem)) return unknownMixRequest(firstItem)
         val extras = firstItem.requestMetadata.extras ?: firstItem.mediaMetadata.extras
         Log.d(TAG, "extras: ${extras?.keySet()?.joinToString { key -> "$key=${extras.getString(key)}" } ?: "null"}")
 

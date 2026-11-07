@@ -13,12 +13,13 @@ import kotlinx.coroutines.runBlocking
 import java.io.File
 
 /**
- * The 2x2 cover mosaic behind a decade row: the Plex query that finds its
- * covers, over [CompositeArt]'s cache and drawing.
+ * The 2x2 cover mosaic behind a Decade Radio station's tile: the Plex query
+ * that finds its covers, over [CompositeArt]'s cache and drawing.
  *
- * Plex has no composite for a filter value -- measured against PMS 1.43.3, the
- * decade index returns Directory entries with no thumb, composite or art;
- * `/library/sections/{key}/decade/{decade}/composite` 404s; and
+ * Plex has no composite for a decade. A decade station carries only
+ * `icon: playlist://image.radio`, which is not a fetchable image, with no thumb
+ * or composite (measured 2026-11-06); and against PMS 1.43.3,
+ * `/library/sections/{key}/decade/{decade}/composite` 404s and
  * `/library/sections/{key}/composite/1` is a section-wide mosaic identical for
  * every decade. So the tiling is ours.
  *
