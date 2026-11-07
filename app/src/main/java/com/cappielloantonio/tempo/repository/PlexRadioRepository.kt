@@ -30,6 +30,7 @@ class PlexRadioRepository(
      * -- which maps to no tracks, the same as an artist Mix with none. An
      * artist's key is fetched every time because the server mints a new one
      * per request; a library station's is stable and arrives with its row.
+     * A mix is posted shuffled, so a redraw is a new order rather than album by album.
      */
     suspend fun startStation(seed: StationSeed): Either<PlexTransportFailure, PlexResponse> =
         either {
@@ -37,6 +38,10 @@ class PlexRadioRepository(
             val stationKey =
                 when (seed) {
                     is StationSeed.Library -> {
+                        seed.key
+                    }
+
+                    is StationSeed.Mix -> {
                         seed.key
                     }
 
@@ -68,7 +73,7 @@ class PlexRadioRepository(
                 Log.w(TAG, "server did not say who it is; cannot name the station")
                 return@either PlexResponse()
             }
-            library.createPlayQueue(stationUri(machine, stationKey)).bind()
+            library.createPlayQueue(stationUri(machine, stationKey), shuffle = seed is StationSeed.Mix).bind()
         }
 
     /** The playable tracks of a station play-queue response, in server order. */

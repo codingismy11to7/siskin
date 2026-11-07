@@ -66,6 +66,7 @@ object Constants {
     const val DISCOVER_ID = "[discoverID]"
 
     const val RADIO_ID = "[radioID]"
+    const val MIXES_ID = "[mixesID]"
 
     const val FOLDERS_ID = "[foldersID]"
 
@@ -116,10 +117,11 @@ object Constants {
     /**
      * Prefixes of the synthetic Mix rows, each carrying the ratingKey of the
      * thing to mix after it -- or, for [MIX_HUB_ID], the same [HubKey] payload
-     * [HUB_ID] carries, whole and unsplit, and for [MIX_RADIO_STATION_ID] a
-     * [HubKey] naming the station. Nothing on the server answers to these ids:
-     * they are playable rows with no stream, and MediaLibrarySessionCallback
-     * swaps one for its subject's tracks when it is tapped.
+     * [HUB_ID] carries, whole and unsplit, and for [MIX_RADIO_STATION_ID] and
+     * [MIX_FOR_YOU_ID] a [HubKey] naming the station or mix. Nothing on the
+     * server answers to these ids: they are playable rows with no stream, and
+     * MediaLibrarySessionCallback swaps one for its subject's tracks when it is
+     * tapped.
      *
      * A prefix per kind rather than one plus an embedded kind, because the prefix is
      * what the callback dispatches on -- it decides which repository call
@@ -137,6 +139,13 @@ object Constants {
     const val MIX_HUB_ID = "[shuffleHubID]"
     const val MIX_RADIO_ARTIST_ID = "[radioArtistID]"
     const val MIX_RADIO_STATION_ID = "[radioStationID]"
+
+    /**
+     * Prefix; the remainder is a [HubKey] naming a Mixes for You mix by its
+     * key, a library filter that names a section by number. Spelled under
+     * [MIX_ID_PREFIX] so a build that drops it refuses a cached tile.
+     */
+    const val MIX_FOR_YOU_ID = "[shuffleMixForYouID]"
 
     /** What every shuffle-spelled Mix id above starts with, including ones a later build drops. */
     const val MIX_ID_PREFIX = "[shuffle"

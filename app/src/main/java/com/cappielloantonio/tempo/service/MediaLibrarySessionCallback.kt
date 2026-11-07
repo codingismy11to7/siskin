@@ -212,7 +212,8 @@ class MediaLibrarySessionCallback(
     /** A station's order is the server's: shuffling it here breaks the top-up, which follows that order. */
     private fun isStationRow(item: MediaItem) =
         item.mediaId.startsWith(Constants.MIX_RADIO_ARTIST_ID) ||
-            item.mediaId.startsWith(Constants.MIX_RADIO_STATION_ID)
+            item.mediaId.startsWith(Constants.MIX_RADIO_STATION_ID) ||
+            item.mediaId.startsWith(Constants.MIX_FOR_YOU_ID)
 
     /**
      * Fetches the tracks a tapped Mix row stands for, or null if the item is
@@ -259,6 +260,12 @@ class MediaLibrarySessionCallback(
                 val station = id.removePrefix(Constants.MIX_RADIO_STATION_ID)
                 Log.d(TAG, "Starting station $station")
                 browseRepository.getRadioStationTracks(station)
+            }
+
+            id.startsWith(Constants.MIX_FOR_YOU_ID) -> {
+                val mix = id.removePrefix(Constants.MIX_FOR_YOU_ID)
+                Log.d(TAG, "Starting mix $mix")
+                browseRepository.getMixTracks(mix)
             }
 
             else -> {

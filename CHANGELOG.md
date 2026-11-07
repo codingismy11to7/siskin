@@ -11,6 +11,11 @@
 
 ## [Unreleased] — Siskin
 
+- A new **Mixes** tab plays Plex's Mixes for You: mixes named after an artist
+  you listen to, each drawing on related artists, shown with the artist's
+  photo. A mix plays shuffled and keeps going when it runs out. It's the second
+  tab, and Artists moves under More, unless you've customized your tabs.
+
 ## [1.4.1] (2026-11-06)
 
 - Radio is now the second tab and Artists the third, unless you've customized

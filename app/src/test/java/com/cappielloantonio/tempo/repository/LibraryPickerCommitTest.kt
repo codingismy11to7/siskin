@@ -361,7 +361,7 @@ class LibraryPickerCommitTest {
     }
 
     @Test
-    fun `switching library tells the car to re-fetch Radio, whose rows belong to the old one`() {
+    fun `switching library tells the car to re-fetch Radio and Mixes, whose rows belong to the old one`() {
         val repo = LibraryPickerRepository()
         repo.primeCandidateForTest(
             uri = "http://pms:32400",
@@ -374,6 +374,7 @@ class LibraryPickerCommitTest {
         shadowOf(Looper.getMainLooper()).idle()
 
         verify(session).notifyChildrenChanged(Constants.RADIO_ID, 0, null)
+        verify(session).notifyChildrenChanged(Constants.MIXES_ID, 0, null)
         verify(session).notifyChildrenChanged(Constants.FOLDERS_ID, 0, null)
     }
 

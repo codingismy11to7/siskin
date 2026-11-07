@@ -45,15 +45,22 @@ import com.cappielloantonio.tempo.model.SessionMediaItem;
  * docs/decisions/2026-10-23-artist-radio-design.md.
  *
  * <p>Version 3 adds station_key to queue; see docs/decisions/2026-11-01-radio-stations-design.md.
+ *
+ * <p>Version 4 adds station_mix_key to queue; see
+ * docs/decisions/2026-11-07-mixes-for-you-design.md.
  */
 @UnstableApi
 @Database(
-        version = 3,
+        version = 4,
         entities = {
             Queue.class,
             SessionMediaItem.class,
         },
-        autoMigrations = {@AutoMigration(from = 1, to = 2), @AutoMigration(from = 2, to = 3)})
+        autoMigrations = {
+            @AutoMigration(from = 1, to = 2),
+            @AutoMigration(from = 2, to = 3),
+            @AutoMigration(from = 3, to = 4)
+        })
 public abstract class AppDatabase extends RoomDatabase {
     // Renamed from the inherited "tempo_db". A different filename is a
     // different database, so version 1 opens a file that does not exist yet and

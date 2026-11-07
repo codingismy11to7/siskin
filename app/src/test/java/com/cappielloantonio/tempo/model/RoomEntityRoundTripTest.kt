@@ -221,9 +221,49 @@ class RoomEntityRoundTripTest {
     }
 
     @Test
-    fun aRowCarryingBothSeedsIsNoStation() {
-        assertNull(PlexMediaMapper.StationSeed.of("270597", "/library/sections/7/stations/2"))
-        assertNull(PlexMediaMapper.StationSeed.of(null, null))
+    fun aMixTrackKeepsItsMixThroughTheQueue() {
+        val key = "/library/sections/7/all?artist.id=259987,270963&or=1&album.id=256469,261379"
+        val station =
+            PlexMediaMapper.StationTag(
+                playQueueId = 32367,
+                playQueueItemId = 1400001,
+                seed = PlexMediaMapper.StationSeed.Mix(key),
+            )
+        val item =
+            PlexMediaMapper.buildTrackMediaItem(
+                ratingKey = "270615",
+                title = "Baudelaire",
+                albumTitle = null,
+                artist = null,
+                thumb = null,
+                partKey = "/library/parts/1/file.flac",
+                durationMs = null,
+                trackIndex = null,
+                year = null,
+                grandparentRatingKey = "270597",
+                isHearted = false,
+                parentId = null,
+                serverUri = server,
+                token = token,
+                station = station,
+            )
+
+        val saved = Queue.fromMediaItem(item)!!
+
+        assertEquals(key, saved.stationMixKey)
+        assertNull(saved.stationKey)
+        assertNull(saved.stationArtistId)
+        assertEquals(station, PlexMediaMapper.stationTagOf(saved.toMediaItem()))
+    }
+
+    @Test
+    fun aRowCarryingTwoSeedsIsNoStation() {
+        val mix = "/library/sections/7/all?album.id=1"
+        assertNull(PlexMediaMapper.StationSeed.of("270597", "/library/sections/7/stations/2", null))
+        assertNull(PlexMediaMapper.StationSeed.of("270597", null, mix))
+        assertNull(PlexMediaMapper.StationSeed.of(null, "/library/sections/7/stations/2", mix))
+        assertNull(PlexMediaMapper.StationSeed.of(null, null, null))
+        assertEquals(PlexMediaMapper.StationSeed.Mix(mix), PlexMediaMapper.StationSeed.of(null, null, mix))
     }
 
     @Test

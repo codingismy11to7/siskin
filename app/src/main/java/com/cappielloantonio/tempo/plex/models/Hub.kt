@@ -16,6 +16,13 @@ class Hub {
     var hubIdentifier: String? = null
     var title: String? = null
     var type: String? = null
+
+    /**
+     * What kind of row this is, without the section number
+     * [hubIdentifier] carries -- `hub.music.mixes` for Mixes for You, whose
+     * `type` is `playlist` like any playlist hub's.
+     */
+    var context: String? = null
     var size: Int? = null
     var more: Boolean? = null
 

@@ -23,9 +23,8 @@ object BrowseTabOrder {
      * What an install that never reordered its tabs sees: the first
      * [ROOT_TAB_COUNT] as tabs, the rest as More's rows in this order.
      *
-     * Radio is second, ahead of Artists, and holding a tab at all costs Albums
-     * its own: under More it would be as hidden as Artist Radio. See
-     * docs/decisions/2026-11-01-radio-stations-design.md.
+     * Mixes is second and Radio third, and holding a tab at all costs Artists
+     * its own. See docs/decisions/2026-11-07-mixes-for-you-design.md.
      *
      * A destination added later goes here at its default rank *and* is picked up
      * by [resolve]'s append rule for anyone who already saved an order. Those
@@ -36,6 +35,7 @@ object BrowseTabOrder {
     val DEFAULT_ORDER: List<String> =
         listOf(
             Constants.PLAYLIST_ID,
+            Constants.MIXES_ID,
             Constants.RADIO_ID,
             Constants.ARTISTS_ID,
             Constants.ALBUMS_ID,

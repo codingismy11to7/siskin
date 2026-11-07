@@ -64,6 +64,27 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun aSavedLibraryStationSurvivesTheMixMigration() {
+        helper.createDatabase(DB, 3).apply {
+            execSQL(
+                "INSERT INTO queue (id, track_order, last_play, playing_changed, part_key, hearted, " +
+                    "play_queue_id, play_queue_item_id, station_key) " +
+                    "VALUES ('42', 0, 0, 0, '/library/parts/9', 0, 32194, 1381657, '/library/sections/7/stations/2')",
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(DB, 4, true)
+
+        db.query("SELECT station_key, station_artist_id, station_mix_key FROM queue").use {
+            assertTrue(it.moveToFirst())
+            assertEquals("/library/sections/7/stations/2", it.getString(0))
+            assertTrue(it.isNull(1))
+            assertTrue(it.isNull(2))
+        }
+    }
+
     private companion object {
         const val DB = "migration-test"
     }

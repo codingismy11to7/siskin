@@ -51,12 +51,16 @@ object PlexMediaMapper {
     const val EXTRA_PLAY_QUEUE_ITEM_ID = "playQueueItemId"
     const val EXTRA_STATION_ARTIST_ID = "stationArtistId"
     const val EXTRA_STATION_KEY = "stationKey"
+    const val EXTRA_STATION_MIX_KEY = "stationMixKey"
     private const val TYPE_STATION_DIRECTORY = "directory"
     private const val DECADE_DIRECTORY_SUFFIX = "/stations/decade"
     private const val DECADE_STATION_GUID = "tv.plex://station/decade/"
     private val FOUR_DIGITS = Regex("\\d{4}")
 
-    /** What a station is redrawn from. See docs/decisions/2026-11-01-radio-stations-design.md. */
+    /**
+     * What a station is redrawn from. A [Mix] is redrawn shuffled; see
+     * docs/decisions/2026-11-07-mixes-for-you-design.md.
+     */
     sealed interface StationSeed {
         data class Artist(
             val ratingKey: String,
@@ -66,15 +70,22 @@ object PlexMediaMapper {
             val key: String,
         ) : StationSeed
 
+        data class Mix(
+            val key: String,
+        ) : StationSeed
+
         companion object {
             /** Exactly one is stored; anything else is not a station. */
             fun of(
                 artistRatingKey: String?,
                 stationKey: String?,
+                mixKey: String?,
             ): StationSeed? =
                 when {
-                    artistRatingKey != null && stationKey == null -> Artist(artistRatingKey)
-                    stationKey != null && artistRatingKey == null -> Library(stationKey)
+                    listOfNotNull(artistRatingKey, stationKey, mixKey).size != 1 -> null
+                    artistRatingKey != null -> Artist(artistRatingKey)
+                    stationKey != null -> Library(stationKey)
+                    mixKey != null -> Mix(mixKey)
                     else -> null
                 }
         }
@@ -96,7 +107,12 @@ object PlexMediaMapper {
     fun stationTagOf(item: MediaItem?): StationTag? {
         val extras = item?.mediaMetadata?.extras ?: return null
         if (!extras.containsKey(EXTRA_PLAY_QUEUE_ID) || !extras.containsKey(EXTRA_PLAY_QUEUE_ITEM_ID)) return null
-        val seed = StationSeed.of(extras.getString(EXTRA_STATION_ARTIST_ID), extras.getString(EXTRA_STATION_KEY)) ?: return null
+        val seed =
+            StationSeed.of(
+                extras.getString(EXTRA_STATION_ARTIST_ID),
+                extras.getString(EXTRA_STATION_KEY),
+                extras.getString(EXTRA_STATION_MIX_KEY),
+            ) ?: return null
         return StationTag(extras.getLong(EXTRA_PLAY_QUEUE_ID), extras.getLong(EXTRA_PLAY_QUEUE_ITEM_ID), seed)
     }
 
@@ -209,6 +225,7 @@ object PlexMediaMapper {
                     when (val seed = station.seed) {
                         is StationSeed.Artist -> putString(EXTRA_STATION_ARTIST_ID, seed.ratingKey)
                         is StationSeed.Library -> putString(EXTRA_STATION_KEY, seed.key)
+                        is StationSeed.Mix -> putString(EXTRA_STATION_MIX_KEY, seed.key)
                     }
                 }
             }
@@ -390,6 +407,8 @@ object PlexMediaMapper {
         title: String?,
         iconRes: Int = androidx.media3.session.R.drawable.media3_icon_shuffle_on,
         artworkUri: Uri = ResourceUris.forResource(iconRes),
+        subtitle: String? = null,
+        mediaType: @MediaMetadata.MediaType Int = MediaMetadata.MEDIA_TYPE_MUSIC,
     ): MediaItem =
         MediaItem
             .Builder()
@@ -398,12 +417,51 @@ object PlexMediaMapper {
                 MediaMetadata
                     .Builder()
                     .setTitle(title)
+                    .setSubtitle(subtitle)
                     .setIsBrowsable(false)
                     .setIsPlayable(true)
-                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                    .setMediaType(mediaType)
                     .setArtworkUri(artworkUri)
                     .build(),
             ).build()
+
+    /** The namesake artist's photo, else the first artist photo the mix has. */
+    @JvmStatic
+    fun mixArtistThumb(mix: Metadata): String? {
+        val artists = mix.metadata.orEmpty()
+        return (artists.filter { it.centroid == true } + artists)
+            .firstNotNullOfOrNull { it.thumb?.takeIf(String::isNotBlank) }
+    }
+
+    /** The artists a mix draws on beside its namesake, or null when there are none. */
+    @JvmStatic
+    fun mixSubtitle(mix: Metadata): String? =
+        mix.metadata
+            .orEmpty()
+            .filter { it.centroid != true }
+            .mapNotNull { it.title?.takeIf(String::isNotBlank) }
+            .joinToString(", ")
+            .ifEmpty { null }
+
+    /**
+     * One Mixes for You tile. [key] is the mix's own, already checked safe by
+     * the caller. The subtitle may be truncated on a tile.
+     */
+    @JvmStatic
+    fun mixForYouToMediaItem(
+        mix: Metadata,
+        key: String,
+        scope: String,
+    ): MediaItem =
+        mixRowToMediaItem(
+            Constants.MIX_FOR_YOU_ID + HubKey.of(scope, key),
+            mix.title,
+            artworkUri =
+                mixArtistThumb(mix)?.let { AlbumArtContentProvider.contentUri(it) }
+                    ?: ResourceUris.forResource(R.drawable.ic_browse_playlist),
+            subtitle = mixSubtitle(mix),
+            mediaType = MediaMetadata.MEDIA_TYPE_PLAYLIST,
+        )
 
     /**
      * One row of the Radio tab or of a station directory. A directory opens to
@@ -425,7 +483,7 @@ object PlexMediaMapper {
         if (station.type == TYPE_STATION_DIRECTORY) {
             val style =
                 if (key.endsWith(DECADE_DIRECTORY_SUFFIX)) {
-                    BrowseContentStyle.STATION_GRID_STYLE
+                    BrowseContentStyle.PLAYABLE_GRID_STYLE
                 } else {
                     BrowseContentStyle.PLAYABLE_CHILD_STYLE
                 }

@@ -78,8 +78,8 @@ class MediaBrowserTreeTest {
         assertEquals(
             listOf(
                 Constants.PLAYLIST_ID,
+                Constants.MIXES_ID,
                 Constants.RADIO_ID,
-                Constants.ARTISTS_ID,
                 Constants.MORE_ID,
             ),
             children,
@@ -97,6 +97,19 @@ class MediaBrowserTreeTest {
         assertEquals(
             MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM,
             radio.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE),
+        )
+    }
+
+    @Test
+    fun `Mixes is a grid, because each mix wears its artist's photo`() {
+        MediaBrowserTree.buildTree()
+
+        val mixes = MediaBrowserTree.getItem(Constants.MIXES_ID)!!
+
+        assertEquals(true, mixes.mediaMetadata.isBrowsable)
+        assertEquals(
+            MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM,
+            mixes.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE),
         )
     }
 
@@ -264,9 +277,14 @@ class MediaBrowserTreeTest {
     }
 
     @Test
-    fun moreOffersAlbumsThenDiscoverThenFolders() {
+    fun moreOffersArtistsAlbumsDiscoverThenFolders() {
         assertEquals(
-            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID, Constants.FOLDERS_ID),
+            listOf(
+                Constants.ARTISTS_ID,
+                Constants.ALBUMS_ID,
+                Constants.DISCOVER_ID,
+                Constants.FOLDERS_ID,
+            ),
             BrowseTabOrderFixture.moreChildren(),
         )
     }
@@ -278,6 +296,7 @@ class MediaBrowserTreeTest {
 
         assertEquals(
             listOf(
+                Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
                 Constants.FOLDERS_ID,
@@ -482,6 +501,7 @@ class MediaBrowserTreeTest {
         assertEquals(
             listOf(
                 Constants.PLAYLIST_ID,
+                Constants.MIXES_ID,
                 Constants.RADIO_ID,
                 Constants.FOLDERS_ID,
                 Constants.SELECT_LIBRARY_ID,
@@ -495,7 +515,7 @@ class MediaBrowserTreeTest {
      * order feature had to preserve when Discover landed beside it: promoted to
      * position 0 it is a root tab, it leaves More entirely, and it keeps the
      * list styling its own node declares. The default case -- Discover as
-     * More's second row, behind Albums -- is covered by moreOffersAlbumsThenDiscoverThenFolders above.
+     * More's third row, behind Artists and Albums -- is covered by moreOffersArtistsAlbumsDiscoverThenFolders above.
      */
     @Test
     fun `Discover is reorderable like any other destination`() {
@@ -529,6 +549,7 @@ class MediaBrowserTreeTest {
         assertEquals(
             listOf(
                 Constants.ALBUMS_ID,
+                Constants.MIXES_ID,
                 Constants.RADIO_ID,
                 Constants.FOLDERS_ID,
                 Constants.SELECT_LIBRARY_ID,

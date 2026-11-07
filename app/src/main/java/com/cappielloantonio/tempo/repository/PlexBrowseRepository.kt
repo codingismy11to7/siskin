@@ -560,16 +560,65 @@ class PlexBrowseRepository {
      * library is refused rather than posting that section number to this
      * server.
      */
-    fun getRadioStationTracks(payload: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+    fun getRadioStationTracks(payload: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        startScopedStation(payload) { PlexMediaMapper.StationSeed.Library(it) }
+
+    /**
+     * Starts the station whose key rides in [payload], a [HubKey] payload,
+     * after refusing one minted under another library or carrying an unsafe
+     * key. A refusal fails the request rather than answering with no tracks,
+     * which would stop whatever is playing.
+     */
+    private fun startScopedStation(
+        payload: String,
+        seedOf: (String) -> PlexMediaMapper.StationSeed,
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         sectionKey ?: return errorFuture()
         val key =
             liveHubKey(payload)?.takeIf(LibraryClient::isSafeHubKey) ?: run {
                 Log.w(TAG, "not starting a stale or unsafe station: $payload")
                 return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
             }
-        val seed = PlexMediaMapper.StationSeed.Library(key)
+        val seed = seedOf(key)
         return fetch({ radio.startStation(seed) }) { radio.stationTracks(it, seed) }
     }
+
+    /**
+     * Mixes for You, in server order, minus any mix whose key fails the safety
+     * check -- the key rides in the tile's id. Matched on the hub's context:
+     * its type is `playlist`, which an ordinary playlist hub shares. See
+     * docs/decisions/2026-11-07-mixes-for-you-design.md.
+     */
+    fun getMixes(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val session = api.session ?: return errorFuture()
+        val scope = CompositeArt.scopeOf(session)
+        return fetch({ libraryClient.getSectionHubsWithMixes(session.musicSectionKey) }) { body ->
+            hubsOf(body)
+                .filter { it.context == CONTEXT_MIXES }
+                .flatMap { it.metadata.orEmpty() }
+                .mapNotNull { mix ->
+                    val key = mix.key?.takeIf(LibraryClient::isSafeHubKey) ?: return@mapNotNull null
+                    PlexMediaMapper.mixForYouToMediaItem(mix, key, scope)
+                }.take(Constants.MAX_ITEMS)
+                .ifEmpty {
+                    listOf(
+                        LibraryPickerRepository.messageRow(
+                            App.getContext().getString(R.string.browse_mixes_empty),
+                            App.getContext().getString(R.string.browse_mixes_empty_hint),
+                        ),
+                    )
+                }
+        }
+    }
+
+    /**
+     * Starts a mix. [payload] is the tile id's [HubKey] payload, refused when
+     * minted under another library for the reason [getRadioStationTracks]
+     * gives. The key carries the whole mix, so a tile the hub has since
+     * re-rolled away still plays.
+     */
+    fun getMixTracks(payload: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        startScopedStation(payload) { PlexMediaMapper.StationSeed.Mix(it) }
 
     /**
      * Unsorted under the limit and `sort=random` over it -- the two do not
@@ -1303,6 +1352,7 @@ class PlexBrowseRepository {
         private const val TYPE_PLAYLIST = "playlist"
         private const val TYPE_CLIP = "clip"
         private const val TYPE_STATION = "station"
+        private const val CONTEXT_MIXES = "hub.music.mixes"
 
         /**
          * Narrows a container to streamable tracks. An absent Metadata list is an

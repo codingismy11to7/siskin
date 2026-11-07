@@ -167,6 +167,7 @@ interface LibraryService {
         @Query("type") type: String,
         @Query("uri") uri: String,
         @Query("repeat") repeat: Int,
+        @Query("shuffle") shuffle: Int,
     ): PlexResponse
 
     @GET("playQueues/{id}")
@@ -190,6 +191,22 @@ interface LibraryService {
         @Path("sectionId") sectionId: String,
         @Query("includeStations") includeStations: Int = 1,
         @Query("includeStationDirectories") includeStationDirectories: Int = 1,
+    ): PlexResponse
+
+    /**
+     * [getSectionHubs] plus Mixes for You, the `music.mixes` hub. Separate so
+     * Discover and Radio keep their own reads.
+     *
+     * Each mix nests its artists with their full biographies, which are about
+     * nine tenths of the response and which nothing here reads: 148 KB
+     * gzipped with them, 13 KB without. See
+     * docs/decisions/2026-11-07-mixes-for-you-design.md.
+     */
+    @GET("hubs/sections/{sectionId}")
+    suspend fun getSectionHubsWithMixes(
+        @Path("sectionId") sectionId: String,
+        @Query("includeMyMixes") includeMyMixes: Int = 1,
+        @Query("excludeFields") excludeFields: String = "summary",
     ): PlexResponse
 
     /**

@@ -422,6 +422,118 @@ class PlexBrowseRepositoryTest {
         )
     }
 
+    private val mixesHubs =
+        """
+        {"MediaContainer":{"size":2,"Hub":[
+        {"hubIdentifier":"music.playlists.7","context":"hub.music.playlists","type":"playlist","size":1,
+         "key":"/playlists?type=15","Metadata":[{"title":"Not a mix","key":"/playlists/1/items"}]},
+        {"hubIdentifier":"music.mixes.7","context":"hub.music.mixes","type":"playlist","size":3,"Metadata":[
+        {"title":"Anberlin Mix","type":"playlist","key":"/library/sections/7/all?artist.id=&or=1&album.id=258195,258224",
+         "Metadata":[{"centroid":true,"title":"Anberlin","thumb":"/library/metadata/267559/thumb/1"},
+                     {"title":"Thursday","thumb":"/library/metadata/258161/thumb/2"}]},
+        {"title":"Unsafe Mix","type":"playlist","key":"https://elsewhere.example/x"},
+        {"title":"Kitner Mix","type":"playlist","key":"/library/sections/7/all?artist.id=262550&or=1&album.id=1",
+         "Metadata":[{"centroid":true,"title":"Kitner","thumb":"/library/metadata/262550/thumb/3"}]}]}]}}
+        """.trimIndent()
+
+    private fun answerMixHubs(body: String) {
+        fixture.server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse =
+                    if (request.requestUrl!!.encodedPath.startsWith("/hubs/sections/") &&
+                        request.requestUrl!!.queryParameter("includeMyMixes") == "1"
+                    ) {
+                        MockResponse().setResponseCode(200).setBody(body)
+                    } else {
+                        MockResponse().setResponseCode(500)
+                    }
+            }
+    }
+
+    @Test
+    fun theMixesHubBecomesPlayableTilesInServerOrder() {
+        answerMixHubs(mixesHubs)
+
+        val rows = await(PlexBrowseRepository().getMixes()).value!!
+
+        assertEquals(
+            listOf(
+                Constants.MIX_FOR_YOU_ID + HubKey.of(scope(), "/library/sections/7/all?artist.id=&or=1&album.id=258195,258224"),
+                Constants.MIX_FOR_YOU_ID + HubKey.of(scope(), "/library/sections/7/all?artist.id=262550&or=1&album.id=1"),
+            ),
+            rows.map { it.mediaId },
+        )
+        val anberlin = rows.first().mediaMetadata
+        assertEquals("Anberlin Mix", anberlin.title.toString())
+        assertEquals("Thursday", anberlin.subtitle.toString())
+        assertEquals(true, anberlin.isPlayable)
+        assertEquals(false, anberlin.isBrowsable)
+        assertEquals(AlbumArtContentProvider.contentUri("/library/metadata/267559/thumb/1"), anberlin.artworkUri)
+    }
+
+    @Test
+    fun aServerWithNoMixesGetsAMessageRowNotABlankScreen() {
+        answerMixHubs("""{"MediaContainer":{"size":0,"Hub":[]}}""")
+
+        val rows = await(PlexBrowseRepository().getMixes()).value!!
+
+        assertEquals(
+            RuntimeEnvironment.getApplication().getString(R.string.browse_mixes_empty),
+            rows
+                .single()
+                .mediaMetadata.title
+                .toString(),
+        )
+    }
+
+    @Test
+    fun aMixTileResolvesToItsTracksTaggedWithItsKey() {
+        val key = "/library/sections/7/all?artist.id=259987,270963&or=1&album.id=256469,261379"
+        fixture.server.dispatcher =
+            object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse =
+                    when (request.requestUrl!!.encodedPath) {
+                        "/identity" -> {
+                            MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"machineIdentifier":"m"}}""")
+                        }
+
+                        "/playQueues" -> {
+                            MockResponse().setResponseCode(200).setBody(
+                                """{"MediaContainer":{"playQueueID":9,"playQueueTotalCount":156,"Metadata":[{"ratingKey":"5","type":"track","playQueueItemID":50}]}}""",
+                            )
+                        }
+
+                        else -> {
+                            MockResponse().setResponseCode(500)
+                        }
+                    }
+            }
+
+        val result = await(PlexBrowseRepository().getMixTracks(HubKey.of(scope(), key)))
+
+        assertEquals(
+            PlexMediaMapper.StationTag(9, 50, PlexMediaMapper.StationSeed.Mix(key)),
+            PlexMediaMapper.stationTagOf(result.value!!.single()),
+        )
+    }
+
+    @Test
+    fun aMixTileFromAnotherLibraryIsRefusedWithoutPosting() {
+        val stale = HubKey.of("some-other-scope-9", "/library/sections/7/all?album.id=1")
+
+        val result = await(PlexBrowseRepository().getMixTracks(stale))
+
+        assertTrue(result.resultCode != LibraryResult.RESULT_SUCCESS)
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun aLongMixKeyRoundTripsThroughItsId() {
+        val key = "/library/sections/7/all?artist.id=&or=1&album.id=" + (258195..258215).joinToString(",")
+
+        assertEquals(key, HubKey.keyIn(HubKey.of(scope(), key)))
+    }
+
     private val moodListing =
         """
         {"MediaContainer":{"size":2,"Metadata":[

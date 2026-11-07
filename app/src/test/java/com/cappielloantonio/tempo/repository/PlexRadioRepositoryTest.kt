@@ -205,6 +205,53 @@ class PlexRadioRepositoryTest {
 
     private val timeTravel = PlexMediaMapper.StationSeed.Library("/library/sections/7/stations/2")
 
+    private val mix =
+        PlexMediaMapper.StationSeed.Mix("/library/sections/7/all?artist.id=259987,270963&or=1&album.id=256469,261379")
+
+    @Test
+    fun aMixStartsFromItsKeyShuffled() =
+        runTest {
+            val repo = repository()
+
+            val response = (repo.startStation(mix) as Either.Right).value
+
+            val url = posted().single().requestUrl!!
+            assertEquals("server://abc123/com.plexapp.plugins.library${mix.key}", url.queryParameter("uri"))
+            assertEquals("1", url.queryParameter("shuffle"))
+            assertEquals(
+                PlexMediaMapper.StationTag(32194, 101, mix),
+                PlexMediaMapper.stationTagOf(repo.stationTracks(response, mix).first()),
+            )
+        }
+
+    @Test
+    fun aLibraryStationIsNotShuffledByTheServer() =
+        runTest {
+            repository().startStation(timeTravel)
+
+            assertEquals("0", posted().single().requestUrl!!.queryParameter("shuffle"))
+        }
+
+    @Test
+    fun aMixAtItsEndIsDrawnAgainShuffled() =
+        runTest {
+            windowAtEnd = true
+
+            repository().extendStation(PlexMediaMapper.StationTag(32194, 120, mix), lastQueuedItemId = 122, onLastTrack = false)
+
+            assertEquals("1", posted().single().requestUrl!!.queryParameter("shuffle"))
+        }
+
+    @Test
+    fun aDiscardedMixIsDrawnAgainShuffled() =
+        runTest {
+            playQueueStatus = 404
+
+            repository().extendStation(PlexMediaMapper.StationTag(32194, 102, mix), 102, false)
+
+            assertEquals("1", posted().single().requestUrl!!.queryParameter("shuffle"))
+        }
+
     @Test
     fun aStationAtItsEndWithNothingNewIsDrawnAgain() =
         runTest {
