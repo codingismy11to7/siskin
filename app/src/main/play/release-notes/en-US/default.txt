@@ -1,2 +1,4 @@
-• Google Assistant can now play from Siskin: ask for a song, album or artist "on Siskin", or say "play music on Siskin" to pick up where you left off. Not available in cars with Gemini.
-• Select Library is now off by default. To switch library or server from More, turn on Show library quick switch in Settings.
+• New Radio tab: Library, Deep Cuts, Time Travel and Random Album Radio, plus a station for each style, mood or decade. Stations keep going on their own. Radio takes the third tab, so Albums moves under More unless you've customised your tabs.
+• Decade Radio replaces Decades.
+• Browse your library by its folders, from More or as a tab.
+• Tab order has a reset button that restores the default order.
