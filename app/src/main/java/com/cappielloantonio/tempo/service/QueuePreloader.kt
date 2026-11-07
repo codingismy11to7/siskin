@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -14,6 +15,7 @@ import com.cappielloantonio.tempo.util.DownloadUtil
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheKeyFactory
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -99,6 +101,12 @@ object QueuePreloader {
         }
     }
 
+    /** Returns once every task queued so far, cleanup included, has finished: the executor is single-threaded. */
+    @VisibleForTesting
+    internal fun awaitIdle() {
+        executor.submit {}.get(10, TimeUnit.SECONDS)
+    }
+
     private fun collectUpcomingStreamUris(
         context: Context,
         player: Player,
@@ -159,9 +167,9 @@ object QueuePreloader {
 
         try {
             writer.cache()
-            Log.d(TAG, "Pre-cached $uri")
+            Log.d(TAG, "Pre-cached $cacheKey")
         } catch (exception: Exception) {
-            Log.d(TAG, "Pre-cache aborted for $uri: $exception")
+            Log.d(TAG, "Pre-cache aborted for $cacheKey: $exception")
             // When connectivity was just lost, keep whatever got cached: it is a
             // valid prefix written in one continuous run, and it is exactly what
             // an imminent offline skip needs to keep playing. The player's own
