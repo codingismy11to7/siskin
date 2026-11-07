@@ -38,32 +38,10 @@ import org.robolectric.RobolectricTestRunner
 class ReplayGainPrefetchWindowTest {
     private fun item(id: String): MediaItem = MediaItem.Builder().setMediaId(id).build()
 
-    /**
-     * A player over [ids] sitting on [currentIndex], whose timeline advances in
-     * plain index order and stops at the end.
-     */
     private fun playerOver(
         ids: List<String>,
         currentIndex: Int,
-    ): Player {
-        val timeline = mock<Timeline>()
-        whenever(timeline.windowCount).thenReturn(ids.size)
-        whenever(timeline.getNextWindowIndex(any(), any(), any()))
-            .thenAnswer { invocation ->
-                val from = invocation.getArgument<Int>(0)
-                if (from + 1 < ids.size) from + 1 else C.INDEX_UNSET
-            }
-
-        val player = mock<Player>()
-        whenever(player.currentTimeline).thenReturn(timeline)
-        whenever(player.currentMediaItemIndex).thenReturn(currentIndex)
-        whenever(player.repeatMode).thenReturn(Player.REPEAT_MODE_OFF)
-        whenever(player.shuffleModeEnabled).thenReturn(false)
-        ids.forEachIndexed { index, id ->
-            whenever(player.getMediaItemAt(index)).thenReturn(item(id))
-        }
-        return player
-    }
+    ): Player = QueuePlayerFixture.playerOver(ids.map(::item), currentIndex)
 
     @Test
     fun `it takes the next three, and not the current one`() {
