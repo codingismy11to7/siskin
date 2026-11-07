@@ -141,7 +141,7 @@ public class ReplayGainUtil {
      */
     @VisibleForTesting
     public static DataSource.Factory prefetchDataSourceFactory(Context context) {
-        return new DynamicMediaSourceFactory(context).buildDataSourceFactory();
+        return new DynamicMediaSourceFactory(context, false).buildDataSourceFactory();
     }
 
     /**

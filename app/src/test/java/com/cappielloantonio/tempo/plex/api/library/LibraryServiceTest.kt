@@ -451,6 +451,52 @@ class LibraryServiceTest {
         }
 
     @Test
+    fun getMetadataWithRampsAsksForLoudnessRamps() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+            service().getMetadataWithRamps("270928")
+
+            val request = server.takeRequest()
+            assertEquals("/library/metadata/270928", request.requestUrl?.encodedPath)
+            assertEquals("1", request.requestUrl?.queryParameter("includeLoudnessRamps"))
+        }
+
+    @Test
+    fun anAudioStreamsRampsParse() =
+        runTest {
+            // Trimmed from a live PMS 1.43.5 answer with includeLoudnessRamps=1.
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    {"MediaContainer":{"size":1,"Metadata":[{"ratingKey":"270928","type":"track",
+                    "parentRatingKey":"270900","Media":[{"Part":[{"key":"/library/parts/1/file.mp3",
+                    "Stream":[{"streamType":2,"codec":"mp3",
+                    "startRamp":"-51.00 0.00;-17.99 0.30;-1.29 0.40;",
+                    "endRamp":"-51.00 0.17;-9.00 6.47;0.43 27.37;"}]}]}]}]}}
+                    """.trimIndent(),
+                ),
+            )
+
+            val stream =
+                service()
+                    .getMetadataWithRamps("270928")
+                    .mediaContainer!!
+                    .metadata!!
+                    .single()
+                    .media!!
+                    .single()
+                    .part!!
+                    .single()
+                    .stream!!
+                    .single()
+
+            assertEquals(2, stream.streamType)
+            assertEquals("-51.00 0.00;-17.99 0.30;-1.29 0.40;", stream.startRamp)
+            assertEquals("-51.00 0.17;-9.00 6.47;0.43 27.37;", stream.endRamp)
+        }
+
+    @Test
     fun getIdentityAsksTheServerForItsMachineIdentifier() =
         runTest {
             server.enqueue(
@@ -546,6 +592,7 @@ class LibraryServiceTest {
                 "getFirstCharacterContent",
                 "getByPath",
                 "getMetadataWithStations",
+                "getMetadataWithRamps",
                 "getIdentity",
                 "createPlayQueue",
                 "getPlayQueue",

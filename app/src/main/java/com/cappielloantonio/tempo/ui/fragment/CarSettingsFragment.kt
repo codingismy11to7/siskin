@@ -85,6 +85,12 @@ class CarSettingsFragment : Fragment() {
             Preferences.isReplayGainEnabled(),
         ) { Preferences.setReplayGainEnabled(it) }
 
+        addToggle(
+            rows,
+            getString(R.string.car_settings_crossfade),
+            Preferences.isCrossfadeEnabled(),
+        ) { Preferences.setCrossfadeEnabled(it) }
+
         // Invalidates the Artists tab as well as writing the key. The car
         // caches a browse list and does not re-fetch it on back-navigation, so
         // without this the tab keeps whichever shape it was first loaded with

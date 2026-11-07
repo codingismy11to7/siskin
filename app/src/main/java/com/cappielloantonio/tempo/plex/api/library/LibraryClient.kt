@@ -104,6 +104,9 @@ class LibraryClient(
         return plexCall(PlexHost.Server) { service.getMetadataWithStations(ratingKey.value) }
     }
 
+    suspend fun getMetadataWithRamps(ratingKey: RatingKey): Either<PlexTransportFailure, PlexResponse> =
+        plexCall(PlexHost.Server) { service.getMetadataWithRamps(ratingKey.value) }
+
     suspend fun getIdentity(): Either<PlexTransportFailure, PlexResponse> = plexCall(PlexHost.Server) { service.getIdentity() }
 
     suspend fun createPlayQueue(

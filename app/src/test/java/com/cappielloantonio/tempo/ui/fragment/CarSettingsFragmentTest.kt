@@ -85,6 +85,7 @@ class CarSettingsFragmentTest {
             .remove("select_library")
             .remove("streaming_cache_size")
             .remove("precache_tracks_count")
+            .remove("crossfade")
             .commit()
         BrowseTabOrderFixture.clearSavedOrder()
         session = CarHostTestFixture.arrange()
@@ -132,6 +133,8 @@ class CarSettingsFragmentTest {
 
     private fun replayGainSwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_replay_gain))
 
+    private fun crossfadeSwitch(view: View) = switchLabelled(view, App.getInstance().getString(R.string.car_settings_crossfade))
+
     private fun artistsByInitialSwitch(view: View) =
         switchLabelled(view, App.getInstance().getString(R.string.car_settings_artists_by_initial))
 
@@ -145,13 +148,15 @@ class CarSettingsFragmentTest {
     fun `settings offers every toggle at its default`() {
         val screen = settingsScreen()
 
-        assertEquals(6, switchesIn(screen).size)
+        assertEquals(7, switchesIn(screen).size)
         // The defaults differ, and each is a decision: continuous play is off
         // because reaching the end of a queue is not a request for more music,
         // and replay gain is off because a library carrying no ReplayGain tags
         // would pay the whole cost of the feature for none of its benefit.
         assertFalse(continuousPlaySwitch(screen).isChecked)
         assertFalse(replayGainSwitch(screen).isChecked)
+        // On, matching Plexamp.
+        assertTrue(crossfadeSwitch(screen).isChecked)
         // On, unlike its neighbours: #87 is unreleased, so there is no install
         // whose behaviour the default has to preserve.
         assertTrue(artistsByInitialSwitch(screen).isChecked)

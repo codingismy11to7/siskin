@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.plex.models
 
 import androidx.annotation.Keep
+import com.google.gson.annotations.SerializedName
 
 /**
  * One file backing a [Media]. [key] is the server-relative path that
@@ -14,4 +15,7 @@ class Part {
     var file: String? = null
     var size: Long? = null
     var container: String? = null
+
+    @SerializedName("Stream")
+    var stream: List<Stream>? = null
 }
