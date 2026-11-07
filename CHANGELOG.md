@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.4.1] (2026-11-06)
+
 - Radio is now the second tab and Artists the third, unless you've customized
   your tabs.
 
