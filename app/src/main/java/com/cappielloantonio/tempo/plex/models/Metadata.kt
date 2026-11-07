@@ -19,6 +19,7 @@ class Metadata {
     var key: String? = null
     var type: String? = null
     var title: String? = null
+    var guid: String? = null
 
     var parentRatingKey: String? = null
     var parentTitle: String? = null

@@ -13,8 +13,6 @@
     <string name="browse_now_browsing_no_server">Now browsing: %1$s</string>
     <string name="browse_playlists">Playlists</string>
     <string name="browse_select_library">Select Library</string>
-    <string name="browse_decades">Decades</string>
-    <string name="browse_mix_decade">Decade Mix</string>
     <string name="browse_discover">Discover</string>
     <string name="browse_mix_hub">Mix</string>
     <string name="browse_discover_empty">Nothing to suggest yet</string>
@@ -22,6 +20,7 @@
     <string name="browse_radio">Radio</string>
     <string name="browse_radio_empty">No stations on this server</string>
     <string name="browse_radio_empty_hint">This Plex server doesn\'t offer any</string>
+    <string name="browse_radio_directory_empty">No stations here</string>
 
     <!-- A proper noun. Marked non-translatable because every locale file used to
          carry an identical copy of it, which is what a translator does when handed

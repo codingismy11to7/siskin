@@ -49,15 +49,13 @@ class LibraryClient(
         size: Int,
         sort: String? = null,
         artistId: String? = null,
-        trackDecade: String? = null,
         albumDecade: String? = null,
         albumId: String? = null,
     ): Either<PlexTransportFailure, PlexResponse> {
         Log.d(
             TAG,
             "getSectionContent($sectionKey, type=$type, start=$start, size=$size, " +
-                "sort=$sort, artistId=$artistId, trackDecade=$trackDecade, " +
-                "albumDecade=$albumDecade, albumId=$albumId)",
+                "sort=$sort, artistId=$artistId, albumDecade=$albumDecade, albumId=$albumId)",
         )
         return plexCall(PlexHost.Server) {
             service.getSectionContent(
@@ -67,7 +65,6 @@ class LibraryClient(
                 size,
                 sort,
                 artistId,
-                trackDecade,
                 albumDecade,
                 albumId,
             )
@@ -113,18 +110,6 @@ class LibraryClient(
 
     suspend fun getSectionHubsWithStations(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> =
         plexCall(PlexHost.Server) { service.getSectionHubsWithStations(sectionKey.value) }
-
-    /**
-     * The decades this section's albums fall into. Always asks for
-     * [PlexItemType.ALBUM] -- see [LibraryService.getDecades] for why no other
-     * type has an answer.
-     */
-    suspend fun getDecades(sectionKey: SectionKey): Either<PlexTransportFailure, PlexResponse> {
-        Log.d(TAG, "getDecades($sectionKey)")
-        return plexCall(PlexHost.Server) {
-            service.getDecades(sectionKey.value, PlexItemType.ALBUM)
-        }
-    }
 
     /**
      * The first-character buckets this section's artists fall into. Always asks
@@ -256,8 +241,8 @@ class LibraryClient(
         const val SORT_DISPLAY_TITLE = "title"
 
         /**
-         * Server-side shuffle, for continuous play's random tier and for the
-         * decade track fetch.
+         * Server-side shuffle, for continuous play's random tier, Mix track
+         * fetches and the decade composite's album draw.
          */
         const val SORT_RANDOM = "random"
 

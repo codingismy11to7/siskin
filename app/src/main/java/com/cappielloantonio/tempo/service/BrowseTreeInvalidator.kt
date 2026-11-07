@@ -169,7 +169,7 @@ object BrowseTreeInvalidator {
      * docs/decisions/2026-08-14-customizable-browse-tabs-design.md), the
      * three root tabs are whatever [BrowseTabOrder.resolve] returns for the
      * saved order, not a hardcoded Playlists/Artists/Albums -- a promoted
-     * destination like Discover or Decades has to be invalidated exactly
+     * destination like Discover or Albums has to be invalidated exactly
      * like the tabs it displaced, or it keeps showing the signed-out info
      * row after a sign-in until the user navigates away and back.
      *

@@ -67,7 +67,6 @@ class LibraryServiceTest {
                 size = 50,
                 sort = "titleSort",
                 artistId = "15100",
-                trackDecade = null,
                 albumDecade = null,
                 albumId = null,
             )
@@ -144,48 +143,7 @@ class LibraryServiceTest {
             val url = server.takeRequest().requestUrl!!
             assertEquals("/hubs/sections/1", url.encodedPath)
             assertEquals("1", url.queryParameter("includeStations"))
-        }
-
-    @Test
-    fun getDecadesAsksTheSectionsDecadeIndexForAlbums() =
-        runTest {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-
-            service().getDecades(sectionId = "4", type = 9)
-
-            val request = server.takeRequest()
-            assertEquals("/library/sections/4/decade", request.requestUrl?.encodedPath)
-            // type=9 (album) is the only type with a decade filter at all. Measured
-            // against PMS 1.43.3: filters?type=10 lists mood, genre, userRating and
-            // audioCodec, and nothing else.
-            assertEquals("9", request.requestUrl?.queryParameter("type"))
-        }
-
-    @Test
-    fun getSectionContentFiltersTracksOnAlbumDecadeNotDecade() =
-        runTest {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-
-            service().getSectionContent(
-                sectionId = "4",
-                type = 10,
-                start = 0,
-                size = 500,
-                sort = "random",
-                artistId = null,
-                trackDecade = "1980",
-                albumDecade = null,
-                albumId = null,
-            )
-
-            val request = server.takeRequest()
-            // album.decade, with the dot. Measured against PMS 1.43.3: a bare
-            // `decade=1980` on type=10 answers 200 with ZERO results rather than
-            // erroring, so the misspelling renders an empty list and reads as an
-            // empty library. `year=1985` fails the same way.
-            assertEquals("1980", request.requestUrl?.queryParameter("album.decade"))
-            assertNull(request.requestUrl?.queryParameter("decade"))
-            assertEquals("random", request.requestUrl?.queryParameter("sort"))
+            assertEquals("1", url.queryParameter("includeStationDirectories"))
         }
 
     @Test
@@ -200,16 +158,12 @@ class LibraryServiceTest {
                 size = 8,
                 sort = "random",
                 artistId = null,
-                trackDecade = null,
                 albumDecade = "1980",
                 albumId = null,
             )
 
             val request = server.takeRequest()
-            // A bare `decade`, no dot. An album's decade is its own field, unlike a
-            // track's, which belongs to the parent album -- the server says so itself
-            // in the fastKey it returns on every decade entry:
-            // /library/sections/4/all?decade=1980&type=9
+            // A bare `decade`, no dot: an album's decade is its own field.
             assertEquals("1980", request.requestUrl?.queryParameter("decade"))
             assertNull(request.requestUrl?.queryParameter("album.decade"))
             assertEquals("9", request.requestUrl?.queryParameter("type"))
@@ -227,9 +181,8 @@ class LibraryServiceTest {
             val request = server.takeRequest()
             assertEquals("/library/sections/4/firstCharacter", request.requestUrl?.encodedPath)
             assertEquals("8", request.requestUrl?.queryParameter("type"))
-            // Bounded by the number of distinct initials in a library, like the
-            // decade index -- so no Start/Size, and their absence is asserted rather
-            // than assumed.
+            // Bounded by the number of distinct initials in a library -- so no
+            // Start/Size, and their absence is asserted rather than assumed.
             assertNull(request.getHeader("X-Plex-Container-Start"))
             assertNull(request.getHeader("X-Plex-Container-Size"))
         }
@@ -313,7 +266,6 @@ class LibraryServiceTest {
                 10,
                 0,
                 500,
-                null,
                 null,
                 null,
                 null,
@@ -527,7 +479,6 @@ class LibraryServiceTest {
                 "getMetadata",
                 "getSectionHubs",
                 "getSectionHubsWithStations",
-                "getDecades",
                 "getFirstCharacters",
                 "getFirstCharacterContent",
                 "getByPath",

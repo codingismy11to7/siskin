@@ -97,20 +97,20 @@ class BrowseTreeInvalidatorTest {
     fun `invalidateTree notifies a promoted destination instead of the tab it displaced`() {
         // Regression guard for the bug this fix closes: the old
         // implementation hardcoded Playlists/Artists/Albums/More, so a
-        // destination promoted into the top three -- Decades here -- was
+        // destination promoted into the top three -- Discover here -- was
         // never in that list and never got notified. It would keep
         // rendering the signed-out info row after a sign-in until the user
         // navigated away and back. This must fail if the ids are hardcoded
         // again.
         Preferences.setBrowseTabOrder(
-            listOf(Constants.DECADES_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
+            listOf(Constants.DISCOVER_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
         )
 
         BrowseTreeInvalidator.invalidateTree()
         idleMainLooper()
 
         verify(session).notifyChildrenChanged(eq(Constants.ROOT_ID), any(), eq(null))
-        verify(session).notifyChildrenChanged(eq(Constants.DECADES_ID), any(), eq(null))
+        verify(session).notifyChildrenChanged(eq(Constants.DISCOVER_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.ARTISTS_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.ALBUMS_ID), any(), eq(null))
         verify(session).notifyChildrenChanged(eq(Constants.MORE_ID), any(), eq(null))

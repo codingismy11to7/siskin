@@ -175,22 +175,6 @@ class PlexBrowseMixSourceTest {
         }
 
     @Test
-    fun `a decade mix asks for the limit and never probes`() =
-        runTest {
-            val sizes = mutableListOf<String?>()
-            routeBy { request ->
-                sizes += request.getHeader("X-Plex-Container-Size")
-                MockResponse().setResponseCode(200).setBody(emptyTracks)
-            }
-
-            PlexBrowseRepository().getDecadeTracksForShuffle("scope|1980").get()
-
-            // One request. Both branches of the rule are sort=random here, so a
-            // probe could not change what is asked for.
-            assertEquals(listOf("2500"), sizes)
-        }
-
-    @Test
     fun `a hub mix asks for the limit`() =
         runTest {
             val sizes = mutableListOf<String?>()

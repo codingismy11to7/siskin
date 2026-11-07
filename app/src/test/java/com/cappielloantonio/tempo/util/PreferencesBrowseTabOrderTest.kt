@@ -32,7 +32,7 @@ class PreferencesBrowseTabOrderTest {
     fun `the setter round-trips order faithfully`() {
         val order =
             listOf(
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
                 Constants.ALBUMS_ID,
                 Constants.ARTISTS_ID,
                 Constants.PLAYLIST_ID,

@@ -32,7 +32,7 @@ class BrowseTabOrderMoveTest {
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
             )
 
         BrowseTabOrderFragment.moveAndPersist(order, 0, 2)
@@ -42,7 +42,7 @@ class BrowseTabOrderMoveTest {
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
                 Constants.PLAYLIST_ID,
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
             ),
             order,
         )
@@ -55,12 +55,12 @@ class BrowseTabOrderMoveTest {
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
             )
 
         BrowseTabOrderFragment.moveAndPersist(order, 3, 0)
 
-        assertEquals(Constants.DECADES_ID, order[0])
+        assertEquals(Constants.DISCOVER_ID, order[0])
         // Moving the last row to the front shifts everything else back by one,
         // so Albums -- previously inside ROOT_TAB_COUNT -- is what lands on
         // the wrong side of the line and becomes a More row.

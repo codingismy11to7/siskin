@@ -38,7 +38,7 @@ class BrowseTabOrderWatcherTest {
     fun `writes within the window produce one call once they settle`() {
         Preferences.setBrowseTabOrder(listOf(Constants.ALBUMS_ID, Constants.PLAYLIST_ID))
         advance(BrowseTabOrderWatcher.DEBOUNCE_MS - 100)
-        Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID, Constants.ALBUMS_ID))
+        Preferences.setBrowseTabOrder(listOf(Constants.DISCOVER_ID, Constants.ALBUMS_ID))
         advance(BrowseTabOrderWatcher.DEBOUNCE_MS - 100)
         assertEquals(0, calls)
 
@@ -66,7 +66,7 @@ class BrowseTabOrderWatcherTest {
     fun `a second change after the first settles is reported again`() {
         Preferences.setBrowseTabOrder(listOf(Constants.ALBUMS_ID))
         advance(BrowseTabOrderWatcher.DEBOUNCE_MS * 2)
-        Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID))
+        Preferences.setBrowseTabOrder(listOf(Constants.DISCOVER_ID))
         advance(BrowseTabOrderWatcher.DEBOUNCE_MS * 2)
         assertEquals(2, calls)
     }
@@ -77,7 +77,7 @@ class BrowseTabOrderWatcherTest {
         advance(BrowseTabOrderWatcher.DEBOUNCE_MS - 100)
         watcher.stop()
         advance(BrowseTabOrderWatcher.DEBOUNCE_MS * 2)
-        Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID))
+        Preferences.setBrowseTabOrder(listOf(Constants.DISCOVER_ID))
         advance(BrowseTabOrderWatcher.DEBOUNCE_MS * 2)
         assertEquals(0, calls)
     }

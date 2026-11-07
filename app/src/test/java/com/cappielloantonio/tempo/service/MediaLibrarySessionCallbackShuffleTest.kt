@@ -16,7 +16,6 @@ import com.cappielloantonio.tempo.repository.PlexBrowseRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.repository.SessionMediaItemRepository
 import com.cappielloantonio.tempo.util.Constants
-import com.cappielloantonio.tempo.util.DecadeKey
 import com.cappielloantonio.tempo.util.HubKey
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -136,93 +135,6 @@ class MediaLibrarySessionCallbackShuffleTest {
         )
 
         assertShuffleUntouched()
-    }
-
-    /** The decade Mix is the third, and dispatches on its own prefix. */
-    @Test
-    fun tappingADecadeMixLeavesShuffleAlone() {
-        whenever(browseRepository.getDecadeTracksForShuffle(DECADE))
-            .thenReturn(itemList(albumTracks("1", "2", "3", "4")))
-
-        setMediaItems(
-            MediaItem
-                .Builder()
-                .setMediaId(Constants.MIX_DECADE_ID + DECADE)
-                .build(),
-        )
-
-        assertShuffleUntouched()
-    }
-
-    /**
-     * The redundant-fetch fix: the list on screen was already served through
-     * `onGetChildren`, which cached it under `QUEUE_CACHED_SOURCE`. Tapping
-     * the decade Mix right after browsing it must replay that list
-     * rather than draw a second uniform random 500 -- statistically identical
-     * for the tap, but ~300ms of dead air and a queue that does not match what
-     * was on screen.
-     *
-     * Compared as a multiset, not a sequence: the cache hit feeds the same
-     * `.shuffled()` every Mix goes through, so the queue is those tracks in a
-     * different order. Which tracks is the claim here; that they are reordered
-     * is pinned over thirty of them elsewhere in this class, where `.shuffled()`
-     * returning the identity permutation is not a one-in-24 flake.
-     */
-    @Test
-    fun `tapping a decade Mix row after browsing it serves the cached list`() {
-        val tracks = albumTracks("1", "2", "3", "4")
-        browseDecade(DECADE, tracks)
-
-        val result = setMediaItems(decadeMixRow(DECADE))
-
-        assertEquals(
-            tracks.map { it.mediaId }.sorted(),
-            result.mediaItems.map { it.mediaId }.sorted(),
-        )
-        verify(browseRepository, never()).getDecadeTracksForShuffle(DECADE)
-    }
-
-    /**
-     * The Mix row itself is playable but has no stream -- it exists to be
-     * tapped, not to be queued. A queue that kept it would "play" a track that
-     * does not exist. `drop(1)` on the cache hit path has to remove exactly it.
-     */
-    @Test
-    fun `the cached decade Mix queue excludes the Mix row`() {
-        val tracks = albumTracks("1", "2", "3", "4")
-        browseDecade(DECADE, tracks)
-
-        val result = setMediaItems(decadeMixRow(DECADE))
-
-        assertTrue(
-            "queue must not contain the Mix row: ${result.mediaItems.map { it.mediaId }}",
-            result.mediaItems.none { it.mediaId == Constants.MIX_DECADE_ID + DECADE },
-        )
-    }
-
-    /**
-     * `queueSourceCache` is a single slot keyed by one constant, so it can hold
-     * any node's most recent list -- here, a different decade's. The guard has
-     * to notice that and fall back to a fresh fetch rather than queue the wrong
-     * decade's tracks. Seeded by actually browsing the other decade, the same
-     * way a real stale cache would arise, rather than by reaching into the
-     * cache directly.
-     */
-    @Test
-    fun `tapping a decade Mix row with a mismatched cache falls back to the repository`() {
-        browseDecade(OTHER_DECADE, albumTracks("9"))
-        val freshTracks = albumTracks("1", "2", "3", "4")
-        whenever(browseRepository.getDecadeTracksForShuffle(DECADE))
-            .thenReturn(itemList(freshTracks))
-
-        val result = setMediaItems(decadeMixRow(DECADE))
-
-        verify(browseRepository).getDecadeTracksForShuffle(DECADE)
-        // A multiset, for the same reason as the cache-hit test above.
-        assertEquals(
-            freshTracks.map { it.mediaId }.sorted(),
-            result.mediaItems.map { it.mediaId }.sorted(),
-        )
     }
 
     /**
@@ -379,10 +291,9 @@ class MediaLibrarySessionCallbackShuffleTest {
     /**
      * The hub Mix's cache hit: the ids of the containers already on screen,
      * expanded to tracks in one request rather than following the hub's key a
-     * second time. Unlike the decade cache hit, this still issues a request --
-     * see `MediaLibrarySessionCallback.cachedHubTracks`'s KDoc for why a hub's
-     * browse list (albums and artists) cannot be replayed the way a decade's
-     * (tracks) can.
+     * second time. This still issues a request -- see
+     * `MediaLibrarySessionCallback.cachedHubTracks`'s KDoc for why a hub's
+     * browse list (albums and artists) cannot be replayed as a queue.
      *
      * Both container kinds on screen at once, not just albums: Plex's
      * `music.vault` and `music.recent.played` hubs are `type=artist`, so the
@@ -477,6 +388,31 @@ class MediaLibrarySessionCallbackShuffleTest {
         verify(browseRepository).getHubTracksForShuffle(hubKey)
     }
 
+    /**
+     * A Mix kind this build has dropped, still on a car's screen from before
+     * the upgrade. Treated as a track it would be handed to the player with no
+     * stream and saved as the whole queue, so it is refused before either.
+     */
+    @Test
+    fun `a Mix row of a kind this build no longer has is refused without touching the queue`() {
+        val stale = mixRow("[shuffleDecadeID]abc123-7|1980")
+
+        mockConstruction(QueueRepository::class.java).use { construction ->
+            val set =
+                assertThrows(ExecutionException::class.java) {
+                    callback.onSetMediaItems(session, controller, listOf(stale), C.INDEX_UNSET, C.TIME_UNSET).get()
+                }
+            val add =
+                assertThrows(ExecutionException::class.java) {
+                    callback.onAddMediaItems(session, controller, listOf(stale)).get()
+                }
+
+            assertTrue(set.cause is UnsupportedOperationException)
+            assertTrue(add.cause is UnsupportedOperationException)
+            assertTrue(construction.constructed().isEmpty())
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────
 
     private fun setMediaItems(tapped: MediaItem): MediaSession.MediaItemsWithStartPosition =
@@ -518,8 +454,9 @@ class MediaLibrarySessionCallbackShuffleTest {
 
     /**
      * Built with the same [PlexMediaMapper.mixRowToMediaItem] the real row
-     * uses, for the same reason [decadeMixRow] is: [browseHub] runs it through
-     * `LibraryResult.ofItemList`, which requires `isBrowsable` on every item.
+     * uses, not a bare `MediaItem.Builder()`: [browseHub] runs it through
+     * `LibraryResult.ofItemList`, which requires `isBrowsable` to be set on
+     * every item, and a bare builder trips that check.
      */
     private fun hubMixRow(hubKey: String) = PlexMediaMapper.mixRowToMediaItem(Constants.MIX_HUB_ID + hubKey, "Hub Mix")
 
@@ -552,48 +489,11 @@ class MediaLibrarySessionCallbackShuffleTest {
             ).build()
 
     /**
-     * Built with the same [PlexMediaMapper.mixRowToMediaItem] the real row
-     * uses, not a bare `MediaItem.Builder()`: [browseDecade] runs the row
-     * through `LibraryResult.ofItemList`, which requires `isBrowsable` to be
-     * set on every item, and a bare builder trips that check.
-     */
-    private fun decadeMixRow(decade: String) = PlexMediaMapper.mixRowToMediaItem(Constants.MIX_DECADE_ID + decade, "Decade Mix")
-
-    /**
-     * What a real browse of a decade leaves in `queueSourceCache`: the shuffle
-     * row at index 0, then its tracks -- see
-     * `PlexBrowseRepository.getDecadeTracks`. Driving it through
-     * `onGetChildren`, the way `MediaLibrarySessionCallbackStartIndexTest`'s
-     * `browseAlbum` does, rather than reaching into the private top-level cache
-     * directly.
-     */
-    private fun browseDecade(
-        decade: String,
-        tracks: List<MediaItem>,
-    ) {
-        whenever(browseRepository.getDecadeTracks(decade))
-            .thenReturn(itemList(listOf(decadeMixRow(decade)) + tracks))
-
-        val children =
-            callback
-                .onGetChildren(
-                    mock<MediaLibraryService.MediaLibrarySession>(),
-                    controller,
-                    Constants.DECADE_ID + decade,
-                    0,
-                    Constants.MAX_ITEMS,
-                    null,
-                ).get()
-
-        assertEquals(LibraryResult.RESULT_SUCCESS, children.resultCode)
-    }
-
-    /**
      * What a real browse of a hub leaves in `queueSourceCache`: the Mix row
      * at index 0, then its containers -- see
      * `PlexBrowseRepository.getHubContent`. Driven through `onGetChildren`,
-     * the way [browseDecade] drives a decade, rather than by reaching into
-     * the private top-level cache directly.
+     * the way `MediaLibrarySessionCallbackStartIndexTest`'s `browseAlbum`
+     * does, rather than by reaching into the private top-level cache directly.
      */
     private fun browseHub(
         hubKey: String,
@@ -657,16 +557,6 @@ class MediaLibrarySessionCallbackShuffleTest {
         const val SERVER = "https://plex.example"
         const val ARTIST = "7"
         const val PLAYLIST = "88"
-
-        /**
-         * Whole DecadeKey payloads -- library and decade -- because that is
-         * what a decade row's media id carries and therefore all the callback
-         * ever sees. It never splits one, so these are opaque to it; written
-         * in their real shape rather than as a bare "1980" so the guard below
-         * is exercised on the string the car actually sends.
-         */
-        val DECADE = DecadeKey.of("abc123def456-4", "1980")
-        val OTHER_DECADE = DecadeKey.of("abc123def456-4", "1970")
 
         /** Sibling group the cached tracks share -- see SessionMediaItemRepository. */
         const val GROUP = 1_700_000_000_000L

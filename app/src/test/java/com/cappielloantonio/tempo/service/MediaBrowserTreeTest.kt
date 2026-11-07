@@ -266,7 +266,7 @@ class MediaBrowserTreeTest {
     @Test
     fun moreOffersAlbumsThenDiscover() {
         assertEquals(
-            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID, Constants.DECADES_ID),
+            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID),
             BrowseTabOrderFixture.moreChildren(),
         )
     }
@@ -280,7 +280,6 @@ class MediaBrowserTreeTest {
             listOf(
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
-                Constants.DECADES_ID,
                 Constants.SELECT_LIBRARY_ID,
             ),
             BrowseTabOrderFixture.moreChildren(),
@@ -316,26 +315,6 @@ class MediaBrowserTreeTest {
                 .getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE)
 
         assertEquals(BrowseContentStyle.browsableChildStyle(false), style)
-    }
-
-    @Test
-    fun theDecadesRowIsBrowsableAndNotPlayable() {
-        val item = MediaBrowserTree.getItem(Constants.DECADES_ID)!!
-
-        assertEquals(true, item.mediaMetadata.isBrowsable)
-        assertEquals(false, item.mediaMetadata.isPlayable)
-    }
-
-    @Test
-    fun theDecadesNodeAsksForAGridNowThatItsRowsHaveArtwork() {
-        val item = MediaBrowserTree.getItem(Constants.DECADES_ID)!!
-
-        assertEquals(
-            BrowseContentStyle.browsableChildStyle(true),
-            item.mediaMetadata.extras!!.getInt(
-                MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-            ),
-        )
     }
 
     @Test
@@ -378,13 +357,9 @@ class MediaBrowserTreeTest {
         )
 
         // Their children are window rows carrying no artwork of their own; a grid
-        // of placeholders is worse than a list.
-        //
-        // The Decades node next door asks for the opposite, and the two do not
-        // contradict each other: a decade row wears a composite tiled from four
-        // real covers, so a grid there shows something. A window row has nothing
-        // but the range it spans ("Beck  -  Cake"), which is text, and text reads
-        // better in a list.
+        // of placeholders is worse than a list. A window row has nothing but the
+        // range it spans ("Beck  -  Cake"), which is text, and text reads better
+        // in a list.
         //
         // Flip the setting for this second block so the two blocks actually
         // cover both values -- otherwise both would run under `true` (the
@@ -452,15 +427,14 @@ class MediaBrowserTreeTest {
     }
 
     /**
-     * The saved order decides the root. Decades is promoted from More and
-     * Playlists demoted into it, which is the swap measured on the emulator --
-     * see the spec's "What was measured".
+     * The saved order decides the root: Discover is promoted from More and
+     * Playlists demoted into it.
      */
     @Test
     fun `a saved order decides which three ids are tabs and their order`() {
         Preferences.setBrowseTabOrder(
             listOf(
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
                 Constants.ALBUMS_ID,
                 Constants.ARTISTS_ID,
                 Constants.PLAYLIST_ID,
@@ -477,7 +451,7 @@ class MediaBrowserTreeTest {
 
         assertEquals(
             listOf(
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
                 Constants.ALBUMS_ID,
                 Constants.ARTISTS_ID,
                 Constants.MORE_ID,
@@ -487,16 +461,15 @@ class MediaBrowserTreeTest {
     }
 
     /**
-     * The saved order here predates Radio and Discover, so resolve() appends
-     * them in default order -- which is why they follow Playlists rather than
-     * leading More. That is the
-     * upgrade case the spec describes, arriving at the tree.
+     * The saved order here predates Radio, so resolve() appends it -- which is
+     * why it follows Playlists rather than leading More. That is the upgrade
+     * case the spec describes, arriving at the tree.
      */
     @Test
     fun `More holds what the order left over, with Select Library pinned last`() {
         Preferences.setBrowseTabOrder(
             listOf(
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
                 Constants.ALBUMS_ID,
                 Constants.ARTISTS_ID,
                 Constants.PLAYLIST_ID,
@@ -509,7 +482,6 @@ class MediaBrowserTreeTest {
             listOf(
                 Constants.PLAYLIST_ID,
                 Constants.RADIO_ID,
-                Constants.DISCOVER_ID,
                 Constants.SELECT_LIBRARY_ID,
             ),
             BrowseTabOrderFixture.moreChildren(),
@@ -531,7 +503,6 @@ class MediaBrowserTreeTest {
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
-                Constants.DECADES_ID,
             ),
         )
         Preferences.setSelectLibraryEnabled(true)
@@ -556,7 +527,6 @@ class MediaBrowserTreeTest {
         assertEquals(
             listOf(
                 Constants.ALBUMS_ID,
-                Constants.DECADES_ID,
                 Constants.RADIO_ID,
                 Constants.SELECT_LIBRARY_ID,
             ),
@@ -581,8 +551,8 @@ class MediaBrowserTreeTest {
     @Test
     fun `More is always the fourth tab and never itself reorderable`() {
         listOf(
-            listOf(Constants.DECADES_ID, Constants.PLAYLIST_ID, Constants.ALBUMS_ID),
-            listOf(Constants.ALBUMS_ID, Constants.ARTISTS_ID, Constants.DECADES_ID),
+            listOf(Constants.DISCOVER_ID, Constants.PLAYLIST_ID, Constants.ALBUMS_ID),
+            listOf(Constants.ALBUMS_ID, Constants.ARTISTS_ID, Constants.DISCOVER_ID),
             emptyList(),
         ).forEach { order ->
             Preferences.setBrowseTabOrder(order)
@@ -602,25 +572,24 @@ class MediaBrowserTreeTest {
 
     /**
      * Promotion must be free: a destination carries its own presentation
-     * wherever it sits. Measured on the emulator -- Decades at root position 0
-     * rendered as a grid with its composite artwork -- and pinned here so a
-     * refactor cannot quietly tie style to position.
+     * wherever it sits, pinned here so a refactor cannot quietly tie style to
+     * position.
      */
     @Test
     fun `a promoted destination keeps its own content style and media type`() {
-        Preferences.setBrowseTabOrder(listOf(Constants.DECADES_ID))
+        Preferences.setBrowseTabOrder(listOf(Constants.DISCOVER_ID))
         MediaBrowserTree.buildTree()
 
-        val decades = MediaBrowserTree.getItem(Constants.DECADES_ID)!!
+        val discover = MediaBrowserTree.getItem(Constants.DISCOVER_ID)!!
         assertEquals(
-            BrowseContentStyle.browsableChildStyle(true),
-            decades.mediaMetadata.extras!!.getInt(
+            BrowseContentStyle.browsableChildStyle(false),
+            discover.mediaMetadata.extras!!.getInt(
                 MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
             ),
         )
         assertEquals(
             MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
-            decades.mediaMetadata.mediaType,
+            discover.mediaMetadata.mediaType,
         )
     }
 }

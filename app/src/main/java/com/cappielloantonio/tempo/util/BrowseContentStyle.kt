@@ -22,7 +22,8 @@ import androidx.media3.session.MediaConstants
 @OptIn(UnstableApi::class)
 object BrowseContentStyle {
     /**
-     * Playable children are always tracks, and tracks are always a list.
+     * Playable children are tracks, and tracks are always a list -- except under
+     * Decade Radio, see [STATION_GRID_STYLE].
      *
      * A track grid is four tiles across, so it fits a single row per screen
      * where a list fits five — and every tile carries the same album cover,
@@ -31,6 +32,13 @@ object BrowseContentStyle {
      * grid is worst at.
      */
     const val PLAYABLE_CHILD_STYLE = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM
+
+    /**
+     * Decade Radio's stations, which are playable but each wear a composite of
+     * that decade's covers, so the art differs tile to tile. See
+     * docs/decisions/2026-11-06-station-directories-design.md.
+     */
+    const val STATION_GRID_STYLE = MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM
 
     /**
      * Browsable children follow the node's preference: albums and artists carry

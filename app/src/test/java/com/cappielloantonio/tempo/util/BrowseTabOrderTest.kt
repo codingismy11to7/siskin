@@ -22,7 +22,6 @@ class BrowseTabOrderTest {
         // -- a save missing one is the append case below, not this one.
         val saved =
             listOf(
-                Constants.DECADES_ID,
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
                 Constants.ARTISTS_ID,
@@ -37,7 +36,6 @@ class BrowseTabOrderTest {
     fun `an order saved before Radio shipped gets it last, keeping the chosen tabs`() {
         val saved =
             listOf(
-                Constants.DECADES_ID,
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
                 Constants.ARTISTS_ID,
@@ -76,7 +74,7 @@ class BrowseTabOrderTest {
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
             )
 
         val resolved = BrowseTabOrder.resolve(saved, known)
@@ -86,9 +84,19 @@ class BrowseTabOrderTest {
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
                 Constants.PLAYLIST_ID,
-                Constants.DECADES_ID,
+                Constants.DISCOVER_ID,
             ),
             resolved,
+        )
+    }
+
+    @Test
+    fun `an order saved while Decades existed drops it and keeps the rest`() {
+        val saved = listOf("[decadesID]", Constants.ALBUMS_ID, Constants.PLAYLIST_ID)
+
+        assertEquals(
+            listOf(Constants.ALBUMS_ID, Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.RADIO_ID, Constants.DISCOVER_ID),
+            BrowseTabOrder.resolve(saved),
         )
     }
 
@@ -112,7 +120,7 @@ class BrowseTabOrderTest {
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
-            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID, Constants.DECADES_ID),
+            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID),
             BrowseTabOrder.moreRows(resolved),
         )
     }
@@ -145,30 +153,28 @@ class BrowseTabOrderTest {
                 Constants.RADIO_ID,
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
-                Constants.DECADES_ID,
             ),
             BrowseTabOrder.DEFAULT_ORDER,
         )
     }
 
     /**
-     * The asymmetry the spec accepts, pinned so it is not "fixed" later. A
-     * fresh install gets Discover fourth, ahead of Decades; someone who saved
-     * an order before Discover shipped gets it *last*, behind Decades. Both are
-     * this one rule, and the alternative -- inserting it at its default rank --
-     * would demote whichever tab the user had deliberately chosen third.
+     * The asymmetry the spec accepts, pinned so it is not "fixed" later. Ids a
+     * save does not know get appended behind everything the user saved, in
+     * default order. Radio is the id whose default rank (third) differs from
+     * where it lands (after the saved tabs); inserting it at that rank would
+     * demote whichever tab the user had deliberately chosen there.
      */
     @Test
-    fun `an order saved before Discover shipped gets it last, not fourth`() {
-        val savedBeforeDiscover =
+    fun `ids added after a save are appended behind it, not inserted at their default rank`() {
+        val saved =
             listOf(
                 Constants.PLAYLIST_ID,
                 Constants.ARTISTS_ID,
                 Constants.ALBUMS_ID,
-                Constants.DECADES_ID,
             )
 
-        val resolved = BrowseTabOrder.resolve(savedBeforeDiscover)
+        val resolved = BrowseTabOrder.resolve(saved)
 
         assertEquals(Constants.DISCOVER_ID, resolved.last())
         // The three tabs the user had are untouched, which is the whole point.
@@ -177,7 +183,7 @@ class BrowseTabOrderTest {
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
-            listOf(Constants.DECADES_ID, Constants.RADIO_ID, Constants.DISCOVER_ID),
+            listOf(Constants.RADIO_ID, Constants.DISCOVER_ID),
             BrowseTabOrder.moreRows(resolved),
         )
     }
