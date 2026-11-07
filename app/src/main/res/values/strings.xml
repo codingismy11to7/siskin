@@ -18,6 +18,8 @@
     <string name="browse_discover_empty">Nothing to suggest yet</string>
     <string name="browse_discover_empty_hint">Play some music and check back</string>
     <string name="browse_radio">Radio</string>
+    <string name="browse_folders">Folders</string>
+    <string name="browse_folder_empty">This folder is empty</string>
     <string name="browse_radio_empty">No stations on this server</string>
     <string name="browse_radio_empty_hint">This Plex server doesn\'t offer any</string>
     <string name="browse_radio_directory_empty">No stations here</string>

@@ -554,7 +554,9 @@ object PlexMediaMapper {
      * pass none, because every window holds WINDOW_SIZE items but the last.
      *
      * Its children *are* artists or albums, so this sets the browsable content
-     * style -- those children render as a grid.
+     * style -- those children render as a grid unless [childrenAsGrid] is
+     * false, which folder levels pass because their children are named by
+     * their on-disk name alone.
      *
      * Otherwise this largely re-implements [browsableItem]; the one deliberate
      * difference from it is that EXTRAS_KEY_CONTENT_STYLE_PLAYABLE is not set
@@ -566,12 +568,13 @@ object PlexMediaMapper {
         title: String,
         icon: Int,
         subtitle: String? = null,
+        childrenAsGrid: Boolean = true,
     ): MediaItem {
         val extras =
             Bundle().apply {
                 putInt(
                     MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE,
-                    BrowseContentStyle.browsableChildStyle(true),
+                    BrowseContentStyle.browsableChildStyle(childrenAsGrid),
                 )
             }
 

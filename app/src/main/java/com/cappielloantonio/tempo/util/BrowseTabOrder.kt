@@ -40,6 +40,7 @@ object BrowseTabOrder {
             Constants.RADIO_ID,
             Constants.ALBUMS_ID,
             Constants.DISCOVER_ID,
+            Constants.FOLDERS_ID,
         )
 
     /**

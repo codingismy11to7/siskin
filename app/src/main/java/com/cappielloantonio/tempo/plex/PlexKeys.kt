@@ -18,3 +18,13 @@ value class SectionKey(
 value class RatingKey(
     val value: String,
 )
+
+/**
+ * Which folder level of a section, as the `parent` of `/library/sections/{id}/folder`.
+ * The community API spec warns it is not a rating key, which is the swap [RatingKey]
+ * already exists to stop compiling.
+ */
+@JvmInline
+value class FolderToken(
+    val value: String,
+)

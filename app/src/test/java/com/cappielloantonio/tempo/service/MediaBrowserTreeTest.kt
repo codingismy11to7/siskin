@@ -264,9 +264,9 @@ class MediaBrowserTreeTest {
     }
 
     @Test
-    fun moreOffersAlbumsThenDiscover() {
+    fun moreOffersAlbumsThenDiscoverThenFolders() {
         assertEquals(
-            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID),
+            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID, Constants.FOLDERS_ID),
             BrowseTabOrderFixture.moreChildren(),
         )
     }
@@ -280,6 +280,7 @@ class MediaBrowserTreeTest {
             listOf(
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
+                Constants.FOLDERS_ID,
                 Constants.SELECT_LIBRARY_ID,
             ),
             BrowseTabOrderFixture.moreChildren(),
@@ -482,6 +483,7 @@ class MediaBrowserTreeTest {
             listOf(
                 Constants.PLAYLIST_ID,
                 Constants.RADIO_ID,
+                Constants.FOLDERS_ID,
                 Constants.SELECT_LIBRARY_ID,
             ),
             BrowseTabOrderFixture.moreChildren(),
@@ -493,7 +495,7 @@ class MediaBrowserTreeTest {
      * order feature had to preserve when Discover landed beside it: promoted to
      * position 0 it is a root tab, it leaves More entirely, and it keeps the
      * list styling its own node declares. The default case -- Discover as
-     * More's second row, behind Albums -- is covered by moreOffersAlbumsThenDiscover above.
+     * More's second row, behind Albums -- is covered by moreOffersAlbumsThenDiscoverThenFolders above.
      */
     @Test
     fun `Discover is reorderable like any other destination`() {
@@ -528,6 +530,7 @@ class MediaBrowserTreeTest {
             listOf(
                 Constants.ALBUMS_ID,
                 Constants.RADIO_ID,
+                Constants.FOLDERS_ID,
                 Constants.SELECT_LIBRARY_ID,
             ),
             BrowseTabOrderFixture.moreChildren(),
@@ -591,5 +594,19 @@ class MediaBrowserTreeTest {
             MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
             discover.mediaMetadata.mediaType,
         )
+    }
+
+    @Test
+    fun `folder ids reach the repository with their payloads`() {
+        val repository = mock<PlexBrowseRepository>()
+        MediaBrowserTree.initialize(RuntimeEnvironment.getApplication(), repository)
+
+        MediaBrowserTree.getChildren(Constants.FOLDERS_ID)
+        MediaBrowserTree.getChildren(Constants.FOLDER_ID + "s-1|42")
+        MediaBrowserTree.getChildren(Constants.FOLDER_WINDOW_ID + "s-1|42|50")
+
+        verify(repository).getFolderRoot()
+        verify(repository).getFolder("s-1|42")
+        verify(repository).getFolderWindow("s-1|42|50")
     }
 }

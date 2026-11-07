@@ -27,6 +27,7 @@ class BrowseTabOrderTest {
                 Constants.ARTISTS_ID,
                 Constants.PLAYLIST_ID,
                 Constants.RADIO_ID,
+                Constants.FOLDERS_ID,
             )
 
         assertEquals(saved, BrowseTabOrder.resolve(saved))
@@ -42,7 +43,7 @@ class BrowseTabOrderTest {
                 Constants.PLAYLIST_ID,
             )
 
-        assertEquals(saved + Constants.RADIO_ID, BrowseTabOrder.resolve(saved))
+        assertEquals(saved + Constants.RADIO_ID + Constants.FOLDERS_ID, BrowseTabOrder.resolve(saved))
     }
 
     /**
@@ -95,7 +96,14 @@ class BrowseTabOrderTest {
         val saved = listOf("[decadesID]", Constants.ALBUMS_ID, Constants.PLAYLIST_ID)
 
         assertEquals(
-            listOf(Constants.ALBUMS_ID, Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.RADIO_ID, Constants.DISCOVER_ID),
+            listOf(
+                Constants.ALBUMS_ID,
+                Constants.PLAYLIST_ID,
+                Constants.ARTISTS_ID,
+                Constants.RADIO_ID,
+                Constants.DISCOVER_ID,
+                Constants.FOLDERS_ID,
+            ),
             BrowseTabOrder.resolve(saved),
         )
     }
@@ -120,7 +128,7 @@ class BrowseTabOrderTest {
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
-            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID),
+            listOf(Constants.ALBUMS_ID, Constants.DISCOVER_ID, Constants.FOLDERS_ID),
             BrowseTabOrder.moreRows(resolved),
         )
     }
@@ -153,6 +161,7 @@ class BrowseTabOrderTest {
                 Constants.RADIO_ID,
                 Constants.ALBUMS_ID,
                 Constants.DISCOVER_ID,
+                Constants.FOLDERS_ID,
             ),
             BrowseTabOrder.DEFAULT_ORDER,
         )
@@ -176,14 +185,15 @@ class BrowseTabOrderTest {
 
         val resolved = BrowseTabOrder.resolve(saved)
 
-        assertEquals(Constants.DISCOVER_ID, resolved.last())
+        // Folders arrived after Discover, so it is the one behind it now.
+        assertEquals(Constants.DISCOVER_ID, resolved.dropLast(1).last())
         // The three tabs the user had are untouched, which is the whole point.
         assertEquals(
             listOf(Constants.PLAYLIST_ID, Constants.ARTISTS_ID, Constants.ALBUMS_ID),
             BrowseTabOrder.rootTabs(resolved),
         )
         assertEquals(
-            listOf(Constants.RADIO_ID, Constants.DISCOVER_ID),
+            listOf(Constants.RADIO_ID, Constants.DISCOVER_ID, Constants.FOLDERS_ID),
             BrowseTabOrder.moreRows(resolved),
         )
     }
@@ -199,5 +209,12 @@ class BrowseTabOrderTest {
         assertEquals(Constants.DISCOVER_ID, resolved.first())
         assertEquals(Constants.DISCOVER_ID, BrowseTabOrder.rootTabs(resolved).first())
         assertEquals(false, BrowseTabOrder.moreRows(resolved).contains(Constants.DISCOVER_ID))
+    }
+
+    @Test
+    fun `an order saved before Folders existed gets it appended last`() {
+        val saved = BrowseTabOrder.DEFAULT_ORDER.filter { it != Constants.FOLDERS_ID }.reversed()
+
+        assertEquals(Constants.FOLDERS_ID, BrowseTabOrder.resolve(saved).last())
     }
 }

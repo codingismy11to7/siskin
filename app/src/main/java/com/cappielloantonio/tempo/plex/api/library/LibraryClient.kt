@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.plex.api.library
 
 import android.util.Log
 import arrow.core.Either
+import com.cappielloantonio.tempo.plex.FolderToken
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
@@ -76,6 +77,16 @@ class LibraryClient(
         start: Int,
         size: Int,
     ): Either<PlexTransportFailure, PlexResponse> = plexCall(PlexHost.Server) { service.getChildren(ratingKey.value, start, size) }
+
+    suspend fun getFolder(
+        sectionKey: SectionKey,
+        parent: FolderToken?,
+        start: Int,
+        size: Int,
+    ): Either<PlexTransportFailure, PlexResponse> {
+        Log.d(TAG, "getFolder($sectionKey, parent=$parent, start=$start, size=$size)")
+        return plexCall(PlexHost.Server) { service.getFolder(sectionKey.value, parent?.value, start, size) }
+    }
 
     suspend fun getNearest(
         ratingKey: RatingKey,

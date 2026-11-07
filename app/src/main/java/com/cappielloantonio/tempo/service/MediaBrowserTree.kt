@@ -236,6 +236,19 @@ object MediaBrowserTree {
                 ),
             )
 
+        treeNodes[Constants.FOLDERS_ID] =
+            MediaItemNode(
+                buildMediaItem(
+                    browsableChildrenAsGrid = false,
+                    title = appContext.getString(R.string.browse_folders),
+                    mediaId = Constants.FOLDERS_ID,
+                    isPlayable = false,
+                    isBrowsable = true,
+                    imageUri = iconUri(R.drawable.ic_browse_folder),
+                    mediaType = MediaMetadata.MEDIA_TYPE_FOLDER_MIXED,
+                ),
+            )
+
         treeNodes[Constants.SELECT_LIBRARY_ID] =
             MediaItemNode(
                 buildMediaItem(
@@ -384,7 +397,17 @@ object MediaBrowserTree {
                 browseRepository.getRadioStations()
             }
 
+            Constants.FOLDERS_ID -> {
+                browseRepository.getFolderRoot()
+            }
+
             else -> {
+                if (id.startsWith(Constants.FOLDER_WINDOW_ID)) {
+                    return browseRepository.getFolderWindow(id.removePrefix(Constants.FOLDER_WINDOW_ID))
+                }
+                if (id.startsWith(Constants.FOLDER_ID)) {
+                    return browseRepository.getFolder(id.removePrefix(Constants.FOLDER_ID))
+                }
                 if (id.startsWith(Constants.PLAYLIST_ID)) {
                     return browseRepository.getPlaylistTracks(
                         id.removePrefix(Constants.PLAYLIST_ID),
