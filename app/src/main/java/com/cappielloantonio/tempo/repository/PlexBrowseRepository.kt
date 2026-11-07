@@ -14,6 +14,7 @@ import arrow.core.raise.either
 import arrow.core.right
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.R
+import com.cappielloantonio.tempo.plex.FolderRows
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.PlexHost
 import com.cappielloantonio.tempo.plex.PlexItemType
@@ -32,6 +33,7 @@ import com.cappielloantonio.tempo.plex.models.Metadata
 import com.cappielloantonio.tempo.provider.CompositeArt
 import com.cappielloantonio.tempo.provider.CompositeArtBucket
 import com.cappielloantonio.tempo.util.Constants
+import com.cappielloantonio.tempo.util.FolderKey
 import com.cappielloantonio.tempo.util.HubKey
 import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.SmartPlaylistQuery
@@ -608,6 +610,74 @@ class PlexBrowseRepository {
     fun getAlbumTracks(albumRatingKey: String) =
         cachedTracks({ libraryClient.getChildren(RatingKey(albumRatingKey), 0, Constants.MAX_ITEMS) }) { it }
 
+    // ── folders ───────────────────────────────────────────────
+    //
+    // See docs/decisions/2026-11-06-folder-browse-design.md.
+
+    fun getFolderRoot(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val session = api.session ?: return errorFuture()
+        return getFolder(FolderKey.of(CompositeArt.scopeOf(session), null))
+    }
+
+    fun getFolder(payload: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        val folder = liveFolder(payload) ?: return emptyFolder()
+        return windowedPages(
+            { start, size -> libraryClient.getFolder(key, folder.token, start, size) },
+            Constants.FOLDER_WINDOW_ID + FolderKey.windowPrefix(payload),
+            R.drawable.ic_browse_folder,
+            childrenAsGrid = false,
+        ) { body -> folderItems(body, key, folder.scope) }
+    }
+
+    fun getFolderWindow(remainder: String): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        val key = sectionKey ?: return errorFuture()
+        val (payload, start) = FolderKey.parseWindow(remainder) ?: return emptyFolder()
+        val folder = liveFolder(payload) ?: return emptyFolder()
+        return fetch({ libraryClient.getFolder(key, folder.token, start, Constants.WINDOW_SIZE) }) { body ->
+            folderItems(body, key, folder.scope)
+        }
+    }
+
+    /** A payload minted under another library opens nothing, as [followHubKey] does for a stale hub. */
+    private fun liveFolder(payload: String): FolderKey.Folder? =
+        FolderKey.parse(payload)?.takeIf { it.scope == CompositeArt.currentScope() } ?: run {
+            Log.w(TAG, "not opening a folder that is malformed or from another library: $payload")
+            null
+        }
+
+    private fun folderItems(
+        body: PlexResponse,
+        key: SectionKey,
+        scope: String,
+    ): List<MediaItem> {
+        val serverUri = serverUri
+        val token = token
+        return FolderRows
+            .classify(body, key)
+            .mapNotNull { row ->
+                when (row) {
+                    is FolderRows.Row.Folder -> {
+                        PlexMediaMapper.groupRowToMediaItem(
+                            Constants.FOLDER_ID + FolderKey.of(scope, row.token),
+                            row.title,
+                            R.drawable.ic_browse_folder,
+                            childrenAsGrid = false,
+                        )
+                    }
+
+                    is FolderRows.Row.Track -> {
+                        PlexMediaMapper.trackToMediaItem(row.metadata, Constants.QUEUE_CACHED_SOURCE, serverUri, token)
+                    }
+                }
+            }.ifEmpty { listOf(folderEmptyRow()) }
+    }
+
+    private fun emptyFolder(): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(folderEmptyRow()), null))
+
+    private fun folderEmptyRow(): MediaItem = LibraryPickerRepository.messageRow(App.getContext().getString(R.string.browse_folder_empty))
+
     // ── windowed browse ────────────────────────────────────────
     //
     // The car asks for every node in full -- onGetChildren always arrives as
@@ -684,11 +754,6 @@ class PlexBrowseRepository {
         )
     }
 
-    /**
-     * One request decides the shape: it asks for the first window and reads
-     * `totalSize` off the same response, so a library that fits costs exactly
-     * what it costs today and never pays for the window machinery.
-     */
     private fun windowed(
         type: Int,
         sort: String?,
@@ -697,9 +762,28 @@ class PlexBrowseRepository {
         map: (PlexResponse) -> List<MediaItem>,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val key = sectionKey ?: return errorFuture()
-        return fetch({
-            libraryClient.getSectionContent(key, type, 0, Constants.WINDOW_SIZE, sort)
-        }) { head ->
+        return windowedPages(
+            { start, size -> libraryClient.getSectionContent(key, type, start, size, sort) },
+            windowPrefix,
+            icon,
+            childrenAsGrid = true,
+            map,
+        )
+    }
+
+    /**
+     * One request decides the shape: it asks for the first window and reads
+     * `totalSize` off the same response, so a library that fits costs exactly
+     * what it costs today and never pays for the window machinery.
+     */
+    private fun windowedPages(
+        page: suspend (start: Int, size: Int) -> Either<PlexTransportFailure, PlexResponse>,
+        windowPrefix: String,
+        icon: Int,
+        childrenAsGrid: Boolean,
+        map: (PlexResponse) -> List<MediaItem>,
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+        fetch({ page(0, Constants.WINDOW_SIZE) }) { head ->
             // Not observed against PMS, which always returns totalSize once
             // Start/Size were sent -- but silent is the wrong failure mode for a
             // response that omits it anyway: falling back to 0 renders a flat,
@@ -719,10 +803,9 @@ class PlexBrowseRepository {
             if (total <= Constants.WINDOW_SIZE) {
                 map(head)
             } else {
-                windowRows(key, type, sort, total, windowPrefix, icon, head)
+                windowRows(page, total, windowPrefix, icon, childrenAsGrid, head)
             }
         }
-    }
 
     /**
      * Labels each window with the title it starts at and the title the next one
@@ -753,12 +836,11 @@ class PlexBrowseRepository {
      * throwing into the block.
      */
     private suspend fun windowRows(
-        key: SectionKey,
-        type: Int,
-        sort: String?,
+        page: suspend (start: Int, size: Int) -> Either<PlexTransportFailure, PlexResponse>,
         total: Int,
         windowPrefix: String,
         icon: Int,
+        childrenAsGrid: Boolean,
         head: PlexResponse,
     ): List<MediaItem> {
         val size = Constants.WINDOW_SIZE
@@ -777,7 +859,7 @@ class PlexBrowseRepository {
                                     ?.title
                             } else {
                                 withTimeoutOrNull(BOUNDARY_TITLE_TIMEOUT_MS) {
-                                    titleAt(key, type, sort, index)
+                                    titleAt(page, index)
                                 }
                             }
                         }
@@ -793,18 +875,15 @@ class PlexBrowseRepository {
                 } else {
                     "${window * size + 1} - ${minOf((window + 1) * size, total)}"
                 }
-            PlexMediaMapper.groupRowToMediaItem(windowPrefix + (window * size), label, icon)
+            PlexMediaMapper.groupRowToMediaItem(windowPrefix + (window * size), label, icon, childrenAsGrid = childrenAsGrid)
         }
     }
 
     private suspend fun titleAt(
-        key: SectionKey,
-        type: Int,
-        sort: String?,
+        page: suspend (start: Int, size: Int) -> Either<PlexTransportFailure, PlexResponse>,
         index: Int,
     ): String? =
-        libraryClient
-            .getSectionContent(key, type, index, 1, sort)
+        page(index, 1)
             .getOrNull()
             ?.mediaContainer
             ?.metadata

@@ -322,8 +322,10 @@ class LibraryPickerRepository {
                 Constants.PICK_SERVER_ID + machineIdentifier,
                 0,
             )
-            // Its rows are scoped to a library and refuse to play once it changes.
+            // Radio and Folders rows are scoped to a library; Radio refuses to play
+            // once it changes and Folders would open to empty folders.
             BrowseTreeInvalidator.invalidateNode(Constants.RADIO_ID, 0)
+            BrowseTreeInvalidator.invalidateNode(Constants.FOLDERS_ID, 0)
 
             future.set(LibraryResult.ofItemList(ImmutableList.of(confirmationRow(payload)), null))
         }

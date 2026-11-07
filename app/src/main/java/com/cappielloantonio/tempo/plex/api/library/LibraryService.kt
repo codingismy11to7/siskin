@@ -13,7 +13,7 @@ import retrofit2.http.Url
  *
  * Paging is expressed through X-Plex-Container-Start / -Size headers rather than
  * query parameters, on the endpoints that return a list: getSectionContent,
- * getChildren, getFirstCharacterContent and getByPath. Not for media3's benefit
+ * getChildren, getFolder, getFirstCharacterContent and getByPath. Not for media3's benefit
  * -- measured on the AAOS API 33 emulator, onGetChildren always arrives as
  * page=0, pageSize=Integer.MAX_VALUE, even scrolled to a list's true end, so
  * the car never actually pages a node (see
@@ -92,6 +92,20 @@ interface LibraryService {
     @GET("library/metadata/{id}/children")
     suspend fun getChildren(
         @Path("id") ratingKey: String,
+        @Header("X-Plex-Container-Start") start: Int,
+        @Header("X-Plex-Container-Size") size: Int,
+    ): PlexResponse
+
+    /**
+     * One level of a section's folders on disk: child folders and tracks
+     * together under `Metadata`. Measured against PMS: paging headers are
+     * honoured and `totalSize` comes back only when they are sent. Works for a
+     * Home member on a server they do not own; `.../location` does not.
+     */
+    @GET("library/sections/{sectionId}/folder")
+    suspend fun getFolder(
+        @Path("sectionId") sectionKey: String,
+        @Query("parent") parent: String?,
         @Header("X-Plex-Container-Start") start: Int,
         @Header("X-Plex-Container-Size") size: Int,
     ): PlexResponse

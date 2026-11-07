@@ -374,6 +374,7 @@ class LibraryPickerCommitTest {
         shadowOf(Looper.getMainLooper()).idle()
 
         verify(session).notifyChildrenChanged(Constants.RADIO_ID, 0, null)
+        verify(session).notifyChildrenChanged(Constants.FOLDERS_ID, 0, null)
     }
 
     @Test

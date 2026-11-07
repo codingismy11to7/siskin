@@ -45,6 +45,9 @@ object Constants {
     /** Prefix; the remainder is the window's first index, e.g. "50". */
     const val ALBUM_WINDOW_ID = "[albumWindowID]"
 
+    /** Prefix; the remainder is a [FolderKey] payload, `|`, then the window's start. */
+    const val FOLDER_WINDOW_ID = "[folderWindowID]"
+
     /**
      * Prefix; the remainder is a first-character bucket key exactly as the
      * server gave it -- "A", "%23" for the symbol bucket, "∆".
@@ -63,6 +66,11 @@ object Constants {
     const val DISCOVER_ID = "[discoverID]"
 
     const val RADIO_ID = "[radioID]"
+
+    const val FOLDERS_ID = "[foldersID]"
+
+    /** Prefix; the remainder is a [FolderKey] payload -- "<scope>|<token>". */
+    const val FOLDER_ID = "[folderID]"
 
     /**
      * Prefix; the remainder is a [HubKey] naming one of the server's station

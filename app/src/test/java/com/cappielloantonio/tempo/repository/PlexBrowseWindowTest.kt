@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.repository
 
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaConstants
 import androidx.media3.session.SessionError
 import com.cappielloantonio.tempo.util.Constants
 import kotlinx.coroutines.test.runTest
@@ -110,6 +111,24 @@ class PlexBrowseWindowTest {
             // would still pass the id assertion above but show up here as a request
             // count that no longer matches.
             assertEquals(4, fixture.server.requestCount)
+        }
+
+    @Test
+    fun anArtistWindowRowAsksForItsChildrenAsAGrid() =
+        runTest {
+            fixture.server.enqueue(ok(listing(totalSize = 120, "Aardvark")))
+            repeat(3) { fixture.server.enqueue(ok(listing(totalSize = 120, "Boundary$it"))) }
+
+            val row =
+                PlexBrowseRepository()
+                    .getArtistWindows(Constants.ARTIST_WINDOW_ID, Constants.ARTIST_ID)
+                    .get()
+                    .value!![0]
+
+            assertEquals(
+                MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM,
+                row.mediaMetadata.extras!!.getInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE),
+            )
         }
 
     @Test

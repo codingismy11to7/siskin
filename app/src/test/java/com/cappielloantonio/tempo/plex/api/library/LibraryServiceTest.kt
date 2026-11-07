@@ -475,6 +475,7 @@ class LibraryServiceTest {
                 "getSections",
                 "getSectionContent",
                 "getChildren",
+                "getFolder",
                 "getNearest",
                 "getMetadata",
                 "getSectionHubs",

@@ -11,6 +11,9 @@
 
 ## [Unreleased] — Siskin
 
+- A **Folders** entry under More browses your library by its folders on disk,
+  and Customize tabs can make it a tab. Tapping a track plays the rest of the list
+  it's in.
 - Decade Radio replaces Decades: a decade plays the server's station for that
   decade rather than a shuffled sample, and keeps the grid of album covers. If
   Decades was one of your tabs, the next one in your order takes its place.

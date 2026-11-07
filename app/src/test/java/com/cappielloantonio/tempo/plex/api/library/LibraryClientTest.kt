@@ -1,6 +1,8 @@
 package com.cappielloantonio.tempo.plex.api.library
 
+import com.cappielloantonio.tempo.plex.FolderToken
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.base.MediaContainer
 import com.cappielloantonio.tempo.plex.base.PlexResponse
 import com.cappielloantonio.tempo.plex.models.Directory
@@ -156,5 +158,28 @@ class LibraryClientTest {
             assertEquals("/library/sections/7/all?type=10&sort=random", request.path)
             assertEquals("0", request.getHeader("X-Plex-Container-Start"))
             assertEquals("2500", request.getHeader("X-Plex-Container-Size"))
+        }
+
+    @Test
+    fun getFolderRequestsTheRootWithoutAParent() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"size":0}}"""))
+
+            clientAgainstServer().getFolder(SectionKey("7"), null, 0, 50)
+
+            val request = server.takeRequest()
+            assertEquals("/library/sections/7/folder", request.path)
+            assertEquals("0", request.getHeader("X-Plex-Container-Start"))
+            assertEquals("50", request.getHeader("X-Plex-Container-Size"))
+        }
+
+    @Test
+    fun getFolderPassesTheTokenAsParent() =
+        runTest {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{"size":0}}"""))
+
+            clientAgainstServer().getFolder(SectionKey("7"), FolderToken("17890"), 50, 50)
+
+            assertEquals("/library/sections/7/folder?parent=17890", server.takeRequest().path)
         }
 }
