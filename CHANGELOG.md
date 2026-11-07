@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.4.0] (2026-11-06)
+
 - A **Folders** entry under More browses your library by its folders on disk,
   and Customize tabs can make it a tab. Tapping a track plays the rest of the list
   it's in.
