@@ -78,8 +78,8 @@ class MediaBrowserTreeTest {
         assertEquals(
             listOf(
                 Constants.PLAYLIST_ID,
-                Constants.ARTISTS_ID,
                 Constants.RADIO_ID,
+                Constants.ARTISTS_ID,
                 Constants.MORE_ID,
             ),
             children,
