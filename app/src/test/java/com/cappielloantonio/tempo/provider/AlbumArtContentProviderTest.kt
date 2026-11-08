@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.cappielloantonio.tempo.App
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.util.HubCoverPool
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -337,6 +338,57 @@ class AlbumArtContentProviderTest {
             )
         }
     }
+
+    /**
+     * An open answers from the session it checked the URI against, not from
+     * whatever is signed in by the time it looks the file up.
+     *
+     * The provider's snapshot is another library's, and the stored session is
+     * setUp()'s -- the state a library switch landing just after the
+     * provider's read leaves behind. Both libraries have a 1980 tile on disk,
+     * at different lengths. An open that re-read the session anywhere after
+     * its check would serve the stored library's file, so statSize is what
+     * says which was served.
+     */
+    @Test
+    fun anOpenAnswersFromTheSessionItCheckedNotAFreshRead() {
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        writeCachedComposite("1980", bucket, bytes = 3)
+        val checked = otherLibrary()
+        CompositeArt.cacheFile(App.getContext(), checked, "1980", bucket).apply {
+            parentFile!!.mkdirs()
+            writeBytes(ByteArray(5))
+        }
+        provider.readSession = { checked }
+
+        provider
+            .openFile(AlbumArtContentProvider.decadeContentUri(CompositeArt.scopeOf(checked), "1980", bucket), "r")!!
+            .use { assertEquals(5L, it.statSize) }
+    }
+
+    /**
+     * The other half of answering from a snapshot: a build that starts after
+     * the snapshot stopped being the signed-in session does nothing, rather
+     * than spend the departed session's token. A build queued behind the
+     * executor is exactly that, after a sign-out or a Home user switch.
+     */
+    @Test
+    fun aBuildForASessionNoLongerSignedInFetchesNothing() {
+        val bucket = CompositeArtBucket.current(System.currentTimeMillis())
+        var fetched = false
+
+        val built = CompositeArt.build(App.getContext(), otherLibrary(), "1980", bucket) { emptyList<String>().also { fetched = true } }
+
+        assertEquals(null, built)
+        assertEquals(false, fetched)
+
+        // And the guard is a comparison, not a refusal: the signed-in session
+        // still gets as far as asking for its covers.
+        CompositeArt.build(App.getContext(), PlexApi().session!!, "1980", bucket) { emptyList<String>().also { fetched = true } }
+        assertEquals(true, fetched)
+    }
+
+    private fun otherLibrary() = PlexApi().session!!.copy(machineIdentifier = "f00dcafe", musicSectionKey = SectionKey("9"))
 
     // ── hubArt ────────────────────────────────────────────────
 

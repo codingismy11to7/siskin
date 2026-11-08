@@ -3,6 +3,7 @@ package com.cappielloantonio.tempo.plex
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlexSessionTest {
@@ -93,5 +94,19 @@ class PlexSessionTest {
     @Test
     fun `owned defaults to true, which is what every older session was`() {
         assertEquals(true, PlexSession.from("acct", "http://pms:32400", "3", null)!!.owned)
+    }
+
+    @Test
+    fun `toString names the server and library but neither token`() {
+        val shared = complete.copy(accountToken = "acct-secret", serverToken = "server-secret", machineIdentifier = "m1")
+
+        assertEquals(
+            "PlexSession(accountToken=<redacted>, serverUri=https://server.example/, " +
+                "musicSectionKey=${SectionKey("3")}, serverToken=<redacted>, machineIdentifier=m1, owned=true)",
+            shared.toString(),
+        )
+        // Absent stays visibly absent, which is what a reader debugging an
+        // owned server needs to see.
+        assertTrue(complete.toString().contains("serverToken=null"))
     }
 }

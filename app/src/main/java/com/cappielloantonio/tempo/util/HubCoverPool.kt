@@ -44,10 +44,8 @@ object HubCoverPool {
      * Never called with an empty list: a hub with no thumb-bearing item mints
      * no artwork URI at all, which is what its rows do today.
      */
-    @JvmStatic
     fun encode(thumbs: List<String>): String = thumbs.joinToString(SEPARATOR)
 
     /** The components of [pool], exactly as they arrived. */
-    @JvmStatic
     fun decode(pool: String): List<String> = pool.split(SEPARATOR)
 }
