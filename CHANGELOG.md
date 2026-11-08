@@ -11,6 +11,9 @@
 
 ## [Unreleased] — Siskin
 
+- Settings categories have a Help button that explains their settings, in
+  English. The same text is on siskinapp.com/settings-help.
+
 - Keep the music playing no longer adds tracks to a queue started while it
   was finding them. Picking a new album just as the last track began could
   land tracks chosen for the old one in the middle of the new one.

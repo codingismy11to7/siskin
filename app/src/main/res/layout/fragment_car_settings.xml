@@ -34,29 +34,60 @@
         android:layout_height="match_parent"
         android:layout_weight="1"
         android:paddingStart="32dp"
-        android:paddingTop="24dp"
         android:paddingEnd="32dp">
 
         <FrameLayout
             android:id="@+id/pane_container"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:paddingTop="24dp"
             android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/category_pane"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:clipToPadding="false"
+            android:orientation="vertical"
+            android:paddingTop="24dp">
 
-            <TextView
-                android:id="@+id/category_heading"
-                android:layout_width="wrap_content"
+            <!--
+                The 72dp Help button must not push the heading down, or it sits
+                lower here than on About and on the help screen; the margins
+                and padding below do that. See
+                docs/decisions/2026-11-08-settings-help-design.md.
+            -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/plex_sign_in_row_padding"
-                android:layout_marginBottom="16dp"
-                android:textAppearance="?attr/textAppearanceHeadlineMedium"
-                tools:text="Playback" />
+                android:layout_marginTop="-18dp"
+                android:layout_marginBottom="-2dp"
+                android:clipToPadding="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingTop="18dp"
+                android:paddingBottom="18dp">
+
+                <TextView
+                    android:id="@+id/category_heading"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/plex_sign_in_row_padding"
+                    android:layout_weight="1"
+                    android:textAppearance="?attr/textAppearanceHeadlineMedium"
+                    tools:text="Playback" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/settings_help"
+                    style="@style/Widget.Material3.Button.TextButton.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-18dp"
+                    android:layout_marginBottom="-18dp"
+                    android:text="@string/car_settings_help"
+                    app:icon="@drawable/ic_help"
+                    app:iconSize="24dp" />
+            </LinearLayout>
 
             <!-- Only the rows scroll; see FadingScrollView for the faded edge. -->
             <ScrollView

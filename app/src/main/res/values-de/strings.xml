@@ -45,6 +45,7 @@
     <string name="car_settings_category_storage">Speicher</string>
     <string name="car_settings_category_account">Konto</string>
     <string name="car_settings_category_about">Info</string>
+    <string name="car_settings_help">Hilfe</string>
     <string name="car_settings_about_updated">Aktualisiert %1$s (%2$s, %3$s)</string>
     <string name="car_settings_about_credits">Danksagungen</string>
     <string name="car_settings_about_credits_qr">QR-Code für die Seite mit den Danksagungen</string>

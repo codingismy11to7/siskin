@@ -1,6 +1,8 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import android.os.Looper
+import android.view.InputDevice
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -458,6 +460,126 @@ class CarSettingsFragmentTest {
         assertFalse(activity.isFinishing)
         assertEquals(R.id.settings_category_storage, activity.findViewById<NavigationRailView>(R.id.settings_rail).selectedItemId)
         assertTrue(visibleTexts(activity.findViewById(R.id.car_host_container)).contains("Cache size"))
+    }
+
+    private fun helpButton(activity: CarHostActivity) = activity.findViewById<View>(R.id.settings_help)
+
+    @Test
+    fun `every category but About offers Help`() {
+        val activity = settingsActivity()
+        listOf(
+            R.id.settings_category_playback,
+            R.id.settings_category_browse,
+            R.id.settings_category_storage,
+            R.id.settings_category_account,
+        ).forEach {
+            select(activity, it)
+            assertEquals(View.VISIBLE, helpButton(activity).visibility)
+        }
+        select(activity, R.id.settings_category_about)
+        assertEquals(View.GONE, helpButton(activity).visibility)
+    }
+
+    @Test
+    fun `Help opens the category's help in the pane`() {
+        val activity = settingsActivity(R.id.settings_category_playback)
+
+        helpButton(activity).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(paneScreen(activity) is SettingsHelpFragment)
+        assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
+        val pane = activity.findViewById<View>(R.id.pane_container)
+        assertEquals("Playback", pane.findViewById<TextView>(R.id.settings_help_heading).text.toString())
+        val text = pane.findViewById<TextView>(R.id.settings_help_text).text.toString()
+        assertTrue(text.contains(App.getInstance().getString(R.string.car_settings_crossfade)))
+        assertFalse(text.contains(App.getInstance().getString(R.string.car_settings_cache_size)))
+    }
+
+    @Test
+    fun `back closes Help and stays on its category`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+        helpButton(activity).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        activity.onBackPressedDispatcher.onBackPressed()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(null, paneScreen(activity))
+        assertFalse(activity.isFinishing)
+        assertTrue(visibleTexts(activity.findViewById(R.id.car_host_container)).contains("Cache size"))
+    }
+
+    /** What the car's RotaryService injects for one detent of the controller. */
+    private fun rotaryScroll(clockwise: Boolean): MotionEvent {
+        val pointer = MotionEvent.PointerProperties().apply { id = 0 }
+        val coords = MotionEvent.PointerCoords().apply { setAxisValue(MotionEvent.AXIS_VSCROLL, if (clockwise) -1f else 1f) }
+        return MotionEvent.obtain(
+            0,
+            0,
+            MotionEvent.ACTION_SCROLL,
+            1,
+            arrayOf(pointer),
+            arrayOf(coords),
+            0,
+            0,
+            1f,
+            1f,
+            0,
+            0,
+            InputDevice.SOURCE_ROTARY_ENCODER,
+            0,
+        )
+    }
+
+    /** Help is only text, so the scroll view is all a rotary controller can stop on. */
+    @Test
+    fun `a rotary controller lands on Help's text, scrolls it, and back returns it to Help`() {
+        val activity = settingsActivity(R.id.settings_category_browse)
+        val help = helpButton(activity)
+        assertTrue(help.requestFocus())
+
+        help.performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val scroll = activity.findViewById<View>(R.id.settings_help_scroll)
+        assertTrue(scroll.isFocused)
+        assertEquals(SettingsHelpFragment.ROTARY_VERTICALLY_SCROLLABLE, scroll.contentDescription)
+
+        assertTrue(scroll.dispatchGenericMotionEvent(rotaryScroll(clockwise = true)))
+        assertTrue(scroll.scrollY > 0)
+
+        activity.onBackPressedDispatcher.onBackPressed()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(help.isFocused)
+    }
+
+    /** A turn the text cannot follow is left for RotaryService to move focus with. */
+    @Test
+    fun `a rotary turn past the top of Help's text is not consumed`() {
+        val activity = settingsActivity(R.id.settings_category_browse)
+        helpButton(activity).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        val scroll = activity.findViewById<View>(R.id.settings_help_scroll)
+
+        assertFalse(scroll.dispatchGenericMotionEvent(rotaryScroll(clockwise = false)))
+        assertEquals(0, scroll.scrollY)
+
+        assertTrue(scroll.dispatchGenericMotionEvent(rotaryScroll(clockwise = true)))
+        assertTrue(scroll.dispatchGenericMotionEvent(rotaryScroll(clockwise = false)))
+        assertEquals(0, scroll.scrollY)
+    }
+
+    @Test
+    fun `selecting another category closes Help`() {
+        val activity = settingsActivity(R.id.settings_category_playback)
+        helpButton(activity).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        select(activity, R.id.settings_category_storage)
+
+        assertEquals(null, paneScreen(activity))
     }
 
     @Test

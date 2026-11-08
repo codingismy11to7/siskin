@@ -46,6 +46,7 @@
     <string name="car_settings_category_storage">Almacenamiento</string>
     <string name="car_settings_category_account">Cuenta</string>
     <string name="car_settings_category_about">Información</string>
+    <string name="car_settings_help">Ayuda</string>
     <string name="car_settings_about_updated">Actualizado %1$s (%2$s, %3$s)</string>
     <string name="car_settings_about_credits">Créditos</string>
     <string name="car_settings_about_credits_qr">Código QR de la página de créditos</string>

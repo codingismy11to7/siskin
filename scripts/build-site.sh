@@ -53,6 +53,14 @@ echo "rendering:"
   --include-in-header "$root/docs/web/style.html" \
   --output "$out/privacy.html"
 
+# The same file Settings' Help buttons read in the car, so it is held to the
+# app's markdown subset. See docs/decisions/2026-11-08-settings-help-design.md.
+"$pandoc" "$root/docs/web/settings-help.md" \
+  --from markdown --to html5 --standalone \
+  --variable pagetitle="Siskin Settings Help" \
+  --include-in-header "$root/docs/web/style.html" \
+  --output "$out/settings-help.html"
+
 # The landing page, the credits and the 404 are hand-written HTML and are
 # copied (the credits with the generated table spliced in) rather than
 # rendered. style.html is a header include, not a page, and deliberately does
@@ -81,6 +89,6 @@ cp "$root/docs/web/sbom.cdx.json" "$out/sbom.cdx.json"
 
 cp "$root/docs/web/404.html" "$out/404.html"
 
-for f in "$out/index.html" "$out/privacy.html" "$out/credits.html" "$out/sbom.cdx.json" "$out/404.html"; do
+for f in "$out/index.html" "$out/privacy.html" "$out/settings-help.html" "$out/credits.html" "$out/sbom.cdx.json" "$out/404.html"; do
   echo "  $f  ($(stat -c %s "$f") bytes)"
 done

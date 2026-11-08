@@ -224,6 +224,9 @@ class CarSettingsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch { HomeUsersRepository.refresh()?.let(::showHome) }
 
+        bind.settingsHelp.applyCarButtonStyle(com.google.android.material.R.style.TextAppearance_Material3_TitleLarge)
+        bind.settingsHelp.setOnClickListener { openInPane(SettingsHelpFragment.newInstance(category)) }
+
         buildRail(bind, panes)
         watchPane(bind)
 
@@ -248,6 +251,7 @@ class CarSettingsFragment : Fragment() {
             this.category = category
             panes.forEach { (each, pane) -> pane.visibility = if (each == category) View.VISIBLE else View.GONE }
             bind.categoryHeading.setText(category.label)
+            bind.settingsHelp.visibility = if (category.helpId != null) View.VISIBLE else View.GONE
             if (category == SettingsCategory.ABOUT) about?.render()
             bind.contentScroll.scrollTo(0, 0)
         }
@@ -422,7 +426,7 @@ class CarSettingsFragment : Fragment() {
 }
 
 /** Settings' rail, in order. */
-private enum class SettingsCategory(
+internal enum class SettingsCategory(
     @IdRes val id: Int,
     @StringRes val label: Int,
     @DrawableRes val icon: Int,
@@ -432,6 +436,10 @@ private enum class SettingsCategory(
     STORAGE(R.id.settings_category_storage, R.string.car_settings_category_storage, R.drawable.ic_settings_storage),
     ACCOUNT(R.id.settings_category_account, R.string.car_settings_category_account, R.drawable.ic_settings_account),
     ABOUT(R.id.settings_category_about, R.string.car_settings_category_about, R.drawable.ic_browse_info),
+    ;
+
+    /** Its section's `{#id}` in docs/web/settings-help.md; About has nothing to explain. */
+    val helpId: String? get() = if (this == ABOUT) null else name.lowercase()
 }
 
 /**

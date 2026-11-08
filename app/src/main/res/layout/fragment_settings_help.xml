@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A Settings category's help, shown in the detail pane in place of its rows.
+    See docs/decisions/2026-11-08-settings-help-design.md.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/settings_help_heading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/plex_sign_in_row_padding"
+        android:layout_marginBottom="16dp"
+        android:textAppearance="?attr/textAppearanceHeadlineMedium" />
+
+    <ScrollView
+        android:id="@+id/settings_help_scroll"
+        style="@style/FadingScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <TextView
+            android:id="@+id/settings_help_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="@dimen/plex_sign_in_row_padding"
+            android:paddingEnd="@dimen/plex_sign_in_row_padding"
+            android:paddingBottom="16dp"
+            android:textAppearance="?attr/textAppearanceBodyLarge" />
+    </ScrollView>
+</LinearLayout>
