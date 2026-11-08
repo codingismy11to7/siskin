@@ -1,4 +1,2 @@
-• New Radio tab: Library, Deep Cuts, Time Travel and Random Album Radio, plus a station for each style, mood or decade. Stations keep going on their own. Radio is the second tab, so Albums moves under More unless you've customized your tabs.
-• Decade Radio replaces Decades.
-• Browse your library by its folders, from More or as a tab.
-• Tab order has a reset button that restores the default order.
+• Tracks now cross-fade. Each fade starts where the song begins to fade out, using your Plex server's loudness analysis, and tracks from the same album still play back to back. Turn it off with Cross-fade between tracks in Settings.
+• New Mixes tab: Plex's Mixes for You, each built around an artist you listen to. A mix plays shuffled and keeps going when it runs out. It's the second tab, so Artists moves under More unless you've customized your tabs.

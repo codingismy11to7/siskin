@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.5.0] (2026-11-07)
+
 - Tracks now cross-fade, as in Plexamp. Each fade starts where the song itself
   starts to fade out, using the loudness analysis your Plex server already
   does, so its length suits the song. Tracks from the same album still play
