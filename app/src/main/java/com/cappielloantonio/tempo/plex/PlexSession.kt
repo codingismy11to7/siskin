@@ -64,7 +64,17 @@ data class PlexSession(
     val serverAuthToken: String?
         get() = PlexApi.serverAuthToken(serverToken, accountToken, owned)
 
+    /** The generated form with both tokens redacted, so that a log line, a
+     * crash report or a failed assertion naming a session -- or anything that
+     * carries one -- cannot print them. Whether a server token is present
+     * still shows, since that is what a debugging reader needs from it. */
+    override fun toString(): String =
+        "PlexSession(accountToken=$REDACTED, serverUri=$serverUri, musicSectionKey=$musicSectionKey, " +
+            "serverToken=${serverToken?.let { REDACTED }}, machineIdentifier=$machineIdentifier, owned=$owned)"
+
     companion object {
+        private const val REDACTED = "<redacted>"
+
         /**
          * Builds a session from stored values, or null if any required one is
          * absent. [serverToken] is not required; see its KDoc.

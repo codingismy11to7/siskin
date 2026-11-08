@@ -2,12 +2,14 @@ package com.cappielloantonio.tempo.provider
 
 import android.os.ParcelFileDescriptor
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 import kotlin.random.Random
 
@@ -72,6 +74,15 @@ class AlbumArtContentProviderPipeTest {
 
         assertArrayEquals(image, read)
         file.delete()
+    }
+
+    @Test
+    fun refusesOnceShutDownRatherThanThrowingAcrossTheBinder() {
+        provider.shutdown()
+
+        // FileNotFoundException is the one failure the car turns into its
+        // placeholder; a RejectedExecutionException would reach it unchecked.
+        assertThrows(FileNotFoundException::class.java) { provider.pipe("label") { true } }
     }
 
     @Test

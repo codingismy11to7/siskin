@@ -80,7 +80,6 @@ object CompositeGrid {
      * left edge of the second, rather than computing each from `size / 2`, so an
      * odd size leaves neither a seam nor an overhang.
      */
-    @JvmStatic
     fun cells(
         count: Int,
         size: Int,
@@ -106,7 +105,6 @@ object CompositeGrid {
      * rectangle to draw into a square cell: an oblong cover is cropped to fit
      * rather than squashed.
      */
-    @JvmStatic
     fun centerSquare(
         width: Int,
         height: Int,

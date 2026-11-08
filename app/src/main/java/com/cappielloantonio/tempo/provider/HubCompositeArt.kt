@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.provider
 
 import android.content.Context
+import com.cappielloantonio.tempo.plex.PlexSession
 import com.cappielloantonio.tempo.util.HubCoverPool
 import java.io.File
 import java.security.MessageDigest
@@ -42,7 +43,6 @@ object HubCompositeArt {
      * construction, so there is no charset guard on this route to get wrong.
      * Order is part of the digest because cells are filled in pool order.
      */
-    @JvmStatic
     fun idFor(pool: List<String>): String =
         MessageDigest
             .getInstance("SHA-1")
@@ -51,25 +51,25 @@ object HubCompositeArt {
             .take(ID_LENGTH)
 
     /** @see CompositeArt.cached */
-    @JvmStatic
     fun cached(
         context: Context,
+        session: PlexSession,
         pool: List<String>,
         bucket: Long,
-    ): File? = CompositeArt.cached(context, idFor(pool), bucket)
+    ): File? = CompositeArt.cached(context, session, idFor(pool), bucket)
 
     /**
      * @see CompositeArt.build
      *
-     * The cover source ignores its session arguments because the covers are
+     * The cover source ignores its session argument because the covers are
      * already in hand. It is still a lambda, and still evaluated inside the
      * lock, because that is the shape the decade path needs; costing this path
      * nothing is the reason one core can serve both.
      */
-    @JvmStatic
     fun build(
         context: Context,
+        session: PlexSession,
         pool: List<String>,
         bucket: Long,
-    ): File? = CompositeArt.build(context, idFor(pool), bucket) { _, _ -> pool }
+    ): File? = CompositeArt.build(context, session, idFor(pool), bucket) { _ -> pool }
 }

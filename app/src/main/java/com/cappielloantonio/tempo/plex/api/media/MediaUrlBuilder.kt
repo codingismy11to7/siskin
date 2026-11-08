@@ -30,7 +30,6 @@ object MediaUrlBuilder {
      * reads it as another host -- and so is any path containing a backslash,
      * which several parsers normalise to a forward slash.
      */
-    @JvmStatic
     fun isServerRelativePath(path: String?): Boolean =
         !path.isNullOrBlank() &&
             path.startsWith("/") &&

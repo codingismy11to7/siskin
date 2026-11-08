@@ -21,10 +21,8 @@ object CompositeArtBucket {
     /** One hour. Long enough that a drive rarely crosses two, short enough that
      * a morning commute and an evening one differ -- artwork that never changes
      * is the thing this feature exists to avoid. */
-    @JvmField
-    val BUCKET_MS: Long = 60L * 60L * 1000L
+    const val BUCKET_MS: Long = 60L * 60L * 1000L
 
-    @JvmStatic
     fun current(nowMs: Long): Long = nowMs / BUCKET_MS
 
     /**
@@ -36,7 +34,6 @@ object CompositeArtBucket {
      * on an exported provider: every cache miss is a Plex request made with the
      * user's token, so an unbounded bucket space is an unbounded request space.
      */
-    @JvmStatic
     fun isLive(
         bucket: Long,
         nowMs: Long,

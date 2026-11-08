@@ -23,10 +23,9 @@ import java.io.File
  * `/library/sections/{key}/composite/1` is a section-wide mosaic identical for
  * every decade. So the tiling is ours.
  *
- * Kotlin rather than a method on AlbumArtContentProvider because LibraryClient
- * exposes suspend functions and that provider is Java, which cannot call one.
- * It also puts the whole
- * feature behind one seam a test can drive without standing up a ContentProvider.
+ * Its own object rather than a method on AlbumArtContentProvider so the whole
+ * feature sits behind one seam a test can drive without standing up a
+ * ContentProvider.
  */
 object DecadeCompositeArt {
     private const val TAG = "DecadeCompositeArt"
@@ -41,7 +40,6 @@ object DecadeCompositeArt {
      * [PlexMediaMapper.artworkThumb] rather than reading `thumb` directly, so an
      * album that carries only a parent thumb still contributes a cover.
      */
-    @JvmStatic
     fun coverThumbs(
         response: PlexResponse?,
         want: Int,
@@ -52,17 +50,17 @@ object DecadeCompositeArt {
             .take(want)
 
     /** @see CompositeArt.cached */
-    @JvmStatic
     fun cached(
         context: Context,
+        session: PlexSession,
         decade: String,
         bucket: Long,
-    ): File? = CompositeArt.cached(context, decade, bucket)
+    ): File? = CompositeArt.cached(context, session, decade, bucket)
 
     /**
      * The decade's covers, fetched.
      *
-     * Pinned to the session snapshot [CompositeArt.build] took, not the
+     * Pinned to the session snapshot [CompositeArt.build] was given, not the
      * one-argument LibraryClient(api) constructor: that reads
      * api.serverUri/serverToken fresh from preferences, which can race a
      * library switch on More -> Server Select and pair this section key with a
@@ -77,14 +75,13 @@ object DecadeCompositeArt {
      * list being drawn would have hit the same 401 first and raised it there.
      */
     private fun fetchThumbs(
-        api: PlexApi,
         session: PlexSession,
         decade: String,
     ): List<String> {
         val response =
             try {
                 runBlocking {
-                    LibraryClient(api, session.serverUri, session.serverAuthToken, { null }).getSectionContent(
+                    LibraryClient(PlexApi(), session.serverUri, session.serverAuthToken, { null }).getSectionContent(
                         sectionKey = session.musicSectionKey,
                         type = PlexItemType.ALBUM,
                         start = 0,
@@ -107,13 +104,10 @@ object DecadeCompositeArt {
     }
 
     /** @see CompositeArt.build */
-    @JvmStatic
     fun build(
         context: Context,
+        session: PlexSession,
         decade: String,
         bucket: Long,
-    ): File? =
-        CompositeArt.build(context, decade, bucket) { api, session ->
-            fetchThumbs(api, session, decade)
-        }
+    ): File? = CompositeArt.build(context, session, decade, bucket) { pinned -> fetchThumbs(pinned, decade) }
 }

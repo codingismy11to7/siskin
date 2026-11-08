@@ -29,10 +29,8 @@ private const val TAG = "CompositeArt"
  * are its two callers, and the entire split between them is that one fetches
  * its covers and the other is handed them. Each keeps only that lambda's body
  * -- a Plex query for the decade path, a pass-through of the URI's pool for the
- * hub path -- plus `cached` and `build`, the JvmStatic pair `AlbumArtContentProvider`
- * (still Java) actually calls. `DecadeCompositeArt.coverThumbs` is JvmStatic too,
- * but that is so a test can drive the thumb-selection logic directly, not
- * because the provider reaches it.
+ * hub path -- plus `cached` and `build`, the pair `AlbumArtContentProvider`
+ * actually calls.
  */
 object CompositeArt {
     private const val JPEG_QUALITY = 85
@@ -125,7 +123,6 @@ object CompositeArt {
      * exported provider the traversal surface both that guard and the
      * provider's `\d{4}` decade rule exist to close.
      */
-    @JvmStatic
     fun scopeOf(session: PlexSession): String = "${cacheIdentifier(session.machineIdentifier)}-${session.musicSectionKey.value}"
 
     /**
@@ -135,12 +132,10 @@ object CompositeArt {
      * session there is nothing to compare a scope against and nothing to
      * build either.
      */
-    @JvmStatic
     fun currentScope(): String? = PlexApi().session?.let(::scopeOf)
 
     /** Composites live under cacheDir, so the system may evict them; losing one
      * costs a single rebuild. */
-    @JvmStatic
     fun cacheDir(context: Context): File = File(context.cacheDir, CACHE_DIR)
 
     /**
@@ -167,7 +162,6 @@ object CompositeArt {
      * for. Naming the file is this function's job alone, though -- see
      * [scopeOf] on why the URI's copy must never be interpolated into a path.
      */
-    @JvmStatic
     fun cacheFile(
         context: Context,
         machineIdentifier: String?,
@@ -180,6 +174,15 @@ object CompositeArt {
             "${cacheIdentifier(machineIdentifier)}-$sectionKey-$id-$bucket$CACHE_SUFFIX",
         )
 
+    /** [cacheFile] for [session]'s library -- the one name [cached] and [build]
+     * both use, which the build lock and its recheck depend on agreeing. */
+    fun cacheFile(
+        context: Context,
+        session: PlexSession,
+        id: String,
+        bucket: Long,
+    ): File = cacheFile(context, session.machineIdentifier, session.musicSectionKey.value, id, bucket)
+
     /**
      * Drops composites outside the two live buckets.
      *
@@ -187,7 +190,6 @@ object CompositeArt {
      * it could not parse would be a sweep that eventually deletes something
      * else's cache. Steady state is on the order of sixteen small JPEGs.
      */
-    @JvmStatic
     fun evictStale(
         context: Context,
         nowMs: Long,
@@ -230,22 +232,18 @@ object CompositeArt {
      *
      * Deliberately does no network work and touches neither the image loader nor Retrofit:
      * the provider calls this on a binder thread and serves the file directly
-     * when it hits, so the common case never occupies a worker at all. */
-    @JvmStatic
+     * when it hits, so the common case never occupies a worker at all.
+     *
+     * [session] is the one the provider checked the URI's scope against, not
+     * a fresh read: a library switch landing between that check and this
+     * lookup would otherwise answer the old library's URI out of the new
+     * library's cache file. */
     fun cached(
         context: Context,
+        session: PlexSession,
         id: String,
         bucket: Long,
-    ): File? {
-        val session = PlexApi().session ?: return null
-        return cacheFile(
-            context,
-            session.machineIdentifier,
-            session.musicSectionKey.value,
-            id,
-            bucket,
-        ).takeIf { it.isFile }
-    }
+    ): File? = cacheFile(context, session, id, bucket).takeIf { it.isFile }
 
     /**
      * Draws the composite and caches it, returning the file, or null if it
@@ -263,42 +261,43 @@ object CompositeArt {
      * lambda rather than a list.** A caller that fetched its covers and handed
      * over the result would leave the fetch outside the lock -- and collapsing
      * N concurrent opens of one missing tile into one Plex request is the
-     * entire reason [CompositeBuildLocks] exists. It receives the session
-     * snapshot this function pinned, so a library switch mid-build cannot pair
-     * one server's section key with another's address.
+     * entire reason [CompositeBuildLocks] exists. It receives [session], so a
+     * library switch mid-build cannot pair one server's section key with
+     * another's address.
+     *
+     * [session] is the caller's snapshot for the reason given on [cached].
      */
     fun build(
         context: Context,
+        session: PlexSession,
         id: String,
         bucket: Long,
-        covers: (PlexApi, PlexSession) -> List<String>,
+        covers: (PlexSession) -> List<String>,
     ): File? {
-        val api = PlexApi()
-        val session = api.session ?: return null
-
         // Deduplicated per tile. The car can open one row concurrently, and
         // until a build renames its file into place every concurrent open is a
         // fresh miss. Keyed on the cache file's own name rather than
         // re-interpolating the values that produced it, so the lock key and the
         // filename cannot drift apart.
-        val file =
-            cacheFile(
-                context,
-                session.machineIdentifier,
-                session.musicSectionKey.value,
-                id,
-                bucket,
-            )
+        val file = cacheFile(context, session, id, bucket)
         return CompositeBuildLocks.exclusively(file.name) {
-            // Re-checked after acquiring, against the same session snapshot the
-            // lock key and buildLocked's write use -- not cached(), which
-            // re-reads PlexApi().session fresh and would check a different
-            // server's or section's filename than the winner wrote if More ->
-            // Server Select switched libraries while this thread waited. A
-            // tile whose query yields no covers caches nothing, though, so a
-            // miss here still costs each waiter its own metadata query, just
-            // serialised behind the lock rather than run in parallel.
-            file.takeIf { it.isFile } ?: buildLocked(context, api, session, file, covers)
+            when {
+                // Re-checked after acquiring, against the same file the lock key
+                // and buildLocked's write use. A tile whose query yields no covers
+                // caches nothing, though, so a miss here still costs each waiter
+                // its own metadata query, just serialised behind the lock rather
+                // than run in parallel.
+                file.isFile -> file
+
+                // A build queued behind the executor or this lock can start after
+                // a sign-out or a Home user switch, and must not spend the
+                // departed account's token. Compared, never substituted: building
+                // for the new session would answer an old URI with the new
+                // library's tile.
+                PlexApi().session != session -> null
+
+                else -> buildLocked(context, session, file, covers)
+            }
         }
     }
 
@@ -311,12 +310,11 @@ object CompositeArt {
      */
     private fun buildLocked(
         context: Context,
-        api: PlexApi,
         session: PlexSession,
         file: File,
-        covers: (PlexApi, PlexSession) -> List<String>,
+        covers: (PlexSession) -> List<String>,
     ): File? {
-        val thumbs = covers(api, session)
+        val thumbs = covers(session)
         val token = session.serverAuthToken
 
         // Quarter-size is the norm: every layout but the one-cover case draws
