@@ -11,6 +11,10 @@
 
 ## [Unreleased] — Siskin
 
+- Keep the music playing no longer adds tracks to a queue started while it
+  was finding them. Picking a new album just as the last track began could
+  land tracks chosen for the old one in the middle of the new one.
+
 ## [1.5.1] (2026-11-07)
 
 - **Debug:** The debug screen opens on Server, and its Car tab shows what

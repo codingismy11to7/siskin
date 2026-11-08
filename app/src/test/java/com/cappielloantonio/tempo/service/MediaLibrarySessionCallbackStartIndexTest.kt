@@ -203,8 +203,7 @@ class MediaLibrarySessionCallbackStartIndexTest {
      * resolveQueueForItem treating the row as already resolved.
      *
      * The process qualifier is load-bearing and was missing here until issue #70.
-     * An in-process controller -- MediaManager's MediaBrowser, which continuous
-     * play appends through -- keeps its localConfiguration, measured at 25 of 25
+     * An in-process controller keeps its localConfiguration, measured at 25 of 25
      * on an API 33 AAOS emulator. Reading this as "the controller boundary always
      * strips it" is what produced #70, a bug report for a defect that did not
      * exist. This fixture is simulating the car specifically, not controllers in

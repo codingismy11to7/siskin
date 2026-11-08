@@ -17,12 +17,7 @@ import kotlinx.coroutines.launch
 private const val TAG = "PlexScrobbler"
 
 /**
- * The seam that lets Java report playback to Plex's timeline endpoint.
- *
- * `SearchClient.reportProgress` is a suspend function and MediaManager is Java,
- * which cannot call one at all -- not even to discard the result. Converting
- * MediaManager to Kotlin to reach it would be a far larger change than the one
- * call needs, so the call moves here instead.
+ * Reports playback to Plex's timeline endpoint.
  *
  * Fire and forget: reports come from the player's own listeners, where waiting
  * on the network would stall playback.
@@ -101,7 +96,6 @@ object PlexScrobbler {
         }
     }
 
-    @JvmStatic
     fun report(
         ratingKey: String,
         partKey: String,

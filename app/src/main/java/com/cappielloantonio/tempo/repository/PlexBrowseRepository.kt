@@ -77,9 +77,9 @@ class PlexBrowseRepository {
      * Playlists fetch the car issued a moment earlier, which a plain Job would
      * do by cancelling its siblings.
      *
-     * IO rather than Main, unlike PlexMixRepository and BaseSessionCallback,
-     * which both have to resume on the main thread because their continuations
-     * touch a Player or a MediaBrowser. Nothing on this path does: the futures
+     * IO rather than Main, unlike BaseSessionCallback, which has to resume on
+     * the main thread because its continuations touch a Player. Nothing on this
+     * path does: the futures
      * are handed to media3, which posts them onto the application thread itself,
      * and the one cache write behind them (SessionMediaItemRepository.cache)
      * already hops to its own single-threaded executor.

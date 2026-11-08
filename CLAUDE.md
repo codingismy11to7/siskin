@@ -325,9 +325,6 @@ The HTTP-versus-transport distinction matters here: an HTTP failure becomes a
 `LibraryResult` error the car can act on, while a transport failure completes
 the future *exceptionally* so it reads as "unreachable" rather than "rejected".
 
-`MediaManager.java` is still Java and cannot call suspend functions;
-`PlexScrobbler` exists as the Kotlin bridge for exactly that reason.
-
 ## Testing
 
 JUnit 4 with Robolectric (`unitTests.includeAndroidResources = true`), Mockito,

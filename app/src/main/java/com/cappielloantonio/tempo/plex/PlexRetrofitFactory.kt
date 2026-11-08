@@ -84,7 +84,7 @@ object PlexRetrofitFactory {
      * owns a private connection pool, so nothing it opens is ever reused and
      * every request pays a fresh TCP and TLS handshake. The callers that matter
      * here are constructed per use -- BaseSessionCallback builds one per heart
-     * tap, PlexMixRepository one per mix -- so on a head unit that is several
+     * tap, PlexMixRepository a LibraryClient per mix request -- so on a head unit that is several
      * full handshakes per track.
      *
      * Deliberately carries no interceptors: the identity interceptor closes

@@ -3,7 +3,6 @@ package com.cappielloantonio.tempo.service
 import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.app.TaskStackBuilder
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
@@ -29,10 +28,8 @@ import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
-import androidx.media3.session.MediaBrowser
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession.ControllerInfo
-import androidx.media3.session.SessionToken
 import com.cappielloantonio.tempo.equalizer.BuiltinBackend
 import com.cappielloantonio.tempo.equalizer.DefaultBackend
 import com.cappielloantonio.tempo.equalizer.EqualizerBackend
@@ -46,6 +43,7 @@ import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
+import com.cappielloantonio.tempo.repository.PlexMixRepository
 import com.cappielloantonio.tempo.repository.PlexRadioRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.service.crossfade.CrossfadeController
@@ -78,6 +76,28 @@ open class BaseMediaService : MediaLibraryService() {
         const val ACTION_EQUALIZER_UPDATED = "com.cappielloantonio.tempo.service.EQUALIZER_UPDATED"
         const val ACTION_RELOAD_EQUALIZER = "com.cappielloantonio.tempo.service.ACTION_RELOAD_EQUALIZER"
         var activeBrowserCount = 0
+
+        /**
+         * Trims before inserting: an insert at or before the current index shifts
+         * it, and a trim measured from the shifted index removes the new tracks.
+         * [at] is read after the trim, against the indices it left.
+         */
+        internal fun appendToQueue(
+            player: Player,
+            more: List<MediaItem>,
+            keep: Int,
+            queue: QueueRepository,
+            at: () -> Int,
+        ) {
+            val firstToKeep = StationTopUp.firstToKeep(player.currentMediaItemIndex, keep)
+            if (firstToKeep > 0) {
+                player.removeMediaItems(0, firstToKeep)
+                queue.deleteRange(0, firstToKeep)
+            }
+            val index = at()
+            player.addMediaItems(index, more)
+            queue.insertAll(more, false, index)
+        }
     }
 
     protected lateinit var exoplayer: ExoPlayer
@@ -92,7 +112,14 @@ open class BaseMediaService : MediaLibraryService() {
     private val addressScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Main: the continuation appends to the player.
-    private val stationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val queueScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val continuousPlay by lazy {
+        val mix = PlexMixRepository()
+        ContinuousPlay(
+            similar = { seed -> mix.similarTracks(seed, ContinuousPlay.MIX_SIZE) },
+            random = { mix.randomTracks(ContinuousPlay.MIX_SIZE) },
+        )
+    }
     private val stationTopUp by lazy {
         val radio = PlexRadioRepository()
         StationTopUp(
@@ -459,18 +486,50 @@ open class BaseMediaService : MediaLibraryService() {
             topUpStation(player, current)
         }
 
-        if (player.nextMediaItemIndex == C.INDEX_UNSET && extendsByContinuousPlay()) {
-            // continuousPlay returns early on these; a browser built first would never be released.
-            if (MediaManager.continuousPlayIsRunning.get() || !Preferences.isInstantMixUsable()) return
-            val browserFuture =
-                MediaBrowser
-                    .Builder(
-                        this,
-                        SessionToken(this, ComponentName(this, this::class.java)),
-                    ).buildAsync()
-            MediaManager.continuousPlay(current, browserFuture)
+        // onTracksChanged fires several times per track; most of them find a run in flight or throttled.
+        if (player.nextMediaItemIndex == C.INDEX_UNSET && extendsByContinuousPlay() && continuousPlay.ready()) {
+            extendByContinuousPlay(player, current)
         }
     }
+
+    private fun extendByContinuousPlay(
+        player: Player,
+        current: MediaItem,
+    ) = launchExtension("continuous play") {
+        val more = continuousPlay.tracksAfter(current, { player.currentMediaItem }) { getQueueFromPlayer(player) }
+        if (more.isEmpty()) return@launchExtension
+        appendToQueue(player, more) {
+            val next = player.nextMediaItemIndex
+            if (next == C.INDEX_UNSET) player.mediaItemCount else next
+        }
+    }
+
+    /**
+     * Runs a queue extension on the main thread, where the Player must be
+     * touched. A failure is logged and retried on a later track change; it must
+     * not take playback down.
+     */
+    private fun launchExtension(
+        what: String,
+        block: suspend () -> Unit,
+    ) {
+        queueScope.launch {
+            try {
+                block()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                // Outside any `either { }`.
+                Log.w(TAG, "$what failed", failure)
+            }
+        }
+    }
+
+    private fun appendToQueue(
+        player: Player,
+        more: List<MediaItem>,
+        at: () -> Int,
+    ) = appendToQueue(player, more, Preferences.getNumberOfTracksKeepInQueue(), QueueRepository(), at)
 
     private fun extendsByStation(item: MediaItem?): Boolean = PlexMediaMapper.stationTagOf(item) != null
 
@@ -483,30 +542,13 @@ open class BaseMediaService : MediaLibraryService() {
         current: MediaItem,
     ) {
         val remaining = remainingInPlayOrder(player)
-        val items = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
+        val items = getQueueFromPlayer(player)
         val position = player.currentPosition
-        stationScope.launch {
-            try {
-                val fetched = stationTopUp.onTrackStarted(current, position, remaining, items)
-                val live = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }
-                val more = StationTopUp.appendable(fetched, current, player.currentMediaItem, live)
-                if (more.isEmpty()) return@launch
-                val at = player.mediaItemCount
-                player.addMediaItems(more)
-                QueueRepository().insertAll(more, false, at)
-                val firstToKeep =
-                    StationTopUp.firstToKeep(player.currentMediaItemIndex, Preferences.getNumberOfTracksKeepInQueue())
-                if (firstToKeep > 0) {
-                    player.removeMediaItems(0, firstToKeep)
-                    QueueRepository().deleteRange(0, firstToKeep)
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Throwable) {
-                // Outside any `either { }`. A failed top-up is retried on the
-                // next track change; it must not take playback down.
-                Log.w(TAG, "station top-up failed", failure)
-            }
+        launchExtension("station top-up") {
+            val fetched = stationTopUp.onTrackStarted(current, position, remaining, items)
+            val more = StationTopUp.appendable(fetched, current, player.currentMediaItem, getQueueFromPlayer(player))
+            if (more.isEmpty()) return@launchExtension
+            appendToQueue(player, more) { player.mediaItemCount }
         }
     }
 
@@ -536,7 +578,7 @@ open class BaseMediaService : MediaLibraryService() {
         // Launching into an already-cancelled scope is a silent no-op, so there is
         // no cost to cancelling first.
         addressScope.cancel()
-        stationScope.cancel()
+        queueScope.cancel()
         playbackReporter?.release()
         // Before releaseNetworkCallback(), which can throw and would leave the tick posting.
         crossfade?.release()

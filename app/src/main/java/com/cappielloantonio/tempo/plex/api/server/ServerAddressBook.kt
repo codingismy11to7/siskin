@@ -193,7 +193,7 @@ class ServerAddressBook private constructor(
      * `IllegalArgumentException` out of `ServerProbe.answers`. Every
      * pre-existing caller happens to sit inside a deliberate wide catch of
      * its own (`PlexBrowseRepository.launchInto`,
-     * `PlexMixRepository.deliver`), which is what kept this latent for those
+     * `PlexMixRepository.tracks`), which is what kept this latent for those
      * two.
      *
      * Catching `Throwable` broadly here is safe for the same reason it is in

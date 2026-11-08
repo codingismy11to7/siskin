@@ -24,8 +24,8 @@ import java.io.File
  * every decade. So the tiling is ours.
  *
  * Kotlin rather than a method on AlbumArtContentProvider because LibraryClient
- * exposes suspend functions and that provider is Java -- the same wall
- * PlexScrobbler exists to cross for MediaManager.java. It also puts the whole
+ * exposes suspend functions and that provider is Java, which cannot call one.
+ * It also puts the whole
  * feature behind one seam a test can drive without standing up a ContentProvider.
  */
 object DecadeCompositeArt {

@@ -1,11 +1,12 @@
 package com.cappielloantonio.tempo.repository
 
-import android.os.Looper
 import androidx.media3.common.MediaItem
 import com.cappielloantonio.tempo.plex.PlexApi
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.models.Connection
 import com.cappielloantonio.tempo.plex.models.Resource
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -18,17 +19,10 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Continuous play is best effort, and these pin the part of that which is not
- * optional: the callback runs exactly once on every path.
- *
- * MediaManager.continuousPlay clears `continuousPlayIsRunning` from inside the
- * callback and nowhere else, so a path that returns without calling back leaves
- * the flag stuck true and Instant Mix dead for the rest of the process -- a
- * failure with no exception, no log line and no way back short of a restart.
+ * Continuous play is best effort: every failure comes back as no tracks rather
+ * than an exception.
  *
  * Robolectric because PlexMixRepository holds a PlexApi, which reads
  * App.getInstance().preferences.
@@ -70,62 +64,9 @@ class PlexMixRepositoryTest {
         server.shutdown()
     }
 
-    /**
-     * Waits for the callback, so a path that never calls back fails rather than
-     * hangs.
-     *
-     * The repository delivers on Dispatchers.Main, because MediaManager's
-     * callback drives a MediaBrowser. Robolectric runs this test body on that
-     * same thread with a paused looper, so the looper has to be drained by hand
-     * -- a plain latch.await() would deadlock against the delivery it is
-     * waiting for.
-     */
-    private fun collect(request: (PlexMixRepository.TracksCallback) -> Unit): Pair<List<MediaItem>, Int> {
-        val calls = AtomicInteger(0)
-        var tracks: List<MediaItem> = listOf(MediaItem.EMPTY)
-
-        request(
-            PlexMixRepository.TracksCallback {
-                tracks = it
-                calls.incrementAndGet()
-            },
-        )
-
-        val deadline = System.currentTimeMillis() + 10_000
-        while (calls.get() == 0 && System.currentTimeMillis() < deadline) {
-            shadowOf(Looper.getMainLooper()).idle()
-            Thread.sleep(5)
-        }
-        assertTrue("callback never ran", calls.get() > 0)
-
-        // Give a duplicate delivery a chance to land before counting.
-        repeat(20) {
-            shadowOf(Looper.getMainLooper()).idle()
-            Thread.sleep(5)
-        }
-        return tracks to calls.get()
-    }
-
-    @Test
-    fun tracksAreDeliveredOnTheApplicationThread() {
-        // MediaManager.continuousPlay's callback reads and mutates a
-        // MediaBrowser, and a MediaController rejects access from any thread but
-        // the one it was built on. Retrofit's Android platform delivered
-        // Call.enqueue callbacks through a main-thread executor; `suspend`
-        // resumes wherever the launching scope says instead, so delivering from
-        // IO here crashes continuous play.
-        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{}}"""))
-        var deliveredOn: Thread? = null
-
-        collect { callback ->
-            PlexMixRepository().similarTracks("5", 25, {
-                deliveredOn = Thread.currentThread()
-                callback.onTracks(it)
-            })
-        }
-
-        assertEquals(Looper.getMainLooper().thread, deliveredOn)
-    }
+    /** Bounded, so a request that never completes fails rather than hangs the suite. */
+    private fun collect(request: suspend PlexMixRepository.() -> List<MediaItem>): List<MediaItem> =
+        runBlocking { withTimeout(10_000) { PlexMixRepository().request() } }
 
     @Test
     fun similarTracksDeliversTheTracksFromA200() {
@@ -138,10 +79,9 @@ class PlexMixRepositoryTest {
             ),
         )
 
-        val (tracks, calls) = collect { PlexMixRepository().similarTracks("5", 25, it) }
+        val tracks = collect { similarTracks("5", 25) }
 
         assertEquals(listOf("11", "22"), tracks.map { it.mediaId })
-        assertEquals(1, calls)
     }
 
     @Test
@@ -151,41 +91,34 @@ class PlexMixRepositoryTest {
         // empty list as "fall through to random".
         server.enqueue(MockResponse().setResponseCode(200).setBody("""{"MediaContainer":{}}"""))
 
-        val (tracks, calls) = collect { PlexMixRepository().similarTracks("5", 25, it) }
+        val tracks = collect { similarTracks("5", 25) }
 
         assertTrue(tracks.isEmpty())
-        assertEquals(1, calls)
     }
 
     @Test
-    fun anHttpFailureStillCallsBackWithNoTracks() {
-        // Under Call<T> a 500 was an unsuccessful Response; under suspend it is
-        // a thrown HttpException. Uncaught, it escapes the coroutine and the
-        // callback never runs.
+    fun anHttpFailureReturnsNoTracks() {
         server.enqueue(MockResponse().setResponseCode(500))
 
-        val (tracks, calls) = collect { PlexMixRepository().similarTracks("5", 25, it) }
+        val tracks = collect { similarTracks("5", 25) }
 
         assertTrue(tracks.isEmpty())
-        assertEquals(1, calls)
     }
 
     @Test
-    fun anUnreachableServerStillCallsBackWithNoTracks() {
+    fun anUnreachableServerReturnsNoTracks() {
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
 
-        val (tracks, calls) = collect { PlexMixRepository().similarTracks("5", 25, it) }
+        val tracks = collect { similarTracks("5", 25) }
 
         assertTrue(tracks.isEmpty())
-        assertEquals(1, calls)
     }
 
     @Test
-    fun randomTracksWithNoSectionSelectedCallsBackWithoutReachingTheServer() {
-        val (tracks, calls) = collect { PlexMixRepository().randomTracks(25, it) }
+    fun randomTracksWithNoSectionSelectedReturnsWithoutReachingTheServer() {
+        val tracks = collect { randomTracks(25) }
 
         assertTrue(tracks.isEmpty())
-        assertEquals(1, calls)
         assertEquals(0, server.requestCount)
     }
 
@@ -198,13 +131,12 @@ class PlexMixRepositoryTest {
                 .setBody("""{"MediaContainer":{"Metadata":[{"ratingKey":"33","type":"track"}]}}"""),
         )
 
-        val (tracks, calls) = collect { PlexMixRepository().randomTracks(25, it) }
+        val tracks = collect { randomTracks(25) }
 
         assertEquals(listOf("33"), tracks.map { it.mediaId })
-        assertEquals(1, calls)
     }
 
-    // ── address recovery: deliver wired to ServerAddressBook.shared ─────
+    // ── address recovery: wired to ServerAddressBook.shared ─────
     //
     // Proves both the wiring (Important 2) and Critical 1 together: a mix
     // request against a session's stored address that has gone stale
@@ -266,10 +198,9 @@ class PlexMixRepositoryTest {
             dead,
         )
 
-        val (tracks, calls) = collect { PlexMixRepository().similarTracks("5", 25, it) }
+        val tracks = collect { similarTracks("5", 25) }
 
         assertEquals(listOf("11"), tracks.map { it.mediaId })
-        assertEquals(1, calls)
         assertEquals(
             "the re-probe must move the session onto the address that answered",
             liveUri,
