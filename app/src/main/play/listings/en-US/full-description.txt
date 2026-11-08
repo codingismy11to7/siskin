@@ -4,10 +4,13 @@ It runs on the car's head unit, not on your phone. Once you're signed in, there'
 
 WHAT IT DOES
 
-• Browse your playlists, artists and albums, plus the Discover rows your Plex server builds
+• Browse your playlists, artists and albums, the Discover rows your Plex server builds, or your music's own folders
 • Choose which tabs the car shows, and in what order
+• Radio: Library Radio, Deep Cuts, Time Travel and Random Album, plus a station for every style, mood and decade in your library
+• Plex's Mixes for You play as stations that keep going
 • Artist and Playlist Mixes give you a shuffled queue you can see
 • Artist Radio keeps playing similar music when the artist's own songs run out (turn it on in Settings)
+• Tracks cross-fade the way they do in Plexamp, timed to where each song fades out, and an album still plays back to back
 • Search your library
 • Your queue is still there the next time you start the car
 • Plays your files as they are, with no transcoding, including lossless FLAC
