@@ -275,17 +275,11 @@ class MediaLibrarySessionCallbackShuffleTest {
     }
 
     /**
-     * `onAddMediaItems` is not only a browse-tap path: MediaManager's continuous
-     * play appends instant-mix tracks to a running queue through
-     * `browser.addMediaItems`. This is the case that made a shuffle write here
-     * dangerous even when the rows still owned the toggle -- a write on every
-     * call would have cleared shuffle *mid-listen* every time the queue topped
-     * itself up, which is exactly during the long session it would ruin.
-     *
-     * Now nothing writes it on any path, so this is a much cheaper guarantee
-     * than it used to be. It is kept because the top-up is the case where a
-     * reintroduced write would be least visible in review and most annoying in
-     * the car.
+     * An add to a running queue must not touch shuffle: a write here would
+     * clear it *mid-listen*, during exactly the long session it would ruin.
+     * Nothing writes it on any path now, so this is a cheap guarantee, kept
+     * because an add is where a reintroduced write would be least visible in
+     * review and most annoying in the car.
      */
     @Test
     fun addingTracksToARunningQueueLeavesShuffleAlone() {

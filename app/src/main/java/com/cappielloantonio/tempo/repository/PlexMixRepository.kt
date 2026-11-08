@@ -14,10 +14,7 @@ import com.cappielloantonio.tempo.plex.SectionKey
 import com.cappielloantonio.tempo.plex.api.library.LibraryClient
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.base.PlexResponse
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 private const val TAG = "PlexMixRepository"
 
@@ -30,68 +27,39 @@ private const val TAG = "PlexMixRepository"
  */
 @OptIn(UnstableApi::class)
 class PlexMixRepository {
-    fun interface TracksCallback {
-        fun onTracks(tracks: List<MediaItem>)
-    }
-
     private val api = PlexApi()
 
     /**
      * A `get()`, not a `val`: [LibraryClient]'s own KDoc says it is pinned to
      * the [com.cappielloantonio.tempo.plex.PlexSession.serverUri] it was built
      * with and never re-reads it, so a `val` here would keep sending
-     * [deliver]'s retry to the address that [addressBook] just moved away
+     * [tracks]'s retry to the address that [addressBook] just moved away
      * from -- recovery would re-probe, adopt a live address, and then replay
      * the request against the dead one anyway, paying the failure twice
      * instead of once. Constructing one per access is cheap:
      * `PlexRetrofitFactory.server()` derives from a shared `OkHttpClient` via
      * `newBuilder`, so the connection pool and dispatcher are shared and no
-     * handshake is repeated, and MediaManager already builds a fresh
-     * [PlexMixRepository] per mix request, so nothing long-lived is churning.
+     * handshake is repeated.
      */
     private val libraryClient: LibraryClient get() = LibraryClient(api)
     private val addressBook = ServerAddressBook.shared
-
-    /**
-     * Main, not IO: the only caller is MediaManager.continuousPlay, whose
-     * callback reads and mutates a MediaBrowser (`getMediaItemCount`,
-     * `addMediaItems`), and a MediaController rejects access from any thread but
-     * the one it was built on. Retrofit's Android platform posted `Call.enqueue`
-     * callbacks to the main thread, so this is where the callback this replaced
-     * already ran -- keeping it there is what stops continuous play from
-     * crashing. The request itself still runs on OkHttp's threads; only the
-     * resumption lands here.
-     *
-     * MediaManager builds a fresh repository per mix request and drops it once
-     * the callback has run, so there is no owner left to cancel this scope and
-     * no hook to cancel it from -- the coroutine and its scope become garbage
-     * together when the request finishes.
-     */
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val serverUri: String? get() = api.session?.serverUri
     private val token: String?
         get() = api.session?.serverAuthToken
 
-    fun similarTracks(
+    suspend fun similarTracks(
         ratingKey: String,
         count: Int,
-        callback: TracksCallback,
-    ) {
-        deliver(callback) { libraryClient.getNearest(RatingKey(ratingKey), count) }
-    }
+    ): List<MediaItem> = tracks { libraryClient.getNearest(RatingKey(ratingKey), count) }
 
-    fun randomTracks(
-        count: Int,
-        callback: TracksCallback,
-    ) {
+    suspend fun randomTracks(count: Int): List<MediaItem> {
         val key: SectionKey? = api.session?.musicSectionKey
         if (key == null) {
             Log.w(TAG, "no music section selected")
-            callback.onTracks(emptyList())
-            return
+            return emptyList()
         }
-        deliver(callback) {
+        return tracks {
             libraryClient.getSectionContent(
                 key,
                 PlexItemType.TRACK,
@@ -104,14 +72,6 @@ class PlexMixRepository {
 
     /**
      * Both tiers report failure as "no tracks" -- continuous play is best effort.
-     *
-     * The callback runs on every path, which is the load-bearing part: its only
-     * caller is MediaManager.continuousPlay, and that is where
-     * `continuousPlayIsRunning` is set back to false. A path that returns
-     * without calling back leaves the flag stuck true and Instant Mix dead for
-     * the rest of the process. Hence the mapping sitting inside the `try` and
-     * the callback outside it -- a callback that throws must not be retried with
-     * an empty list.
      *
      * [request] is wrapped in [addressBook]'s address recovery, so a mix call
      * against an address that has gone stale re-probes and retries once rather
@@ -126,29 +86,23 @@ class PlexMixRepository {
      * mapping inside it is not, and this is outside any `either { }` so there is
      * no `raise` for it to swallow.
      */
-    private fun deliver(
-        callback: TracksCallback,
-        request: suspend () -> Either<PlexTransportFailure, PlexResponse>,
-    ) {
-        scope.launch {
-            val tracks =
-                try {
-                    addressBook.withAddressRecovery(request).fold(
-                        { failure ->
-                            Log.w(TAG, "mix request failed: $failure")
-                            emptyList()
-                        },
-                        { response ->
-                            PlexBrowseRepository.tracksOf(response).mapNotNull {
-                                PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
-                            }
-                        },
-                    )
-                } catch (failure: Throwable) {
-                    Log.w(TAG, "mix mapping failed", failure)
+    private suspend fun tracks(request: suspend () -> Either<PlexTransportFailure, PlexResponse>): List<MediaItem> =
+        try {
+            addressBook.withAddressRecovery(request).fold(
+                { failure ->
+                    Log.w(TAG, "mix request failed: $failure")
                     emptyList()
-                }
-            callback.onTracks(tracks)
+                },
+                { response ->
+                    PlexBrowseRepository.tracksOf(response).mapNotNull {
+                        PlexMediaMapper.trackToMediaItem(it, null, serverUri, token)
+                    }
+                },
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            Log.w(TAG, "mix mapping failed", failure)
+            emptyList()
         }
-    }
 }
