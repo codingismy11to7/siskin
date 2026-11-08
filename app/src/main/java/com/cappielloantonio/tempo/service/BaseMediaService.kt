@@ -27,7 +27,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.MediaSource
-import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession.ControllerInfo
 import com.cappielloantonio.tempo.equalizer.BuiltinBackend
@@ -65,7 +64,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 private const val TAG = "BaseMediaService"
 
@@ -329,25 +327,6 @@ open class BaseMediaService : MediaLibraryService() {
                     val currentMediaItem = player.currentMediaItem
                     if (currentMediaItem != null) {
                         extendQueue(player, currentMediaItem)
-                    }
-
-                    if (player is ExoPlayer) {
-                        // https://stackoverflow.com/questions/56937283/exoplayer-shuffle-doesnt-reproduce-all-the-songs
-                        if (MediaManager.justStarted.get()) {
-                            Log.d(TAG, "update shuffle order")
-                            MediaManager.justStarted.set(false)
-                            val shuffledList = IntArray(player.mediaItemCount) { i -> i }
-                            shuffledList.shuffle()
-                            val index = shuffledList.indexOf(player.currentMediaItemIndex)
-                            // swap current media index to the first index
-                            if (index > -1 && shuffledList.isNotEmpty()) {
-                                val tmp = shuffledList[0]
-                                shuffledList[0] = shuffledList[index]
-                                shuffledList[index] = tmp
-                            }
-                            player.shuffleOrder =
-                                DefaultShuffleOrder(shuffledList, Random.nextLong())
-                        }
                     }
                 }
 

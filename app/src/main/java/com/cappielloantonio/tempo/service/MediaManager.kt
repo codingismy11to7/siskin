@@ -4,11 +4,8 @@ import androidx.media3.common.MediaItem
 import com.cappielloantonio.tempo.plex.PlexMediaMapper
 import com.cappielloantonio.tempo.plex.api.search.TimelineState
 import com.cappielloantonio.tempo.repository.QueueRepository
-import java.util.concurrent.atomic.AtomicBoolean
 
 object MediaManager {
-    val justStarted = AtomicBoolean(false)
-
     fun setLastPlayedTimestamp(mediaItem: MediaItem?) {
         if (mediaItem != null) QueueRepository().setLastPlayedTimestamp(mediaItem.mediaId)
     }
