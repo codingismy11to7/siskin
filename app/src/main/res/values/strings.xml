@@ -44,7 +44,10 @@
     <string name="car_settings_sign_out">Sign out</string>
     <string name="car_settings_switch_user">Switch user</string>
     <string name="car_settings_listening_as">Listening as %1$s</string>
-    <string name="car_settings_title">Settings</string>
+    <string name="car_settings_category_playback">Playback</string>
+    <string name="car_settings_category_browse">Browse</string>
+    <string name="car_settings_category_storage">Storage</string>
+    <string name="car_settings_category_account">Account</string>
     <string name="car_settings_customize_tabs">Customize tabs</string>
     <string name="car_settings_select_library">Show library quick switch</string>
     <string name="car_settings_cache_size">Cache size</string>

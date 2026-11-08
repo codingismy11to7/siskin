@@ -10,12 +10,12 @@
     <!-- Separates stacked picker entries so neighbours are not mis-tapped. -->
     <dimen name="plex_sign_in_choice_gap">12dp</dimen>
     <!--
-        Inset for a settings row's own content. choice_container has no padding,
-        so without this a row's label sits flush at the column's edge while a
-        MaterialButton's label is centred inside it, and the two stop reading as
-        one list.
+        Inset for a settings row's content from its surface's edges. Headings
+        above the rows take the same margin, so their text lines up with the
+        rows' labels.
     -->
     <dimen name="plex_sign_in_row_padding">16dp</dimen>
+    <dimen name="settings_row_corner_radius">16dp</dimen>
     <dimen name="debug_tier_reported_stroke">4dp</dimen>
     <dimen name="debug_tooltip_elevation">3dp</dimen>
 </resources>

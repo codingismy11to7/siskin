@@ -40,7 +40,10 @@
     <string name="car_settings_sign_out">Abmelden</string>
     <string name="car_settings_switch_user">Benutzer wechseln</string>
     <string name="car_settings_listening_as">Wiedergabe als %1$s</string>
-    <string name="car_settings_title">Einstellungen</string>
+    <string name="car_settings_category_playback">Wiedergabe</string>
+    <string name="car_settings_category_browse">Durchsuchen</string>
+    <string name="car_settings_category_storage">Speicher</string>
+    <string name="car_settings_category_account">Konto</string>
     <string name="car_settings_customize_tabs">Tabs anpassen</string>
     <string name="car_settings_select_library">Bibliotheks-Schnellwechsel anzeigen</string>
     <string name="car_settings_cache_size">Cache-Größe</string>

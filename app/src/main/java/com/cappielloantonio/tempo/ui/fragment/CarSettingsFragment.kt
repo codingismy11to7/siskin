@@ -1,13 +1,22 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.content.Context
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
+import androidx.annotation.DrawableRes
+import androidx.annotation.IdRes
 import androidx.annotation.OptIn
+import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
@@ -25,14 +34,16 @@ import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheChoices
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * What the car shows once there is a session: the toggles, the value rows, the
- * route to the tab-order screen, Switch user, Sign out, and the version line
- * that opens the debug screen.
+ * What the car shows once there is a session: a rail of [SettingsCategory]s and
+ * the selected one's rows beside it. The pickers and Customize tabs open in that
+ * pane rather than over the screen. See
+ * docs/decisions/2026-11-07-settings-two-pane-design.md.
  *
  * Reached by state, not by a caller. [CarHostActivity] routes
  * [com.cappielloantonio.tempo.plex.auth.PlexSignInState.Connected] here and
@@ -44,20 +55,29 @@ import kotlinx.coroutines.withContext
  * that Switch user's visibility waits on a plex.tv answer, and the cache usage
  * line on a read of the cache's index): the only state this screen is ever
  * shown for is Connected, and the one transition out of it is the one that
- * replaces this fragment. Preferences are therefore
- * read at build time -- which is also true on the way back from
- * [BrowseTabOrderFragment], since popping that back-stack entry recreates this
- * fragment's view.
+ * replaces this fragment. The rows that a pane screen changes are re-read when
+ * it closes, since the view outlives it.
  *
- * No `OnBackPressedCallback` either, deliberately.
- * [PlexSignInViewModel.handlesBackPress] reports false for Connected, so back
- * falls through to the platform default and finishes the activity -- which is
- * what it should do from the screen you land on rather than pass through.
+ * Back closes an open pane screen. With none open, the callback is disabled and
+ * back falls through to the platform default, finishing the activity --
+ * [PlexSignInViewModel.handlesBackPress] reports false for Connected, and the
+ * screen you land on should not be one you have to back out of twice.
  */
 @UnstableApi
 class CarSettingsFragment : Fragment() {
     private var bind: FragmentCarSettingsBinding? = null
     private lateinit var viewModel: PlexSignInViewModel
+    private var category = SettingsCategory.PLAYBACK
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        savedInstanceState?.getString(KEY_CATEGORY)?.let { category = SettingsCategory.valueOf(it) }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(KEY_CATEGORY, category.name)
+    }
 
     @OptIn(UnstableApi::class)
     override fun onCreateView(
@@ -69,24 +89,32 @@ class CarSettingsFragment : Fragment() {
         val bind = FragmentCarSettingsBinding.inflate(inflater, container, false)
         this.bind = bind
 
-        val rows = bind.choiceContainer
+        val panes =
+            SettingsCategory.entries.associateWith {
+                LinearLayout(inflater.context)
+                    .apply { orientation = LinearLayout.VERTICAL }
+                    .also { pane -> bind.categoryContainer.addView(pane) }
+            }
+        val playback = panes.getValue(SettingsCategory.PLAYBACK)
+        val browse = panes.getValue(SettingsCategory.BROWSE)
+        val storage = panes.getValue(SettingsCategory.STORAGE)
+        val account = panes.getValue(SettingsCategory.ACCOUNT)
 
-        // Before Sign out, because a destructive terminal action belongs last.
         // Each row reads its preference here rather than holding any state.
         addToggle(
-            rows,
+            playback,
             getString(R.string.car_settings_continuous_play),
             Preferences.isContinuousPlayEnabled(),
         ) { Preferences.setContinuousPlayEnabled(it) }
 
         addToggle(
-            rows,
+            playback,
             getString(R.string.car_settings_replay_gain),
             Preferences.isReplayGainEnabled(),
         ) { Preferences.setReplayGainEnabled(it) }
 
         addToggle(
-            rows,
+            playback,
             getString(R.string.car_settings_crossfade),
             Preferences.isCrossfadeEnabled(),
         ) { Preferences.setCrossfadeEnabled(it) }
@@ -96,7 +124,7 @@ class CarSettingsFragment : Fragment() {
         // without this the tab keeps whichever shape it was first loaded with
         // and the row reads as doing nothing until the next cold start.
         addToggle(
-            rows,
+            browse,
             getString(R.string.car_settings_artists_by_initial),
             Preferences.isArtistsByInitialEnabled(),
         ) {
@@ -105,7 +133,7 @@ class CarSettingsFragment : Fragment() {
         }
 
         addToggle(
-            rows,
+            browse,
             getString(R.string.car_settings_artist_mix),
             Preferences.isArtistMixEnabled(),
         ) {
@@ -114,7 +142,7 @@ class CarSettingsFragment : Fragment() {
         }
 
         addToggle(
-            rows,
+            browse,
             getString(R.string.car_settings_artist_radio),
             Preferences.isArtistRadioEnabled(),
         ) {
@@ -122,63 +150,35 @@ class CarSettingsFragment : Fragment() {
             BrowseTreeInvalidator.invalidateArtistPages()
         }
 
-        // Values chosen from a list, so each opens a picker. Settings rebuilds
-        // its view when the picker pops, which is what refreshes them.
+        // Filled in by refreshValues, which watchPane runs once the rows exist.
         val context = requireContext()
-        val automatic = DownloadUtil.getAutomaticStreamingCacheSizeMegabytes(context)
-        val cacheChoice = StreamingCacheChoices.current(Preferences.getStreamingCacheSizeOverrideMegabytes(), automatic)
         val cacheValue =
-            addValueRow(
-                rows,
-                getString(R.string.car_settings_cache_size),
-                StreamingCacheChoices.cacheSizeSummary(resources, cacheChoice, usedBytes = null),
-            ) { push(ValuePickerFragment.newInstance(ValuePicker.CACHE_SIZE)) }.value
+            addValueRow(storage, getString(R.string.car_settings_cache_size), "") {
+                openInPane(ValuePickerFragment.newInstance(ValuePicker.CACHE_SIZE))
+            }.value
+        val precacheValue =
+            addValueRow(storage, getString(R.string.car_settings_precache), "") {
+                openInPane(ValuePickerFragment.newInstance(ValuePicker.PRECACHE))
+            }.value
 
-        addValueRow(
-            rows,
-            getString(R.string.car_settings_precache),
-            StreamingCacheChoices.precacheSummary(
-                resources,
-                Preferences.getPrecacheTracksCount(),
-                cacheOff = cacheChoice == CacheSizeChoice.Off,
-            ),
-        ) { push(ValuePickerFragment.newInstance(ValuePicker.PRECACHE)) }
+        val tabsValue =
+            addValueRow(browse, getString(R.string.car_settings_customize_tabs), "") {
+                openInPane(BrowseTabOrderFragment())
+            }.value
 
-        // Reading usage may build the cache, which reads its index from disk.
-        // It lands in a line already laid out, so it changes text, not layout.
-        // Skipped when the cache is off: that line shows no usage, so building
-        // the cache would load its index for nothing. A failed read leaves the
-        // line without a figure rather than taking the process down.
-        if (cacheChoice != CacheSizeChoice.Off) {
-            viewLifecycleOwner.lifecycleScope.launch {
-                val used =
-                    try {
-                        // On the resize thread, so it reads after any trim already
-                        // queued -- and a cancelled read never parks a thread there.
-                        withContext(DownloadUtil.getCacheWorkExecutor().asCoroutineDispatcher()) {
-                            DownloadUtil.getStreamingCacheUsedBytes(context)
-                        }
-                    } catch (exception: CancellationException) {
-                        throw exception
-                    } catch (exception: Exception) {
-                        Log.w("CarSettingsFragment", "Could not read cache usage: $exception")
-                        return@launch
-                    }
-                cacheValue.text = StreamingCacheChoices.cacheSizeSummary(resources, cacheChoice, used)
-            }
+        fun showTabs() {
+            val tabs = BrowseTabOrder.rootTabs(BrowseTabOrder.resolve(Preferences.getBrowseTabOrder()))
+            tabsValue.text = tabs.joinToString(" · ") { getString(BrowseTabOrderFragment.labelFor(it)) }
         }
-
-        val tabs = BrowseTabOrder.rootTabs(BrowseTabOrder.resolve(Preferences.getBrowseTabOrder()))
-        addValueRow(
-            rows,
-            getString(R.string.car_settings_customize_tabs),
-            tabs.joinToString(" · ") { getString(BrowseTabOrderFragment.labelFor(it)) },
-        ) { push(BrowseTabOrderFragment()) }
+        refreshValues = {
+            showStorage(context, cacheValue, precacheValue)
+            showTabs()
+        }
 
         // Rebuilds the tree as well as writing the key: the tree is held in
         // memory, and the car keeps showing its cached More until told it changed.
         addToggle(
-            rows,
+            browse,
             getString(R.string.car_settings_select_library),
             Preferences.isSelectLibraryEnabled(),
         ) {
@@ -191,7 +191,7 @@ class CarSettingsFragment : Fragment() {
         // replies; a failed reply then changes nothing, since hiding a drawn
         // row would slide Sign out up under the finger aimed at it. One line,
         // ellipsized, so a long name or a rename cannot change the row's height.
-        val switchUser = addValueRow(rows, getString(R.string.car_settings_switch_user), "") { switchUser() }
+        val switchUser = addValueRow(account, getString(R.string.car_settings_switch_user), "") { switchUser() }
         switchUser.value.maxLines = 1
         switchUser.value.ellipsize = TextUtils.TruncateAt.END
 
@@ -202,7 +202,7 @@ class CarSettingsFragment : Fragment() {
         }
         showHome(HomeUsersRepository.remembered())
 
-        addChoice(rows, getString(R.string.car_settings_sign_out)) {
+        addDestructiveChoice(account, getString(R.string.car_settings_sign_out)) {
             viewModel.signOut()
             (requireActivity() as LoginHost).onSignedOut()
         }
@@ -230,15 +230,161 @@ class CarSettingsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch { HomeUsersRepository.refresh()?.let(::showHome) }
 
+        buildRail(bind, panes)
+        watchPane(bind)
+
         return bind.root
     }
 
-    private fun push(fragment: Fragment) {
-        parentFragmentManager
+    /**
+     * The selected category lives on the fragment and in its saved state, not
+     * the view: Switch user, the debug screen and a uiMode flip all rebuild the
+     * view, and it has to reopen where it was left.
+     *
+     * Building shows the category without closing anything, since a pane screen
+     * the child manager restored belongs to it. Choosing a category on the rail,
+     * including the one already selected, closes whatever is open; otherwise a
+     * pane screen stays beside the wrong rail item, or cannot be left by the rail.
+     */
+    private fun buildRail(
+        bind: FragmentCarSettingsBinding,
+        panes: Map<SettingsCategory, View>,
+    ) {
+        fun show(category: SettingsCategory) {
+            this.category = category
+            panes.forEach { (each, pane) -> pane.visibility = if (each == category) View.VISIBLE else View.GONE }
+            bind.categoryHeading.setText(category.label)
+            bind.versionText.visibility = if (category == SettingsCategory.ACCOUNT) View.VISIBLE else View.GONE
+            bind.contentScroll.scrollTo(0, 0)
+        }
+
+        fun select(category: SettingsCategory) {
+            // The opener is about to be hidden with its category, and focus
+            // belongs on the rail item that was just pressed.
+            if (category != this.category) paneOpener = null
+            closePane()
+            show(category)
+        }
+        val rail = bind.settingsRail
+        SettingsCategory.entries.forEach {
+            rail.menu.add(Menu.NONE, it.id, it.ordinal, it.label).setIcon(it.icon)
+        }
+        show(category)
+        rail.selectedItemId = category.id
+        rail.setOnItemSelectedListener { item ->
+            select(SettingsCategory.entries.first { it.id == item.itemId })
+            true
+        }
+        rail.setOnItemReselectedListener { select(category) }
+    }
+
+    private var paneChanged: FragmentManager.OnBackStackChangedListener? = null
+
+    // The row that opened the pane screen, so a rotary controller lands back
+    // on it when the screen closes. Null in touch mode, where nothing has focus.
+    private var paneOpener: View? = null
+
+    /**
+     * Shows the pane screen in place of the category rows while one is open,
+     * and lets back close it. Run once at the end, so a pane screen the child
+     * manager restored with a rebuilt view is shown rather than hidden behind
+     * the rows -- and so the rows' values are filled in.
+     */
+    private fun watchPane(bind: FragmentCarSettingsBinding) {
+        val backClosesPane =
+            object : OnBackPressedCallback(false) {
+                override fun handleOnBackPressed() = closePane()
+            }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backClosesPane)
+        val listener =
+            FragmentManager.OnBackStackChangedListener {
+                val open = childFragmentManager.backStackEntryCount > 0
+                backClosesPane.isEnabled = open
+                bind.paneContainer.visibility = if (open) View.VISIBLE else View.GONE
+                bind.categoryPane.visibility = if (open) View.GONE else View.VISIBLE
+                if (open) {
+                    bind.paneContainer.requestFocus()
+                } else {
+                    refreshValues()
+                    paneOpener?.requestFocus()
+                    paneOpener = null
+                }
+            }
+        childFragmentManager.addOnBackStackChangedListener(listener)
+        paneChanged = listener
+        listener.onBackStackChanged()
+    }
+
+    private var refreshValues: () -> Unit = {}
+
+    /**
+     * Executed now rather than queued, so a second tap before the next frame
+     * sees the first screen open and is ignored instead of stacking another.
+     */
+    private fun openInPane(fragment: Fragment) {
+        if (childFragmentManager.backStackEntryCount > 0) return
+        paneOpener = bind?.root?.findFocus()
+        childFragmentManager
             .beginTransaction()
-            .replace(R.id.car_host_container, fragment)
+            .replace(R.id.pane_container, fragment)
             .addToBackStack(null)
             .commit()
+        childFragmentManager.executePendingTransactions()
+    }
+
+    private fun closePane() {
+        if (childFragmentManager.backStackEntryCount == 0) return
+        childFragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+    }
+
+    private var usageRead: Job? = null
+
+    /**
+     * Fills in the Storage rows from preferences. Run when the view is built
+     * and again when a pane screen closes, since the rows outlive it.
+     *
+     * Reading usage may build the cache, which reads its index from disk. It
+     * lands in a line already laid out, so it changes text, not layout.
+     * Skipped when the cache is off: that line shows no usage, so building the
+     * cache would load its index for nothing. A failed read leaves the line
+     * without a figure rather than taking the process down. A read still
+     * running from the last call is cancelled, or it could land after this one
+     * and show a size the cache no longer has.
+     */
+    private fun showStorage(
+        context: Context,
+        cacheValue: TextView,
+        precacheValue: TextView,
+    ) {
+        usageRead?.cancel()
+        usageRead = null
+        val automatic = DownloadUtil.getAutomaticStreamingCacheSizeMegabytes(context)
+        val cacheChoice = StreamingCacheChoices.current(Preferences.getStreamingCacheSizeOverrideMegabytes(), automatic)
+        cacheValue.text = StreamingCacheChoices.cacheSizeSummary(resources, cacheChoice, usedBytes = null)
+        precacheValue.text =
+            StreamingCacheChoices.precacheSummary(
+                resources,
+                Preferences.getPrecacheTracksCount(),
+                cacheOff = cacheChoice == CacheSizeChoice.Off,
+            )
+        if (cacheChoice == CacheSizeChoice.Off) return
+        usageRead =
+            viewLifecycleOwner.lifecycleScope.launch {
+                val used =
+                    try {
+                        // On the resize thread, so it reads after any trim already
+                        // queued -- and a cancelled read never parks a thread there.
+                        withContext(DownloadUtil.getCacheWorkExecutor().asCoroutineDispatcher()) {
+                            DownloadUtil.getStreamingCacheUsedBytes(context)
+                        }
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (exception: Exception) {
+                        Log.w("CarSettingsFragment", "Could not read cache usage: $exception")
+                        return@launch
+                    }
+                cacheValue.text = StreamingCacheChoices.cacheSizeSummary(resources, cacheChoice, used)
+            }
     }
 
     /**
@@ -261,8 +407,29 @@ class CarSettingsFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        paneChanged?.let(childFragmentManager::removeOnBackStackChangedListener)
+        paneChanged = null
+        paneOpener = null
+        usageRead = null
+        refreshValues = {}
         bind = null
     }
+
+    private companion object {
+        const val KEY_CATEGORY = "category"
+    }
+}
+
+/** Settings' rail, in order. */
+private enum class SettingsCategory(
+    @IdRes val id: Int,
+    @StringRes val label: Int,
+    @DrawableRes val icon: Int,
+) {
+    PLAYBACK(R.id.settings_category_playback, R.string.car_settings_category_playback, R.drawable.ic_settings_playback),
+    BROWSE(R.id.settings_category_browse, R.string.car_settings_category_browse, R.drawable.ic_browse_library),
+    STORAGE(R.id.settings_category_storage, R.string.car_settings_category_storage, R.drawable.ic_settings_storage),
+    ACCOUNT(R.id.settings_category_account, R.string.car_settings_category_account, R.drawable.ic_settings_account),
 }
 
 /**

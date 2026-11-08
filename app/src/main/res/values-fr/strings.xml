@@ -41,7 +41,10 @@
     <string name="car_settings_sign_out">Se déconnecter</string>
     <string name="car_settings_switch_user">Changer d\'utilisateur</string>
     <string name="car_settings_listening_as">Écoute en tant que %1$s</string>
-    <string name="car_settings_title">Paramètres</string>
+    <string name="car_settings_category_playback">Lecture</string>
+    <string name="car_settings_category_browse">Parcourir</string>
+    <string name="car_settings_category_storage">Stockage</string>
+    <string name="car_settings_category_account">Compte</string>
     <string name="car_settings_customize_tabs">Personnaliser les onglets</string>
     <string name="car_settings_select_library">Afficher le changement rapide de bibliothèque</string>
     <string name="car_settings_cache_size">Taille du cache</string>

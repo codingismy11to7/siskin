@@ -41,7 +41,10 @@
     <string name="car_settings_sign_out">Cerrar sesión</string>
     <string name="car_settings_switch_user">Cambiar de usuario</string>
     <string name="car_settings_listening_as">Escuchando como %1$s</string>
-    <string name="car_settings_title">Ajustes</string>
+    <string name="car_settings_category_playback">Reproducción</string>
+    <string name="car_settings_category_browse">Explorar</string>
+    <string name="car_settings_category_storage">Almacenamiento</string>
+    <string name="car_settings_category_account">Cuenta</string>
     <string name="car_settings_customize_tabs">Personalizar pestañas</string>
     <string name="car_settings_select_library">Mostrar el cambio rápido de biblioteca</string>
     <string name="car_settings_cache_size">Tamaño de la caché</string>

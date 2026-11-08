@@ -27,6 +27,7 @@ import com.cappielloantonio.tempo.util.Preferences
 import com.cappielloantonio.tempo.util.StreamingCacheTestHooks
 import com.cappielloantonio.tempo.viewmodel.PlexSignInViewModel
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.navigationrail.NavigationRailView
 import kotlinx.coroutines.awaitCancellation
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -98,11 +99,45 @@ class CarSettingsFragmentTest {
         StreamingCacheTestHooks.release()
     }
 
-    private fun settingsScreen(): View {
-        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+    /**
+     * Settings opened on [category]. Rows in other categories are built but
+     * hidden, so a check on visible text has to be made in the row's category
+     * or it passes for the wrong reason.
+     */
+    private fun settingsActivity(category: Int = R.id.settings_category_playback): CarHostActivity {
+        val activity = Robolectric.buildActivity(CarHostActivity::class.java).setup().get()
         shadowOf(Looper.getMainLooper()).idle()
-        return controller.get().findViewById(R.id.car_host_container)
+        select(activity, category)
+        return activity
     }
+
+    private fun settingsScreen(category: Int = R.id.settings_category_playback): View =
+        settingsActivity(category).findViewById(R.id.car_host_container)
+
+    private fun select(
+        activity: CarHostActivity,
+        category: Int,
+    ) {
+        activity.findViewById<NavigationRailView>(R.id.settings_rail).selectedItemId = category
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    private fun tapRow(
+        activity: CarHostActivity,
+        label: String,
+    ) {
+        val text = textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == label }
+        // A value row nests its label beside the chevron, so the row is not
+        // always the label's parent: the first clickable ancestor is.
+        generateSequence(text.parent as View) { it.parent as? View }.first { it.isClickable }.performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    private fun settings(activity: CarHostActivity) =
+        activity.supportFragmentManager.findFragmentById(R.id.car_host_container) as CarSettingsFragment
+
+    /** What Settings' detail pane is showing over the category rows, if anything. */
+    private fun paneScreen(activity: CarHostActivity) = settings(activity).childFragmentManager.findFragmentById(R.id.pane_container)
 
     private fun switchesIn(view: View): List<MaterialSwitch> =
         when (view) {
@@ -240,8 +275,8 @@ class CarSettingsFragmentTest {
     }
 
     /**
-     * Every row shares one `addToggle` and one `choice_container`, and each
-     * closes over its own preference. A row that wrote a neighbour's key would
+     * Every row shares one `addToggle`, and each closes over its own
+     * preference. A row that wrote a neighbour's key would
      * still look right on screen -- the switch it moved is the one it was built
      * with -- so nothing else here would catch it.
      */
@@ -294,7 +329,7 @@ class CarSettingsFragmentTest {
 
     @Test
     fun `the select library row sits right after customize tabs`() {
-        val texts = visibleTexts(settingsScreen())
+        val texts = visibleTexts(settingsScreen(R.id.settings_category_browse))
         val tabs = texts.indexOf(App.getContext().getString(R.string.car_settings_customize_tabs))
 
         // +2: the Customize tabs row carries its value line beneath its label.
@@ -382,7 +417,7 @@ class CarSettingsFragmentTest {
     fun `the cache rows show their values`() {
         Preferences.setStreamingCacheSizeOverrideMegabytes(2048L)
         Preferences.setPrecacheTracksCount(3)
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_storage)
 
         assertTrue(visibleTexts(screen).any { it.startsWith("2 GB") })
         assertTrue(visibleTexts(screen).contains("3 tracks"))
@@ -391,22 +426,190 @@ class CarSettingsFragmentTest {
     @Test
     fun `precache says it is paused while the cache is off`() {
         Preferences.setStreamingCacheSizeOverrideMegabytes(0L)
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_storage)
 
         assertTrue(visibleTexts(screen).contains("Off"))
         assertTrue(visibleTexts(screen).contains("2 tracks · paused while the cache is off"))
     }
 
+    /** In the pane, beside the rail, rather than over the whole screen. */
     @Test
-    fun `tapping cache size opens its picker`() {
-        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
-        shadowOf(Looper.getMainLooper()).idle()
-        val activity = controller.get()
-        val label = textsIn(activity.findViewById(R.id.car_host_container)).first { it.text.toString() == "Cache size" }
-        (label.parent as View).performClick()
+    fun `tapping cache size opens its picker in the pane`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+
+        tapRow(activity, "Cache size")
+
+        assertTrue(paneScreen(activity) is ValuePickerFragment)
+        assertTrue(activity.supportFragmentManager.findFragmentById(R.id.car_host_container) is CarSettingsFragment)
+        assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
+    }
+
+    @Test
+    fun `back closes an open picker and stays on its category`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+        tapRow(activity, "Cache size")
+
+        activity.onBackPressedDispatcher.onBackPressed()
         shadowOf(Looper.getMainLooper()).idle()
 
-        assertTrue(activity.supportFragmentManager.findFragmentById(R.id.car_host_container) is ValuePickerFragment)
+        assertEquals(null, paneScreen(activity))
+        assertFalse(activity.isFinishing)
+        assertEquals(R.id.settings_category_storage, activity.findViewById<NavigationRailView>(R.id.settings_rail).selectedItemId)
+        assertTrue(visibleTexts(activity.findViewById(R.id.car_host_container)).contains("Cache size"))
+    }
+
+    @Test
+    fun `back with nothing open leaves settings`() {
+        val activity = settingsActivity()
+
+        activity.onBackPressedDispatcher.onBackPressed()
+
+        assertTrue(activity.isFinishing)
+    }
+
+    /** The rows outlive the picker now, so nothing rebuilds them on the way back. */
+    @Test
+    fun `choosing a precache count closes the picker and shows the new count`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+        tapRow(activity, "Precache")
+
+        tapRow(activity, "3 tracks")
+
+        assertEquals(3, Preferences.getPrecacheTracksCount())
+        assertEquals(null, paneScreen(activity))
+        assertTrue(visibleTexts(activity.findViewById(R.id.car_host_container)).contains("3 tracks"))
+    }
+
+    @Test
+    fun `selecting another category closes an open picker`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+        tapRow(activity, "Cache size")
+
+        select(activity, R.id.settings_category_playback)
+
+        assertEquals(null, paneScreen(activity))
+        assertTrue(
+            visibleTexts(activity.findViewById(R.id.car_host_container))
+                .contains(App.getContext().getString(R.string.car_settings_continuous_play)),
+        )
+    }
+
+    /** A day/night flip recreates the activity, and the car does that on its own. */
+    @Test
+    fun `recreation keeps the category and the open picker`() {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        shadowOf(Looper.getMainLooper()).idle()
+        select(controller.get(), R.id.settings_category_storage)
+        tapRow(controller.get(), "Cache size")
+
+        controller.recreate()
+        shadowOf(Looper.getMainLooper()).idle()
+        val activity = controller.get()
+
+        assertEquals(R.id.settings_category_storage, activity.findViewById<NavigationRailView>(R.id.settings_rail).selectedItemId)
+        assertTrue(paneScreen(activity) is ValuePickerFragment)
+        assertTrue(paneScreen(activity)!!.requireView().isShown)
+    }
+
+    @Test
+    fun `a second tap before the first lands opens nothing more`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+        val row =
+            generateSequence(
+                textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == "Cache size" } as View,
+            ) { it.parent as? View }.first { it.isClickable }
+
+        row.performClick()
+        row.performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(1, settings(activity).childFragmentManager.backStackEntryCount)
+    }
+
+    @Test
+    fun `tapping the selected category closes its open picker`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+        tapRow(activity, "Cache size")
+
+        select(activity, R.id.settings_category_storage)
+
+        assertEquals(null, paneScreen(activity))
+        assertTrue(visibleTexts(activity.findViewById(R.id.car_host_container)).contains("Cache size"))
+    }
+
+    /** Hiding the rows drops a rotary controller's focus; closing gives it back. */
+    @Test
+    fun `focus returns to the row that opened a picker`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+        val row =
+            generateSequence(
+                textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == "Precache" } as View,
+            ) { it.parent as? View }.first { it.isClickable }
+        assertTrue(row.requestFocus())
+
+        row.performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        activity.onBackPressedDispatcher.onBackPressed()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(row.isFocused)
+    }
+
+    @Test
+    fun `leaving a picker for another category keeps focus on the rail`() {
+        val activity = settingsActivity(R.id.settings_category_storage)
+        val row =
+            generateSequence(
+                textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == "Precache" } as View,
+            ) { it.parent as? View }.first { it.isClickable }
+        assertTrue(row.requestFocus())
+        row.performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        // Not Playback: a view losing focus hands it to the first focusable
+        // one, which is Playback's rail item, and would pass this by accident.
+        val account = activity.findViewById<View>(R.id.settings_category_account)
+        assertTrue(account.requestFocus())
+
+        select(activity, R.id.settings_category_account)
+
+        assertTrue(account.isFocused)
+    }
+
+    @Test
+    fun `the rail lists the categories in order and opens on playback`() {
+        val activity = Robolectric.buildActivity(CarHostActivity::class.java).setup().get()
+        shadowOf(Looper.getMainLooper()).idle()
+        val rail = activity.findViewById<NavigationRailView>(R.id.settings_rail)
+
+        assertEquals(
+            listOf(
+                R.id.settings_category_playback,
+                R.id.settings_category_browse,
+                R.id.settings_category_storage,
+                R.id.settings_category_account,
+            ),
+            (0 until rail.menu.size()).map { rail.menu.getItem(it).itemId },
+        )
+        assertEquals(R.id.settings_category_playback, rail.selectedItemId)
+    }
+
+    @Test
+    fun `each category shows its own rows and hides the others`() {
+        val context = App.getContext()
+        val rowOf =
+            mapOf(
+                R.id.settings_category_playback to context.getString(R.string.car_settings_continuous_play),
+                R.id.settings_category_browse to context.getString(R.string.car_settings_customize_tabs),
+                R.id.settings_category_storage to context.getString(R.string.car_settings_cache_size),
+                R.id.settings_category_account to context.getString(R.string.car_settings_sign_out),
+            )
+        val activity = settingsActivity()
+
+        for ((category, row) in rowOf) {
+            select(activity, category)
+            val texts = visibleTexts(activity.findViewById(R.id.car_host_container))
+            assertEquals("in $category", listOf(row), rowOf.values.filter { it in texts })
+        }
     }
 
     private fun customizeTabsValue(screen: View): String {
@@ -418,7 +621,7 @@ class CarSettingsFragmentTest {
 
     @Test
     fun `customize tabs shows the default tabs`() {
-        assertEquals("Playlists · Mixes · Radio", customizeTabsValue(settingsScreen()))
+        assertEquals("Playlists · Mixes · Radio", customizeTabsValue(settingsScreen(R.id.settings_category_browse)))
     }
 
     /** Resolved, not read raw: the save names two, and the car fills the third. */
@@ -426,27 +629,36 @@ class CarSettingsFragmentTest {
     fun `customize tabs shows a saved order as the car resolves it`() {
         Preferences.setBrowseTabOrder(listOf(Constants.DISCOVER_ID, Constants.ALBUMS_ID))
 
-        assertEquals("Discover · Albums · Playlists", customizeTabsValue(settingsScreen()))
+        assertEquals("Discover · Albums · Playlists", customizeTabsValue(settingsScreen(R.id.settings_category_browse)))
     }
 
     @Test
-    fun `tapping customize tabs opens the tab-order screen`() {
-        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
-        shadowOf(Looper.getMainLooper()).idle()
-        val activity = controller.get()
-        val label = activity.getString(R.string.car_settings_customize_tabs)
-        (textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == label }.parent as View)
-            .performClick()
+    fun `tapping customize tabs opens the tab-order screen in the pane`() {
+        val activity = settingsActivity(R.id.settings_category_browse)
+
+        tapRow(activity, activity.getString(R.string.car_settings_customize_tabs))
+
+        assertTrue(paneScreen(activity) is BrowseTabOrderFragment)
+        assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
+    }
+
+    @Test
+    fun `closing customize tabs shows the new order`() {
+        val activity = settingsActivity(R.id.settings_category_browse)
+        tapRow(activity, activity.getString(R.string.car_settings_customize_tabs))
+        Preferences.setBrowseTabOrder(listOf(Constants.DISCOVER_ID, Constants.ALBUMS_ID))
+
+        activity.onBackPressedDispatcher.onBackPressed()
         shadowOf(Looper.getMainLooper()).idle()
 
-        assertTrue(activity.supportFragmentManager.findFragmentById(R.id.car_host_container) is BrowseTabOrderFragment)
+        assertEquals("Discover · Albums · Playlists", customizeTabsValue(activity.findViewById(R.id.car_host_container)))
     }
 
     @Test
     fun `a one-member Home shows no Switch user row`() {
         HomeUsersRepository.fetch = { home("me") }
 
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_account)
 
         assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
     }
@@ -455,7 +667,7 @@ class CarSettingsFragmentTest {
     fun `a larger Home shows who is listening and the Switch user row above Sign out`() {
         HomeUsersRepository.fetch = { home("codingismy11to7", "jill") }
 
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_account)
         val texts = visibleTexts(screen)
 
         val switchUser = App.getContext().getString(R.string.car_settings_switch_user)
@@ -468,7 +680,7 @@ class CarSettingsFragmentTest {
     fun `a failed Home lookup shows no Switch user row`() {
         HomeUsersRepository.fetch = { null }
 
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_account)
 
         assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
     }
@@ -479,7 +691,7 @@ class CarSettingsFragmentTest {
         settingsScreen()
         HomeUsersRepository.fetch = { awaitCancellation() }
 
-        val texts = visibleTexts(settingsScreen())
+        val texts = visibleTexts(settingsScreen(R.id.settings_category_account))
 
         assertTrue(texts.contains(App.getContext().getString(R.string.car_settings_switch_user)))
         assertTrue(texts.contains(App.getContext().getString(R.string.car_settings_listening_as, "codingismy11to7")))
@@ -499,7 +711,7 @@ class CarSettingsFragmentTest {
             )
         HomeUsersRepository.fetch = { awaitCancellation() }
 
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_account)
 
         assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
     }
@@ -511,7 +723,7 @@ class CarSettingsFragmentTest {
         settingsScreen()
         HomeUsersRepository.fetch = { null }
 
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_account)
 
         assertTrue(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
     }
@@ -524,7 +736,7 @@ class CarSettingsFragmentTest {
         settingsScreen()
         HomeUsersRepository.fetch = { awaitCancellation() }
 
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_account)
 
         assertTrue(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
     }
@@ -535,7 +747,7 @@ class CarSettingsFragmentTest {
         settingsScreen()
         HomeUsersRepository.fetch = { home("codingismy11to7") }
 
-        val screen = settingsScreen()
+        val screen = settingsScreen(R.id.settings_category_account)
 
         assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
     }
@@ -567,15 +779,10 @@ class CarSettingsFragmentTest {
                 }
             }
         try {
-            val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
-            shadowOf(Looper.getMainLooper()).idle()
-            val activity = controller.get()
+            val activity = settingsActivity(R.id.settings_category_account)
             val sessionBefore = PlexApi().session
-            val label = activity.getString(R.string.car_settings_switch_user)
 
-            (textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == label }.parent as View)
-                .performClick()
-            shadowOf(Looper.getMainLooper()).idle()
+            tapRow(activity, activity.getString(R.string.car_settings_switch_user))
 
             val picker = activity.supportFragmentManager.findFragmentById(R.id.car_host_container)
             assertTrue("got $picker", picker is PlexSignInFragment)
@@ -588,6 +795,13 @@ class CarSettingsFragmentTest {
 
             assertTrue(activity.supportFragmentManager.findFragmentById(R.id.car_host_container) is CarSettingsFragment)
             assertEquals(sessionBefore, PlexApi().session)
+            // The view was rebuilt on the way back; the category was not lost with it.
+            assertEquals(R.id.settings_category_account, activity.findViewById<NavigationRailView>(R.id.settings_rail).selectedItemId)
+            assertTrue(
+                visibleTexts(
+                    activity.findViewById(R.id.car_host_container),
+                ).contains(activity.getString(R.string.car_settings_switch_user)),
+            )
         } finally {
             CarHostActivity.viewModelFactoryForTest = null
         }
