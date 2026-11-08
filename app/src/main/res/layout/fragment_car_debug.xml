@@ -19,7 +19,7 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:background="?attr/colorSurfaceContainer"
-        app:headerLayout="@layout/debug_rail_header"
+        app:headerLayout="@layout/car_rail_header"
         app:itemIconSize="32dp"
         app:itemMinHeight="@dimen/plex_sign_in_choice_min_height"
         app:itemTextAppearanceActive="@style/TextAppearance.Material3.TitleMedium"

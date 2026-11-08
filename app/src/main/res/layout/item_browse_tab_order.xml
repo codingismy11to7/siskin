@@ -8,9 +8,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="@dimen/plex_sign_in_choice_min_height"
+    android:layout_marginBottom="@dimen/plex_sign_in_choice_gap"
+    android:background="@drawable/settings_row_surface"
     android:gravity="center_vertical"
-    android:orientation="horizontal">
+    android:minHeight="@dimen/plex_sign_in_choice_min_height"
+    android:orientation="horizontal"
+    android:paddingStart="0dp"
+    android:paddingEnd="@dimen/plex_sign_in_row_padding">
 
     <ImageView
         android:id="@+id/tab_order_handle"
@@ -35,5 +39,6 @@
         android:id="@+id/tab_order_position"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
 </LinearLayout>

@@ -133,8 +133,8 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
     private void route(PlexSignInState state) {
         FragmentManager fragments = getSupportFragmentManager();
 
-        // A pushed screen owns the container. Settings pushes Customize tabs,
-        // the debug screen and, for Switch user, the sign-in screen; the debug
+        // A pushed screen owns the container. Settings pushes the debug screen
+        // and, for Switch user, the sign-in screen; the debug
         // screen's DebugServerFragment pushes the sign-in screen for Choose
         // server. Both sign-in pushes exist precisely so that back returns to
         // where they came from rather than wherever a routed screen would land.
@@ -146,6 +146,10 @@ public class CarHostActivity extends AppCompatActivity implements LoginHost {
         // and this observer fires again with whatever was already showing.
         // Without this guard either one replaces the pushed screen underneath
         // the user.
+        //
+        // Settings' pickers and Customize tabs are not pushed here: they are
+        // on Settings' own back stack, so they leave with Settings when the
+        // state stops being Connected, which is when they should.
         if (fragments.getBackStackEntryCount() > 0) return;
 
         boolean wantSettings = state instanceof PlexSignInState.Connected;

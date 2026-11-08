@@ -1,6 +1,7 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.text.InputFilter
 import android.text.InputType
 import android.util.TypedValue
@@ -9,8 +10,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.graphics.ColorUtils
 import androidx.core.widget.doAfterTextChanged
 import com.cappielloantonio.tempo.R
 import com.google.android.material.button.MaterialButton
@@ -19,15 +22,15 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.radiobutton.MaterialRadioButton
 
 /*
- * The rows both car screens build into their `choice_container`.
+ * The rows the car screens build into their containers.
  *
- * One file rather than two because all the functions here answer the same
+ * One file rather than several because all the functions here answer the same
  * question -- what a control has to look like to be operated at arm's length,
  * in a car -- and the answer is shared even where the callers are not.
- * [addChoice] is genuinely used by both screens: the server and library pickers
- * build their lists with it, and settings builds Sign out with it.
- * [addToggle], [addValueRow], [addRadioRow] and [applyPressFeedback] are
- * settings' alone today, and [addPinField] is sign-in's; they live here
+ * [addChoice] builds the sign-in screen's server and library pickers and the
+ * debug About tab's Credits button. [addToggle], [addValueRow], [addRadioRow],
+ * [addDestructiveChoice] and [applyPressFeedback] are Settings' and its pane
+ * screens', and [addPinField] is sign-in's; they live here
  * anyway so that a reader comparing a switch row against a button row finds the
  * two decisions side by side rather than in different files.
  *
@@ -50,37 +53,73 @@ internal fun addChoice(
     label: String,
     onClick: () -> Unit,
 ): MaterialButton {
-    val resources = container.resources
     val button =
-        MaterialButton(container.context).apply {
-            text = label
-            minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
-            // MaterialButton's default 6dp insets would shave 12dp off that
-            // minHeight. Same reasoning as retry_button in the layout: the
-            // oversized target is the point on a head unit.
-            insetTop = 0
-            insetBottom = 0
-            setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
-            // setTextAppearance carries its own textColor, which clobbers the
-            // colorOnPrimary a filled button would otherwise use -- leaving pale
-            // text on a pale fill. Restore it after, not before.
-            setTextColor(
-                MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary),
-            )
-            setOnClickListener { onClick() }
+        carButton(container, label, com.google.android.material.R.attr.materialButtonStyle, onClick).apply {
+            setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary))
         }
-    container.addView(
-        button,
-        LinearLayout
-            .LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                bottomMargin = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap)
-            },
-    )
+    addButton(container, button, ViewGroup.LayoutParams.MATCH_PARENT)
     return button
 }
+
+/**
+ * An outlined button in the error color, as wide as its label: a destructive
+ * action should not be the most prominent thing on the screen, which a filled
+ * [addChoice] across a full-width pane is.
+ */
+internal fun addDestructiveChoice(
+    container: ViewGroup,
+    label: String,
+    onClick: () -> Unit,
+): MaterialButton {
+    val button =
+        carButton(container, label, com.google.android.material.R.attr.materialButtonOutlinedStyle, onClick).apply {
+            minWidth = resources.getDimensionPixelSize(R.dimen.plex_sign_in_button_min_width)
+            val error = MaterialColors.getColor(this, androidx.appcompat.R.attr.colorError)
+            setTextColor(error)
+            strokeColor = ColorStateList.valueOf(error)
+            // The outlined style ripples in the primary color, which on a red
+            // button reads as a different control being pressed.
+            rippleColor = ColorStateList.valueOf(ColorUtils.setAlphaComponent(error, RIPPLE_ALPHA))
+        }
+    addButton(container, button, ViewGroup.LayoutParams.WRAP_CONTENT)
+    return button
+}
+
+private const val RIPPLE_ALPHA = 0x33
+
+/**
+ * What both buttons share: the head unit's tap target and text size. The caller
+ * sets the text color afterwards, because setTextAppearance carries its own and
+ * clobbers the style's -- leaving, on a filled button, pale text on a pale fill.
+ */
+private fun carButton(
+    container: ViewGroup,
+    label: String,
+    defStyleAttr: Int,
+    onClick: () -> Unit,
+) = MaterialButton(container.context, null, defStyleAttr).apply {
+    text = label
+    minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+    // MaterialButton's default 6dp insets would shave 12dp off that
+    // minHeight. Same reasoning as retry_button in the layout: the
+    // oversized target is the point on a head unit.
+    insetTop = 0
+    insetBottom = 0
+    setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+    setOnClickListener { onClick() }
+}
+
+/** The gap below matches a row's, so buttons and rows space alike in a list. */
+private fun addButton(
+    container: ViewGroup,
+    button: MaterialButton,
+    width: Int,
+) = container.addView(
+    button,
+    LinearLayout
+        .LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT)
+        .apply { bottomMargin = container.resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_gap) },
+)
 
 /**
  * A settings row: label at the start, switch at the end, and **the row is the
@@ -98,11 +137,6 @@ internal fun addChoice(
  * instead consume ACTION_DOWN and flip itself, the row's listener would
  * never run, and the switch would show one thing while the preference said
  * another.
- *
- * `fragment_car_settings` pins its headings and gives the list all the
- * remaining height, which it did back when the screen held nothing but a Sign
- * out button -- precisely so that a row's arrival would cost nothing. Every
- * row since has been only adding a call, and the next is meant to be the same.
  */
 internal fun addToggle(
     container: ViewGroup,
@@ -142,22 +176,15 @@ private fun addRow(
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
 
-            // A bare LinearLayout draws nothing when pressed. At arm's length a
-            // 72dp target that does not acknowledge the press reads as a dead
-            // control -- and addChoice's filled button ripples right beneath
-            // this one, so the row has to as well.
-            applyPressFeedback(this)
+            setBackgroundResource(R.drawable.settings_row_surface)
 
             // setOnClickListener makes a view clickable but not focusable, and a
             // rotary controller stops only on focusable views -- without this it
-            // skips the row entirely on its way to the Sign out button below.
+            // skips the row entirely on its way to the next one.
             isFocusable = true
 
-            // choice_container is a bare 480dp column with no padding of its
-            // own, so unpadded the label would start flush at x=0 while Sign
-            // out's text is centred inside its button -- two rows that do not
-            // read as one list. Symmetric, so a trailing control is inset from
-            // the far edge by the same amount.
+            // Insets the label and the trailing control from the surface's
+            // edges, which the pane's headings are inset to match.
             val pad = resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
             setPaddingRelative(pad, verticalPadding, pad, verticalPadding)
 
@@ -201,7 +228,8 @@ internal class ValueRow(
  * A settings row for a value chosen from a list: label, the current value on a
  * line beneath it, and the whole row as the target, as in [addToggle]. The
  * value sits below rather than at the row's end so a long one wraps instead of
- * crowding the label in a 480dp column.
+ * crowding the label, and the trailing chevron says the row opens a screen
+ * where a toggle row changes in place.
  */
 internal fun addValueRow(
     container: ViewGroup,
@@ -216,10 +244,22 @@ internal fun addValueRow(
             setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
         }
     val pad = container.resources.getDimensionPixelSize(R.dimen.plex_sign_in_row_padding)
-    val row =
-        addRow(container, LinearLayout.VERTICAL, verticalPadding = pad / 2, onClick) {
+    val text =
+        LinearLayout(container.context).apply {
+            orientation = LinearLayout.VERTICAL
             addView(rowLabel(context, label))
             addView(valueText)
+        }
+    val chevron =
+        ImageView(container.context).apply {
+            setImageResource(R.drawable.ic_chevron_right)
+            imageTintList =
+                ColorStateList.valueOf(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
+        }
+    val row =
+        addRow(container, LinearLayout.HORIZONTAL, verticalPadding = pad / 2, onClick) {
+            addView(text, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(chevron, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
     return ValueRow(row, valueText)
 }
@@ -245,9 +285,9 @@ internal fun addRadioRow(
 
 /**
  * Resolves the theme's ripple for `selectableItemBackground` and applies it
- * as [view]'s background. Shared by the version line and the toggle rows in
- * [addToggle]: both are views a click makes clickable but that draw nothing
- * of their own when pressed, which at arm's length reads as a dead control.
+ * as [view]'s background, for the version line: a click makes a TextView
+ * clickable but it draws nothing of its own when pressed, which at arm's length
+ * reads as a dead control. The rows draw `settings_row_surface` instead.
  */
 internal fun applyPressFeedback(view: View) {
     val ripple = TypedValue()

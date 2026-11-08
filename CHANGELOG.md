@@ -11,6 +11,11 @@
 
 ## [Unreleased] — Siskin
 
+- Settings is laid out for the car's screen rather than a phone's: a rail of
+  categories (Playback, Browse, Storage, Account) down the side, with the
+  selected one's settings beside it. Cache size, Precache and Customize tabs
+  open beside the rail too, so you never lose your place.
+
 ## [1.5.0] (2026-11-07)
 
 - Tracks now cross-fade, as in Plexamp. Each fade starts where the song itself

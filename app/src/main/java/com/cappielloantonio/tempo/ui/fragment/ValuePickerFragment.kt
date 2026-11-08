@@ -73,10 +73,9 @@ enum class ValuePicker(
 }
 
 /**
- * Pushed from Settings onto CarHostActivity's back stack, like Customize tabs,
- * so back returns there and CarHostActivity's parked-only restriction covers it.
- * Choosing an option writes it and pops; Settings rebuilds its rows from
- * preferences on the way back.
+ * Opened in Settings' detail pane, on Settings' own back stack, like Customize
+ * tabs, so back returns to the category it came from. Choosing an option writes
+ * it and pops; Settings re-reads its rows from preferences when it closes.
  */
 @UnstableApi
 class ValuePickerFragment : Fragment() {
