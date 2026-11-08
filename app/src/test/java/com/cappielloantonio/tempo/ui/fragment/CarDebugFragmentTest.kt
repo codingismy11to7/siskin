@@ -48,7 +48,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
-import org.robolectric.shadows.ShadowDialog
 
 /**
  * The debug screen's entry point and its rows.
@@ -78,7 +77,7 @@ class CarDebugFragmentTest {
     }
 
     /**
-     * The About tab asks who installed it, and Robolectric has no answer for
+     * The Car tab asks who installed it, and Robolectric has no answer for
      * the app's own package until it is given one.
      */
     @Before
@@ -155,17 +154,59 @@ class CarDebugFragmentTest {
         .single { it.text.toString() == label }
 
     private fun openDebugScreen(controller: ActivityController<CarHostActivity>) {
-        controller.get().findViewById<View>(R.id.version_text).performClick()
+        controller.get().findViewById<NavigationRailView>(R.id.settings_rail).selectedItemId = R.id.settings_category_about
+        idle()
+        controller.get().findViewById<View>(R.id.about_version).performClick()
         idle()
     }
 
     @Test
-    fun `tapping the version line opens the debug screen`() {
+    fun `tapping About's version opens the debug screen`() {
         val controller = launch()
 
         openDebugScreen(controller)
 
         assertTrue(screenOf(controller) is CarDebugFragment)
+    }
+
+    @Test
+    fun `a second tap on the version pushes nothing more`() {
+        val controller = launch()
+        controller.get().findViewById<NavigationRailView>(R.id.settings_rail).selectedItemId = R.id.settings_category_about
+        idle()
+        val version = controller.get().findViewById<View>(R.id.about_version)
+
+        version.performClick()
+        version.performClick()
+        idle()
+
+        assertEquals(1, controller.get().supportFragmentManager.backStackEntryCount)
+    }
+
+    @Test
+    fun `back from the debug screen returns to Settings on About`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        controller.get().onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertTrue(screenOf(controller) is CarSettingsFragment)
+        assertEquals(
+            R.id.settings_category_about,
+            controller.get().findViewById<NavigationRailView>(R.id.settings_rail).selectedItemId,
+        )
+    }
+
+    @Test
+    fun `the Car tab says what installed the build`() {
+        val controller = launch()
+        openDebugScreen(controller)
+
+        select(controller, DebugTab.CAR)
+
+        val installer = tabFragment(controller, DebugTab.CAR)!!.requireView().findViewById<TextView>(R.id.build_installer)
+        assertEquals(controller.get().getString(R.string.debug_build_installer, "(no installer recorded)"), installer.text.toString())
     }
 
     @Test
@@ -409,13 +450,14 @@ class CarDebugFragmentTest {
     }
 
     @Test
-    fun `the debug screen opens on About, the last tab`() {
+    fun `the debug screen opens on Server, the first tab`() {
         val controller = launch()
         openDebugScreen(controller)
 
-        assertEquals(DebugTab.ABOUT, DebugTab.entries.last())
-        assertEquals(DebugTab.ABOUT.id, rail(controller).selectedItemId)
-        assertTrue(tabFragment(controller, DebugTab.ABOUT)!!.isVisible)
+        assertEquals(DebugTab.SERVER, DebugTab.DEFAULT)
+        assertEquals(DebugTab.SERVER, DebugTab.entries.first())
+        assertEquals(DebugTab.SERVER.id, rail(controller).selectedItemId)
+        assertTrue(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
     }
 
     @Test
@@ -473,7 +515,7 @@ class CarDebugFragmentTest {
     private fun aFailure(at: Long) = FailedTrack("1", "Title", null, null, "HTTP 404", true, at, null)
 
     @Test
-    fun `selecting Car shows the Car tab and hides About`() {
+    fun `selecting Car shows the Car tab and hides Server`() {
         val controller = launch()
         openDebugScreen(controller)
 
@@ -481,7 +523,7 @@ class CarDebugFragmentTest {
 
         assertTrue(tabFragment(controller, DebugTab.CAR) is DebugCarFragment)
         assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
-        assertFalse(tabFragment(controller, DebugTab.ABOUT)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
     }
 
     private fun tierCards(controller: ActivityController<CarHostActivity>) =
@@ -573,7 +615,7 @@ class CarDebugFragmentTest {
 
         assertEquals(DebugTab.CAR.id, rail(controller).selectedItemId)
         assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
-        assertFalse(tabFragment(controller, DebugTab.ABOUT)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
     }
 
     /**
@@ -589,7 +631,7 @@ class CarDebugFragmentTest {
         rail(controller).selectedItemId = DebugTab.CAR.id
 
         assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
-        assertFalse(tabFragment(controller, DebugTab.ABOUT)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
     }
 
     /**
@@ -621,7 +663,7 @@ class CarDebugFragmentTest {
 
         assertEquals(DebugTab.CAR.id, rail(controller).selectedItemId)
         assertTrue(tabFragment(controller, DebugTab.CAR)!!.isVisible)
-        assertFalse(tabFragment(controller, DebugTab.ABOUT)!!.isVisible)
+        assertFalse(tabFragment(controller, DebugTab.SERVER)!!.isVisible)
     }
 
     @Test
@@ -634,42 +676,5 @@ class CarDebugFragmentTest {
         idle()
 
         assertTrue(screenOf(controller) is CarSettingsFragment)
-    }
-
-    /** The URL is printed under the code, so the QR is a shortcut and never the only way there. */
-    @Test
-    fun `Credits opens a dialog with the credits URL spelled out`() {
-        val controller = launch()
-        openDebugScreen(controller)
-
-        openCredits(controller)
-
-        val dialog = ShadowDialog.getLatestDialog()
-        assertTrue(dialog.isShowing)
-        assertEquals(CREDITS_URL, dialog.findViewById<TextView>(R.id.credits_url).text.toString())
-    }
-
-    private fun openCredits(controller: ActivityController<CarHostActivity>) {
-        rowLabelled(controller, controller.get().getString(R.string.debug_about_credits)).performClick()
-        idle()
-    }
-
-    /** A day/night switch recreates the activity, and a bare dialog would leak and vanish. */
-    @Test
-    fun `the Credits dialog survives the activity being recreated`() {
-        val controller = launch()
-        openDebugScreen(controller)
-        openCredits(controller)
-
-        controller.recreate()
-        idle()
-
-        val credits =
-            tabFragment(controller, DebugTab.ABOUT)!!
-                .childFragmentManager
-                .findFragmentByTag(CreditsDialogFragment.TAG) as CreditsDialogFragment
-        val dialog = credits.requireDialog()
-        assertTrue(dialog.isShowing)
-        assertEquals(CREDITS_URL, dialog.findViewById<TextView>(R.id.credits_url).text.toString())
     }
 }

@@ -27,8 +27,8 @@ import com.google.android.material.radiobutton.MaterialRadioButton
  * One file rather than several because all the functions here answer the same
  * question -- what a control has to look like to be operated at arm's length,
  * in a car -- and the answer is shared even where the callers are not.
- * [addChoice] builds the sign-in screen's server and library pickers and the
- * debug About tab's Credits button. [addToggle], [addValueRow], [addRadioRow],
+ * [addChoice] builds the sign-in screen's server and library pickers and
+ * About's Credits button. [addToggle], [addValueRow], [addRadioRow],
  * [addDestructiveChoice] and [applyPressFeedback] are Settings' and its pane
  * screens', and [addPinField] is sign-in's; they live here
  * anyway so that a reader comparing a switch row against a button row finds the

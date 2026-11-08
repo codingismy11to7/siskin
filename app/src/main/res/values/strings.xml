@@ -48,6 +48,12 @@
     <string name="car_settings_category_browse">Browse</string>
     <string name="car_settings_category_storage">Storage</string>
     <string name="car_settings_category_account">Account</string>
+    <string name="car_settings_category_about">About</string>
+    <!-- %1$s is relative ("3 minutes ago"), %2$s the date and %3$s the time it names. -->
+    <string name="car_settings_about_updated">Updated %1$s (%2$s %3$s)</string>
+    <string name="car_settings_about_credits">Credits</string>
+    <string name="car_settings_about_credits_qr">QR code for the credits page</string>
+    <string name="car_settings_about_credits_close">Close</string>
     <string name="car_settings_customize_tabs">Customize tabs</string>
     <string name="car_settings_select_library">Show library quick switch</string>
     <string name="car_settings_cache_size">Cache size</string>
@@ -140,12 +146,9 @@
     <string name="debug_tier_nothing_reported" translatable="false">(nothing reported)</string>
     <string name="debug_tier_nothing_here" translatable="false">%1$s · nothing here</string>
     <string name="debug_tier_fallback_from" translatable="false">%1$s · fallback from %2$s</string>
-    <string name="debug_tab_about" translatable="false">About</string>
-    <string name="debug_about_install" translatable="false">Updated %1$s\nInstalled by %2$s</string>
-    <string name="debug_about_no_installer" translatable="false">(no installer recorded)</string>
-    <string name="debug_about_credits" translatable="false">Credits</string>
-    <string name="debug_credits_qr" translatable="false">QR code for the credits page</string>
-    <string name="debug_credits_close" translatable="false">Close</string>
+    <string name="debug_build_title" translatable="false">This build</string>
+    <string name="debug_build_installer" translatable="false">Installed by %1$s</string>
+    <string name="debug_build_no_installer" translatable="false">(no installer recorded)</string>
     <string name="debug_tab_failures" translatable="false">Failures</string>
     <string name="debug_failures_limit_title" translatable="false">Stop after this many failures in a row</string>
     <string name="debug_failures_never" translatable="false">Never</string>

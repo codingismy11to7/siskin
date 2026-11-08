@@ -1,5 +1,6 @@
 package com.cappielloantonio.tempo.ui.fragment
 
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -21,7 +22,8 @@ import com.google.android.material.color.MaterialColors
 /**
  * The debug screen's Car tab: what each identity tier would tell Plex, and
  * which one does. Tapping a tier saves it as where the ladder starts. See
- * docs/decisions/2026-10-25-vehicle-identity-tier-pick-design.md.
+ * docs/decisions/2026-10-25-vehicle-identity-tier-pick-design.md. Below the
+ * tiers, what installed this build.
  */
 class DebugCarFragment : Fragment() {
     private var bind: FragmentDebugCarBinding? = null
@@ -35,7 +37,27 @@ class DebugCarFragment : Fragment() {
         val bind = FragmentDebugCarBinding.inflate(inflater, container, false)
         this.bind = bind
         bind.deviceInfo.setOnClickListener { showTooltip(it) }
+        bind.buildInstaller.text = getString(R.string.debug_build_installer, installer())
         return bind.root
+    }
+
+    /**
+     * The raw package name: com.android.vending is Play, and an `adb install`
+     * records none. Not translated into "Play Store" or "adb": the package name
+     * is the fact, and reading an absent installer as adb is a guess.
+     */
+    private fun installer(): String {
+        val packages = requireContext().packageManager
+        val name = requireContext().packageName
+        val installer =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                packages.getInstallSourceInfo(name).installingPackageName
+            } else {
+                // getInstallSourceInfo is API 30; this is the only form older head units have.
+                @Suppress("DEPRECATION")
+                packages.getInstallerPackageName(name)
+            }
+        return installer ?: getString(R.string.debug_build_no_installer)
     }
 
     /**
