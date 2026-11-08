@@ -8,10 +8,6 @@ import com.cappielloantonio.tempo.service.PlaybackFailurePolicy
 
 object Preferences {
     const val THEME = "theme"
-    private const val PLAYBACK_SPEED = "playback_speed"
-    private const val PLAYBACK_SPEED_PITCH = "playback_speed_pitch"
-    private const val PLAYBACK_SPEED_MANUAL_PITCH = "playback_speed_manual_pitch"
-    private const val PLAYBACK_SPEED_MANUAL_PITCH_VALUE = "playback_speed_manual_pitch_value"
     private const val SHUFFLE_MODE = "shuffle_mode"
     private const val REPEAT_MODE = "repeat_mode"
     private const val IMAGE_CACHE_SIZE = "image_cache_size"
@@ -44,18 +40,6 @@ object Preferences {
     private const val DEFAULT_FAILURE_LIMIT = 3
 
     private const val DARK_THEME_STYLE = "dark_theme_style"
-
-    @JvmStatic
-    fun getPlaybackSpeed(): Float = App.getInstance().preferences.getFloat(PLAYBACK_SPEED, 1f)
-
-    @JvmStatic
-    fun isPlaybackSpeedPitchEnabled(): Boolean = App.getInstance().preferences.getBoolean(PLAYBACK_SPEED_PITCH, false)
-
-    @JvmStatic
-    fun isPlaybackSpeedManualPitchEnabled(): Boolean = App.getInstance().preferences.getBoolean(PLAYBACK_SPEED_MANUAL_PITCH, false)
-
-    @JvmStatic
-    fun getPlaybackSpeedManualPitch(): Float = App.getInstance().preferences.getFloat(PLAYBACK_SPEED_MANUAL_PITCH_VALUE, 1f)
 
     @JvmStatic
     fun isShuffleModeEnabled(): Boolean = App.getInstance().preferences.getBoolean(SHUFFLE_MODE, false)
