@@ -1,2 +1,2 @@
-• Tracks now cross-fade. Each fade starts where the song begins to fade out, using your Plex server's loudness analysis, and tracks from the same album still play back to back. Turn it off with Cross-fade between tracks in Settings.
-• New Mixes tab: Plex's Mixes for You, each built around an artist you listen to. A mix plays shuffled and keeps going when it runs out. It's the second tab, so Artists moves under More unless you've customized your tabs.
+• Settings is laid out for the car's screen: categories down the side, with their settings beside them. Cache size, Precache and Customize tabs open beside the categories, so you never lose your place.
+• New About section in Settings: which version is installed, when it was updated, and the open-source credits.
