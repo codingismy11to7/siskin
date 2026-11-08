@@ -67,34 +67,11 @@
                 android:layout_weight="1"
                 android:fillViewport="true">
 
-                <LinearLayout
+                <!-- One child per category, built in code; only the selected one is visible. -->
+                <FrameLayout
+                    android:id="@+id/category_container"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <!-- One child per category, built in code; only the selected one is visible. -->
-                    <FrameLayout
-                        android:id="@+id/category_container"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
-
-                    <!--
-                        Shown under Account only. No string resource: a version
-                        and a build number have no prose to translate. tools:text
-                        is deliberately impossible, so it never reads as real.
-                    -->
-                    <TextView
-                        android:id="@+id/version_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
-                        android:layout_marginBottom="24dp"
-                        android:paddingHorizontal="@dimen/plex_sign_in_row_padding"
-                        android:paddingVertical="8dp"
-                        android:textAppearance="?attr/textAppearanceTitleLarge"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        tools:text="0.0.0 (0)" />
-                </LinearLayout>
+                    android:layout_height="wrap_content" />
             </ScrollView>
         </LinearLayout>
     </FrameLayout>

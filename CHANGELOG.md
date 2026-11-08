@@ -11,8 +11,13 @@
 
 ## [Unreleased] — Siskin
 
+- **Debug:** The debug screen opens on Server, and its Car tab shows what
+  installed the build.
+- Settings has an About section: which version is installed, when it was
+  updated, and the open-source credits. Tapping the version opens the debug
+  screen.
 - Settings is laid out for the car's screen rather than a phone's: a rail of
-  categories (Playback, Browse, Storage, Account) down the side, with the
+  categories (Playback, Browse, Storage, Account, About) down the side, with the
   selected one's settings beside it. Cache size, Precache and Customize tabs
   open beside the rail too, so you never lose your place.
 

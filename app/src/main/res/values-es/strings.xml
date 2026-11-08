@@ -45,6 +45,11 @@
     <string name="car_settings_category_browse">Explorar</string>
     <string name="car_settings_category_storage">Almacenamiento</string>
     <string name="car_settings_category_account">Cuenta</string>
+    <string name="car_settings_category_about">Información</string>
+    <string name="car_settings_about_updated">Actualizado %1$s (%2$s, %3$s)</string>
+    <string name="car_settings_about_credits">Créditos</string>
+    <string name="car_settings_about_credits_qr">Código QR de la página de créditos</string>
+    <string name="car_settings_about_credits_close">Cerrar</string>
     <string name="car_settings_customize_tabs">Personalizar pestañas</string>
     <string name="car_settings_select_library">Mostrar el cambio rápido de biblioteca</string>
     <string name="car_settings_cache_size">Tamaño de la caché</string>

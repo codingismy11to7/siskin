@@ -45,6 +45,11 @@
     <string name="car_settings_category_browse">Sfoglia</string>
     <string name="car_settings_category_storage">Archiviazione</string>
     <string name="car_settings_category_account">Account</string>
+    <string name="car_settings_category_about">Info</string>
+    <string name="car_settings_about_updated">Aggiornato %1$s (%2$s, %3$s)</string>
+    <string name="car_settings_about_credits">Riconoscimenti</string>
+    <string name="car_settings_about_credits_qr">Codice QR della pagina dei riconoscimenti</string>
+    <string name="car_settings_about_credits_close">Chiudi</string>
     <string name="car_settings_customize_tabs">Personalizza schede</string>
     <string name="car_settings_select_library">Mostra il cambio rapido della libreria</string>
     <string name="car_settings_cache_size">Dimensione della cache</string>

@@ -48,6 +48,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowDialog
 
 /**
  * Settings is reached by state: CarHostActivity.onCreate calls
@@ -128,8 +129,9 @@ class CarSettingsFragmentTest {
     ) {
         val text = textsIn(activity.findViewById(R.id.car_host_container)).single { it.text.toString() == label }
         // A value row nests its label beside the chevron, so the row is not
-        // always the label's parent: the first clickable ancestor is.
-        generateSequence(text.parent as View) { it.parent as? View }.first { it.isClickable }.performClick()
+        // always the label's parent, and a button is its own label: the first
+        // clickable view from the label up is the target.
+        generateSequence(text as View) { it.parent as? View }.first { it.isClickable }.performClick()
         shadowOf(Looper.getMainLooper()).idle()
     }
 
@@ -587,6 +589,7 @@ class CarSettingsFragmentTest {
                 R.id.settings_category_browse,
                 R.id.settings_category_storage,
                 R.id.settings_category_account,
+                R.id.settings_category_about,
             ),
             (0 until rail.menu.size()).map { rail.menu.getItem(it).itemId },
         )
@@ -602,6 +605,7 @@ class CarSettingsFragmentTest {
                 R.id.settings_category_browse to context.getString(R.string.car_settings_customize_tabs),
                 R.id.settings_category_storage to context.getString(R.string.car_settings_cache_size),
                 R.id.settings_category_account to context.getString(R.string.car_settings_sign_out),
+                R.id.settings_category_about to context.getString(R.string.car_settings_about_credits),
             )
         val activity = settingsActivity()
 
@@ -610,6 +614,51 @@ class CarSettingsFragmentTest {
             val texts = visibleTexts(activity.findViewById(R.id.car_host_container))
             assertEquals("in $category", listOf(row), rowOf.values.filter { it in texts })
         }
+    }
+
+    @Test
+    fun `About shows the build and when it landed`() {
+        val texts = visibleTexts(settingsScreen(R.id.settings_category_about))
+
+        assertTrue(texts.contains(App.getContext().getString(R.string.app_name)))
+        assertTrue(texts.contains(versionLabel))
+        assertTrue("got $texts", texts.any { it.startsWith("Updated ") })
+    }
+
+    /** About's version is the debug screen's entry point now, and there is one. */
+    @Test
+    fun `Account has no version line`() {
+        assertFalse(visibleTexts(settingsScreen(R.id.settings_category_account)).contains(versionLabel))
+    }
+
+    /** The URL is printed under the code, so the QR is a shortcut and never the only way there. */
+    @Test
+    fun `Credits opens a dialog with the credits URL spelled out`() {
+        val activity = settingsActivity(R.id.settings_category_about)
+
+        tapRow(activity, activity.getString(R.string.car_settings_about_credits))
+
+        val dialog = ShadowDialog.getLatestDialog()
+        assertTrue(dialog.isShowing)
+        assertEquals(CREDITS_URL, dialog.findViewById<TextView>(R.id.credits_url).text.toString())
+    }
+
+    /** A day/night switch recreates the activity, and a bare dialog would leak and vanish. */
+    @Test
+    fun `the Credits dialog survives the activity being recreated`() {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        shadowOf(Looper.getMainLooper()).idle()
+        select(controller.get(), R.id.settings_category_about)
+        tapRow(controller.get(), controller.get().getString(R.string.car_settings_about_credits))
+
+        controller.recreate()
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val credits =
+            settings(controller.get()).childFragmentManager.findFragmentByTag(CreditsDialogFragment.TAG) as CreditsDialogFragment
+        val dialog = credits.requireDialog()
+        assertTrue(dialog.isShowing)
+        assertEquals(CREDITS_URL, dialog.findViewById<TextView>(R.id.credits_url).text.toString())
     }
 
     private fun customizeTabsValue(screen: View): String {

@@ -25,7 +25,7 @@
         <ImageView
             android:layout_width="200dp"
             android:layout_height="200dp"
-            android:contentDescription="@string/debug_credits_qr"
+            android:contentDescription="@string/car_settings_about_credits_qr"
             android:src="@drawable/qr_credits" />
 
         <TextView

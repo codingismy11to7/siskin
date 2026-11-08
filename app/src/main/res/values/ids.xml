@@ -10,11 +10,11 @@
     <item name="debug_tab_failures" type="id" />
     <item name="debug_tab_voice" type="id" />
     <item name="debug_tab_changelog" type="id" />
-    <item name="debug_tab_about" type="id" />
 
     <!-- Settings' rail, for the same reason. -->
     <item name="settings_category_playback" type="id" />
     <item name="settings_category_browse" type="id" />
     <item name="settings_category_storage" type="id" />
     <item name="settings_category_account" type="id" />
+    <item name="settings_category_about" type="id" />
 </resources>

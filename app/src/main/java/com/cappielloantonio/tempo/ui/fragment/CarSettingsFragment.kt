@@ -68,6 +68,7 @@ class CarSettingsFragment : Fragment() {
     private var bind: FragmentCarSettingsBinding? = null
     private lateinit var viewModel: PlexSignInViewModel
     private var category = SettingsCategory.PLAYBACK
+    private var about: SettingsAbout? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -207,26 +208,19 @@ class CarSettingsFragment : Fragment() {
             (requireActivity() as LoginHost).onSignedOut()
         }
 
-        bind.versionText.text = versionLabel
-        // The version line is the debug screen's entry point. Settings itself
-        // holds only rows that change something, and debug information
-        // accumulates -- see the 2026-08-14 design. It is a screen rather than
-        // a dialog as of the 2026-08-16 one.
-        bind.versionText.setOnClickListener {
-            parentFragmentManager
-                .beginTransaction()
-                .replace(R.id.car_host_container, CarDebugFragment())
-                .addToBackStack(null)
-                .commit()
-        }
-        // setOnClickListener makes a view clickable but not focusable, and a
-        // rotary controller stops only on focusable views -- addToggle's row
-        // documents the same hazard, because a TextView starts out exactly as
-        // unfocusable as a bare LinearLayout does. Without this a rotary-only
-        // head unit skips the version line on its way from the toggles to Sign
-        // out, and the screen becomes unreachable, not merely undiscoverable.
-        bind.versionText.isFocusable = true
-        applyPressFeedback(bind.versionText)
+        // About's version is the debug screen's entry point. The debug screen
+        // is pushed, so back returns here, on About. Executed now, as in
+        // openInPane, so a second tap in the same frame pushes nothing more.
+        about =
+            SettingsAbout(panes.getValue(SettingsCategory.ABOUT), childFragmentManager) {
+                if (parentFragmentManager.backStackEntryCount > 0) return@SettingsAbout
+                parentFragmentManager
+                    .beginTransaction()
+                    .replace(R.id.car_host_container, CarDebugFragment())
+                    .addToBackStack(null)
+                    .commit()
+                parentFragmentManager.executePendingTransactions()
+            }
 
         viewLifecycleOwner.lifecycleScope.launch { HomeUsersRepository.refresh()?.let(::showHome) }
 
@@ -254,7 +248,7 @@ class CarSettingsFragment : Fragment() {
             this.category = category
             panes.forEach { (each, pane) -> pane.visibility = if (each == category) View.VISIBLE else View.GONE }
             bind.categoryHeading.setText(category.label)
-            bind.versionText.visibility = if (category == SettingsCategory.ACCOUNT) View.VISIBLE else View.GONE
+            if (category == SettingsCategory.ABOUT) about?.render()
             bind.contentScroll.scrollTo(0, 0)
         }
 
@@ -405,8 +399,15 @@ class CarSettingsFragment : Fragment() {
         viewModel.reopenUserPicker()
     }
 
+    /** About's Updated line is relative, and Settings can sit behind the car's UI for hours. */
+    override fun onResume() {
+        super.onResume()
+        if (category == SettingsCategory.ABOUT) about?.render()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        about = null
         paneChanged?.let(childFragmentManager::removeOnBackStackChangedListener)
         paneChanged = null
         paneOpener = null
@@ -430,10 +431,11 @@ private enum class SettingsCategory(
     BROWSE(R.id.settings_category_browse, R.string.car_settings_category_browse, R.drawable.ic_browse_library),
     STORAGE(R.id.settings_category_storage, R.string.car_settings_category_storage, R.drawable.ic_settings_storage),
     ACCOUNT(R.id.settings_category_account, R.string.car_settings_category_account, R.drawable.ic_settings_account),
+    ABOUT(R.id.settings_category_about, R.string.car_settings_category_about, R.drawable.ic_browse_info),
 }
 
 /**
- * The version as Settings and the debug screen's About tab both show it.
+ * The version as Settings' About shows it.
  *
  * A version number is not prose: "0.99.5 (12)" reads the same in every
  * locale, so a format resource would move the string without giving anything
