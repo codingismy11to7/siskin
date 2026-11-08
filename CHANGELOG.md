@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.5.1] (2026-11-07)
+
 - **Debug:** The debug screen opens on Server, and its Car tab shows what
   installed the build.
 - Settings has an About section: which version is installed, when it was
