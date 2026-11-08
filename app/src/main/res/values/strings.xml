@@ -49,6 +49,7 @@
     <string name="car_settings_category_storage">Storage</string>
     <string name="car_settings_category_account">Account</string>
     <string name="car_settings_category_about">About</string>
+    <string name="car_settings_help">Help</string>
     <!-- %1$s is relative ("3 minutes ago"), %2$s the date and %3$s the time it names. -->
     <string name="car_settings_about_updated">Updated %1$s (%2$s %3$s)</string>
     <string name="car_settings_about_credits">Credits</string>

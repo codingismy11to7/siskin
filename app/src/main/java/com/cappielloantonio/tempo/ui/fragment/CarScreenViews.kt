@@ -13,6 +13,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.StyleRes
 import androidx.core.graphics.ColorUtils
 import androidx.core.widget.doAfterTextChanged
 import com.cappielloantonio.tempo.R
@@ -53,10 +54,7 @@ internal fun addChoice(
     label: String,
     onClick: () -> Unit,
 ): MaterialButton {
-    val button =
-        carButton(container, label, com.google.android.material.R.attr.materialButtonStyle, onClick).apply {
-            setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnPrimary))
-        }
+    val button = carButton(container, label, com.google.android.material.R.attr.materialButtonStyle, onClick)
     addButton(container, button, ViewGroup.LayoutParams.MATCH_PARENT)
     return button
 }
@@ -88,10 +86,27 @@ internal fun addDestructiveChoice(
 private const val RIPPLE_ALPHA = 0x33
 
 /**
- * What both buttons share: the head unit's tap target and text size. The caller
- * sets the text color afterwards, because setTextAppearance carries its own and
- * clobbers the style's -- leaving, on a filled button, pale text on a pale fill.
+ * What every car button shares: the head unit's tap target and a text size.
+ * MaterialButton's style outranks a textAppearance attribute in a layout, so
+ * the size is set here, in code, for layout buttons too.
  */
+internal fun MaterialButton.applyCarButtonStyle(
+    @StyleRes textAppearance: Int,
+) {
+    minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
+    // MaterialButton's default 6dp insets would shave 12dp off that
+    // minHeight. Same reasoning as retry_button in the layout: the
+    // oversized target is the point on a head unit.
+    insetTop = 0
+    insetBottom = 0
+    // setTextAppearance carries a color of its own and clobbers the style's --
+    // leaving, on a filled button, pale text on a pale fill -- so the style's
+    // colors, pressed and disabled states included, are put back.
+    val styleColors = textColors
+    setTextAppearance(textAppearance)
+    setTextColor(styleColors)
+}
+
 private fun carButton(
     container: ViewGroup,
     label: String,
@@ -99,13 +114,7 @@ private fun carButton(
     onClick: () -> Unit,
 ) = MaterialButton(container.context, null, defStyleAttr).apply {
     text = label
-    minHeight = resources.getDimensionPixelSize(R.dimen.plex_sign_in_choice_min_height)
-    // MaterialButton's default 6dp insets would shave 12dp off that
-    // minHeight. Same reasoning as retry_button in the layout: the
-    // oversized target is the point on a head unit.
-    insetTop = 0
-    insetBottom = 0
-    setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
+    applyCarButtonStyle(com.google.android.material.R.style.TextAppearance_Material3_HeadlineSmall)
     setOnClickListener { onClick() }
 }
 

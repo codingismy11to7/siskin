@@ -289,9 +289,34 @@ def trimChangelog = tasks.register('trimChangelog', TrimChangelog) {
     changelog = rootProject.layout.projectDirectory.file('CHANGELOG.md')
 }
 
+// Settings' help is docs/web/settings-help.md, the same file the site renders
+// at /settings-help. Copied as it is; SettingsHelpAssetTest checks it against
+// the categories. See docs/decisions/2026-11-08-settings-help-design.md.
+abstract class BundleSettingsHelp extends DefaultTask {
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getHelp()
+
+    @OutputDirectory
+    abstract DirectoryProperty getOutputDir()
+
+    @TaskAction
+    void bundle() {
+        def out = outputDir.get().asFile
+        out.deleteDir()
+        out.mkdirs()
+        new File(out, 'settings-help.md').write(help.get().asFile.getText('UTF-8'), 'UTF-8')
+    }
+}
+
+def bundleSettingsHelp = tasks.register('bundleSettingsHelp', BundleSettingsHelp) {
+    help = rootProject.layout.projectDirectory.file('docs/web/settings-help.md')
+}
+
 androidComponents {
     onVariants(selector().all()) { variant ->
         variant.sources.assets?.addGeneratedSourceDirectory(trimChangelog) { it.outputDir }
+        variant.sources.assets?.addGeneratedSourceDirectory(bundleSettingsHelp) { it.outputDir }
     }
 }
 
