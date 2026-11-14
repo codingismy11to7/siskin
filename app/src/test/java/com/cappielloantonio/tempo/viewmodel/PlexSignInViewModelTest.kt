@@ -26,8 +26,10 @@ import com.cappielloantonio.tempo.plex.api.auth.AuthClient
 import com.cappielloantonio.tempo.plex.api.auth.CreatedPin
 import com.cappielloantonio.tempo.plex.api.server.ServerAddressBook
 import com.cappielloantonio.tempo.plex.api.server.ServerProbe
+import com.cappielloantonio.tempo.plex.auth.HomeListener
 import com.cappielloantonio.tempo.plex.auth.PendingAccount
 import com.cappielloantonio.tempo.plex.auth.PlexPinState
+import com.cappielloantonio.tempo.plex.auth.PlexSignInFlow
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.auth.SignInError
 import com.cappielloantonio.tempo.plex.models.Directory
@@ -35,6 +37,7 @@ import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.plex.models.Pin
 import com.cappielloantonio.tempo.plex.models.PlexAccount
 import com.cappielloantonio.tempo.plex.models.Resource
+import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.repository.QueueRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.service.MediaManager
@@ -42,6 +45,7 @@ import com.cappielloantonio.tempo.service.PlaybackReporter
 import com.cappielloantonio.tempo.util.PlexResourceFixture.aMediaServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -67,6 +71,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.doReturnConsecutively
+import org.mockito.kotlin.doSuspendableAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.stub
@@ -1649,23 +1654,23 @@ class PlexSignInViewModelTest {
     fun choosingAProtectedMemberAsksForTheirPin() =
         runTest(dispatcher) {
             val viewModel = signedInViewModel(signedInAuthClient(listOf(me, locked)))
-            val account = PendingAccount("granted")
-            viewModel.setStateForTest(PlexSignInState.ChoosingUser(nonEmptyListOf(me, locked), account))
+            val picker = PlexSignInState.ChoosingUser(nonEmptyListOf(me, locked), PendingAccount("granted"))
+            viewModel.setStateForTest(picker)
 
             viewModel.chooseUser(locked)
 
-            assertEquals(PlexSignInState.EnteringPin(locked, nonEmptyListOf(me, locked), account), viewModel.state.value)
+            assertEquals(PlexSignInState.EnteringPin(locked, picker), viewModel.state.value)
         }
 
     @Test
     fun backFromThePinPadReturnsToThePicker() {
         val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock())
-        val account = PendingAccount("stored")
-        viewModel.setStateForTest(PlexSignInState.EnteringPin(locked, nonEmptyListOf(me, locked), account, "me"))
+        val picker = PlexSignInState.ChoosingUser(nonEmptyListOf(me, locked), PendingAccount("stored"), "me")
+        viewModel.setStateForTest(PlexSignInState.EnteringPin(locked, picker))
 
         assertTrue(viewModel.backPressed())
 
-        assertEquals(PlexSignInState.ChoosingUser(nonEmptyListOf(me, locked), account, "me"), viewModel.state.value)
+        assertEquals(picker, viewModel.state.value)
     }
 
     @Test
@@ -1676,19 +1681,14 @@ class PlexSignInViewModelTest {
                     on { switch(any(), any(), anyOrNull(), anyOrNull()) } doReturn SignInError.WrongPin.left()
                 }
             val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = switch)
-            val account = PendingAccount("granted")
-            viewModel.setStateForTest(PlexSignInState.EnteringPin(locked, nonEmptyListOf(me, locked), account))
+            val picker = PlexSignInState.ChoosingUser(nonEmptyListOf(me, locked), PendingAccount("granted"))
+            viewModel.setStateForTest(PlexSignInState.EnteringPin(locked, picker))
 
             viewModel.enterPin("0000")
             advanceUntilIdle()
 
             assertEquals(
-                PlexSignInState.EnteringPin(
-                    locked,
-                    nonEmptyListOf(me, locked),
-                    account,
-                    messageRes = R.string.plex_sign_in_error_wrong_pin,
-                ),
+                PlexSignInState.EnteringPin(locked, picker, messageRes = R.string.plex_sign_in_error_wrong_pin),
                 viewModel.state.value,
             )
         }
@@ -2033,6 +2033,99 @@ class PlexSignInViewModelTest {
             assertEquals(PlexSignInState.Failed(R.string.plex_sign_in_error_network), viewModel.state.value)
         }
 
+    private val listeningPicker =
+        PlexSignInState.ChoosingServer(
+            nonEmptyListOf(aMediaServer()),
+            PendingAccount("me-token"),
+            listener = HomeListener(nonEmptyListOf(me, jill), "me"),
+        )
+
+    @Test
+    fun `the row opens the Home marking who is listening, with no plex_tv call`() {
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), authClientFor = { throw AssertionError("no call") })
+        viewModel.setStateForTest(listeningPicker)
+
+        viewModel.switchUser()
+
+        assertEquals(
+            PlexSignInState.ChoosingUser(nonEmptyListOf(me, jill), PendingAccount("me-token"), "me", returnTo = listeningPicker),
+            viewModel.state.value,
+        )
+    }
+
+    @Test
+    fun `the row does nothing without a listener`() {
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock())
+        val picker = listeningPicker.copy(listener = null)
+        viewModel.setStateForTest(picker)
+
+        viewModel.switchUser()
+
+        assertEquals(picker, viewModel.state.value)
+    }
+
+    @Test
+    fun `a switch from the row lands on the new list even when the saved server carries over`() =
+        runTest(dispatcher) {
+            PlexApi().session = savedSession
+            val outcome = SwitchOutcome.NeedsServer(PendingAccount("jill-token"), nonEmptyListOf(aMediaServer(accessToken = "s")))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = switch)
+            viewModel.setStateForTest(listeningPicker)
+
+            viewModel.switchUser()
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+
+            verify(switch).switch(PendingAccount("me-token"), jill, null, null)
+            val state = viewModel.state.value as PlexSignInState.ChoosingServer
+            assertEquals("jill", state.listener!!.currentUuid)
+            assertEquals("admin-token", PlexApi().session!!.accountToken)
+        }
+
+    @Test
+    fun `back from the row's Home returns to the picker it came from`() {
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock())
+        viewModel.setStateForTest(listeningPicker)
+        viewModel.switchUser()
+
+        assertTrue(viewModel.backPressed())
+
+        assertEquals(listeningPicker, viewModel.state.value)
+    }
+
+    @Test
+    fun `back from the row's PIN pad returns to the row's Home, then the picker`() {
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock())
+        viewModel.setStateForTest(listeningPicker.copy(listener = HomeListener(nonEmptyListOf(me, locked), "me")))
+        viewModel.switchUser()
+        viewModel.chooseUser(locked)
+
+        viewModel.backPressed()
+        assertEquals(true, (viewModel.state.value as PlexSignInState.ChoosingUser).returnTo != null)
+
+        viewModel.backPressed()
+        assertTrue(viewModel.state.value is PlexSignInState.ChoosingServer)
+    }
+
+    @Test
+    fun `a failed switch from the row keeps the way back`() =
+        runTest(dispatcher) {
+            val switch =
+                mock<HomeUserSwitch>().stub {
+                    on { switch(any(), any(), anyOrNull(), anyOrNull()) } doReturn
+                        SignInError.Api(PlexTransportFailure.Unreachable(PlexHost.PlexTv)).left()
+                }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = switch)
+            viewModel.setStateForTest(listeningPicker)
+            viewModel.switchUser()
+
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+
+            assertEquals(listeningPicker, (viewModel.state.value as PlexSignInState.ChoosingUser).returnTo)
+        }
+
     @Test
     fun anAbandonedSwitchDoesNotLeakIntoALaterChooseServer() =
         runTest(dispatcher) {
@@ -2081,5 +2174,312 @@ class PlexSignInViewModelTest {
                 viewModel.state.value,
             )
             verify(probe, never()).bestConnectionUri(any())
+        }
+
+    private fun homeOf(
+        current: String,
+        vararg users: HomeUser,
+    ) = HomeUsersRepository.Home(users.toList(), PlexAccount().apply { uuid = current })
+
+    @Test
+    fun `the reopened picker names who is listening from the remembered Home`() =
+        runTest(dispatcher) {
+            PlexApi().accountToken = "stored"
+            val authClient = mock<AuthClient>().stub { on { getResources() } doReturn listOf(aMediaServer()).right() }
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = mock(),
+                    authClientFor = { authClient },
+                    rememberedHome = { homeOf("jill", me, jill) },
+                )
+
+            viewModel.reopenServerPicker()
+            advanceUntilIdle()
+
+            val state = viewModel.state.value as PlexSignInState.ChoosingServer
+            assertEquals(HomeListener(nonEmptyListOf(me, jill), "jill", savedUuid = "jill"), state.listener)
+        }
+
+    @Test
+    fun `the reopened picker names nobody when nothing is remembered`() =
+        runTest(dispatcher) {
+            PlexApi().accountToken = "stored"
+            val authClient = mock<AuthClient>().stub { on { getResources() } doReturn listOf(aMediaServer()).right() }
+            val viewModel =
+                PlexSignInViewModel(mock<Application>(), authClient = mock(), authClientFor = { authClient }, rememberedHome = { null })
+
+            viewModel.reopenServerPicker()
+            advanceUntilIdle()
+
+            assertNull((viewModel.state.value as PlexSignInState.ChoosingServer).listener)
+        }
+
+    @Test
+    fun `a one-member sign-in names nobody`() =
+        runTest(dispatcher) {
+            val viewModel = signedInViewModel(signedInAuthClient(listOf(me)))
+            viewModel.connect()
+            advanceUntilIdle()
+
+            assertNull((viewModel.state.value as PlexSignInState.ChoosingServer).listener)
+        }
+
+    @Test
+    fun `a switch at sign-in names the member chosen`() =
+        runTest(dispatcher) {
+            val outcome = SwitchOutcome.NeedsServer(PendingAccount("jill-token"), nonEmptyListOf(aMediaServer()))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = switch)
+            viewModel.setStateForTest(PlexSignInState.ChoosingUser(nonEmptyListOf(me, jill), PendingAccount("granted")))
+
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+
+            val state = viewModel.state.value as PlexSignInState.ChoosingServer
+            assertEquals(HomeListener(nonEmptyListOf(me, jill), "jill"), state.listener)
+        }
+
+    @Test
+    fun `back from the library picker keeps who is listening`() {
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock())
+        val listener = HomeListener(nonEmptyListOf(me, jill), "jill")
+        val servers = nonEmptyListOf(aMediaServer())
+        viewModel.setStateForTest(
+            PlexSignInState.ChoosingLibrary(nonEmptyListOf(Directory()), servers, PendingAccount("t"), listener),
+        )
+
+        viewModel.backPressed()
+
+        assertEquals(PlexSignInState.ChoosingServer(servers, PendingAccount("t"), listener = listener), viewModel.state.value)
+    }
+
+    @Test
+    fun `a refused server keeps who is listening`() =
+        runTest(dispatcher) {
+            val unowned = aMediaServer(accessToken = null).apply { owned = false }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), probe = mock())
+            val listener = HomeListener(nonEmptyListOf(me, jill), "jill")
+            viewModel.setStateForTest(PlexSignInState.ChoosingServer(nonEmptyListOf(unowned), PendingAccount("t"), listener = listener))
+
+            viewModel.chooseServer(unowned)
+            advanceUntilIdle()
+
+            assertEquals(listener, (viewModel.state.value as PlexSignInState.ChoosingServer).listener)
+        }
+
+    // ── who is saved, and back during a switch ─────────────────────────
+
+    @Test
+    fun `a switch from Settings remembers who is saved, through the row`() =
+        runTest(dispatcher) {
+            PlexApi().session = savedSession
+            val outcome = SwitchOutcome.NeedsServer(PendingAccount("jill-token"), nonEmptyListOf(aMediaServer()))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val viewModel = signedInViewModel(signedInAuthClient(listOf(me, jill)), homeUserSwitch = switch)
+
+            viewModel.reopenUserPicker()
+            advanceUntilIdle()
+            val settings = viewModel.state.value as PlexSignInState.ChoosingUser
+            assertTrue(settings.keepsSaved)
+            assertEquals("me", settings.savedUuid)
+
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+            val servers = viewModel.state.value as PlexSignInState.ChoosingServer
+            assertEquals(HomeListener(nonEmptyListOf(me, jill), "jill", savedUuid = "me"), servers.listener)
+
+            viewModel.switchUser()
+            val row = viewModel.state.value as PlexSignInState.ChoosingUser
+            assertEquals("jill", row.currentUuid)
+            assertEquals("me", row.savedUuid)
+            assertFalse(row.keepsSaved)
+        }
+
+    private val rowServers =
+        PlexSignInState.ChoosingServer(
+            nonEmptyListOf(aMediaServer()),
+            PendingAccount("jill-token"),
+            listener = HomeListener(nonEmptyListOf(me, jill), "jill", savedUuid = "me"),
+        )
+
+    /** The row's Home after a pending switch to jill, with [saved]'s session stored. */
+    private fun rowPicker(saved: HomeUser) =
+        PlexSignInState.ChoosingUser(
+            nonEmptyListOf(saved, jill),
+            PendingAccount("jill-token"),
+            "jill",
+            returnTo = rowServers,
+            savedUuid = saved.uuid,
+        )
+
+    @Test
+    fun `choosing the saved member returns to their own servers without a switch`() =
+        runTest(dispatcher) {
+            PlexApi().session = savedSession
+            val authClient = mock<AuthClient>().stub { on { getResources() } doReturn listOf(aMediaServer()).right() }
+            val tokens = mutableListOf<String>()
+            val switch = mock<HomeUserSwitch>()
+            val viewModel =
+                PlexSignInViewModel(
+                    mock<Application>(),
+                    authClient = mock(),
+                    authClientFor = { token ->
+                        tokens += token
+                        authClient
+                    },
+                    homeUserSwitch = switch,
+                )
+            viewModel.setStateForTest(rowPicker(me))
+
+            viewModel.chooseUser(me)
+            advanceUntilIdle()
+
+            verify(switch, never()).switch(any(), any(), anyOrNull(), anyOrNull())
+            val state = viewModel.state.value as PlexSignInState.ChoosingServer
+            assertEquals(PendingAccount("admin-token"), state.account)
+            assertEquals("me", state.listener!!.currentUuid)
+            assertEquals(listOf("admin-token"), tokens)
+        }
+
+    @Test
+    fun `a protected saved member is not asked for a PIN`() =
+        runTest(dispatcher) {
+            PlexApi().session = savedSession
+            val authClient = mock<AuthClient>().stub { on { getResources() } doReturn listOf(aMediaServer()).right() }
+            val switch = mock<HomeUserSwitch>()
+            val viewModel =
+                PlexSignInViewModel(mock<Application>(), authClient = mock(), authClientFor = { authClient }, homeUserSwitch = switch)
+            viewModel.setStateForTest(rowPicker(locked))
+
+            viewModel.chooseUser(locked)
+            advanceUntilIdle()
+
+            verify(switch, never()).switch(any(), any(), anyOrNull(), anyOrNull())
+            assertEquals("locked", (viewModel.state.value as PlexSignInState.ChoosingServer).listener!!.currentUuid)
+        }
+
+    @Test
+    fun `returning to the saved member stays on the Home when plex_tv fails`() =
+        runTest(dispatcher) {
+            PlexApi().session = savedSession
+            val failure = PlexTransportFailure.Unreachable(PlexHost.PlexTv)
+            val authClient = mock<AuthClient>().stub { on { getResources() } doReturn failure.left() }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), authClientFor = { authClient })
+            val picker = rowPicker(me)
+            viewModel.setStateForTest(picker)
+
+            viewModel.chooseUser(me)
+            advanceUntilIdle()
+
+            assertEquals(picker.copy(messageRes = PlexSignInFlow.messageFor(SignInError.Api(failure))), viewModel.state.value)
+            assertEquals(rowServers, (viewModel.state.value as PlexSignInState.ChoosingUser).returnTo)
+        }
+
+    private fun hangingSwitch() =
+        mock<HomeUserSwitch>().stub {
+            on { switch(any(), any(), anyOrNull(), anyOrNull()) } doSuspendableAnswer { awaitCancellation() }
+        }
+
+    @Test
+    fun `back during a switch at sign-in returns to the Home`() =
+        runTest(dispatcher) {
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = hangingSwitch())
+            val picker = PlexSignInState.ChoosingUser(nonEmptyListOf(me, jill), PendingAccount("granted"))
+            viewModel.setStateForTest(picker)
+
+            viewModel.chooseUser(jill)
+            runCurrent()
+            assertEquals(PlexSignInState.Working, viewModel.state.value)
+
+            assertTrue(viewModel.backPressed())
+            assertEquals(picker, viewModel.state.value)
+            advanceUntilIdle()
+            assertEquals(picker, viewModel.state.value)
+        }
+
+    @Test
+    fun `back during a switch from Settings returns to Settings' Home`() =
+        runTest(dispatcher) {
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = hangingSwitch())
+            val picker =
+                PlexSignInState.ChoosingUser(
+                    nonEmptyListOf(me, jill),
+                    PendingAccount("admin-token"),
+                    "me",
+                    keepsSaved = true,
+                    savedUuid = "me",
+                )
+            viewModel.setStateForTest(picker)
+
+            viewModel.chooseUser(jill)
+            runCurrent()
+            viewModel.backPressed()
+
+            assertEquals(picker, viewModel.state.value)
+        }
+
+    @Test
+    fun `back during a switch from the PIN pad returns to the Home, not the pad`() =
+        runTest(dispatcher) {
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), homeUserSwitch = hangingSwitch())
+            val picker = PlexSignInState.ChoosingUser(nonEmptyListOf(me, locked), PendingAccount("granted"))
+            viewModel.setStateForTest(picker)
+            viewModel.chooseUser(locked)
+
+            viewModel.enterPin("1234")
+            runCurrent()
+            assertEquals(PlexSignInState.Working, viewModel.state.value)
+            viewModel.backPressed()
+
+            assertEquals(picker, viewModel.state.value)
+        }
+
+    @Test
+    fun `back during a return to the saved member returns to the Home`() =
+        runTest(dispatcher) {
+            PlexApi().session = savedSession
+            val authClient = mock<AuthClient>().stub { on { getResources() } doSuspendableAnswer { awaitCancellation() } }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), authClientFor = { authClient })
+            val picker = rowPicker(me)
+            viewModel.setStateForTest(picker)
+
+            viewModel.chooseUser(me)
+            runCurrent()
+            assertEquals(PlexSignInState.Working, viewModel.state.value)
+
+            assertTrue(viewModel.backPressed())
+            assertEquals(picker, viewModel.state.value)
+        }
+
+    @Test
+    fun `back from the PIN pad does not bring back an earlier error`() {
+        val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock())
+        val picker = rowPicker(me).copy(users = nonEmptyListOf(me, jill, locked))
+        viewModel.setStateForTest(picker.copy(messageRes = R.string.plex_sign_in_error_network))
+
+        viewModel.chooseUser(locked)
+        viewModel.backPressed()
+
+        assertEquals(picker, viewModel.state.value)
+    }
+
+    @Test
+    fun `a finished switch does not change where back goes from later work`() =
+        runTest(dispatcher) {
+            val outcome = SwitchOutcome.NeedsServer(PendingAccount("jill-token"), nonEmptyListOf(aMediaServer()))
+            val switch = mock<HomeUserSwitch>().stub { on { switch(any(), any(), anyOrNull(), anyOrNull()) } doReturn outcome.right() }
+            val viewModel = PlexSignInViewModel(mock<Application>(), authClient = mock(), probe = mock(), homeUserSwitch = switch)
+            viewModel.setStateForTest(PlexSignInState.ChoosingUser(nonEmptyListOf(me, jill), PendingAccount("granted")))
+            viewModel.chooseUser(jill)
+            advanceUntilIdle()
+
+            viewModel.chooseServer((viewModel.state.value as PlexSignInState.ChoosingServer).servers.head)
+            assertEquals(PlexSignInState.Working, viewModel.state.value)
+            viewModel.backPressed()
+
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
+            advanceUntilIdle()
+            assertEquals(PlexSignInState.Disconnected, viewModel.state.value)
         }
 }

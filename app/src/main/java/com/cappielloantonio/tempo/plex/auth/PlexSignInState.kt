@@ -2,6 +2,7 @@ package com.cappielloantonio.tempo.plex.auth
 
 import androidx.annotation.StringRes
 import arrow.core.NonEmptyList
+import arrow.core.toNonEmptyListOrNull
 import com.cappielloantonio.tempo.plex.models.Directory
 import com.cappielloantonio.tempo.plex.models.HomeUser
 import com.cappielloantonio.tempo.plex.models.Resource
@@ -67,11 +68,15 @@ sealed interface PlexSignInState {
      *
      * [account] is who a commit from here signs in as. Nothing has been
      * written for it yet; see [PendingAccount].
+     *
+     * [listener] draws the Switch user row; null when there is no Home of two
+     * or more to show. See the 2026-11-14 picker design.
      */
     data class ChoosingServer(
         val servers: NonEmptyList<Resource>,
         val account: PendingAccount,
         @param:StringRes val messageRes: Int? = null,
+        val listener: HomeListener? = null,
     ) : PlexSignInState
 
     /**
@@ -88,41 +93,60 @@ sealed interface PlexSignInState {
      *
      * [account] is carried forward the same way, and is the account token the
      * commit from here writes.
+     *
+     * [listener] is carried for the same reason as [servers]: back restores the
+     * picker whole.
      */
     data class ChoosingLibrary(
         val sections: NonEmptyList<Directory>,
         val servers: NonEmptyList<Resource>,
         val account: PendingAccount,
+        val listener: HomeListener? = null,
     ) : PlexSignInState
 
     /**
      * Who is listening, for a Home with more than one member. Non-empty by
      * construction; a one-member Home never shows this.
      *
-     * [currentUuid] is set only when opened from settings, where it marks the
-     * active member and tapping it does nothing. At sign-in it is null and
-     * every member, the signed-in one included, is a switch.
+     * [currentUuid] is set when opened from settings or the server picker's
+     * row, where it marks the active member and tapping it does nothing. At
+     * sign-in it is null and every member, the signed-in one included, is a
+     * switch.
      *
      * [account] is the token a switch is made *from*: the one that approved
      * the PIN at sign-in, the stored one from settings.
+     *
+     * [returnTo] is set when opened from the server picker's row, and back
+     * returns there.
+     *
+     * [keepsSaved] lets a switch from here keep the saved server when the new
+     * member can still see it. Its own flag rather than inferred from
+     * [returnTo]: the two coincide today, and a later entry point that wants
+     * one without the other should not inherit both.
+     *
+     * [savedUuid] is the member whose session is stored, when known. Choosing
+     * them returns to their own servers with the stored token rather than
+     * spending a switch.
      */
     data class ChoosingUser(
         val users: NonEmptyList<HomeUser>,
         val account: PendingAccount,
         val currentUuid: String? = null,
         @param:StringRes val messageRes: Int? = null,
+        val returnTo: ChoosingServer? = null,
+        val keepsSaved: Boolean = false,
+        val savedUuid: String? = null,
     ) : PlexSignInState
 
     /**
-     * A protected member's PIN. Carries [users], [account] and [currentUuid]
-     * so that back returns to the picker intact, as [ChoosingLibrary] carries
-     * `servers`.
+     * A protected member's PIN.
+     *
+     * Carries the [picker] it was opened from, whole, so back returns to it and
+     * a switch from here keeps every choice the picker made.
      */
     data class EnteringPin(
         val user: HomeUser,
-        val users: NonEmptyList<HomeUser>,
-        val account: PendingAccount,
-        val currentUuid: String? = null,
+        val picker: ChoosingUser,
         @param:StringRes val messageRes: Int? = null,
     ) : PlexSignInState
 
@@ -134,4 +158,35 @@ sealed interface PlexSignInState {
 
     /** Signed in. The settings screen. */
     data object Connected : PlexSignInState
+}
+
+/**
+ * Who is listening, for the server picker's Switch user row. Exists only for a
+ * Home of two or more with the listener among its members: anything less is
+ * no one to switch to, or a list that cannot mark who is current.
+ *
+ * [savedUuid] is the member whose session is stored, when known; see
+ * [PlexSignInState.ChoosingUser.savedUuid].
+ */
+data class HomeListener(
+    val users: NonEmptyList<HomeUser>,
+    val currentUuid: String,
+    val savedUuid: String? = null,
+) {
+    val name: String get() = users.firstOrNull { it.uuid == currentUuid }?.title.orEmpty()
+
+    companion object {
+        /** Whether a Home has anyone to switch to: the one count rule, so no two places can disagree. */
+        fun hasOthers(users: List<HomeUser>): Boolean = users.size >= 2
+
+        fun of(
+            users: List<HomeUser>,
+            currentUuid: String?,
+            savedUuid: String? = null,
+        ): HomeListener? {
+            val home = users.toNonEmptyListOrNull() ?: return null
+            if (!hasOthers(home) || currentUuid == null || home.none { it.uuid == currentUuid }) return null
+            return HomeListener(home, currentUuid, savedUuid)
+        }
+    }
 }

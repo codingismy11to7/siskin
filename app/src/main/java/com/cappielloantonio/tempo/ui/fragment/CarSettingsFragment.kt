@@ -2,7 +2,6 @@ package com.cappielloantonio.tempo.ui.fragment
 
 import android.content.Context
 import android.os.Bundle
-import android.text.TextUtils
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
@@ -24,6 +23,7 @@ import com.cappielloantonio.tempo.BuildConfig
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.databinding.FragmentCarSettingsBinding
 import com.cappielloantonio.tempo.interfaces.LoginHost
+import com.cappielloantonio.tempo.plex.auth.HomeListener
 import com.cappielloantonio.tempo.repository.HomeUsersRepository
 import com.cappielloantonio.tempo.service.BrowseTreeInvalidator
 import com.cappielloantonio.tempo.util.BrowseTabOrder
@@ -190,14 +190,11 @@ class CarSettingsFragment : Fragment() {
         // Shown only for a Home with more than one member. Drawn from the
         // remembered answer, so the row is usually in place before plex.tv
         // replies; a failed reply then changes nothing, since hiding a drawn
-        // row would slide Sign out up under the finger aimed at it. One line,
-        // ellipsized, so a long name or a rename cannot change the row's height.
-        val switchUser = addValueRow(account, getString(R.string.car_settings_switch_user), "") { switchUser() }
-        switchUser.value.maxLines = 1
-        switchUser.value.ellipsize = TextUtils.TruncateAt.END
+        // row would slide Sign out up under the finger aimed at it.
+        val switchUser = addValueRow(account, getString(R.string.car_settings_switch_user), "", singleLine = true) { switchUser() }
 
         fun showHome(home: HomeUsersRepository.Home?) {
-            val shown = home != null && home.users.size >= 2
+            val shown = home != null && HomeListener.of(home.users, home.current.uuid) != null
             if (shown) switchUser.value.text = getString(R.string.car_settings_listening_as, home.current.title.orEmpty())
             switchUser.row.visibility = if (shown) View.VISIBLE else View.GONE
         }

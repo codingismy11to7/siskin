@@ -11,6 +11,12 @@
 
 ## [Unreleased] — Siskin
 
+- In a Plex Home of two or more, the server picker says who is listening and
+  can switch to another member, so a short server list explains itself and a
+  wrong member picked at sign-in can be corrected without a new code.
+  Pressing back while a switch is in progress, here or from Settings' Switch
+  user, returns to the member list instead of the sign-in screen.
+
 - Settings categories have a Help button that explains their settings, in
   English. The same text is on siskinapp.com/settings-help.
 

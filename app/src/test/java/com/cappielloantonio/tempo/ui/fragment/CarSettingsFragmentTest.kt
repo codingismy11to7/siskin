@@ -848,6 +848,23 @@ class CarSettingsFragmentTest {
     }
 
     @Test
+    fun `a Home of two that lacks the current user shows no Switch user row`() {
+        HomeUsersRepository.fetch = {
+            home("codingismy11to7", "jill").copy(
+                current =
+                    PlexAccount().apply {
+                        uuid = "stranger"
+                        title = "stranger"
+                    },
+            )
+        }
+
+        val screen = settingsScreen(R.id.settings_category_account)
+
+        assertFalse(visibleTexts(screen).contains(App.getContext().getString(R.string.car_settings_switch_user)))
+    }
+
+    @Test
     fun `a failed Home lookup shows no Switch user row`() {
         HomeUsersRepository.fetch = { null }
 

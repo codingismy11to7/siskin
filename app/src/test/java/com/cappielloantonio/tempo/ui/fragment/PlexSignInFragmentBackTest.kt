@@ -1,11 +1,14 @@
 package com.cappielloantonio.tempo.ui.fragment
 
 import android.os.Looper
+import android.view.View
+import android.view.ViewGroup
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
 import arrow.core.nonEmptyListOf
 import com.cappielloantonio.tempo.R
 import com.cappielloantonio.tempo.plex.PlexApi
+import com.cappielloantonio.tempo.plex.auth.HomeListener
 import com.cappielloantonio.tempo.plex.auth.PendingAccount
 import com.cappielloantonio.tempo.plex.auth.PlexSignInState
 import com.cappielloantonio.tempo.plex.models.HomeUser
@@ -117,7 +120,11 @@ class PlexSignInFragmentBackTest {
         val users = twoMembers().users
 
         viewModel.setStateForTest(
-            PlexSignInState.EnteringPin(users.head, users, PendingAccount("t"), messageRes = R.string.plex_sign_in_error_wrong_pin),
+            PlexSignInState.EnteringPin(
+                users.head,
+                PlexSignInState.ChoosingUser(users, PendingAccount("t")),
+                messageRes = R.string.plex_sign_in_error_wrong_pin,
+            ),
         )
         idle()
 
@@ -157,5 +164,74 @@ class PlexSignInFragmentBackTest {
         // fragment back stack popped.
         assertEquals(state, viewModel.state.value)
         assertEquals(0, activity.supportFragmentManager.backStackEntryCount)
+    }
+
+    private fun pushedPicker(): Pair<CarHostActivity, PlexSignInViewModel> {
+        val controller = Robolectric.buildActivity(CarHostActivity::class.java).setup()
+        idle()
+        val activity = controller.get()
+        activity.supportFragmentManager
+            .beginTransaction()
+            .replace(R.id.car_host_container, PlexSignInFragment.pushed())
+            .addToBackStack(null)
+            .commit()
+        idle()
+        return activity to ViewModelProvider(activity)[PlexSignInViewModel::class.java]
+    }
+
+    private fun listeningPicker(): PlexSignInState.ChoosingServer {
+        val users = twoMembers().users
+        return PlexSignInState.ChoosingServer(nonEmptyListOf(aMediaServer()), PendingAccount("t"), listener = HomeListener(users, "b"))
+    }
+
+    @Test
+    fun `the picker names who is listening, and the row opens the Home`() {
+        val (activity, viewModel) = pushedPicker()
+        viewModel.setStateForTest(listeningPicker())
+        idle()
+
+        val row = activity.findViewById<ViewGroup>(R.id.listener_container)
+        assertEquals(View.VISIBLE, row.visibility)
+        val texts = mutableListOf<String>()
+
+        fun collect(v: View) {
+            if (v is android.widget.TextView) texts += v.text.toString()
+            if (v is ViewGroup) (0 until v.childCount).forEach { collect(v.getChildAt(it)) }
+        }
+        collect(row)
+        assertEquals(
+            listOf(activity.getString(R.string.car_settings_switch_user), activity.getString(R.string.car_settings_listening_as, "b")),
+            texts,
+        )
+
+        row.getChildAt(0).performClick()
+        idle()
+
+        assertEquals(true, viewModel.state.value is PlexSignInState.ChoosingUser)
+    }
+
+    @Test
+    fun `a picker with no listener shows no row`() {
+        val (activity, viewModel) = pushedPicker()
+        viewModel.setStateForTest(listeningPicker().copy(listener = null))
+        idle()
+
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.listener_container).visibility)
+    }
+
+    @Test
+    fun `back out of the row's Home returns to the picker, even pushed`() {
+        val (activity, viewModel) = pushedPicker()
+        val picker = listeningPicker()
+        viewModel.setStateForTest(picker)
+        idle()
+        viewModel.switchUser()
+        idle()
+
+        activity.onBackPressedDispatcher.onBackPressed()
+        idle()
+
+        assertEquals(picker, viewModel.state.value)
+        assertEquals(1, activity.supportFragmentManager.backStackEntryCount)
     }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.text.InputFilter
 import android.text.InputType
+import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -239,16 +240,24 @@ internal class ValueRow(
  * value sits below rather than at the row's end so a long one wraps instead of
  * crowding the label, and the trailing chevron says the row opens a screen
  * where a toggle row changes in place.
+ *
+ * [singleLine] gives one line, ellipsized, so a long value or a rename cannot
+ * change the row's height.
  */
 internal fun addValueRow(
     container: ViewGroup,
     label: String,
     value: String,
+    singleLine: Boolean = false,
     onClick: () -> Unit,
 ): ValueRow {
     val valueText =
         TextView(container.context).apply {
             text = value
+            if (singleLine) {
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            }
             setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium)
             setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
         }
