@@ -1,2 +1,3 @@
-• Settings is laid out for the car's screen: categories down the side, with their settings beside them. Cache size, Precache and Customize tabs open beside the categories, so you never lose your place.
-• New About section in Settings: which version is installed, when it was updated, and the open-source credits.
+• In a Plex Home, the server picker shows who is listening and can switch to another member, so a wrong pick at sign-in no longer needs a new code
+• Each Settings category has a Help button explaining its settings (English only)
+• Fixed Keep the music playing adding tracks to a queue you had just started

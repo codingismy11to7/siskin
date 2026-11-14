@@ -11,6 +11,8 @@
 
 ## [Unreleased] — Siskin
 
+## [1.5.2] (2026-11-14)
+
 - In a Plex Home of two or more, the server picker says who is listening and
   can switch to another member, so a short server list explains itself and a
   wrong member picked at sign-in can be corrected without a new code.
