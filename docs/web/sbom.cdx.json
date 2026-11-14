@@ -5018,43 +5018,43 @@
         },
         {
             "type": "library",
-            "bom-ref": "pkg:maven/com.google.guava/guava@33.7.2-android?type=jar",
+            "bom-ref": "pkg:maven/com.google.guava/guava@33.8.0-android?type=jar",
             "group": "com.google.guava",
             "name": "guava",
-            "version": "33.7.2-android",
+            "version": "33.8.0-android",
             "description": "Guava is a suite of core and expanded libraries that include utility classes, Google's collections, I/O classes, and much more.",
             "hashes": [
                 {
                     "alg": "MD5",
-                    "content": "95d86a8dc0236096fd3f93ed2f934284"
+                    "content": "312f3ceea6e186cba2232b7c27c5cd23"
                 },
                 {
                     "alg": "SHA-1",
-                    "content": "0e601df8fa35293ad4fa7c6ec4522152d304eb41"
+                    "content": "88dcd671275b948d6f024be1d2604300bdc8b937"
                 },
                 {
                     "alg": "SHA-256",
-                    "content": "b949fe975a32421c1a2633c07a4f1578b462f2f467668aa0a4023c5ff7c4a808"
+                    "content": "c88b3bd93382316b00a387b629d2cc2620119e16c46554b07fa14e9aa07f990e"
                 },
                 {
                     "alg": "SHA-512",
-                    "content": "3673d56efbab0384ddf1f3b564b09fd4439b132aee914e57bd0867b4fc43a6751246c4a74c5057c0b8440d1be20142bb838880e7783d6f9efea2a0eb6ba7c252"
+                    "content": "923c2ff51942e518e18ea4c0ebd45e64aa32785a47f3c9bca95ae6398d1622983ccde2dff8778ed07655078489bc04bb23a1aa792b2a7cc1105b05b92800f98c"
                 },
                 {
                     "alg": "SHA3-256",
-                    "content": "3d7055729a763bde36b74f87dd670a7f755ef83d6989dbc8a88b4189fbfc8715"
+                    "content": "d1939d703caabce52f51d1a24ceff46a038a7ea466075c6339c264cdff9f30c5"
                 },
                 {
                     "alg": "SHA3-512",
-                    "content": "ee4c9032d0288faddf7e37e4df67fc60836c44f2909910a97361fbe6e7f72a46641b928e02ec493540d26c897ba1d32db5bedaad6a9c00fe331bcde77263a3b8"
+                    "content": "e546663a9d1cabd73ed0710e370a29a241522307904b5b91c7c7b4de8b09bbec31a7a39e311f37b515afb4f4f62635f852974753cbe3b8a27e9fc4a96425b271"
                 },
                 {
                     "alg": "SHA-384",
-                    "content": "1c45018398902fda0c87d0c3b46f5da5a25fa2ca563cedeb693ca3b045b4f93a997bb859a880fe881d3d8cf4b4db6a2e"
+                    "content": "ae2d78f36f1f1653486469eea8ff2654430613754c9d1397c02f8154726f210cdfa03c10ca9c11c1606860a78624fab8"
                 },
                 {
                     "alg": "SHA3-384",
-                    "content": "cc105d80f727d490ab23e8229d58b124691d28184ef2cc092c2f387096a5921adbde7f839c96f600318fae127cccf6f1"
+                    "content": "10b9286cd8c2d37865a454152cc1d5af367200bc3eaf35dab211385b5dbb542bdcb70e408300bacdbb1dd27fc92befd1"
                 }
             ],
             "licenses": [
@@ -5064,7 +5064,7 @@
                     }
                 }
             ],
-            "purl": "pkg:maven/com.google.guava/guava@33.7.2-android?type=jar",
+            "purl": "pkg:maven/com.google.guava/guava@33.8.0-android?type=jar",
             "modified": false,
             "properties": [
                 {
@@ -7302,7 +7302,7 @@
             "ref": "pkg:maven/androidx.media3/media3-common@1.11.0?type=aar",
             "dependsOn": [
                 "pkg:maven/androidx.annotation/annotation@1.10.0?type=pom",
-                "pkg:maven/com.google.guava/guava@33.7.2-android?type=jar",
+                "pkg:maven/com.google.guava/guava@33.8.0-android?type=jar",
                 "pkg:maven/androidx.annotation/annotation-experimental@1.5.0?type=aar"
             ]
         },
@@ -7618,7 +7618,7 @@
             ]
         },
         {
-            "ref": "pkg:maven/com.google.guava/guava@33.7.2-android?type=jar",
+            "ref": "pkg:maven/com.google.guava/guava@33.8.0-android?type=jar",
             "dependsOn": [
                 "pkg:maven/com.google.guava/listenablefuture@9999.0-empty-to-avoid-conflict-with-guava?type=jar",
                 "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
