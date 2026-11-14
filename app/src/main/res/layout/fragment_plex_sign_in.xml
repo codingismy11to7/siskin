@@ -45,6 +45,19 @@
         android:textColor="?attr/colorOnSurfaceVariant" />
 
     <!--
+        Who is listening, for a Home of two or more; render() fills it. Pinned
+        outside the scroll so it explains a short server list before the list
+        is read, and stays put however long the list is.
+    -->
+    <LinearLayout
+        android:id="@+id/listener_container"
+        android:layout_width="@dimen/plex_sign_in_choice_width"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:orientation="vertical"
+        android:visibility="gone" />
+
+    <!--
         fillViewport lets the child fill the leftover space so short content
         still centres in it.
     -->

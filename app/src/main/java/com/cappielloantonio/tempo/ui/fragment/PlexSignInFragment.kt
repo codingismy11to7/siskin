@@ -118,14 +118,19 @@ class PlexSignInFragment : Fragment() {
      * Settings pushes this screen for Switch user too, and back out of the Home
      * picker likewise returns there.
      *
-     * Only [PlexSignInState.ChoosingServer] and [PlexSignInState.ChoosingUser]
-     * are excepted, and only when pushed.
+     * Only [PlexSignInState.ChoosingServer], and a [PlexSignInState.ChoosingUser]
+     * that was not opened from the server picker's row, are excepted, and only
+     * when pushed. One opened from the row returns to that picker, a step inside
+     * this screen, as backing out of the library picker does.
      * Backing out of the *library* picker still belongs to the flow even here:
      * it returns to the server picker one step up, which is a move inside this
      * screen rather than out of it.
      */
     private fun claimsBackPress(state: PlexSignInState): Boolean {
-        if (pushed && (state is PlexSignInState.ChoosingServer || state is PlexSignInState.ChoosingUser)) return false
+        val handsBack =
+            state is PlexSignInState.ChoosingServer ||
+                (state is PlexSignInState.ChoosingUser && state.returnTo == null)
+        if (pushed && handsBack) return false
         return viewModel.handlesBackPress(state)
     }
 
@@ -136,6 +141,8 @@ class PlexSignInFragment : Fragment() {
         bind.progress.visibility = View.GONE
         bind.approvalGroup.visibility = View.GONE
         bind.choiceContainer.removeAllViews()
+        bind.listenerContainer.removeAllViews()
+        bind.listenerContainer.visibility = View.GONE
         bind.errorText.visibility = View.GONE
         bind.retryButton.visibility = View.GONE
 
@@ -229,6 +236,15 @@ class PlexSignInFragment : Fragment() {
                 state.messageRes?.let {
                     bind.errorText.visibility = View.VISIBLE
                     bind.errorText.setText(it)
+                }
+                state.listener?.let { listener ->
+                    addValueRow(
+                        bind.listenerContainer,
+                        getString(R.string.car_settings_switch_user),
+                        getString(R.string.car_settings_listening_as, listener.name),
+                        singleLine = true,
+                    ) { viewModel.switchUser() }
+                    bind.listenerContainer.visibility = View.VISIBLE
                 }
                 state.servers.forEach { server ->
                     addChoice(bind.choiceContainer, server.name.orEmpty()) {
