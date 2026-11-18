@@ -48,7 +48,7 @@ zxing = "3.5.4"
 bouncycastle = "1.86"
 jose4j = "0.9.7"
 jdom2 = "2.0.6.1"
-commonsLang3 = "3.21.0"
+commonsLang3 = "3.22.0"
 jackson = "2.23.0"
 guavaJre = "33.8.0-android"
 
